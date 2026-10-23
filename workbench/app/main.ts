@@ -279,6 +279,14 @@ function registerHandlers() {
     if (!result.ok) throw new Error(result.error);
     return result;
   });
+  // The Reflect page's session tree (T-137).
+  ipcMain.handle('a2a:reflect', async (event, project: unknown) => {
+    const context = windowTarget(event);
+    if (typeof project !== 'string' || !project) throw new Error('Invalid project');
+    const result = await request(context.options.state, { command: 'reflect_tree', project }, context.operator);
+    if (!result.ok) throw new Error(result.error);
+    return result.nodes;
+  });
   ipcMain.handle('a2a:retrospectives', async (event, project: unknown) => {
     const context = windowTarget(event);
     if (typeof project !== 'string' || !project) throw new Error('Invalid project');

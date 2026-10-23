@@ -172,8 +172,8 @@ def main():
         electron = Electron(fixture, 't136-' + fixture.dir.name[5:])
         electron.until('项目出现', "!!document.querySelector('[data-project-id=\"demo\"]')")
         electron.evaluate("document.querySelector('[data-project-id=\"demo\"]').click()")
-        electron.until('复盘页签', "!!document.querySelector('[data-retrospective-tab]')", 20)
-        electron.evaluate("document.querySelector('[data-retrospective-tab]').click()")
+        electron.until('Reflect 页签', "!!document.querySelector('[data-reflect-tab]')", 20)
+        electron.evaluate("document.querySelector('[data-reflect-tab]').click()")
         electron.until('复盘页', "!!document.querySelector('[data-start-retrospective]')", 30)
         electron.evaluate(SET_VALUE + f"set([...document.querySelectorAll('.retrospective-page label')].find(l=>l.textContent.startsWith('模型')).querySelector('input'),{json.dumps(MODEL)});")
         electron.until('模型已填', f"[...document.querySelectorAll('.retrospective-page label')].find(l=>l.textContent.startsWith('模型')).querySelector('input').value==={json.dumps(MODEL)}", 10)
@@ -289,7 +289,8 @@ def main():
         # 6: the schedule: a slot two days ahead fires once at its time (injected clock), not twice; switched off on the page, the next week does not.
         local = datetime.now().astimezone() + timedelta(days=2)
         slot = local.replace(hour=10, minute=0, second=0, microsecond=0)
-        saved = fixture.request('retrospective_schedule_save', fixture.operator, weekday=(slot.weekday() + 1) % 7, hour=10, minute=0, model=MODEL, effort='low')
+        # Since T-137 the schedule starts off; the user turns it on with the slot.
+        saved = fixture.request('retrospective_schedule_save', fixture.operator, enabled=True, weekday=(slot.weekday() + 1) % 7, hour=10, minute=0, model=MODEL, effort='low')
         assert saved.get('ok'), saved
         at = (slot + timedelta(minutes=1)).astimezone(timezone.utc).isoformat()
         before = fixture.request('retrospective_tick', fixture.operator, now=(slot - timedelta(minutes=1)).astimezone(timezone.utc).isoformat())

@@ -19,6 +19,7 @@ import { sidebarSnapshot, projectCatalog } from './sidebar.ts';
 import { flowSnapshot } from './flow.ts';
 import { metricsSnapshot } from './metrics.ts';
 import { userInputRecords } from './userInputRecords.ts';
+import { reflectTree } from './reflect.ts';
 import { TrajectoryArchive } from './trajectoryArchive.ts';
 import { Retrospectives, retrospectiveArgv, retrospectivePrompt } from './retrospective.ts';
 import { RoleRequests, confirmWindowMs, type RoleRequest } from './roleRequests.ts';
@@ -161,7 +162,7 @@ export async function serve(
   };
   const catalogCommands = new Set(["projects_list", "tasks_list", "sidebar_snapshot", "flow_snapshot"]);
   const readOnly = new Set([...catalogCommands, "daemon_status", "orchestration_events", "pane_output", "workbench_snapshot",
-    "pane_layout", "pane_status", "pane_process_info", "launch_show", "status", "events", "issues", "card_show", "card_template", "card_validate", "execution_settings", "metrics", "user_input_records", "trajectory_archive", "retrospective_list"]);
+    "pane_layout", "pane_status", "pane_process_info", "launch_show", "status", "events", "issues", "card_show", "card_template", "card_validate", "execution_settings", "metrics", "user_input_records", "trajectory_archive", "retrospective_list", "reflect_tree"]);
   const authenticate = (identity: any): { source: string; kind: "operator" | "window" | "launch" | "terminal" | "anonymous";
       window?: WindowBinding; terminal?: { id: string; project: string | null; task: string | null } } => {
     if (!identity) return { source: "anonymous", kind: "anonymous" };
@@ -393,6 +394,11 @@ export async function serve(
       return { ok: true, records: userInputRecords(store.db, input.project) };
     }
     if (input.command === 'trajectory_archive') return { ok: true, ...archive.usage() };
+    // T-137: the Reflect page's tree of every controller this project had and the sessions under it.
+    if (input.command === 'reflect_tree') {
+      if (typeof input.project !== 'string' || !input.project) throw new Refusal('invalid_project');
+      return { ok: true, nodes: reflectTree(store.db, roleRequests.all(), input.project, record => panes.status(record.thread).lifecycle) };
+    }
     if (input.command === 'retrospective_list') {
       if (typeof input.project !== 'string' || !input.project) throw new Refusal('invalid_project');
       return { ok: true, schedule: retrospectives.schedule(),

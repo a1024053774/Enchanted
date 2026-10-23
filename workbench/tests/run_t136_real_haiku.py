@@ -62,8 +62,8 @@ def main():
         electron = Electron(fixture, 't136-real-' + fixture.dir.name[10:])
         electron.until('项目出现', "!!document.querySelector('[data-project-id=\"demo\"]')")
         electron.evaluate("document.querySelector('[data-project-id=\"demo\"]').click()")
-        electron.until('复盘页签', "!!document.querySelector('[data-retrospective-tab]')", 20)
-        electron.evaluate("document.querySelector('[data-retrospective-tab]').click()")
+        electron.until('Reflect 页签', "!!document.querySelector('[data-reflect-tab]')", 20)
+        electron.evaluate("document.querySelector('[data-reflect-tab]').click()")
         electron.until('复盘页', "!!document.querySelector('[data-start-retrospective]')", 30)
         field = "[...document.querySelectorAll('.retrospective-page label')].find(l=>l.textContent.startsWith('{}')).querySelector('input')"
         electron.evaluate(SET_VALUE + f"set({field.format('模型')},{json.dumps(args.model)});set({field.format('思考强度')},'low');")

@@ -19,7 +19,8 @@ export type RoleRequest = { id: string; launch: string; project: string; role: R
   native_session: string | null; native_home: string | null;
   // T-107: the ideation controller the user put an executor under when approving it.
   parent_launch: string | null;
-  requested_at: string; decided_at: string | null; ended_reason: string | null };
+  // confirmed_at: when the role took effect; ended_at: the end event's time (null when the terminal closed unrecorded).
+  requested_at: string; decided_at: string | null; confirmed_at: string | null; ended_at: string | null; ended_reason: string | null };
 
 const refuse = (condition: unknown, code: string) => { if (!condition) throw new Refusal(code); };
 
@@ -41,7 +42,7 @@ export class RoleRequests {
       const data = JSON.parse(String(row.data));
       if (row.type === "role_requested") {
         roleRequests.set(data.role_request, { id: data.role_request, launch: String(row.launch), project: data.project, role: data.role, cli: data.cli,
-          native_session: data.native_session ?? null, native_home: data.native_home ?? null, parent_launch: null, state: "pending", requested_at: String(row.time), decided_at: null, ended_reason: null });
+          native_session: data.native_session ?? null, native_home: data.native_home ?? null, parent_launch: null, state: "pending", requested_at: String(row.time), decided_at: null, confirmed_at: null, ended_at: null, ended_reason: null });
         continue;
       }
       const roleRequest = roleRequests.get(data.role_request);
@@ -52,8 +53,8 @@ export class RoleRequests {
         roleRequest.parent_launch = data.parent_launch ?? null;
         if (!data.approved) roleRequest.ended_reason = data.reason ?? null;
       }
-      if (row.type === "role_request_confirmed" && roleRequest.state === "granted") roleRequest.state = "approved";
-      if (row.type === "role_request_ended") { roleRequest.state = "ended"; roleRequest.ended_reason = data.reason; }
+      if (row.type === "role_request_confirmed" && roleRequest.state === "granted") { roleRequest.state = "approved"; roleRequest.confirmed_at = String(row.time); }
+      if (row.type === "role_request_ended") { roleRequest.state = "ended"; roleRequest.ended_reason = data.reason; roleRequest.ended_at = String(row.time); }
     }
     // A closed terminal or a restarted daemon ends every role request it held.
     for (const roleRequest of roleRequests.values()) {

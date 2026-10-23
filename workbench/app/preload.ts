@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('a2a', Object.freeze({
   records: (project: string) => ipcRenderer.invoke('a2a:records', project),
   metrics: (project: string, since: string | null, until: string | null) => ipcRenderer.invoke('a2a:metrics', project, since, until),
   archiveUsage: () => ipcRenderer.invoke('a2a:archive-usage'),
+  reflect: (project: string) => ipcRenderer.invoke('a2a:reflect', project),
   retrospectives: (project: string) => ipcRenderer.invoke('a2a:retrospectives', project),
   startRetrospective: (project: string, selection: { cli: string; model: string; effort: string }) => ipcRenderer.invoke('a2a:retrospective-start', project, selection),
   saveRetrospectiveSchedule: (change: Record<string, unknown>) => ipcRenderer.invoke('a2a:retrospective-schedule', change),

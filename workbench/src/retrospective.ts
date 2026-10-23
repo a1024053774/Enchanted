@@ -16,8 +16,9 @@ export type RetrospectiveRun = { id: string; project: string; repo: string; trig
   created_at: string; launch?: string | null };
 type Suggestion = { id: string; run: string; project: string; number: number; title: string; body: string; kind: string; created_at: string };
 
-// The spec's defaults: every Monday 09:00, Claude Code with Opus 5.5 at medium effort.
-const defaults = { enabled: true, weekday: 1, hour: 9, minute: 0, cli: 'Claude Code' as const, model: 'claude-opus-5-5', effort: 'medium' };
+// The spec's defaults: every Monday 09:00, Claude Code with Opus 5.5 at medium effort; off until the user turns it on
+// on the Reflect page (user 2026-10-22, T-137).
+const defaults = { enabled: false, weekday: 1, hour: 9, minute: 0, cli: 'Claude Code' as const, model: 'claude-opus-5-5', effort: 'medium' };
 const json = (value: unknown) => JSON.parse(String(value));
 
 export class Retrospectives {

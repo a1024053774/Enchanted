@@ -11,19 +11,22 @@ const kinds: Record<string, string> = { ticket: '写成 ticket', 'role-card': '�
 const time = (value: string | null) => value ? new Date(value).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '最早';
 const pad = (value: number) => String(value).padStart(2, '0');
 
-export function RetrospectivePage({ project }: { project: string | null }) {
+// The retrospective part of the Reflect page (T-137): start one now, the periodic schedule with the CLI, model and
+// effort it runs with, the suggestions and the runs.
+export function RetrospectiveSections({ project }: { project: string }) {
   const [listing, setListing] = useState<Listing | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
   const [selection, setSelection] = useState<{ cli: string; model: string; effort: string } | null>(null);
   const [busy, setBusy] = useState(false), [actionError, setActionError] = useState('');
+  const [runner, setRunner] = useState<{ cli: string; model: string; effort: string } | null>(null);
   useEffect(() => {
-    if (!project) return;
     let mounted = true;
     const load = () => window.a2a.retrospectives(project).then((value: Listing) => {
       if (!mounted) return;
       setListing(value); setError(null);
       setSelection(current => current ?? { cli: value.schedule.cli, model: value.schedule.model, effort: value.schedule.effort });
+      setRunner(current => current ?? { cli: value.schedule.cli, model: value.schedule.model, effort: value.schedule.effort });
     }, (reason: unknown) => { if (mounted) setError('复盘记录读取失败：' + String(reason)); });
     void load();
     const timer = setInterval(load, 5000);
@@ -34,13 +37,12 @@ export function RetrospectivePage({ project }: { project: string | null }) {
     void run().then(() => setVersion(value => value + 1), reason => setActionError(String(reason))).finally(() => setBusy(false));
   };
   const schedule = listing?.schedule;
-  return <div className="records-page retrospective-page">
+  return <div className="retrospective-page">
     <div className="records-intro"><h2>复盘</h2>
-      <p>复盘会话在一个普通项目终端里跑，只读代码和记录，只写自己的报告。报告存到项目的 findings/（没有这个目录就存在工作台数据目录）；改进建议列在下面，你批了，构思主控才把它写成 ticket 或改角色卡。</p></div>
+      <p>复盘会话在一个普通项目终端里跑，只读代码和记录，只写自己的报告。报告存到项目的 findings/（没有这个目录就存在工作台数据目录）；改进建议列在下面，批准的先只记在这里。</p></div>
     {error && <p className="catalog-error" role="alert">{error}</p>}
-    {!project ? <p className="records-empty">先在左侧选一个项目。</p>
-      : !listing && !error ? <p className="records-empty" role="status">正在读取…</p> : null}
-    {listing && selection && schedule && <>
+    {!listing && !error && <p className="records-empty" role="status">正在读取…</p>}
+    {listing && selection && runner && schedule && <>
       <section className="metric-section">
         <h3>立即复盘</h3>
         <form className="record-filter" onSubmit={event => { event.preventDefault(); act(() => window.a2a.startRetrospective(project!, selection)); }}>
@@ -63,7 +65,15 @@ export function RetrospectivePage({ project }: { project: string | null }) {
             const [hour, minute] = event.target.value.split(':').map(Number);
             if (Number.isInteger(hour) && Number.isInteger(minute)) act(() => window.a2a.saveRetrospectiveSchedule({ hour, minute }));
           }} /></label>
-          <span className="record-meta">用 {schedule.cli} · {schedule.model} · {schedule.effort}</span>
+        </form>
+        <form className="record-filter" data-schedule-runner onSubmit={event => { event.preventDefault(); act(() => window.a2a.saveRetrospectiveSchedule(runner)); }}>
+          <label>由 <select value={runner.cli} disabled={busy} onChange={event => setRunner({ ...runner, cli: event.target.value })}>
+            <option value="Claude Code">Claude Code</option><option value="Codex">Codex</option></select></label>
+          <label>模型 <input value={runner.model} disabled={busy} onChange={event => setRunner({ ...runner, model: event.target.value })} /></label>
+          <label>思考强度 <input value={runner.effort} size={8} disabled={busy} onChange={event => setRunner({ ...runner, effort: event.target.value })} /></label>
+          <button className="text-button" disabled={busy || !runner.model.trim() || !runner.effort.trim() ||
+            runner.cli === schedule.cli && runner.model === schedule.model && runner.effort === schedule.effort}>保存</button>
+          <span className="record-meta">现在用 {schedule.cli} · {schedule.model} · {schedule.effort}{schedule.enabled ? '' : '（未开启）'}</span>
         </form>
       </section>
       {actionError && <p className="catalog-error" role="alert">{actionError}</p>}
@@ -73,7 +83,7 @@ export function RetrospectivePage({ project }: { project: string | null }) {
           <article key={item.id} className="record-card suggestion-card" data-suggestion-id={item.id}
             data-suggestion-state={item.decision ? (item.decision.approved ? 'approved' : 'declined') : 'open'}>
             <header className="record-heading"><strong>{item.number}. {item.title}</strong>
-              <span className="record-state" data-tone={item.decision ? 'quiet' : 'needs'}>{item.decision ? (item.decision.approved ? '已批准，交构思主控' : '不采纳') : '等你决定'}</span>
+              <span className="record-state" data-tone={item.decision ? 'quiet' : 'needs'}>{item.decision ? (item.decision.approved ? '已批准' : '不采纳') : '等你决定'}</span>
               <span className="record-meta">{kinds[item.kind] ?? item.kind}</span></header>
             {item.body && <p className="record-body">{item.body}</p>}
             {!item.decision && <div className="record-buttons">
