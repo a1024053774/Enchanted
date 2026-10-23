@@ -36,7 +36,7 @@ export function RecordsPage({ project }: { project: string | null }) {
   const rows = all.filter(record => (!task || (record.task ?? '') === task) && (!session || record.thread === session));
   return <div className="records-page user-input-page">
     <div className="records-intro"><h2>用户输入记录</h2>
-      <p>你亲手打的字、在面板里的答复和审批都记在这里，主控和后台派发的文字不算。项目终端里只记你批准为主控的 Claude Code 收到的整条提示词。落在受管 worker 会话里的输入记为人工介入。</p></div>
+      <p>你亲手打的字、在面板里的答复和审批都记在这里，主控和后台派发的文字不算。项目终端里只记你批准为主控的 Claude Code 或 Codex 收到的整条提示词，以及你对它提问的答复。落在受管 worker 会话里的输入记为人工介入。</p></div>
     {error && <p className="catalog-error" role="alert">{error}</p>}
     {!project ? <p className="records-empty">先在左侧选一个项目。</p>
       : records === null && !error ? <p className="records-empty" role="status">正在读取…</p>

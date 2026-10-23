@@ -20,7 +20,7 @@ DevTools 协议操作。夹具用户的 Codex 在隔离 home 里（不碰用户�
 
 失败方式（先列再写）：
 1. 包装脚本没把钩子交给 Codex：不提示信任，什么都不记，状态一直未知。
-2. a2a 自己写了用户的 Codex 配置；或 Enchanted 的钩子顶掉了用户自己的钩子。
+2. 用户选择之前配置里已有信任（a2a 写了用户的 Codex 配置）；或 Enchanted 的钩子顶掉了用户自己的钩子。
 3. 批准前、身份结束后的提示词被记下；批准后的整句没记或文字不对。
 4. 用户对问题的答复记成一条普通消息，或没记；记下的不是“问题：答复”。
 5. 问题工具立刻返回 accepted 时状态就回到“运行中”，用户还没答。
@@ -189,8 +189,12 @@ def main():
         raw = (fixture.state / 'traces' / term['launch'] / 'pty.raw').read_text(encoding='utf-8', errors='replace')
         return re.sub(r'\s+', '', re.sub(r'\x1b\[[0-9;?<>=]*[A-Za-z~]|\x1b\][^\x07\x1b]*(\x07|\x1b\\)|\x1b[()][A-Z0-9]|\x1b[=>78]', '', raw))
 
-    def ready(term):
-        return 'AskCodextodoanything' in screen(term)
+    # Codex draws its input box before the hook review, and redraws parts of lines in place, so the stripped screen
+    # is matched on whole words that survive that ("Trust all and continue", the input box placeholder).
+    TRUST = 'Trustallandcontinue'
+
+    def ready(term, since=0):
+        return 'AskCodextodoanything' in screen(term)[since:]
 
     def submit(term, text):
         type_in(term, text)
@@ -234,17 +238,19 @@ def main():
 
         ideation = terminal('I')
         type_in(ideation, 'codex --sandbox danger-full-access -a never\r')
-        wait('终端 I 的 Codex 启动', lambda: 'Hooksneedreview' in screen(ideation) or ready(ideation), 60)
-        time.sleep(2)
-        asked = 'Hooksneedreview' in screen(ideation)
+        wait('终端 I 的 Codex 启动', lambda: ready(ideation), 60)
+        time.sleep(5)
+        asked = TRUST in screen(ideation)
         before = config.read_text(encoding='utf-8')
         report['observed']['first_screen'] = screen(ideation)[-600:]
         check('codex_asks_to_trust_the_hooks', asked, report['observed']['first_screen'])
-        check('a2a_wrote_no_codex_config', before == original_config, before)
+        # Codex itself appends its own UI state on start ([tui] screen_reader_detection_done); no trust exists before the user's choice.
+        check('no_trust_before_the_user_chooses', before.startswith(original_config) and 'hooks' not in before, before)
+        mark = len(screen(ideation))
         type_in(ideation, '\x1b[B')
         time.sleep(1)
         type_in(ideation, '\r')
-        wait('终端 I 的 Codex 就绪', lambda: ready(ideation), 30)
+        wait('终端 I 的 Codex 就绪', lambda: ready(ideation, mark), 30)
         trusted = config.read_text(encoding='utf-8')
         report['observed']['config_after_trust'] = trusted
         check('codex_keeps_the_trust_itself', all(f'[hooks.state."/<session-flags>/config.toml:{event}:0:0"]' in trusted
@@ -280,10 +286,10 @@ def main():
 
         executor = terminal('X')
         type_in(executor, 'codex --sandbox danger-full-access -a never\r')
-        wait('终端 X 的 Codex 就绪', lambda: ready(executor) or 'Hooksneedreview' in screen(executor), 60)
-        time.sleep(2)
+        wait('终端 X 的 Codex 就绪', lambda: ready(executor), 60)
+        time.sleep(5)
         report['observed']['second_screen'] = screen(executor)[-600:]
-        check('trust_not_asked_again', 'Hooksneedreview' not in screen(executor) and ready(executor), report['observed']['second_screen'])
+        check('trust_not_asked_again', TRUST not in screen(executor), report['observed']['second_screen'])
         submit(executor, REQUEST_EXECUTOR)
         request_card = electron.until('执行主控申请出现', "document.querySelector('[data-role-request]')?.dataset.roleRequest ?? null", 60)
         offered = electron.evaluate(f"(()=>{{const s=document.querySelector('[data-role-request-parent=\"{request_card}\"]');"

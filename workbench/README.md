@@ -140,10 +140,23 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
   后台只在这个终端持有已批准角色、且事件的会话 id 与角色申请里的一致时才处理（`terminal_hook` 不记请求事件，所以没批准的终端的提示词不进库）：
   提交的整句记为用户输入（来源“主控终端提交”），对 AskUserQuestion 的答复记为答复；主控状态取最后一次回合事件——提交后“运行中”、
   提问时“等待用户回答”、回合结束后“空闲”，从确认生效到第一个事件之间算“运行中”（确认发生在申请的那个回合里）。
-  a2a 不往项目终端注入文字，所以这里记下的都是用户自己提交的。已知边界：Codex 主控没有接钩子，状态仍显示“未知”、提示词不记。
-  探针（隔离 `CODEX_HOME`）表明：`-c` 传入的钩子在用户信任之前不运行，信任会把 `trusted_hash` 写进 `CODEX_HOME/config.toml`，
-  即用户的 `~/.codex`；同样用 `-c` 传入信任条目不被承认。不写用户配置、也不用 `--dangerously-bypass-hook-trust`，所以等用户定。
+  a2a 不往项目终端注入文字，所以这里记下的都是用户自己提交的。
   Claude Code 主控被 Esc 中断时没有 Stop 事件，要到空闲 60 秒的通知才显示“空闲”。
+- Codex 主控（T-133 方案 A，用户 2026-10-22 定）：`codex` 包装用 `-c` 传入三个钩子：提交（UserPromptSubmit）、回合结束（Stop）、
+  提问前（PreToolUse，只匹配 `request_user_input_async`）。三个钩子都调用 `a2a hook`。
+  Codex 第一次见到这些钩子时会让用户审查，用户选“Trust all and continue”后，Codex 自己把信任（`hooks.state."/<session-flags>/config.toml:…"`）
+  写进用户的 `~/.codex/config.toml`。a2a 不写这个文件，也不用 `--dangerously-bypass-hook-trust`。
+  钩子命令经终端环境变量指向 `a2a`，定义在各终端之间不变，所以信任一次后一直有效；改了钩子定义才需要重新信任。
+  用户自己 `hooks.json` 里的钩子照常运行，各自按来源记信任。
+  Codex 的提问工具立刻返回 `accepted`，用户的答复之后作为一次提交到达（`<send_user_message_question_reply>` 包着的 JSON）。
+  所以 Codex 主控从提问到收到答复都是“等待用户回答”；答复记为答复，形如“问题：答复”。
+  Codex 的提交没有自己的 id（答复与原提问共用 `turn_id`），每次钩子调用记一条。
+  已知边界：
+  - 用户信任之前，Codex 主控状态是“未知”，也不记录；
+  - Plan 模式下的同步提问（`request_user_input`）不显示等待，答复也不记；
+  - 被 Esc 中断后 Codex 不发 Stop，一直显示“运行中”，直到下一次提交。
+
+  事实依据见[探针记录](../evidence/2026-10-22-batch20/T-133-T-107/codex-hook-probe/RESULTS.md)。
 
 执行主控派 worker 的步骤写在 a2a skill 与 `a2a help`：`card_template` → `card_save` → `create` → `dispatch`
 （`runtimeMode` 为 `workspace-write`，带 `model`、`effort`）→ `status` → `submitted` 后 `verify` → `verified` 后带
@@ -996,6 +1009,8 @@ Herdr 期的 `scripts/launch-worker` 与 `scripts/dispatch` 接受 `--parent-lau
 也不登记或移除原保存布局。
 
 图例列出运行中、等待用户回答、等待主控回答、空闲、已结束、未恢复、未知。
+受管会话的问题上报还没人答复（没关闭、也没有答复，与门禁接受答复的条件相同）时，侧栏显示“等待主控回答”，问题面板照旧列出这条上报；
+读不到该任务的上报时显示未知。已结束、未恢复和等待用户回答不被覆盖（T-107 #3）。
 状态只采用当前原生回合与后台事实；缺失、冲突、权限等待和中断不推为运行中或空闲。
 T-108 通过每会话启动参数加入 PreToolUse／PostToolUse hook，按根会话、当前回合与
 工具调用 ID 关联 Claude Code 的 AskUserQuestion 和 Codex 的 request_user_input。
