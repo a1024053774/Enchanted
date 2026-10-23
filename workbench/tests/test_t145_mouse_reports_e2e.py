@@ -7,6 +7,8 @@ Failure modes (listed before implementation):
 3. Actual text, cursor keys, Enter, or literal protocol-looking paste is lost.
 4. Old erroneous records are deleted/reclassified rather than retained.
 5. Tests inject input through a bridge instead of CDP, or a report never occurs.
+6. Input.insertText alone has no keypress and is ignored by xterm's enabled
+   screenReaderMode; a failed injection must not look like lost PTY bytes.
 --revision runs the same assertions on the specified production tree; --mutant
 recreates recording or drops reports before the PTY. Summary paths are exclusive.
 """
@@ -80,6 +82,10 @@ def main():
         launch = attempt['runtime_identity']['launch']
         report['attempt'] = attempt
         fixture.wait('受管 receiver 就绪并收到派发', lambda: (home / 'received.bin').exists() and b'\x1b[201~\r' in (home / 'received.bin').read_bytes(), 30)
+        native = fixture.request('pane_process_info', fixture.operator, thread=attempt['thread_id'])
+        report['receiver_identity'] = {key: native.get(key) for key in ('ok', 'leader', 'native_session', 'failed')}
+        check('receiver_native_identity_bound', native.get('ok') and native.get('leader') and
+              native.get('native_session') == '00000000-0145-4000-8000-000000000001' and not native.get('failed'), report['receiver_identity'])
 
         def inputs():
             with sqlite3.connect(f'file:{fixture.state / "state.sqlite3"}?mode=ro', uri=True) as db:
@@ -169,10 +175,32 @@ def main():
         check('focus_device_reports_forwarded_exactly', (home / 'received.bin').read_bytes()[reply_offset:] == expected_replies)
         check('focus_device_reports_unrecorded', inputs() == before and events() == before_events)
 
-        typed = 'T145-' + uuid.uuid4().hex[:8] + '-中文'
+        # One printable native key => one xterm onData => one input/intervention.
+        # Input.insertText emits only an input event, which xterm deliberately
+        # ignores in screenReaderMode. A char event follows its keypress path.
+        typed = chr(ord('A') + uuid.uuid4().int % 26)
+        report['typed'] = typed
+        typing_focused = electron.evaluate(f'''(()=>{{
+          const el=document.querySelector({textarea}); el.focus();
+          window.__t145KeyboardEvents=[];
+          for (const type of ['keypress','beforeinput','input']) el.addEventListener(type,event=>{{
+            window.__t145KeyboardEvents.push({{type:event.type,isTrusted:event.isTrusted,
+              key:event.key??null,charCode:event.charCode??null,data:event.data??null,inputType:event.inputType??null}});
+          }},true);
+          return document.activeElement===el;
+        }})()''')
+        check('native_typing_target_focused', typing_focused)
         text_offset = (home / 'received.bin').stat().st_size
-        cdp('Input.insertText', text=typed)
-        fixture.wait('真实打字到 PTY', lambda: typed.encode() in (home / 'received.bin').read_bytes()[text_offset:], 10)
+        cdp('Input.dispatchKeyEvent', type='char', key=typed, text=typed, unmodifiedText=typed)
+        report['keyboard_events'] = electron.evaluate('window.__t145KeyboardEvents')
+        check('native_printable_keypress_received', any(event['type'] == 'keypress' and event['isTrusted'] and
+              event['charCode'] == ord(typed) for event in report['keyboard_events']), report['keyboard_events'])
+        try:
+            fixture.wait('真实打字到 PTY', lambda: typed.encode() in (home / 'received.bin').read_bytes()[text_offset:], 10)
+        finally:
+            report['typed_bytes_hex'] = (home / 'received.bin').read_bytes()[text_offset:].hex()
+            report['inputs_after_typing'] = inputs()
+        check('typed_bytes_forwarded_exactly_once', (home / 'received.bin').read_bytes()[text_offset:] == typed.encode(), report['typed_bytes_hex'])
         after = inputs()
         check('one_real_input_creates_one_record', len(after) == len(before) + 1 and after[-1]['text'] == typed, after)
         check('one_real_input_creates_one_intervention', len(events()) == len(before_events) + 1, events())

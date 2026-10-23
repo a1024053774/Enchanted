@@ -12,6 +12,7 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <termios.h>
+#include <time.h>
 #include <unistd.h>
 static const char *home;
 static void fail(const char *name) { perror(name); exit(2); }
@@ -29,7 +30,18 @@ int main(int argc, char **argv) {
   home = getenv("CODEX_HOME"); if (!home) return 2;
   char file[PATH_MAX], cwd[PATH_MAX]; path(file, "sessions");
   if (mkdir(file, 0700) || !getcwd(cwd, sizeof cwd)) fail("sessions/cwd");
-  FILE *native = create("sessions/rollout-00000000-0145-4000-8000-000000000001.jsonl");
+  /* The production scanner reads this launch's local-date directory. */
+  time_t now = time(NULL); struct tm day;
+  if (!localtime_r(&now, &day)) fail("local date");
+  char year[32], month[40], date[48], native_name[128];
+  snprintf(year, sizeof year, "sessions/%04d", day.tm_year + 1900);
+  snprintf(month, sizeof month, "%s/%02d", year, day.tm_mon + 1);
+  snprintf(date, sizeof date, "%s/%02d", month, day.tm_mday);
+  path(file, year); if (mkdir(file, 0700)) fail("session year");
+  path(file, month); if (mkdir(file, 0700)) fail("session month");
+  path(file, date); if (mkdir(file, 0700)) fail("session date");
+  snprintf(native_name, sizeof native_name, "%s/rollout-00000000-0145-4000-8000-000000000001.jsonl", date);
+  FILE *native = create(native_name);
   fputs("{\"type\":\"session_meta\",\"payload\":{\"source\":\"cli\",\"id\":\"00000000-0145-4000-8000-000000000001\",\"cwd\":\"", native);
   for (const char *p = cwd; *p; p++) { if (*p == '"' || *p == '\\') fputc('\\', native); fputc(*p, native); }
   fputs("\"}}\n", native); if (fclose(native)) fail("native log");
