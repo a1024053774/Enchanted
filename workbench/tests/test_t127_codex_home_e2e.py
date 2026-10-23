@@ -209,7 +209,9 @@ def main():
     # The user's Codex home: their provider (here the fixture API), the two Git allow rules, a hook
     # and a skill of their own, and many earlier sessions. Nothing in it trusts the fixture project.
     (codex_home / 'rules').mkdir(parents=True)
-    (codex_home / 'config.toml').write_text('model_provider = "t127"\ncli_auth_credentials_store = "file"\n[model_providers.t127]\nname = "T127 fixture"\n'
+    (codex_home / 'config.toml').write_text('model_provider = "t127"\ncli_auth_credentials_store = "file"\n'
+        f'[projects.{json.dumps(str(repo.resolve()))}]\ntrust_level = "trusted"\n'
+        '[model_providers.t127]\nname = "T127 fixture"\n'
         f'base_url = "http://127.0.0.1:{server.server_port}/v1"\nwire_api = "responses"\nrequires_openai_auth = false\n', encoding='utf-8')
     (codex_home / 'rules/default.rules').write_text('prefix_rule(pattern=["git", "add"], decision="allow")\n'
                                                     'prefix_rule(pattern=["git", "commit"], decision="allow")\n', encoding='utf-8')

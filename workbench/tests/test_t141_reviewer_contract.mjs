@@ -36,10 +36,20 @@ try {
       fence: 1, spec_rev: 1, workspace: repo, runtime_mode: 'workspace-write' };
     await assert.rejects(panes.createPane(task, attempt, c), e => e === sentinel);
     const worker = captured;
+    if (cli === 'Codex') {
+      assert.ok(!worker.argv.some(arg => arg.startsWith('projects=')), 'Worker inherits user trust');
+      await assert.rejects(panes.createPane(task, attempt, c, undefined, { cli: 'Codex' }), e => e === sentinel);
+      assert.ok(!captured.argv.some(arg => arg.startsWith('projects=')), 'Monitor inherits user trust');
+      report.checks.push('Codex_worker_and_monitor_inherit_user_trust');
+    }
     const review = { review_id: 'review', verification_id: 'verification', session_id: 'review-session', thread_id: 'review-thread',
       candidate_workspace: candidate, attempt: { ...attempt, runtime_identity: { launch: worker.id } } };
     await assert.rejects(panes.createPane(task, { ...attempt, session_id: review.session_id, thread_id: review.thread_id }, c, review), e => e === sentinel);
     const launch = captured;
+    if (cli === 'Codex') {
+      assert.ok(launch.argv.includes(`projects={${JSON.stringify(candidate)}={trust_level="untrusted"}}`),
+        'Only the reviewer candidate copy must be opened untrusted');
+    }
     review.launch_id = launch.id;
     const validate = row => A2AGates.prototype.reviewLaunch.call({
       launchRecord: id => id === launch.id ? row : id === worker.id ? worker : null,
@@ -66,6 +76,13 @@ try {
         s.hooks.PreToolUse.pop(); row.argv[i] = JSON.stringify(s);
       }], ['foreign_mcp_configuration', row => {
         row.argv[row.argv.indexOf('--mcp-config') + 1] = '/foreign/.claude.json';
+      }]] : []),
+      ...(cli === 'Codex' ? [['trust_override_missing', row => {
+        const index = row.argv.findIndex(arg => arg.startsWith('projects=')); row.argv.splice(index - 1, 2);
+      }], ['trust_override_foreign_folder', row => {
+        row.argv[row.argv.findIndex(arg => arg.startsWith('projects='))] = `projects={${JSON.stringify(repo)}={trust_level="untrusted"}}`;
+      }], ['trust_override_trusted', row => {
+        row.argv[row.argv.findIndex(arg => arg.startsWith('projects='))] = `projects={${JSON.stringify(candidate)}={trust_level="trusted"}}`;
       }]] : []),
     ]) {
       const row = structuredClone(launch); mutate(row);

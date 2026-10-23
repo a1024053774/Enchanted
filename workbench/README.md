@@ -407,7 +407,9 @@ Git 事务先锁住 G，在实际检出目录用双树快进保护本地修改�
 机械通过后，后台为 C 创建 detached 审查目录和独立 thread/session/launch，
 不续接旧原生会话。reviewer 用 worker 的 CLI（D24），角色卡取 launch config 的 `reviewer_role_card`
 与 `reviewer_role_card_revision`，缺了就拒绝（`review_launch_config_required`）。Codex reviewer 与 worker
-在同一个 Codex home（用户自己的 `~/.codex`，T-127）；门禁按 argv 核对 reviewer 的写入范围与 `-a never`，
+在同一个 Codex home（用户自己的 `~/.codex`，T-127）；reviewer 以每会话
+`-c projects={<candidate_workspace>={trust_level="untrusted"}}` 打开候选副本，避免候选中 worker 写的
+`.codex` 配置、hooks、exec policy 影响独立审查。门禁按 argv 核对这条目录信任覆盖、写入范围与 `-a never`，
 交结论时再核对后台读到的原生会话 `session_meta.cwd` 就是该副本（`review_native_session_folder`），
 加上原有的“不同于 worker、未被别的启动用过、不带 resume/fork”。
 reviewer 的 Git 审查 worktree 和候选提交保持不可写；门禁另建一次性 `candidate_workspace` 副本，
@@ -708,7 +710,8 @@ worker 的 shell 临时目录放在请求目录里，reviewer/monitor 放在各�
 答复，后台经原会话队列送回答案。答复不会扩大沙箱权限。会话 hook 向同一 CLI 的 `signal`
 送原始 stdin；Stop 另外读取显式请求文件。启动参数、环境白名单、请求模型与实际回合模型分开记录。
 
-初态为“未知”。Codex 沿用用户的目录信任设置；已信任目录直接启动，untrusted 目录问一次
+初态为“未知”。Codex worker 与 monitor 沿用用户的目录信任设置；reviewer 的候选副本单独以 untrusted 打开。
+已信任目录直接启动，untrusted 目录问一次
 “Open restricted”，后台等屏幕安静后按 Enter（记 `codex_restricted_open_intent`、`codex_restricted_opened`）。
 两者都等原生终端状态包 `OSC 7501;state=idle:app=codex`，再核对前台领导进程，记录 `codex_startup_ready` 并放行首条派发。
 该状态包只用于初次启动，之后仍须匹配 Stop。出现“Trust and continue”时不按键，记
@@ -733,12 +736,15 @@ Codex worker 与 reviewer 的 `CODEX_HOME` 就是 launch config 的 `codex_home`
   例如 `git push origin HEAD`、`ssh win`；这些不经门禁，门禁只管认领、交付、验收、集成与回收（用户知情后选择“完全照用 ~/.codex”）。
 - a2a 不写 home 的 config.toml、rules、hooks.json；a2a 的钩子只经每会话的 `-c hooks.*` 传入，与 home 的钩子叠加。
   Codex 自己会往 config.toml 写 `[tui]` 状态键，那不是 a2a 写的。
-- T-141 不再传 `projects=...` 覆盖信任：项目 `.codex` 的加载由用户自己的配置和原生 CLI 决定。
+- T-141 的 worker 与 monitor 不传 `projects=...` 覆盖信任：项目 `.codex` 的加载由用户自己的配置和原生 CLI 决定。
+  reviewer 只对本次一次性候选副本保留 `-c projects={<candidate_workspace>={trust_level="untrusted"}}`；
+  候选里 worker 写入的 `.codex` 配置、hooks、exec policy 不得在独立审查中生效。门禁沿用 T-127 的精确目录核对。
   `--sandbox`、写入根与临时目录排除仍由每会话启动参数约束；模型、强度、tier、更新检查与 a2a hook 继续按启动记录核对。
 - Codex CLI 0.163.0 的[无模型原生探针](../evidence/2026-10-23-batch23/T-141/probe-trust-inheritance-01/facts.json)确认：
   放在其他目录的 Git worktree 继承主仓库信任；非 Git 目录继承已信任祖先目录；已信任父目录下新建的独立 Git 仓库不继承该信任。
-  因此用户自己信任一次项目仓库和 `<state>/review-copies` 后，新 worker worktree 与新 reviewer 非 Git 副本可直接启动，
-  不需要逐个信任新任务或新审查目录。尚无适用信任时仍上报，等用户在终端自行处理；a2a 不代选 Trust and continue，不写用户配置。
+  用户自己信任一次项目仓库后，新 worker worktree 可继承信任；reviewer 不依赖父目录信任，每次以 untrusted 打开，
+  由后台选择不保存信任的 Open restricted。worker 或 monitor 尚无适用信任时仍上报，等用户在终端自行处理；
+  a2a 不代选 Trust and continue，不写用户配置。
 - 用户自己的会话也写在同一个 `sessions/` 下。后台只读启动当天起的日期目录里、启动后写过的文件，
   且只认 `session_meta.cwd` 等于本会话工作目录的那一份。
 - worker 或 reviewer 第一个回合提交后 120 秒内，若本目录里仍没有它的会话记录（在别的目录跑了，
@@ -750,7 +756,8 @@ Codex worker 与 reviewer 的 `CODEX_HOME` 就是 launch config 的 `codex_home`
 当前验证入口：`python3 -B workbench/tests/test_t141_loosened_limits_e2e.py --summary <新路径>`。
 它在隔离 HOME 的用户 MCP 配置与 Codex home 中运行真实 CLI、后台和 Electron，模型为本地脚本化接口；
 `--revision` 与四个 `--mutant` 见文件头。当前验收状态见 [T-141 RESULTS](../evidence/2026-10-23-batch23/T-141/RESULTS.md)。
-`test_t127_codex_home_e2e.py` 保留 T-127 的旧契约，其中强制 untrusted 的断言不适用于 T-141。
+`test_t127_codex_home_e2e.py` 继续核对共享 Codex home、一次性审查副本以 untrusted 打开、目录身份与审查隔离；
+它与 T-140/T-131/T-132 一起纳入回归，实际结果及受保护夹具的修改依据见 T-141 RESULTS。
 
 `daemon.ts` 导出 `serve(root, config, createGates?)`。第三个参数只供测试在代码里注入门禁对象（受控线程运行时或变异体），默认是 `new A2AGates(root, panes)`。产品的 `daemon_start` 不传这个参数，CLI 和环境变量也都没有对应的开关。交付 8、恢复 9、编排 18 这三套旧场景，经 `workbench/tests/run_daemon_acceptance.py` 在本后台入口上运行（T-075-5）。这个运行器为每个测试在短路径上显式启动并停止一个隔离后台，不改 `acceptance/` 中的任何断言。
 

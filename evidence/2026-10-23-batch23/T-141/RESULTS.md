@@ -1,19 +1,39 @@
 # T-141-1 / a1 交付记录
 
-状态：**INCOMPLETE**。RUN-OUTSIDE-02 中三个契约、red、四个变异、T-131、T-132 均符合预期；green 在 MCP 调用失败，T-140 在 Codex 信任前置暂停。本轮修复 MCP 的原生加载入口，并按执行主控授权只改 T-140 的 demo 仓库信任配置，准备 `RUN-OUTSIDE-03.sh`；新候选的完整真实闭环尚待复跑。
+状态：**INCOMPLETE**。上一候选 `369d2053980ae5f2460cd2a16c557ac97571e214` 的 RUN-OUTSIDE-03 共 13 场全部符合预期，证据已由执行主控纳入 `8cf7caf70e5306a82f834b68812cedb494840632`。本轮按用户“选 A”恢复仅 Codex reviewer 的审查副本 untrusted，只改获准的 T-127 demo 信任夹具；三个本地契约 PASS，RUN-OUTSIDE-04 尚待沙箱外运行。T-127 的受保护 worker 断言与新裁定冲突，已上报，不能宣称整票通过。
 
-工作目录 `/Users/luckye/Documents/Code/a2a-wt-t141`，分支 `exec/t141`，起点 `3f8813b0e`。任务来源为 T-141 ready_rev 1；交付提交号以 `DELIVERED` 消息为准，真实运行脚本另保存当时的完整 Git 版本和工作区状态。未 push、未合并 main。三份 oracle 中仅按本会话明确裁定修改 T-140 的隔离夹具配置，详见下文；T-131、T-132 原样。未改地图、ticket、AGENTS.md、CONTEXT.md 或其他 worker 的源码。
+工作目录 `/Users/luckye/Documents/Code/a2a-wt-t141`，分支 `exec/t141`，起点 `3f8813b0e`。任务来源为 T-141 ready_rev 1；交付提交号以 `DELIVERED` 消息为准，真实运行脚本另保存当时的完整 Git 版本和工作区状态。未 push、未合并 main。受保护 oracle 中仅按本会话明确裁定修改 T-140、T-127 的隔离夹具配置，详见下文；T-131、T-132 原样。未改地图、ticket、AGENTS.md、CONTEXT.md 或其他 worker 的源码。
 
 ## 候选行为
 
 - Claude worker/reviewer 去掉 `--strict-mcp-config`，通过只匹配 `^mcp__` 的原生 PreToolUse hook 允许用户 MCP 工具；删除已被真实 CLI 拒绝的 `permissions.allow: ["mcp__*"]`。保留 `--setting-sources ""`，避免设置文件合并扩大原生工具写入范围；有用户作用域 MCP 时，单独将 `$HOME/.claude.json` 传给原生 `--mcp-config`，不把该文件的其他设置并入会话。Bash 沙箱允许所有域名、Unix socket 与本地连接，保留原生文件工具的目录限制、Git common dir 禁写与原有两条 Git 例外。
-- Codex 保留 `-a never`、workspace-write、a2a hook 和角色选择的模型/强度/tier；移除项目信任、网络代理和 TUI 通知覆盖，显式开放 workspace-write 网络。写入根为当前 workspace、worker 请求目录和项目额外目录，不沿用用户配置中额外的可写根。
+- Codex 保留 `-a never`、workspace-write、a2a hook 和角色选择的模型/强度/tier；worker/monitor 不覆盖项目信任；reviewer 仅对一次性审查副本保留 `-c projects={<该副本>={trust_level="untrusted"}}`，防止候选中的 `.codex` 配置、hooks、exec policy 影响独立审查。移除网络代理和 TUI 通知覆盖，显式开放 workspace-write 网络。写入根为当前 workspace、worker 请求目录和项目额外目录，不沿用用户配置中额外的可写根。
 - Codex 排除共享 `/tmp` 与原 `$TMPDIR`，worker 的 shell 临时文件放在请求目录的 `.a2a-tmp/`；reviewer/monitor 放在各自一次性工作目录的 `.a2a-tmp/`。新 e2e 同时检查 tempfile 能运行、共享临时根不能写，另设 `shared-temp-writable` 反例；outside-02 的 Codex 原生探针与反例符合要求；新候选仍待外部复跑。
 - trusted 目录依据原生 `OSC 7501;state=idle:app=codex` 包及前台领导进程核对放行首条任务；untrusted 只代按不保存信任的 Open restricted，并等待同一个 ready 包；unset 记录 `codex_folder_trust_requested`，不按 Trust and continue。后续 idle 包不代替 Stop 或业务验收。
 - worker 角色卡说明原生审批拒绝后用 `issue` 上报、必要时结束回合等主控答复。沿用原有 `answer_issue` 与会话队列，没有新增通信接口或放宽门禁检查串。
 - reviewer 门禁只同步启动参数契约；会话/attempt 绑定、候选目录、原生身份、不同于 worker、禁止 resume/fork、写入范围与其余质量串保持原检查。
 
-## RUN-OUTSIDE-02 结果与本轮修复
+## 第四轮：仅审查副本保留 untrusted
+
+执行主控在本会话转述用户 2026-10-23 的逐字裁定“选 A”，来源为 `20261023T141957Z-executor-needs-decision-001` 的 executor report 回复：Codex reviewer 的一次性审查副本保持 untrusted，worker 与 monitor 沿用用户配置。这个例外保住独立审查：副本里由 worker 写入的 `.codex` 配置、hooks、exec policy 不生效。它不把用户 home 改为 untrusted，也不改变 worker/monitor 信任。
+
+实现只在 Codex reviewer argv 增加 `-c projects={<realpath(candidate_workspace)>={trust_level="untrusted"}}`；门禁恢复 T-127 的精确目录核对，缺少这条、指向其他目录、值改成 trusted 均拒绝。写入根、网络、`-a never`、会话身份与门禁其他检查保持原规则。启动沿用已有 Open restricted 处理，不选择保存信任的 Trust and continue。
+
+本地生产 builder → 真实 reviewer 参数门禁：`reviewer-trust-red-04.json` 在修前 `8cf7caf70e5306a82f834b68812cedb494840632` 因缺少审查副本 untrusted 失败（该版本相较 `369d20539` 仅纳入主控证据，workbench 代码未变）；修后 `reviewer-trust-green-04.json` PASS，包含上述三个坏记录以及 worker/monitor 不覆盖信任的核对。`launch-contract-04.json`、`startup-green-05.json` PASS；`runner04-preflight.json` 核对脚本入口与 14 场清单。它们证明启动与门禁契约，不证明真实审查已运行，也不替代候选 `.codex` 钩子不执行的原生证据。
+
+T-127 夹具唯一改动：`workbench/tests/test_t127_codex_home_e2e.py:212-215` 的隔离 CODEX_HOME/config.toml，旧配置只有 fixture provider，新配置在 provider 前加入 `[projects."<repo.resolve()>"]` 与 `trust_level = "trusted"`。该 repo 是测试自行创建的 demo 仓库；不写真实用户 home。依据为本会话执行主控明确授权：“只允许改夹具（在它隔离 CODEX_HOME 里把它创建核对的 demo 仓库标 trusted，同 T-140 裁定），断言、检查名、变异、超时都不动”。`t127-fixture-only-delta.json` 以 AST 核对，除这段 config 内容外所有 Python 节点不变。
+
+执行主控已有原生失败原样留在 `t127-check-01/`，小摘要 `t127-check-01-summary.json`：CLI 0.163.0，worker 处于 Folder access，记录 `codex_folder_trust_requested`。这证明此前未设置信任的前置失败，不能证明本轮 reviewer 行为。
+
+T-127 当前无法仅凭获准配置修改变为全绿：它仍要求 worker 经过 restricted 启动事件、worker argv 强制 untrusted，并要求 config.toml 完全没有 `[projects]`；另有 worker 与 reviewer 项目 hooks 一律不运行的断言。前面三项与本轮授权直接冲突，hooks 实际影响尚待原生运行。旧变异的部分源码定位也不再匹配 reviewer-only 的参数形状。我没有改这些断言、检查名、期望、变异或超时，也没有为满足旧断言改回 worker 的信任覆盖。问题已上报 `20261023T151346Z-worker:b23-t141-issue-001`，更早的 startup 断言补充为 `20261023T151642Z-worker:b23-t141-issue-001`；原文分别保存在 `issue-t127-protected-contract.md`、`issue-t127-startup-expectation.md`。须由主控处理独立 oracle 与当前裁定的一致性。
+
+`RUN-OUTSIDE-04.sh` 创建新 `outside04-*` 目录，跑 T-141 三契约、无模型 MCP 加载探针、真实 e2e 红/绿、四个变异，以及 t127/t140/t131/t132，共 14 场。t127 仍按普通回归要求 PASS，不把前述冲突失败登记为预期成功。脚本只记录完整候选版本与实际结果，不提交截图；大日志/夹具归执行主控按 T-088 归档。
+
+## RUN-OUTSIDE-03 已回传结果
+
+执行主控提交 `8cf7caf70` 纳入 `outside03-Co3TG9Q3/`，其 `candidate.txt` 为 `369d2053980ae5f2460cd2a16c557ac97571e214`，`matrix.json` 为 PASS：三契约、无模型加载探针、green、T-140/T-131/T-132 通过；red 与四个变异均在各自行为断言处失败。green 原生工具结果和服务收据证明用户 MCP 实际调用，两类 CLI 公开 HTTPS curl 成功；Codex 审批拒绝→issue 面板→答复→原 worker 继续、两类 CLI 的写入边界、两个独立审查均完成。T-140 的 Codex monitor 边界也实际走过，因此前文第三轮的 monitor 信任担忧没有在该次运行中复现。它们是上一候选的有效证据，不能替代本轮恢复 reviewer untrusted 后的 RUN-OUTSIDE-04，也没有覆盖 T-127。
+
+## RUN-OUTSIDE-02 结果与第三轮修复
 
 原始目录 `outside02-FMG476aF/` 保留，归档归执行主控；小摘要为 `outside-02-summary.json`，原生工具清单、MCP 错误和 T-140 诊断摘录为 `diagnosis-outside-02.json`。
 
@@ -38,7 +58,7 @@ MCP 根因不是工具名或权限拒绝：该 worker 原生 transcript 的直�
 
 T-140 获准修改的位置是 `workbench/tests/test_t140_extra_dirs_e2e.py:155-158`：旧 config.toml 只有本地 provider；新配置在 provider 前加入 `[projects."<fixture.repo.resolve()>"]` 与 `trust_level="trusted"`，仅指向该测试新建的 demo 仓库，写在自己的隔离 CODEX_HOME。没有改变断言、检查名、期望值或超时。依据为执行主控在本会话逐字裁定：“允许你只改 workbench/tests/test_t140_extra_dirs_e2e.py 的夹具配置——在它自己的隔离 CODEX_HOME 的 config.toml 里把该测试创建并核对过的 demo 仓库标为 trusted；不得改任何断言、检查名、期望值或超时。”
 
-后续 T-140 reviewer 与 monitor 的目录分别在 `<state>/review-copies` 和 `<state>/monitors`，demo 的信任不会覆盖它们；因此可能继续在这些入口暂停（推断，未运行到）。当前仅授权 demo，我没有扩大信任。已经 inbox `20261023T140702Z-worker:b23-t141-issue-001` 上报，继续准备本轮复跑；原文为 `issue-t140-trust-followup.md`。
+第三轮曾通过 `20261023T140702Z-worker:b23-t141-issue-001` 上报 T-140 reviewer/monitor 的独立目录信任前置（原文 `issue-t140-trust-followup.md`）。本轮 reviewer 以每会话 untrusted 打开，不再需要信任其父目录；monitor 仍沿用用户配置；outside-03 已实测走过 Codex monitor，本轮不扩大其夹具信任。
 
 ## RUN-OUTSIDE-01 失败与第二轮修复（历史）
 
@@ -86,7 +106,7 @@ python3 -B workbench/tests/t141_probe_codex_start.py --trust untrusted --open-re
 python3 -B workbench/tests/t141_probe_claude_mcp.py --summary <新摘要>
 PYTHONPYCACHEPREFIX=/tmp/t141-pycache python3 -m py_compile workbench/tests/test_t141_loosened_limits_e2e.py workbench/tests/t141_probe_codex_start.py
 zsh -n evidence/2026-10-23-batch23/T-141/RUN-OUTSIDE-01.sh
-zsh -n evidence/2026-10-23-batch23/T-141/RUN-OUTSIDE-03.sh
+zsh -n evidence/2026-10-23-batch23/T-141/RUN-OUTSIDE-04.sh
 git diff --check
 ```
 
@@ -94,7 +114,7 @@ git diff --check
 
 ## 待运行的真实入口与局限
 
-下一轮运行 `zsh evidence/2026-10-23-batch23/T-141/RUN-OUTSIDE-03.sh`，创建新的 `outside03-*` 证据目录。先跑三个本地启动契约和无模型原生 MCP 加载探针，再跑修前版本、新候选、四个变异，以及 T-140 / T-131 / T-132 回归（T-140 仅上述获准配置改动）。脚本核对红态/变异必须失败在对应断言，环境失败不算抓住已知坏实现；矩阵输出保留实际状态与错误。RUN-OUTSIDE-01 与其结果不覆盖。
+下一轮运行 `zsh evidence/2026-10-23-batch23/T-141/RUN-OUTSIDE-04.sh`，创建新的 `outside04-*` 证据目录。先跑三个本地启动契约和无模型原生 MCP 加载探针，再跑修前版本、新候选、四个变异，以及 T-127 / T-140 / T-131 / T-132 回归（T-127/T-140 仅上述获准配置改动）。脚本核对红态/变异必须失败在对应断言，环境失败不算抓住已知坏实现；矩阵输出保留实际状态与错误。RUN-OUTSIDE-01 与其结果不覆盖。
 
 新 e2e 使用真实后台、真实门禁、真实 Electron 和已安装的交互 Claude/Codex CLI；Messages/Responses 由本地脚本接口驱动，**不证明模型会自发理解或选择 issue 工作流**。它实际驱动原生审批拒绝，再驱动 issue，并核对问题面板、主控接口答复和 worker 继续交付；不以 answer_registered 事件替代送达。
 
@@ -104,13 +124,13 @@ MCP 放在测试专用 `$HOME/.claude.json` 的顶层 `mcpServers`，属于用�
 
 | 任务卡条件 | 当前结论 |
 | --- | --- |
-| Claude / Codex 公开地址 curl 成功 | outside-02 两类 CLI 均返回 Example Domain；完整 e2e 在 MCP 前失败，新候选待重跑；仅公开 HTTPS，其他协议未验证 |
-| 用户 MCP 可调用 | INCOMPLETE，outside-02 真实失败；本轮无模型原生加载 PASS，执行及服务收据待 outside-03 |
-| 原生审批拒绝 → issue 面板 → 主控答复 → 原 worker 继续 | outside-02 已走通，丢答复变异被抓住；新候选仍需完整复跑 |
-| 原生文件与 shell 越界拒绝、额外目录可写 | outside-02 green 的 Claude 原生 Write 边界及 Codex shell 探针符合要求，放宽变异均被抓住；T-140 未完成，新候选待复跑 |
-| 完整 argv、reviewer 不因新参数被拒 | 本地生产 builder/真实参数门禁 PASS；真实会话审查仍 INCOMPLETE |
-| 原始版本红态、至少两个变异 | outside-02 red 与四个变异全部按各自行为断言失败；新候选待复跑 |
-| T-140 / T-131 / T-132 回归 | outside-02 的 T-131/T-132 PASS，T-140 INCOMPLETE；本轮候选全部待外部复跑 |
+| Claude / Codex 公开地址 curl 成功 | outside-03 PASS；本轮新候选待重跑。仅公开 HTTPS，其他协议未验证 |
+| 用户 MCP 可调用 | outside-03 原生工具结果与服务回执 PASS；本轮新候选待复跑 |
+| 原生审批拒绝 → issue 面板 → 主控答复 → 原 worker 继续 | outside-03 PASS，丢答复变异被抓住；本轮新候选仍需完整复跑 |
+| 原生文件与 shell 越界拒绝、额外目录可写 | outside-03 green 与 T-140 PASS，放宽变异均被抓住；本轮新候选待复跑 |
+| 完整 argv、reviewer 不因新参数被拒 | outside-03 完整审查 PASS；本轮 reviewer-only untrusted 本地 builder/门禁 PASS，真实审查待复跑 |
+| 原始版本红态、至少两个变异 | outside-03 red 与四个变异全部按各自行为断言失败；本轮新候选待复跑 |
+| T-127 / T-140 / T-131 / T-132 回归 | outside-03 的 T-140/T-131/T-132 PASS；T-127 因信任前置失败，本轮保护断言冲突已上报；新候选全套待外部复跑 |
 
 临时目录：outside-02 的 Codex 原生共享临时根拒绝和 tempfile 可用符合要求，`shared-temp-writable` 被实际 `/tmp` 写入抓住。Claude 保留 CLI 原生的每用户临时目录：[官方沙箱文档](https://code.claude.com/docs/en/sandboxing#temporary-directories)说明其用于 sandbox shell 临时文件，T-122 既有探针也记录强行禁止会破坏 shell；本票不在没有独立原生证据时改写该机制。影响是原生 CLI 必需的临时区仍属例外，不能宣称只可写 worktree/请求目录/额外目录这三类路径。新测试分别记录 `/tmp`、原 `$TMPDIR`、实际 shell TMPDIR 与 tempfile 的结果；outside-02 green 中 Claude 的 `/tmp` 与原 `$TMPDIR` 写入均 false、实际 shell TMPDIR 为 `/tmp/claude-501`、tempfile true；新候选仍待复跑，不把历史探针当新候选通过。
 
@@ -122,7 +142,7 @@ MCP 放在测试专用 `$HOME/.claude.json` 的顶层 `mcpServers`，属于用�
 | 信任 `state/review-copies`，在其下创建非 Git 目录 `r-1` | 继承祖先信任，直接进入输入框，出现原生 ready 包 |
 | 信任父目录，在其下新建独立 Git 仓库 | 不继承父目录信任，出现 Trust this folder?，没有 ready 包 |
 
-因此不能把“每次新 reviewer 副本都会暂停”当作产品结论：用户自己信任一次项目仓库和 `<state>/review-copies` 后，worker worktree 与 reviewer 非 Git 副本分别继承这两处信任，新任务与新审查不需逐个处理。尚无适用信任时才上报，等用户在终端自己信任；a2a 不代按，不写 `~/.codex`。这组三变体只证明当前 CLI 的信任继承，不证明网络、工具权限或完整 e2e。原始摘要仍为 INCOMPLETE，观察事实单独汇总，不改原始状态。
+这些是原生信任继承事实。按本轮裁定，产品 reviewer 不能因此继承已信任祖先而加载候选配置；每个审查副本显式设为 untrusted，由后台选择不保存信任的 Open restricted。worker worktree 继续继承项目仓库信任；worker/monitor 尚无适用信任时上报，等用户自己处理，a2a 不代按 Trust and continue，不写 `~/.codex`。这组三变体只证明当前 CLI 的信任继承，不证明网络、工具权限或完整 e2e。原始摘要仍为 INCOMPLETE，观察事实单独汇总，不改原始状态。
 
 inbox `20261023T125143Z-worker:b23-t141-issue-001` 的 T-140 夹具信任担忧已由 outside-02 实际确认：Codex 正确停在未设置信任处。本轮仅按新裁定修复 demo 的夹具配置，未改产品信任处理。
 
@@ -135,4 +155,4 @@ Codex 无额外目录的 monitor 继续使用原有 read-only 模式；本票真
 - `AGENTS.md:33`：“权限只在工作台内：角色卡、任务卡路径加门禁检查、每会话的 CLI 启动参数、收件箱命令行四层（T-071）。a2a 系统不写 `~/.claude`、`~/.codex` 等全局配置，钩子与权限只经每会话的启动参数传入。”该约束保持；unset 信任由用户自己处理。
 - `AGENTS.md:36`：“真实 Codex 验收使用 /tmp 下的隔离 CODEX_HOME：只复制 auth.json；只信任已核对的夹具根目录；只复现用户规则中的 `git add`、`git commit` 两条 allow prefix_rule；hook 只在主控逐次批准后安装。”本次无凭据的脚本接口不需要 auth 副本。
 - 关网络与单 socket 原文实际在 `.project-map/tickets/T-075-tracer-bullet-daemon-gate-pane.md:52`：“worker 的每会话启动参数只放行编排后台那一个 Unix socket，网络保持关闭”；第 59 行：“开 Codex 托管网络代理，域名名单留空，只放行后台 socket”；第 131 行记录 A2 未验证成、改走 B。它们是日期记录，由构思主控核对 T-141 后应怎样索引，worker 不改。
-- 强制 untrusted 的当前使用说明原在 `workbench/README.md`“用户的 Codex home”一节，已随本候选改为继承用户配置；MCP 写入不属于原生文件与 Bash 沙箱边界也已写入该 README。门禁路径检查没有因此放宽。
+- `workbench/README.md`“用户的 Codex home”一节已明确 worker/monitor 继承用户配置、仅审查副本保持 untrusted，理由是候选的 `.codex` 配置、hooks、exec policy 不能影响审查独立；MCP 写入不属于原生文件与 Bash 沙箱边界也已写入该 README。门禁路径检查没有因此放宽。

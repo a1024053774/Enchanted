@@ -2384,6 +2384,7 @@ export class A2AGates {
         JSON.stringify(argv.flatMap((arg, index) => arg === '--add-dir' ? [argv[index + 1]] : [])) === JSON.stringify(extraDirectories) &&
         sandbox >= 0 && argv[sandbox + 1] === "workspace-write" &&
         config("-a") && argv[argv.indexOf("-a") + 1] === "never" &&
+        config(`projects={${JSON.stringify(realpathSync(review.candidate_workspace))}={trust_level="untrusted"}}`) &&
         config("sandbox_workspace_write.network_access=true") &&
         config(`sandbox_workspace_write.writable_roots=${JSON.stringify(extraDirectories)}`) &&
         config("sandbox_workspace_write.exclude_slash_tmp=true") &&

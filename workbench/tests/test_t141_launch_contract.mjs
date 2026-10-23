@@ -39,7 +39,7 @@ try {
   report.checks.push('claude_network_mcp_write_boundary');
   const launch = text.slice(text.indexOf('private async createPane('), text.indexOf('\n  //', text.indexOf('    this.store.launch(record);', text.indexOf('private async createPane('))));
   assert.ok(!launch.includes('network_access=false') && !launch.includes('const networkAccess = "false"'), 'T-141: Codex network closed');
-  assert.ok(!launch.includes('features.network_proxy=') && !launch.includes('trust_level='), 'T-141: inherit user trust and tools');
+  assert.ok(!launch.includes('features.network_proxy='), 'T-141: inherit user network proxy and tools');
   assert.ok(launch.includes('"-a", "never"'), 'T-141: never wait for native approval');
   report.checks.push('codex_inherits_user_configuration');
   report.status = 'PASS';

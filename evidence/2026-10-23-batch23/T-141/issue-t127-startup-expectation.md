@@ -1,0 +1,3 @@
+补充 20261023T151346Z-worker:b23-t141-issue-001：继续逐行核对发现更早的冲突。
+
+workbench/tests/test_t127_codex_home_e2e.py 原版本 :354（加两行夹具配置后 :356）restricted_answered_before_first_task 明确要求 worker 启动事件前三条为 codex_restricted_open_intent、codex_restricted_opened、turn_submitted。已信任 demo 仓库的 worker 按本轮决定直接进入，不应再产生前两条事件，因此默认 t127 预计会先失败在这里，走不到后续 reviewer 核对。必须由主控更新独立 oracle 中 worker 的启动期望后，才能验证全场；我保留该断言不动，RUN-OUTSIDE-04 不把这类失败归为预期成功。

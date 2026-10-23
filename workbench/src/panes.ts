@@ -709,6 +709,9 @@ export class Panes implements GateRuntime {
       ? { ...(task.card.executor.model.trim() ? { model: task.card.executor.model } : {}),
           ...(task.card.executor.effort.trim() ? { effort: task.card.executor.effort } : {}), ...overrides } : overrides);
     const launchWorkspace = review ? review.candidate_workspace : attempt.workspace;
+    // A worker can put .codex config, hooks or exec policy in its candidate. Keep that
+    // untrusted for the independent reviewer; worker/monitor inherit user trust (T-127, T-141).
+    const trustRoot = claude ? null : review ? realpathSync(launchWorkspace) : null;
     const nativeSession = claude ? randomUUID() : null;
     const extraDirectories = (this.store.openedProjects().find(project => project.project_id === task.project_id)?.extra_directories ?? [])
       .map(path => realpathSync(path));
@@ -725,6 +728,7 @@ export class Panes implements GateRuntime {
       [...(monitor ? [] : review ? [realpathSync(launchWorkspace)] : [realpathSync(launchWorkspace), requestDirectory]), ...extraDirectories],
       [...(review || monitor ? [] : [requestDirectory]), ...extraDirectories], review || monitor ? [] : await workerGitDenied(launchWorkspace), extraDirectories, mcpConfig) : [executable, "--no-daemon", "--no-alt-screen", "-C", launchWorkspace,
       "-a", "never", "--sandbox", sandboxMode, "-m", model,
+      ...(review ? ["-c", `projects={${JSON.stringify(trustRoot)}={trust_level="untrusted"}}`] : []),
       "-c", `model_reasoning_effort=${JSON.stringify(effort)}`, "-c", `service_tier=${JSON.stringify(fast ? 'fast' : 'default')}`,
       "-c", "check_for_update_on_startup=false",
       "-c", "sandbox_workspace_write.network_access=true",
