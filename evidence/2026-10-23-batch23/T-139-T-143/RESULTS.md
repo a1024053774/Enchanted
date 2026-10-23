@@ -1,7 +1,8 @@
 # T-139 / T-143 同批验证（attempt a1）
 
 状态：**INCOMPLETE**。RUN-OUTSIDE-01 已取得 T-139 真实入口红态、候选通过及两个变异的业务拒绝；
-后续 T-143 候选和普通终端投影修复必须由 RUN-OUTSIDE-02 再次联合验证。WebGL 与保留窗格尚未取得性能数字，不能最终验收或集成。
+RUN-OUTSIDE-02 的 selection、layout-store、terminal-catalog、T-107、T-133/T-107 均通过，T-091 与起点同样失败。
+但九项联合 Electron 运行全部在 CDP 返回对象时中止，没有性能数字。修正测试后仍须 RUN-OUTSIDE-03，不能最终验收或集成。
 
 ## T-139
 
@@ -25,7 +26,7 @@
 投影修复将未认领/已放弃角色的普通终端放到 `sidebar_snapshot.terminals`，经批准的角色继续进入 agents；
 侧栏单独显示普通终端。因此放弃角色后它从 agents 消失，普通终端入口仍在。真实 SQLite 的 catalog-red-01.json
 准确复现旧投影违反该合同；catalog-shape-red-01.json 还检出了终端行缺少下属摘要的投影字段遗漏；catalog-green-02.json 通过对应检查。
-当前源码的 T-107 投影检查 sidebar-projection-02.json 通过，原真实 T-133/T-107 必须再跑。
+当前源码的 T-107 投影检查 sidebar-projection-02.json 通过；RUN-OUTSIDE-02 的原真实 T-133/T-107 也为 PASS（outside-02-fXauAYx2/t133-t107.json）。
 
 此前布局缺陷及修复记录保留：selection-red-03.json、layout-red-01.json、store-layout-red-02.json 逐步检出任务混终端、
 单 agent 编辑覆盖兄弟布局、项目终端保存包含任务 agent；后续对应绿态均保留。独立检查报告 REVIEW-01.md 为 INCOMPLETE，
@@ -39,13 +40,13 @@ RUN-OUTSIDE-01 的同一夹具：两个真实 Claude CLI worker，模型请求 c
 
 | 项目 | 对照 → 单项实验（RUN-OUTSIDE-01） | 处置 |
 | --- | --- | --- |
-| screenReaderMode 关闭 | 切换中位数 78.05 → 64.30 ms；滚动 121.37 → 121.22 FPS，p95 9.0 → 8.9 ms | 观察到切换约 17.6% 缩短，候选默认关闭；设置可手动开启，作用于本窗口所有终端。RUN-OUTSIDE-02 在 T-139 控制版本再测 |
+| screenReaderMode 关闭 | 切换中位数 78.05 → 64.30 ms；滚动 121.37 → 121.22 FPS，p95 9.0 → 8.9 ms | 观察到切换约 17.6% 缩短，候选默认关闭；设置可手动开启，作用于本窗口所有终端。RUN-OUTSIDE-03 在 T-139 控制版本再测 |
 | 100 → 16 ms 轮询 | 切换中位数 78.05 → 81.70 ms；滚动 121.37 → 121.25 FPS，p95 均 9.0 ms | 无改善，不保留；生产仍用 100 ms，未增加输出推送路径 |
-| WebGL | 未测。主控已安装 MIT 的 @xterm/addon-webgl 0.19.0，授权本 worker 提交 package.json/lock 改动 | 仅用于测试副本；模块导入与标准构建通过，未启用到生产终端。RUN-OUTSIDE-02 与同一 T-139 控制版本只差 WebGL；不改善则移除依赖 |
-| 切换保留连接 | 未测。当前加入候选，未宣布保留 | RUN-OUTSIDE-02 对比当前代码 retainedPaneLimit=0 与 =4，其他代码/读屏设置相同；不改善则撤掉 |
+| WebGL | 未测。主控已安装 MIT 的 @xterm/addon-webgl 0.19.0，授权本 worker 提交 package.json/lock 改动 | 仅用于测试副本；模块导入与标准构建通过，未启用到生产终端。RUN-OUTSIDE-03 与同一 T-139 控制版本只差 WebGL；不改善则移除依赖 |
+| 切换保留连接 | 未测。当前加入候选，未宣布保留 | RUN-OUTSIDE-03 对比当前代码 retainedPaneLimit=0 与 =4，其他代码/读屏设置相同；不改善则撤掉 |
 
 旧 FPS 采样的首个时间差来自 performance.now() 到首个 rAF，原始数据中出现负值，不能据此声称超过屏幕刷新率或滚动改善。
-原始数据未改写。测量版本 2 先用首个 rAF 建立基点，再采 120 个正帧间隔；RUN-OUTSIDE-02 所有对照、实验与候选均用它，
+原始数据未改写。测量版本 2 先用首个 rAF 建立基点，再采 120 个正帧间隔；RUN-OUTSIDE-03 所有对照、实验与候选均用它，
 并重新运行 ebbae7bd0 与 T-139 控制版本。切换计时现在还要求目标窗格 input_enabled=true 才算完成。
 
 保留窗格的待测实现：每个窗口最多保留四个未显示终端，保留 xterm、UTF-8 解码器与字节偏移；隐藏期间暂停轮询，
@@ -65,12 +66,35 @@ RUN-OUTSIDE-01 的同一夹具：两个真实 Claude CLI worker，模型请求 c
 WebGL2 canvas 确实启用且未报告 context loss。增加 inactive-input 变异，不能用只读快照代替输入拒绝。
 retention-harness-failure-01.txt 保留了关闭窗口检查初次遇到的测试边界缺方法错误；它不是业务红态。
 
-独立只读审查 T143-REVIEW-01.md 对冻结候选 8faf2a646 为 INCOMPLETE：检出读屏开关选择器指向标题、无法匹配复选框。已改为选择整个设置 section 下的 input；原报告保留。另补上保留集上限边界检查，并把 WebGL context loss 计数保存在窗口上，避免切换销毁节点后遗漏已发生的丢失。独立有界复核 T143-REVIEW-02.md 确认选择器唯一匹配 checkbox，25 项 selection 再跑通过，P1 已解除。真实 Electron/GPU 检查仍待 RUN-OUTSIDE-02。
+独立只读审查 T143-REVIEW-01.md 对冻结候选 8faf2a646 为 INCOMPLETE：检出读屏开关选择器指向标题、无法匹配复选框。已改为选择整个设置 section 下的 input；原报告保留。另补上保留集上限边界检查，并把 WebGL context loss 计数保存在窗口上，避免切换销毁节点后遗漏已发生的丢失。独立有界复核 T143-REVIEW-02.md 确认选择器唯一匹配 checkbox，25 项 selection 再跑通过，P1 已解除。真实 Electron/GPU 检查仍待 RUN-OUTSIDE-03。
 
-下一步：主控在沙箱外运行，回传新目录与 COMPARISON.json。
+## 测试工具修正（主控 #10）
+
+RUN-OUTSIDE-02 的 70 个小文件/截图保留在 outside-02-fXauAYx2/。九项联合运行均为 INCOMPLETE，
+共同错误为 `Object reference chain is too long`，指标为空；这不能用于判定 WebGL 或保留窗格的性能。
+定位到 `window.__initialShellTerminal = mount.__testTerminal`：赋值表达式返回整个 xterm 对象，
+CDP 的 returnByValue 会尝试序列化其循环/深引用。修正为 `void (...)`，只在页面保留引用而不返回对象。
+滚动采样显式 JSON.stringify 数字/帧间隔数组，Python 再 json.loads。测量方法仍为 v2，另记 harness_version=3。
+
+隔离 CDP 序列化检查为 PASS：serialization-inspector-01.json。CHECK-CDP-SERIALIZATION.mjs 读取实际 e2e 的捕获表达式，
+通过 Node V8 inspector 的 Runtime.evaluate 复现旧表达式对循环对象报同错，新表达式返回 undefined 且保留引用身份。
+这只证明序列化边界，不是 Electron/GPU 或性能指标。
+
+修正后尝试单项真实命令：
 
 ```sh
-zsh evidence/2026-10-23-batch23/T-139-T-143/RUN-OUTSIDE-02.sh
+python3 workbench/tests/test_t139_t143_views_perf_e2e.py --summary evidence/2026-10-23-batch23/T-139-T-143/serialization-selftest-01.json
+```
+
+结果 INCOMPLETE：沙箱内 Electron CDP 连接 ECONNREFUSED（127.0.0.1:59328），未取得指标，现场保留在 summary 的 fixture 路径。
+按公共约定不申请越权；RUN-OUTSIDE-03 先只跑一次候选，核对 PASS、harness_version=3、三项有效正数指标、
+3×120 正帧间隔与 8 次切换，再写 PREFLIGHT.json。该单项未满足时立即停止，不批量重跑；
+通过后复用这份候选结果继续对照/变异/回归。真实非空指标自测尚待主控沙箱外执行。
+
+下一步：主控在沙箱外运行，回传新目录、PREFLIGHT.json 与 COMPARISON.json。
+
+```sh
+zsh evidence/2026-10-23-batch23/T-139-T-143/RUN-OUTSIDE-03.sh
 ```
 
 脚本逐项跑新基线、T-139 控制、读屏关闭、WebGL、无保留/有保留候选，三个变异和指定回归。

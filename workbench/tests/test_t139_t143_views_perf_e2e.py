@@ -7,6 +7,7 @@
 4. 回放偏移倒退、重复或丢失，切换后焦点或输入错路由。
 5. 性能测量绕过真实 PTY，或基线与候选的负载、测量命令不同。
 6. 隐藏窗格仍能输入，或唤回时重建 xterm/输入凭据、丢失待追平输出。
+7. CDP 观察表达式意外返回 DOM/xterm 对象，导致按值序列化失败、指标缺失。
 
 只在夹具副本插入 xterm 观察引用（不改变输出或计时路径）。
 每次保留夹具和截图；--summary 不覆盖旧证据。
@@ -35,7 +36,7 @@ def main():
     args = parser.parse_args()
     assert not args.summary.exists(), '保留旧证据，请换新路径'
     args.summary.parent.mkdir(parents=True, exist_ok=True)
-    report = dict(status='INCOMPLETE', argv=sys.argv, measurement_version=2, checks=[], failures=[], metrics={}, observed={})
+    report = dict(status='INCOMPLETE', argv=sys.argv, measurement_version=2, harness_version=3, checks=[], failures=[], metrics={}, observed={})
     report['code_version'] = subprocess.check_output(['git', 'rev-parse', args.revision or 'HEAD'], text=True).strip()
     patches = [('app/renderer.tsx', 'term.open(mount.current!);',
                 'term.open(mount.current!); (mount.current as any).__testTerminal = term;')]
@@ -131,7 +132,7 @@ def main():
         before = electron.evaluate(buffer)
         initial_shell_key = shell_key
         initial_window = electron.evaluate(f'window.a2a.snapshot({json.dumps(shell_key)})')['window_id']
-        electron.evaluate(f'window.__initialShellTerminal = {mount}.__testTerminal')
+        electron.evaluate(f'void (window.__initialShellTerminal = {mount}.__testTerminal)')
         if args.experiment == 'webgl':
             check('webgl2_renderer_active', electron.evaluate(f'!!{mount}.querySelector(".xterm-screen canvas")?.getContext("webgl2")'))
         # Numbered complete lines, not shell echo of the command.
@@ -139,11 +140,11 @@ def main():
         check('numbered_output_once_before_switch', re.findall(r'^BENCH_\d{5}$', before, re.M) == expected)
         fps = []
         for _ in range(3):
-            fps.append(electron.evaluate(f"""new Promise(resolve=>{{const t={mount}.__testTerminal; t.scrollToBottom();
+            fps.append(json.loads(electron.evaluate(f"""new Promise(resolve=>{{const t={mount}.__testTerminal; t.scrollToBottom();
               const frames=[]; let last;
               const step=now=>{{if(last!==undefined)frames.push(now-last);last=now;t.scrollLines(frames.length%40<20?-9:9);
-                if(frames.length<120)requestAnimationFrame(step);else resolve({{fps:120000/frames.reduce((a,b)=>a+b,0),
-                  p95_ms:[...frames].sort((a,b)=>a-b)[113],frames}})}};requestAnimationFrame(step)}})""", timeout=25))
+                if(frames.length<120)requestAnimationFrame(step);else resolve(JSON.stringify({{fps:120000/frames.reduce((a,b)=>a+b,0),
+                  p95_ms:[...frames].sort((a,b)=>a-b)[113],frames}}))}};requestAnimationFrame(step)}})""", timeout=25)))
         report['metrics']['scroll'] = fps
         check('raf_intervals_positive', all(delta > 0 for sample in fps for delta in sample['frames']))
         report['metrics']['scroll_fps_median'] = statistics.median(x['fps'] for x in fps)
