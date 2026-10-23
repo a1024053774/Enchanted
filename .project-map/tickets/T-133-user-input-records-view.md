@@ -40,3 +40,22 @@ ready_rev: 1
 - Claude Code：项目终端的 `claude` 包装脚本已经给本会话加载 Enchanted 插件（`--plugin-dir`），钩子放进插件。
 - Codex：包装脚本加 `-c hooks.UserPromptSubmit=…`。先用探针确认在用户真实的 `~/.codex` 下是否会弹出钩子信任、是否会写用户配置；会写的话停下报告，不用 `--dangerously-bypass-hook-trust` 绕过。
 - 后台只在该终端持有已批准角色时记录；没批准的会话、普通终端都不记。
+
+## 方案 A 实现（2026-10-22）
+
+- **Claude Code 一侧：INCOMPLETE。** 代码复审没有阻碍项；ticket 层面不关，原因是 Codex 一侧未完成。
+  - **代码**：`36fa74f6a`～`c24d58955`（候选 1）、`fbf68c404`（候选 2）。
+  - **测试修正**：`1c61918ee`、`cb6e7d75c`。
+  - **做法**：插件钩子 `a2a hook`。后台只在终端持有已批准角色、且会话是角色申请里的那个原生会话时记录：提交的整句记为 `controller-terminal` 渠道的消息，对它提问的答复记为答复。
+  - **证据**：`evidence/2026-10-22-batch20/T-133-T-107/`。
+    - 候选 1：green 10 项 PASS。
+    - 候选 2：green-02 11 项 PASS，新增 `three_kinds_in_one_view`：主控终端提交、面板答复、受管窗格键入出现在同一次运行的同一视图。首个 green 因测试没处理门禁锁占用而失败，原样保留。
+    - 变异“没批准也记”失败。
+  - **独立审查**：review-01 INCOMPLETE（2 条 P2、2 条 P3）。review-02 INCOMPLETE，理由只是下面的 Codex 与 T-107 #3，另有 2 条 P3：
+    - 检查没逐条比对 worker 两行的显示文本。不改：green-02 的记录页读回文本正确；主控终端行的文本已逐条检查。
+    - 终端父级没匹配到角色时进“未归属”。符合票面“关系不明进未归属”，不改。
+- **Codex 一侧：BLOCKED，等用户定。** 探针（`codex-hook-probe/RESULTS.md`）：
+  - 经 `-c` 传入的钩子会弹出信任提示；
+  - 信任后 Codex 把 `hooks.state` 写进 `CODEX_HOME/config.toml`，在用户真实环境里就是 `~/.codex/config.toml`；
+  - 经 `-c` 预填的信任不生效。
+  - 按决定停下，没有用 `--dangerously-bypass-hook-trust`。
