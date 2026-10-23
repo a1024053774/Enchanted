@@ -6,6 +6,7 @@
 4. 主目录、子目录或额外目录不能开，返回 id 不对应真实 shell/cwd。
 5. 新终端没有出现在界面项目层，混进任务层，或点开后的 pwd 不对。
 6. 真实 Claude 的 a2a request 没有经过界面批准，或其调用并未执行。
+7. Claude 默认进入 auto mode，其计费说明对话框挡住 Bash 调用；夹具须显式使用 default 权限模式。
 --backend-only 是沙箱内的真实后台/PTY/CLI 契约探针，不替代默认 Electron + Claude 验收。
 """
 import argparse
@@ -90,7 +91,9 @@ def main():
             config.write_text(json.dumps({'hasCompletedOnboarding': True, 'theme': 'dark',
                                           'projects': {str(fixture.repo): {'hasTrustDialogAccepted': True}}}), encoding='utf-8')
             (fixture.home / '.claude').mkdir(exist_ok=True)
-            (fixture.home / '.claude/settings.json').write_text(json.dumps({'permissions': {'allow': ['Bash(a2a request:*)', 'Bash(a2a call:*)']}}), encoding='utf-8')
+            permissions = {'defaultMode': 'default', 'allow': ['Bash(a2a request:*)', 'Bash(a2a call:*)']}
+            (fixture.home / '.claude/settings.json').write_text(json.dumps({'permissions': permissions}), encoding='utf-8')
+            report['observed']['fixture_permissions'] = permissions
             electron = Electron(fixture, 't142-' + fixture.dir.name[5:])
             electron.until('项目出现', '!!document.querySelector(\'[data-project-id="demo"]\')')
             type_in(controller, 'claude --model claude-haiku-5-5\r')

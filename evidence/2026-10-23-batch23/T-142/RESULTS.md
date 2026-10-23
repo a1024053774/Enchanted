@@ -1,6 +1,6 @@
 # T-142-1 / a1：INCOMPLETE
 
-实现已完成；后台契约 PASS。真实 Electron + 真实 Claude 的完整链路、T-124 与 T-139/T-143 回归待执行主控在沙箱外运行。T-121 的必跑回归在起点也失败，不能报告整体 PASS。
+实现已完成；后台契约 PASS。执行主控已运行 RUN-OUTSIDE-01：T-124、T-139/T-143 通过，T-091 与起点一致；完整链路的 green/red/mutant 均被 Claude auto mode 计费说明对话框挡住而超时。测试夹具现已固定 default 权限模式，待 RUN-OUTSIDE-02 复验；整体仍为 INCOMPLETE。T-121 由执行主控本轮裁定交 T-147，不计入 T-142。
 
 ## 改动
 
@@ -37,11 +37,18 @@ T-091 命令：`node --experimental-vm-modules workbench/tests/test_t091_pane_ip
 ## 待沙箱外运行
 
 ```sh
-zsh evidence/2026-10-23-batch23/T-142/RUN-OUTSIDE-01.sh
+zsh evidence/2026-10-23-batch23/T-142/RUN-OUTSIDE-02.sh
 ```
 
-每次创建新的 outside-* 目录，保存完整命令、退出码和 JSON，不覆盖旧证据。默认新 e2e 使用 claude-haiku-5-5 的真实交互 CLI，经真实 a2a request、界面批准、调用 terminal_open；点入界面项目层的普通终端，核对 launch.id 并经界面输入 pwd。脚本还运行完整起点红态、cwd-unchecked 变异、T-121、T-124（--gui）、T-139/T-143 和 T-091。RESULT.json 只有全部必需结果满足条件才会标 PASS。
+每次创建新的 outside-02-* 目录，保存完整命令、退出码和 JSON，不覆盖旧证据。新脚本只重跑 green/red/mutant；产品代码未改，已通过的回归不重复跑。默认新 e2e 使用 claude-haiku-5-5 的真实交互 CLI，经真实 a2a request、界面批准、调用 terminal_open；点入项目层普通终端，核对 launch.id 并经界面输入 pwd。
 
-真实 UI 链路尚未在本 session 跑过，不能把后台绿态当成 UI 通过。T-121 当前预计仍会因起点问题使总结果为 INCOMPLETE；由主控结合 T-146-4 裁定。T-133 已知失败不计入本候选。
+## RUN-OUTSIDE-01 回传与夹具修正（2026-10-23）
+
+- 执行主控回传目录：`outside-20261023T153047Z-v7ZOxk`。T-124、T-139/T-143 为 PASS；T-091 与起点一致。T-121 仍在 sidebar_drops_closed_controller 失败；主控明确裁定：“t121 失败是已知的裁定 B 冲突，由 T-147 修改 T-121 断言处理，不算你的。”未修改 T-121。
+- 三个完整链路均为“main 开终端回执”超时，不能作为红态或变异证明。夹具 `/private/tmp/t142-ww34jo3s` 的主控 PTY（launch `3aaa45ad-a15d-491f-862b-1e07a0c3e071`）可见 auto mode 计费说明。已核对 Bash 调用被该说明挡住；没有发送 Enter/Esc 关闭它。
+- 仅在新测试夹具的隔离 home 写 `permissions.defaultMode="default"`，保留 `Bash(a2a request:*)`、`Bash(a2a call:*)` 两条 allow。summary.observed.fixture_permissions 记录实际写入配置。未改产品代码、全局配置、Claude 版本或模型。
+- RUN-OUTSIDE-02 的 red 必须退出 1、完成真实角色申请和界面批准、在 main_opened 收到 role_command_not_scoped；mutant 必须退出 1、完成三个目录的界面 pwd 核对，再于 sibling_refused 捕获错误放行。另核对夹具配置与清理错误；相同超时不能使 RESULT.json 通过。
+- 本轮静态检查：`zsh -n evidence/2026-10-23-batch23/T-142/RUN-OUTSIDE-02.sh`、`PYTHONPYCACHEPREFIX=/private/tmp/t142-pycache python3 -m py_compile workbench/tests/test_t142_terminal_open_e2e.py`、`git diff --check` 通过。`run02-checker-negative.json` 记录新汇总器对上一轮三个超时 summary 的实际拒绝：退出 1，red_expected_refusal 与 mutant_caught 均为 false。该检查不代表修正后的 UI 链路通过。
+- RUN-OUTSIDE-02 尚未执行，完整绿态、红态与变异仍待主控沙箱外确认；独立验收也由主控继续办理。RUN-OUTSIDE-01、旧 summary 和原始现场均保留。
 
 所有新探针的原始现场保留在 summary.fixture 指向的 /private/tmp/t142-*；包括 run、sqlite、PTY 与未来截图。按派发要求截图不提交，原始现场由执行主控按 T-088 归档；本提交只包含小文本摘要和重放脚本。初始已有的 card.md 派发修订保留原样，未由 worker 修改或纳入 worker 提交。收件箱上报条目由 scripts/inbox 生成，留在 worktree 供主控读取，不纳入本 ticket 代码提交。
