@@ -1,6 +1,6 @@
 # T-155-1 / a1：真实使用运行记录
 
-状态：INCOMPLETE。模型执行已停在真实阻断：两票被独立审查输出协议暂停，一票在运行中人工介入后交付未知，无任何集成。两 worker 并行、问题答复、真实打回与修复重交、记录/指标/Reflect 已实际走到；UI 重开、最终停止读回与归档尚待完成。不能以“报告写出”替代完整流程通过。
+状态：INCOMPLETE。模型执行已停在真实阻断：两票被独立审查输出协议暂停，一票在运行中人工介入后交付未知，无任何集成。两 worker 并行、问题答复、真实打回与修复重交、记录/指标/Reflect、同后台 UI 重开已实际走到；最终停止读回与归档尚待完成。不能以“报告写出”替代完整流程通过。
 
 ## 版本与启动
 
@@ -60,7 +60,7 @@ bash evidence/2026-10-23-batch24/T-155/START-APP.sh /private/tmp/t155-dogfood-oh
 
 只对屏幕明确指向测试 repo 的信任提示操作 Down、截图核对后单独 Enter；执行主控卡片的批准也是本票计划内操作。没有系统隐私授权、登录、付款或越界操作请求；没有需要主控代批的系统权限。没有经 shell、CDP、DOM 或数据库驱动业务流程。
 
-## 尚未完成
+## 实例 1 截止时未完成（后续结果见实例 2）
 
 两个 worker 真正并行、worker 问题页答复、受控打回与重交、worker 窗格人工介入、多窗格滚动切换、独立审查、集成、带结果的指标与 Reflect、UI REOPEN、新隔离实例复现、正式中文发现报告、最终证据归档和独立接受性审查均待后续运行。
 
@@ -84,7 +84,7 @@ bash evidence/2026-10-23-batch24/T-155/START-APP.sh /private/tmp/t155-dogfood-oh
 | 流程、记录、指标 | 已查看真实多任务状态；数据与未知/无数据的限制见图 32/35/45/56 与报告 |
 | Reflect | PASS（只指产物生成）：选择 Haiku，手动复盘实际写报告，页面已完成，8 条建议未批准/执行，图 43/46/47 |
 | 新实例复现一条发现 | 已重复观察：两个全新 root 的角色批准都未出现在输入记录；旧实例停止后的 DB 副本已核对，新实例停止读回待补 |
-| UI 关闭再重开 | INCOMPLETE：此刻尚待主控执行 UI-only REOPEN，不能把换新后台算成此场景通过 |
+| UI 关闭再重开 | PASS（同后台 UI-only）：主控 #19 执行，旧 UI 83084 停止，新 UI 14775，daemon 仍 83082；图 57～61 核对持久状态。未测试 daemon 重启 |
 
 最终业务状态：
 
@@ -133,6 +133,11 @@ bash evidence/2026-10-23-batch24/T-155/START-APP.sh /private/tmp/t155-dogfood-oh
 | 54-mergeable-review-rejected-protocol.png | 新 reviewer 可合并的原文仍因 fenced JSON 被拒 |
 | 55-controller-end-state.png | C13 只读汇总，明确未集成、未清理和预算限制 |
 | 56-final-metrics-before-reopen.png | 9 个 managed 会话共记录 22 回合；完整文本另存 metrics-before-reopen.ax.txt |
+| 57-reopened-isolated-window.png | 重开同一 renderer，默认选择独立终端，侧栏角色和会话保留 |
+| 58-reopened-terminal-restored.png | 重新选主控后，C13 最终输出、main 种子与阻断状态可读 |
+| 59-reopened-flow-persisted.png | 同一任务阶段、打回轨迹、T-103 未知和旧 attempt 未归属均保留 |
+| 60-reopened-reflect-persisted.png | Reflect 会话树与原有结果仍可访问；AX 同时核对已完成记录及 8 条待决定建议 |
+| 61-reopened-user-records.png | 全部筛选下仍为 17 条记录、8 条人工介入；未新增模型提示 |
 
 ## 累计回合与权限口径（待停止后终核）
 
@@ -142,15 +147,17 @@ bash evidence/2026-10-23-batch24/T-155/START-APP.sh /private/tmp/t155-dogfood-oh
 
 权限操作只有测试 repo 信任、两次主控角色批准、问题页答复、选择同目标卡修订及明确的交叠理由；没有系统隐私、登录或付款操作。没有批准 Reflect 的任何改进建议。Computer Use 的操作来源是测试 agent，产品记录名“用户输入”不意味着真人亲手操作。
 
-## 下一步交接
+## UI 重开与最终停止交接
 
-主控按原任务卡在沙箱外只停 UI 再重开同一后台，不重新创建 root，不改任何 gate 状态：
+主控 #19 已按原任务卡在沙箱外只停 UI 再重开同一后台，没有重新创建 root：
 
 ```sh
 bash evidence/2026-10-23-batch24/T-155/STOP-APP.sh /private/tmp/t155-dogfood-ohzs_78v
 bash evidence/2026-10-23-batch24/T-155/START-APP.sh /private/tmp/t155-dogfood-ohzs_78v
 ```
 
-重开后只核对任务/角色/历史记录与未知状态的保留，再由主控 STOP --all；停止后归档 raw run、只读核对数据库和本次 native session。原目录不删除。缺盘或无法确认退出时保留现场，不能写归档成功。报告独立审查在证据冻结后做，当前未做。
+Computer Use 已确认同一隔离 renderer；生命周期日志 `logs/electron-c18cd8fc.json` 为新 Electron PID 14775，`logs/daemon_status-9840d5cc.json` 为保留的 daemon 83082。图 57～61 核对任务/角色/终端/记录/Reflect，T-103 的未知没有因重开被掩盖。默认页面落在独立终端，重新选择项目后可读原内容。未新增模型回合，也未测试 daemon 重启。
+
+已请求主控在沙箱外 `STOP-APP.sh /private/tmp/t155-dogfood-ohzs_78v --all`；停止后归档 raw run、只读核对数据库和本次 native session。原目录不删除。缺盘或无法确认退出时保留现场，不能写归档成功。报告独立审查在证据冻结后做，当前未做。
 
 阶段文本检查：报告 UTF-8 回读与 20 个本地引用存在性检查通过；project-map status 为 Problems 0、Stale living docs 0；产品 workbench 与基线无改动。默认 `git diff --check` 在原样保存的 AX 文本中报告 14 处 UI 字段自带尾随空白（分隔符与日期占位符），记录保留、不为消除告警改写原文。仅排除此原始 AX 文件后，手写报告与脚本的 diff check 退出 0；不把默认检查写成通过。

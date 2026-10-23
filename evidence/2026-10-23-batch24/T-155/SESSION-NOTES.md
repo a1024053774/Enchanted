@@ -125,3 +125,11 @@ C10（图 49）：主控核对旧 attempt revoked（原因 spec revised）、命
 - C13 只读结束：T-101/T-102 task 均暂停、各当前 attempt 为 submitted；T-103 task/attempt 为 claimed、无候选验收记录。main 仍为种子 `13f0524...`。没有任何一票 integrated，没有 score_file，没有 push，没有清理或直接改数据库。除 role 申请与正常任务操作外，本轮只做了明确授权的两次 revise 和两次 a2 派发。
 - 截止新增模型调用前，图 56 与 `metrics-before-reopen.ax.txt` 给出 9 个 managed 会话、22 个记录回合：A1 worker 6、B1 worker 5、A1/B1 reviewer 各 1、T103 worker 1、A2 worker 4、B2 worker 2、A2/B2 reviewer 各 1。另有两个实例累计 C1～C13 共 13 次主控根提交、1 次 Reflect；T103 人工输入后的实际回复在指标中未单列。最终总量需从停止后的原生日志核对，不把 22 或消息编号当全局总量。
 - 本阶段后不再向应用内模型发新提示；后续仅 UI 重开、只读核对、归档与报告验收。
+
+## 主控 #19 后：同后台 UI 重开核对
+
+- Computer Use 重新绑定同一 Electron 完整路径，AX renderer 为 `ohzs_78v/a2a-build-t155-657dda9da333/dist/renderer/index.html`。
+- 生命周期只读日志：新 Electron 14775；daemon_status 仍为 83082，与初始第二实例相同。没有重建后台。
+- 图 57 默认落在独立终端，侧栏会话树仍在；重新点击主控后图 58 可见 C13 最终输出，main 仍种子，T-101/T-102 暂停，T-103 已认领/未知。
+- 图 59 流程仍含两票独立审查、旧 attempt 未归属和 T-103 未知。图 60/AX 核对原 Reflect 已完成、8 条待决定建议；图 61 记录仍 17 条、人工介入 8 条。未点复盘或批准建议，未提交任何新模型提示。
+- 已通过异步问题界面请求主控 STOP --all，等停止确认后再独立读回数据库副本和归档。此时不能把归档或完整流程写成 PASS。
