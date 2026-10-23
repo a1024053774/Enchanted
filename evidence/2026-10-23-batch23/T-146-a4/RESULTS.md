@@ -33,7 +33,7 @@ Ubiquitous language 沿用“角色申请”“普通终端”“Agent 会话”
 | 既有 T-146 ended_projection | PASS，`ended-projection-01.json` |
 | 既有 T-111 flow | PASS，`t111-01.json` |
 | 既有 T-107 sidebar 投影 | PASS，`t107-projection-01.json` |
-| 脚本语法与差异检查 | `zsh -n .../RUN-OUTSIDE-01.sh` 与 `git diff --check` 通过 |
+| 脚本语法、编码与差异检查 | `final-checks-01.json`、`final-checks-02.json`、`cdp-syntax-01.json`；新增可见性驱动完成 Python AST、`--help` 与生成的 CDP 表达式语法检查，尚未实际执行 |
 | 项目地图 | session 开始及交付检查均为 Problems 0、Stale living docs 0；未修改地图、术语表或 ticket |
 
 重放命令（输出必须使用新路径）：
@@ -50,6 +50,12 @@ zsh evidence/2026-10-23-batch23/T-146-a4/RUN-OUTSIDE-01.sh
 
 ## 沙箱外交接
 
-`RUN-OUTSIDE-01.sh` 按顺序运行：起点 T-133/T-107 红态（同时作为“交回后仍保留主控”的已知坏实现）、候选同测试绿态、T-146 绿态、T-146 主控回退普通终端变异、两项投影检查、T-111、T-107、T-139/T-143、T-137。每次生成新的 outside 目录，保留失败、日志和截图。红态要求交回成功且到达目标断言；关闭终端变异沿用已有业务字段判据，不接受任意失败作为反例。
+`RUN-OUTSIDE-01.sh` 按顺序运行：起点 T-133/T-107 红态（同时作为“交回后仍保留主控”的已知坏实现）、候选同测试绿态、普通终端 UI 错标 ended 的变异、T-146 绿态、T-146 主控回退普通终端变异、两项投影检查、T-111、T-107、T-139/T-143、T-137。每次生成新的 outside 目录，保留失败、日志和截图。红态要求交回成功且到达目标断言；关闭终端变异沿用已有业务字段判据，不接受任意失败作为反例。
+
+T-133/T-107 红绿通过新增 `test_t146_release_visibility_e2e.py` 驱动原有受保护场景，原测试文件及其全部断言不变。驱动在“放弃身份的回合结束”之后、原场景继续输入之前，保存并核对同一 launch：后台为运行中的普通终端；侧栏唯一条目位于普通终端区域且运行中；流程 API 和已加载的 DOM 均移除该主控；Reflect 历史角色可见且已结束。另有 `--mutant stale-terminal-ui`，只在隔离源码中把普通终端 UI 状态写成 ended，后台不改；脚本要求实际看到 API running／DOM ended 的业务违约才接收反例。原测试摘要另存 `*-oracle.json`，补充观察存根摘要的 `release_visibility`，均不覆盖已有文件。此驱动与 UI 变异尚未实际运行。
+
+## 冻结候选的辅助审查
+
+按 behavioral-acceptance-review 技能对 `a2ec0db9d7f0025c414cc4988e411c1b41c98ddf` 做了一次新上下文只读审查，原文见 `acceptance-review-01.md`，结论 INCOMPLETE。审查独立复跑两项投影为 PASS，但指出交回角色后的 DOM 行为尚无专门断言（P2）。后续补充上述可见性驱动和 UI 变异，并接入沙箱外脚本；这是待实跑的修订，不冒称审查者已复验。生产修复没有变更。该辅助审查不替代主控的正式独立审查与门禁。
 
 待核对：本候选真实 CLI 交回角色后仍运行的实际显示、关闭／自然退出后的三处状态、四项 Electron 回归、独立审查。没有运行 Electron，没有申请沙箱越权，没有改全局配置、push、集成或接管其他 attempt。交付提交后由主控复跑、正式审查和门禁集成。
