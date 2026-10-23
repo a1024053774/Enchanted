@@ -57,6 +57,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--summary', type=Path, required=True)
     parser.add_argument('--turn-authorization', type=Path, required=True)
+    parser.add_argument('--setup-only', action='store_true', help='Stop after real card_save/create; do not launch an agent')
     target = parser.add_mutually_exclusive_group()
     target.add_argument('--revision')
     target.add_argument('--mutant', choices=['repeat-feedback'])
@@ -149,7 +150,6 @@ def main():
         oracle = temp / 'oracle.py'; oracle.write_text(ORACLE, encoding='utf-8')
         red = run([sys.executable, '-I', '-B', oracle, repo], check=False)
         if red.returncode == 0: raise RuntimeError('Independent baseline must fail before worker implementation')
-        shutil.copyfile(Path.home() / '.codex/auth.json', isolated / 'auth.json'); (isolated / 'auth.json').chmod(0o600)
         (isolated / 'config.toml').write_text(f'[projects.{json.dumps(str(repo))}]\ntrust_level="trusted"\n', encoding='utf-8')
         (isolated / 'rules').mkdir()
         (isolated / 'rules/default.rules').write_text('prefix_rule(pattern=["git", "add"], decision="allow")\nprefix_rule(pattern=["git", "commit"], decision="allow")\n', encoding='utf-8')
@@ -172,13 +172,14 @@ def main():
         cleanup_pids.add(begin['pid'])
         process_ids = {'daemon_pid': begin['pid'], 'daemon_pgid': os.getpgid(begin['pid']), 'daemon_sid': os.getsid(begin['pid']),
                        'caller_pid': os.getpid(), 'caller_pgid': os.getpgrp(), 'caller_sid': os.getsid(0)}
-        run(['/bin/ps', '-o', 'pid=,ppid=,pgid=,sess=,command=', '-p', str(begin['pid'])])
+        if not args.setup_only:
+            run(['/bin/ps', '-o', 'pid=,ppid=,pgid=,sess=,command=', '-p', str(begin['pid'])])
         assert process_ids['daemon_pid'] == process_ids['daemon_pgid'] == process_ids['daemon_sid']
         assert process_ids['daemon_pgid'] != process_ids['caller_pgid'] and process_ids['daemon_sid'] != process_ids['caller_sid']
         save('daemon-process-readback.json', process_ids)
         ticket = root / '.project-map/tickets/T-153-migrate-worker-delivery.md'
         ready_rev = int(next(line.split(':', 1)[1] for line in ticket.read_text(encoding='utf-8').splitlines() if line.startswith('ready_rev:')))
-        task = 'T-153-fixture'
+        task = 'T-153-1'
         card = {'id': task, 'source': {'ticket': str(ticket), 'ready_rev': ready_rev},
                 'goal': '这是 T-153 的隔离验收夹具，只实现本卡列出的两个文件；来源ticket仅用于规格版本绑定，不到a2a仓库实现编排系统。'
                         '实现 src/normalize.py 的 normalize(rows) 和 src/report.py。report.py 从 stdin 读取 JSON 数组并只输出一行 JSON。'
@@ -196,168 +197,176 @@ def main():
                 'red_commands': [], 'task_type': '后端逻辑', 'repair_target': None, 'complexity': 'M',
                 'executor': {'cli': 'Codex', 'model': 'gpt-6.1-sol', 'effort': 'high'}, 'base_commit': None, 'writer': None}
         save('card.json', card)
-        call('card_save', '--task', task, '--card', output / 'card.json', '--expected-version', '0')
+        call('card_save', '--task', task, '--project', 'B-fixture', '--card', output / 'card.json', '--expected-version', '0')
         task = call('create', '--task', task, '--repo', repo, '--branch', 'refs/heads/main', '--card-version', '1', '--project', 'B-fixture')['task']['task_id']
-        call('execution_settings_save', '--role', 'reviewer', '--model', 'gpt-6.1-sol', '--effort', 'high', '--fast', 'false')
-        # Reserve before dispatch: native readiness now releases automatically (T-127).
-        verdict['real_turns_reserved'] = 4
-        save('turn-reservation.json', {'worker_max': 2, 'reviewer_max': 2,
-                                     'authorization': config['turn_authorization']})
-        attempt = call('dispatch', '--task', task, '--runtime-mode', 'workspace-write',
-                       '--model', 'gpt-6.1-sol', '--effort', 'high', '--fast', 'false')['attempt']; thread = attempt['thread_id']
-        save('attempt.json', attempt)
-        pane = call('pane_status', '--thread', thread)
-        launch = call('launch_show', '--launch', pane['launch'])['launch']; save('launch-record.json', launch)
-        request_dir = Path(launch['request_dir'])
-        common = {'schema': 1, 'task': task, 'attempt': attempt['attempt_id'], 'session': attempt['session_id'],
-                  'fence': attempt['fence'], 'spec_rev': attempt['spec_rev']}
-        injected = {
-            'fixture-identity.json': dict(common, request_id='fixture-identity', command='submit', commit=baseline, fence=attempt['fence'] + 1),
-            'fixture-incomplete.json': dict(common, request_id='fixture-incomplete', command='submit'),
-            'fixture-status.json': dict(common, request_id='fixture-status', command='status'),
-            'fixture-issue.json': dict(common, request_id='fixture-issue', command='issue', title='夹具：验证问题上报', body='这是主控注入的非阻塞验收夹具，不是真实缺陷，不要求worker修复。', blocking=False, refs=[]),
-        }
-        for name, value in injected.items():
-            with (request_dir / name).open('x', encoding='utf-8') as stream: stream.write(json.dumps(value, ensure_ascii=False) + '\n')
-        save('injected-files.json', {'source': 'executor-test-fixture', 'files': injected})
-        # Independent host commit after claim forces a real G/C merge at verify.
-        (repo / 'host.txt').write_text('independent G\n', encoding='utf-8')
-        git('add', 'host.txt'); git('commit', '-m', 'Independent host G'); G = git('rev-parse', 'refs/heads/main')
-        deadline = time.monotonic() + 30
-        while True:
-            info = call('pane_process_info', '--thread', thread)
-            cleanup_pids.update(row['pid'] for row in info['processes'])
-            if info.get('leader') and not info.get('failed'): break
-            if info.get('failed') or time.monotonic() >= deadline: raise RuntimeError({'foreground_unconfirmed': info})
-            time.sleep(0.2)
-        save('before-release.json', info)
-        deadline = time.monotonic() + 600
-        while True:
+        if args.setup_only:
+            check('REGISTRATION-FULL-ID', task == 'B-fixture+T-153-1')
+            registered = call('status', '--task', task)['task']
+            check('REGISTRATION-NO-ATTEMPT', registered['current_attempt'] is None and registered['candidate_commit'] is None)
+            save('registration.json', {'task': task, 'project': 'B-fixture', 'real_model_turns': 0})
+            verdict.update(status='PASS', phase='registration_only', registered_task=task, real_model_turns=0)
+        else:
+            shutil.copyfile(Path.home() / '.codex/auth.json', isolated / 'auth.json'); (isolated / 'auth.json').chmod(0o600)
+            call('execution_settings_save', '--role', 'reviewer', '--model', 'gpt-6.1-sol', '--effort', 'high', '--fast', 'false')
+            # Reserve before dispatch: native readiness now releases automatically (T-127).
+            verdict['real_turns_reserved'] = 4
+            save('turn-reservation.json', {'worker_max': 2, 'reviewer_max': 2,
+                                         'authorization': config['turn_authorization']})
+            attempt = call('dispatch', '--task', task, '--runtime-mode', 'workspace-write',
+                           '--model', 'gpt-6.1-sol', '--effort', 'high', '--fast', 'false')['attempt']; thread = attempt['thread_id']
+            save('attempt.json', attempt)
             pane = call('pane_status', '--thread', thread)
-            status = call('status', '--task', task)['task']
-            if pane.get('failed'): raise RuntimeError(pane)
-            if status['state'] == 'submitted' and pane['state'] == 'idle' and not pane['writing']:
-                observed = call('orchestration_events', '--task', task)['events']
-                completed = {event['data']['record']['payload']['turn_id'] for event in observed
-                             if event['type'] == 'native_record' and event['data']['file'].endswith(pane['native_session'] + '.jsonl')
-                             and event['data']['record']['type'] == 'event_msg' and event['data']['record']['payload']['type'] == 'task_complete'}
-                if len(completed) == limit: break
-            if time.monotonic() >= deadline: raise RuntimeError('B真实交付未在期限内结束；不新增回合或重试')
-            time.sleep(1)
-        if oracle.read_text(encoding='utf-8') != ORACLE: raise RuntimeError('独立oracle被修改')
-        verdict['observed_main_turns'] = len(completed)
-        C = run(['git', '-C', attempt['workspace'], 'rev-parse', 'HEAD'], command_env=git_env).stdout.strip()
-        assert status['candidate_commit'] == C
-        assert git('rev-parse', 'refs/heads/main') == G
-        # Check feedback before verification creates unrelated reviewer dispatches.
-        feedback_events = call('orchestration_events', '--task', task)['events']
-        save('worker-feedback-events.json', feedback_events)
-        worker_notices = [event for event in feedback_events if event.get('launch') == launch['id']
-                          and event['type'] == 'dispatch_queued' and event['data'].get('source') == 'gate']
-        check('STOP-BATCH-ONE-NOTICE', len(worker_notices) == 1)
-        check('RECEIPT-QUEUE-EMPTY', not pane['queued'])
-        verified = call('verify', '--task', task, '--attempt', attempt['attempt_id'])
-        verification = verified['verification']
-        check('FRESH-REVIEW-STARTED', verified['task']['state'] == 'reviewing')
-        review = verified['task']['review']
-        review_pane = call('pane_status', '--thread', review['thread_id'])
-        review_launch = call('launch_show', '--launch', review_pane['launch'])['launch']
-        save('review-launch.json', review_launch)
-        check('FRESH-REVIEW-IDENTITY', review_launch['role'] == 'reviewer'
-              and review_launch['id'] != launch['id'] and review['session_id'] != attempt['session_id'])
-        deadline = time.monotonic() + 600
-        while True:
-            reviewed = call('status', '--task', task)['task']
+            launch = call('launch_show', '--launch', pane['launch'])['launch']; save('launch-record.json', launch)
+            request_dir = Path(launch['request_dir'])
+            common = {'schema': 1, 'task': task, 'attempt': attempt['attempt_id'], 'session': attempt['session_id'],
+                      'fence': attempt['fence'], 'spec_rev': attempt['spec_rev']}
+            injected = {
+                'fixture-identity.json': dict(common, request_id='fixture-identity', command='submit', commit=baseline, fence=attempt['fence'] + 1),
+                'fixture-incomplete.json': dict(common, request_id='fixture-incomplete', command='submit'),
+                'fixture-status.json': dict(common, request_id='fixture-status', command='status'),
+                'fixture-issue.json': dict(common, request_id='fixture-issue', command='issue', title='夹具：验证问题上报', body='这是主控注入的非阻塞验收夹具，不是真实缺陷，不要求worker修复。', blocking=False, refs=[]),
+            }
+            for name, value in injected.items():
+                with (request_dir / name).open('x', encoding='utf-8') as stream: stream.write(json.dumps(value, ensure_ascii=False) + '\n')
+            save('injected-files.json', {'source': 'executor-test-fixture', 'files': injected})
+            # Independent host commit after claim forces a real G/C merge at verify.
+            (repo / 'host.txt').write_text('independent G\n', encoding='utf-8')
+            git('add', 'host.txt'); git('commit', '-m', 'Independent host G'); G = git('rev-parse', 'refs/heads/main')
+            deadline = time.monotonic() + 30
+            while True:
+                info = call('pane_process_info', '--thread', thread)
+                cleanup_pids.update(row['pid'] for row in info['processes'])
+                if info.get('leader') and not info.get('failed'): break
+                if info.get('failed') or time.monotonic() >= deadline: raise RuntimeError({'foreground_unconfirmed': info})
+                time.sleep(0.2)
+            save('before-release.json', info)
+            deadline = time.monotonic() + 600
+            while True:
+                pane = call('pane_status', '--thread', thread)
+                status = call('status', '--task', task)['task']
+                if pane.get('failed'): raise RuntimeError(pane)
+                if status['state'] == 'submitted' and pane['state'] == 'idle' and not pane['writing']:
+                    observed = call('orchestration_events', '--task', task)['events']
+                    completed = {event['data']['record']['payload']['turn_id'] for event in observed
+                                 if event['type'] == 'native_record' and event['data']['file'].endswith(pane['native_session'] + '.jsonl')
+                                 and event['data']['record']['type'] == 'event_msg' and event['data']['record']['payload']['type'] == 'task_complete'}
+                    if len(completed) == limit: break
+                if time.monotonic() >= deadline: raise RuntimeError('B真实交付未在期限内结束；不新增回合或重试')
+                time.sleep(1)
+            if oracle.read_text(encoding='utf-8') != ORACLE: raise RuntimeError('独立oracle被修改')
+            verdict['observed_main_turns'] = len(completed)
+            C = run(['git', '-C', attempt['workspace'], 'rev-parse', 'HEAD'], command_env=git_env).stdout.strip()
+            assert status['candidate_commit'] == C
+            assert git('rev-parse', 'refs/heads/main') == G
+            # Check feedback before verification creates unrelated reviewer dispatches.
+            feedback_events = call('orchestration_events', '--task', task)['events']
+            save('worker-feedback-events.json', feedback_events)
+            worker_notices = [event for event in feedback_events if event.get('launch') == launch['id']
+                              and event['type'] == 'dispatch_queued' and event['data'].get('source') == 'gate']
+            check('STOP-BATCH-ONE-NOTICE', len(worker_notices) == 1)
+            check('RECEIPT-QUEUE-EMPTY', not pane['queued'])
+            verified = call('verify', '--task', task, '--attempt', attempt['attempt_id'])
+            verification = verified['verification']
+            check('FRESH-REVIEW-STARTED', verified['task']['state'] == 'reviewing')
+            review = verified['task']['review']
             review_pane = call('pane_status', '--thread', review['thread_id'])
-            info = call('pane_process_info', '--thread', review['thread_id'])
-            cleanup_pids.update(row['pid'] for row in info['processes'])
-            reclaimed = any(event['type'] == 'review_reclaimed' and event['details']['review_id'] == review['review_id']
-                            for event in call('events', '--task', task)['events'])
-            if reviewed['state'] == 'verified' and reclaimed: break
-            if review_pane.get('failed') or reviewed['state'] not in ('reviewing', 'verified'):
-                raise RuntimeError({'review_not_accepted': reviewed, 'pane': review_pane})
-            if time.monotonic() >= deadline:
-                raise RuntimeError('Independent review deadline; no retry or additional turn')
-            time.sleep(1)
-        check('REVIEW-BOUND-TO-CANDIDATE', reviewed['review']['candidate_commit'] == C
-              and reviewed['review']['result']['verdict'] == '可合并')
-        check('REVIEW-NATIVE-SESSION-FRESH', reviewed['review']['runtime_identity']['native_session'] != pane['native_session'])
-        save('review-result.json', reviewed['review'])
-        save('score.json', {'result': '通过', 'boundary_discipline': 3, 'boundary_reason': '只修改卡片内两个源码文件',
-                            'engineering_taste': 2, 'engineering_reason': '独立 oracle 与审查通过', 'notes': 'T-153 隔离夹具评分'})
-        call('integrate', '--task', task, '--attempt', attempt['attempt_id'], '--score-file', output / 'score.json')
-        M = git('rev-parse', 'refs/heads/main')
-        assert verification['G'] == G and verification['M'] == M and G != M
-        assert git('rev-list', '--parents', '-n', '1', M).split() == [M, G, C]
-        assert (repo / 'host.txt').read_text() == 'independent G\n'
-        assert oracle.read_text(encoding='utf-8') == ORACLE
-        save('git-readback.json', {'B': baseline, 'G': G, 'C': C, 'M': M})
-        commit_message = git('show', '-s', '--format=%B', C)
-        save('candidate-trailers.json', {'commit': C, 'message': commit_message})
-        delivered = call('status', '--task', task)['task']['current_attempt']['delivery']
-        turn_contexts = [event['data']['record']['payload'] for event in call('orchestration_events', '--task', task)['events']
-                         if event['type'] == 'native_record' and event['data']['file'].endswith(pane['native_session'] + '.jsonl')
-                         and event['data']['record']['type'] == 'turn_context'
-                         and event['data']['record']['payload'].get('turn_id') == delivered['turn_id']]
-        assert turn_contexts, delivered['turn_id']
-        turn_context = turn_contexts[-1]
-        model = turn_context.get('model') or 'unknown'
-        effort = turn_context.get('effort') or turn_context.get('reasoning_effort') or 'unknown'
-        assert model != 'unknown' and effort != 'unknown'
-        assert delivered['model'] == model and delivered['effort'] == effort
-        expected = {'Task': task, 'Attempt': attempt['attempt_id'], 'Session': attempt['session_id'], 'Role': 'worker',
-                    'Tool': installed_version, 'Model': model, 'Effort': effort, 'Native-Session': pane['native_session'], 'Launch': launch['id']}
-        lines = [line for line in commit_message.splitlines() if line.startswith('A2A-')]
-        assert sorted(lines) == sorted('A2A-' + key + ': ' + value for key, value in expected.items())
-        events = call('orchestration_events', '--task', task)['events']; save('orchestration-events.json', events)
-        gate_events = call('events', '--task', task)['events']; save('gate-events.json', gate_events)
-        integrations = [event['details'] for event in gate_events if event['type'] == 'integrated']
-        assert len(integrations) == 1
-        assert integrations[0]['intent']['G'] == G and integrations[0]['intent']['M'] == M
-        assert integrations[0]['readback'] == M
-        assert len([event for event in gate_events if event['type'] == 'submitted']) == 1
-        stats = git('diff', '--numstat', baseline, C).splitlines()
-        measured = {'files': len(stats), 'added': sum(int(line.split('\t')[0]) for line in stats),
-                    'deleted': sum(int(line.split('\t')[1]) for line in stats)}
-        metric = next(event['details'] for event in gate_events if event['type'] == 'submission_metrics')
-        assert all(metric[key] == value for key, value in measured.items())
-        save('independent-diff-stat.json', measured)
-        for request_id, error in [('fixture-identity', 'relay_identity_mismatch'), ('fixture-incomplete', 'invalid_relay_request')]:
-            assert any(event['type'] == 'relay_rejected' and event['data'].get('request_id') == request_id and event['data']['result']['error'] == error for event in events)
-        check('DELIVERY-REPLAY', any(event['type'] == 'relay_replayed' and event['data']['key'] == 'id:' + launch['id'] + ':delivery'
-                                   and event['data']['result'].get('ok') for event in events))
-        assert len([event for event in events if event['type'] == 'relay_processed' and event['data'].get('request_id') == 'delivery']) == 1
-        for request_id in ('fixture-status', 'fixture-issue'):
-            assert any(event['type'] == 'relay_processed' and event['data'].get('request_id') == request_id for event in events)
-        status_receipt = next(event['data']['result'] for event in events if event['type'] == 'relay_processed' and event['data'].get('request_id') == 'fixture-status')
-        assert status_receipt['task']['current_attempt']['attempt_id'] == attempt['attempt_id']
-        primary = [event['data']['record'] for event in events if event['type'] == 'native_record' and event['data']['file'].endswith(pane['native_session'] + '.jsonl')]
-        turns = {event['payload']['turn_id'] for event in primary if event['type'] == 'event_msg' and event['payload']['type'] == 'task_started'}
-        verdict['observed_main_turns'] = len(turns)
-        assert len(turns) == limit
-        contexts = [event['payload'] for event in primary if event['type'] == 'turn_context']
-        assert contexts and all(context['model'] == 'gpt-6.1-sol' and context['approval_policy'] == 'never'
-                                and context['sandbox_policy'].get('network_access') is True for context in contexts)
-        notices = [event['data'] for event in events if event.get('launch') == launch['id']
-                   and event['type'] == 'dispatch_queued' and event['data'].get('source') == 'gate']
-        assert len(notices) == 1, 'one Stop batch must produce one gate notice'
-        if notices:
-            messages = [event['payload'] for event in primary if event['type'] == 'response_item'
-                        and event['payload'].get('type') == 'message' and event['payload'].get('role') == 'user'
-                        and any(item.get('text') == notices[0]['text'] for item in event['payload'].get('content', []))]
-            assert len(messages) == 1, 'native user input must equal the registered gate notice'
-            receipt_turn = messages[0]['internal_chat_message_metadata_passthrough']['turn_id']
-            starts = [index for index, event in enumerate(primary) if event['type'] == 'event_msg'
-                      and event['payload'].get('type') == 'task_started' and event['payload'].get('turn_id') == receipt_turn]
-            ends = [index for index, event in enumerate(primary) if event['type'] == 'event_msg'
-                    and event['payload'].get('type') == 'task_complete' and event['payload'].get('turn_id') == receipt_turn]
-            check('RECEIPT-TURN-BOUNDARIES', len(starts) == len(ends) == 1 and starts[0] < ends[0])
-            tools_in_receipt = [event for event in primary[starts[0]:ends[0] + 1] if event['type'] == 'response_item'
-                                and event['payload'].get('type') in ('function_call', 'custom_tool_call')]
-            check('RECEIPT-NO-TOOLS', not tools_in_receipt)
-        assert not any(event['type'] == 'permission_wait' for event in events)
-        assert not pane['queued']
-        verdict.update(status='PASS', G=G, M=M, gate_reply='native-message-received-and-receipt-turn-completed')
+            review_launch = call('launch_show', '--launch', review_pane['launch'])['launch']
+            save('review-launch.json', review_launch)
+            check('FRESH-REVIEW-IDENTITY', review_launch['role'] == 'reviewer'
+                  and review_launch['id'] != launch['id'] and review['session_id'] != attempt['session_id'])
+            deadline = time.monotonic() + 600
+            while True:
+                reviewed = call('status', '--task', task)['task']
+                review_pane = call('pane_status', '--thread', review['thread_id'])
+                info = call('pane_process_info', '--thread', review['thread_id'])
+                cleanup_pids.update(row['pid'] for row in info['processes'])
+                reclaimed = any(event['type'] == 'review_reclaimed' and event['details']['review_id'] == review['review_id']
+                                for event in call('events', '--task', task)['events'])
+                if reviewed['state'] == 'verified' and reclaimed: break
+                if review_pane.get('failed') or reviewed['state'] not in ('reviewing', 'verified'):
+                    raise RuntimeError({'review_not_accepted': reviewed, 'pane': review_pane})
+                if time.monotonic() >= deadline:
+                    raise RuntimeError('Independent review deadline; no retry or additional turn')
+                time.sleep(1)
+            check('REVIEW-BOUND-TO-CANDIDATE', reviewed['review']['candidate_commit'] == C
+                  and reviewed['review']['result']['verdict'] == '可合并')
+            check('REVIEW-NATIVE-SESSION-FRESH', reviewed['review']['runtime_identity']['native_session'] != pane['native_session'])
+            save('review-result.json', reviewed['review'])
+            save('score.json', {'result': '通过', 'boundary_discipline': 3, 'boundary_reason': '只修改卡片内两个源码文件',
+                                'engineering_taste': 2, 'engineering_reason': '独立 oracle 与审查通过', 'notes': 'T-153 隔离夹具评分'})
+            call('integrate', '--task', task, '--attempt', attempt['attempt_id'], '--score-file', output / 'score.json')
+            M = git('rev-parse', 'refs/heads/main')
+            assert verification['G'] == G and verification['M'] == M and G != M
+            assert git('rev-list', '--parents', '-n', '1', M).split() == [M, G, C]
+            assert (repo / 'host.txt').read_text() == 'independent G\n'
+            assert oracle.read_text(encoding='utf-8') == ORACLE
+            save('git-readback.json', {'B': baseline, 'G': G, 'C': C, 'M': M})
+            commit_message = git('show', '-s', '--format=%B', C)
+            save('candidate-trailers.json', {'commit': C, 'message': commit_message})
+            delivered = call('status', '--task', task)['task']['current_attempt']['delivery']
+            turn_contexts = [event['data']['record']['payload'] for event in call('orchestration_events', '--task', task)['events']
+                             if event['type'] == 'native_record' and event['data']['file'].endswith(pane['native_session'] + '.jsonl')
+                             and event['data']['record']['type'] == 'turn_context'
+                             and event['data']['record']['payload'].get('turn_id') == delivered['turn_id']]
+            assert turn_contexts, delivered['turn_id']
+            turn_context = turn_contexts[-1]
+            model = turn_context.get('model') or 'unknown'
+            effort = turn_context.get('effort') or turn_context.get('reasoning_effort') or 'unknown'
+            assert model != 'unknown' and effort != 'unknown'
+            assert delivered['model'] == model and delivered['effort'] == effort
+            expected = {'Task': task, 'Attempt': attempt['attempt_id'], 'Session': attempt['session_id'], 'Role': 'worker',
+                        'Tool': installed_version, 'Model': model, 'Effort': effort, 'Native-Session': pane['native_session'], 'Launch': launch['id']}
+            lines = [line for line in commit_message.splitlines() if line.startswith('A2A-')]
+            assert sorted(lines) == sorted('A2A-' + key + ': ' + value for key, value in expected.items())
+            events = call('orchestration_events', '--task', task)['events']; save('orchestration-events.json', events)
+            gate_events = call('events', '--task', task)['events']; save('gate-events.json', gate_events)
+            integrations = [event['details'] for event in gate_events if event['type'] == 'integrated']
+            assert len(integrations) == 1
+            assert integrations[0]['intent']['G'] == G and integrations[0]['intent']['M'] == M
+            assert integrations[0]['readback'] == M
+            assert len([event for event in gate_events if event['type'] == 'submitted']) == 1
+            stats = git('diff', '--numstat', baseline, C).splitlines()
+            measured = {'files': len(stats), 'added': sum(int(line.split('\t')[0]) for line in stats),
+                        'deleted': sum(int(line.split('\t')[1]) for line in stats)}
+            metric = next(event['details'] for event in gate_events if event['type'] == 'submission_metrics')
+            assert all(metric[key] == value for key, value in measured.items())
+            save('independent-diff-stat.json', measured)
+            for request_id, error in [('fixture-identity', 'relay_identity_mismatch'), ('fixture-incomplete', 'invalid_relay_request')]:
+                assert any(event['type'] == 'relay_rejected' and event['data'].get('request_id') == request_id and event['data']['result']['error'] == error for event in events)
+            check('DELIVERY-REPLAY', any(event['type'] == 'relay_replayed' and event['data']['key'] == 'id:' + launch['id'] + ':delivery'
+                                       and event['data']['result'].get('ok') for event in events))
+            assert len([event for event in events if event['type'] == 'relay_processed' and event['data'].get('request_id') == 'delivery']) == 1
+            for request_id in ('fixture-status', 'fixture-issue'):
+                assert any(event['type'] == 'relay_processed' and event['data'].get('request_id') == request_id for event in events)
+            status_receipt = next(event['data']['result'] for event in events if event['type'] == 'relay_processed' and event['data'].get('request_id') == 'fixture-status')
+            assert status_receipt['task']['current_attempt']['attempt_id'] == attempt['attempt_id']
+            primary = [event['data']['record'] for event in events if event['type'] == 'native_record' and event['data']['file'].endswith(pane['native_session'] + '.jsonl')]
+            turns = {event['payload']['turn_id'] for event in primary if event['type'] == 'event_msg' and event['payload']['type'] == 'task_started'}
+            verdict['observed_main_turns'] = len(turns)
+            assert len(turns) == limit
+            contexts = [event['payload'] for event in primary if event['type'] == 'turn_context']
+            assert contexts and all(context['model'] == 'gpt-6.1-sol' and context['approval_policy'] == 'never'
+                                    and context['sandbox_policy'].get('network_access') is True for context in contexts)
+            notices = [event['data'] for event in events if event.get('launch') == launch['id']
+                       and event['type'] == 'dispatch_queued' and event['data'].get('source') == 'gate']
+            assert len(notices) == 1, 'one Stop batch must produce one gate notice'
+            if notices:
+                messages = [event['payload'] for event in primary if event['type'] == 'response_item'
+                            and event['payload'].get('type') == 'message' and event['payload'].get('role') == 'user'
+                            and any(item.get('text') == notices[0]['text'] for item in event['payload'].get('content', []))]
+                assert len(messages) == 1, 'native user input must equal the registered gate notice'
+                receipt_turn = messages[0]['internal_chat_message_metadata_passthrough']['turn_id']
+                starts = [index for index, event in enumerate(primary) if event['type'] == 'event_msg'
+                          and event['payload'].get('type') == 'task_started' and event['payload'].get('turn_id') == receipt_turn]
+                ends = [index for index, event in enumerate(primary) if event['type'] == 'event_msg'
+                        and event['payload'].get('type') == 'task_complete' and event['payload'].get('turn_id') == receipt_turn]
+                check('RECEIPT-TURN-BOUNDARIES', len(starts) == len(ends) == 1 and starts[0] < ends[0])
+                tools_in_receipt = [event for event in primary[starts[0]:ends[0] + 1] if event['type'] == 'response_item'
+                                    and event['payload'].get('type') in ('function_call', 'custom_tool_call')]
+                check('RECEIPT-NO-TOOLS', not tools_in_receipt)
+            assert not any(event['type'] == 'permission_wait' for event in events)
+            assert not pane['queued']
+            verdict.update(status='PASS', G=G, M=M, gate_reply='native-message-received-and-receipt-turn-completed')
     except ContractFailure as error:
         verdict.update(status='NO_GO', outcome='contract_failure', failure_id=str(error))
     except (OSError, ValueError, KeyError, TypeError, AssertionError, RuntimeError, subprocess.TimeoutExpired) as error:
