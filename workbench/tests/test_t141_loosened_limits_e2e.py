@@ -118,6 +118,7 @@ def main():
             steps[2:2] = [
                 ('Write', dict(file_path=str(x / 'T-C-native-file.txt'), content='T141_NATIVE_FILE_OK\n')),
                 ('Write', dict(file_path=str(y / 'T-C-native-file.txt'), content='T141_NATIVE_FILE_FORBIDDEN\n')),
+                ('ToolSearch', dict(query='select:mcp__t141_user__ping', max_results=1)),
                 ('mcp__t141_user__ping', {}),
             ]
         return key, steps, final
@@ -296,13 +297,22 @@ for line in sys.stdin:
             if task == 'T-C':
                 # The oracle runs in the test process, outside the CLI sandbox. Actual file
                 # effects and the native Write results must agree; shell booleans cannot prove this.
-                fixture.wait('native file tools have returned', lambda: len(fixture.api.snapshot()['results'].get('T-C', [])) >= 5, 120)
+                fixture.wait('native file tools have returned', lambda: len(fixture.api.snapshot()['results'].get('T-C', [])) >= 6, 120)
                 rows = fixture.api.snapshot()['results']['T-C']
                 allowed_file, denied_file = x / 'T-C-native-file.txt', y / 'T-C-native-file.txt'
                 check('claude_native_file_tool_boundary', allowed_file.is_file() and
                       allowed_file.read_text(encoding='utf-8') == 'T141_NATIVE_FILE_OK\n' and not denied_file.exists() and
                       rows[2]['is_error'] is False and rows[3]['is_error'] is True, rows[2:4])
-                check('claude_mcp_result_reaches_worker', rows[4]['is_error'] is False and 'T141_USER_MCP_OK' in rows[4]['text'], rows[4])
+                # Preserve native tool_reference blocks too; the shared helper's text
+                # summary intentionally drops non-text content from tool results.
+                messages = next(body['messages'] for body in reversed(fixture.api.bodies) if body['key'] == 'T-C')
+                parts = [part for message in messages if isinstance(message['content'], list)
+                         for part in message['content'] if isinstance(part, dict)]
+                search_ids = {part['id'] for part in parts if part.get('type') == 'tool_use' and part.get('name') == 'ToolSearch'}
+                discovered = [part for part in parts if part.get('type') == 'tool_result' and part.get('tool_use_id') in search_ids]
+                check('claude_mcp_discovered', rows[4]['is_error'] is False and bool(discovered) and
+                      'mcp__t141_user__ping' in json.dumps(discovered[-1]['content']), discovered)
+                check('claude_mcp_result_reaches_worker', rows[5]['is_error'] is False and 'T141_USER_MCP_OK' in rows[5]['text'], rows[5])
             host_files = dict(extra=x / (task + '.txt'), outside=y / (task + '.txt'),
                               slash_tmp=Path('/tmp') / (fixture.dir.name + '-' + task),
                               original_tmpdir=Path(os.environ.get('TMPDIR', '/tmp')) / (fixture.dir.name + '-' + task))

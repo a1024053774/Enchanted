@@ -18,6 +18,9 @@ try {
   for (const path of [repo, candidate, extra]) mkdirSync(path);
     execFileSync('git', ['-c', 'core.hooksPath=/dev/null', 'init', '-q', repo]);
   report.fixture = root;
+  const home = join(root, 'home'); mkdirSync(home);
+  process.env.HOME = home;
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ mcpServers: { sentinel: { command: '/usr/bin/true' } } }));
   const c = { claude_bin: '/usr/bin/true', codex_bin: '/usr/bin/true', codex_home: root,
     role_card: resolve(source, 'workbench/roles/worker.md'), role_card_revision: 'fixture',
     hook_authorization: 'fixture', code_revision: 'fixture', turn_limit: 6 };
@@ -61,6 +64,8 @@ try {
       }], ['mcp_hook_missing', row => {
         const i = row.argv.indexOf('--settings') + 1, s = JSON.parse(row.argv[i]);
         s.hooks.PreToolUse.pop(); row.argv[i] = JSON.stringify(s);
+      }], ['foreign_mcp_configuration', row => {
+        row.argv[row.argv.indexOf('--mcp-config') + 1] = '/foreign/.claude.json';
       }]] : []),
     ]) {
       const row = structuredClone(launch); mutate(row);

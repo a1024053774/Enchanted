@@ -152,7 +152,9 @@ def main():
         (codex_home / 'rules').mkdir(parents=True)
         server = ThreadingHTTPServer(('127.0.0.1', 0), CodexApi)
         threading.Thread(target=server.serve_forever, daemon=True).start()
-        (codex_home / 'config.toml').write_text('model_provider="t140"\ncli_auth_credentials_store="file"\n[model_providers.t140]\nname="T140 fixture"\n'
+        (codex_home / 'config.toml').write_text('model_provider="t140"\ncli_auth_credentials_store="file"\n'
+            f'[projects.{json.dumps(str(fixture.repo.resolve()))}]\ntrust_level="trusted"\n'
+            '[model_providers.t140]\nname="T140 fixture"\n'
             f'base_url="http://127.0.0.1:{server.server_port}/v1"\nwire_api="responses"\nrequires_openai_auth=false\n', encoding='utf-8')
         (codex_home / 'rules/default.rules').write_text('prefix_rule(pattern=["git","add"],decision="allow")\n'
                                                      'prefix_rule(pattern=["git","commit"],decision="allow")\n', encoding='utf-8')

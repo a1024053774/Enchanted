@@ -2353,11 +2353,14 @@ export class A2AGates {
     try { workerSettings = worker ? JSON.parse(String(worker.argv?.[14])) : null; } catch { workerSettings = null; }
     const workerSignal = workerSettings?.hooks?.Stop?.[0]?.hooks?.[0]?.command;
     const extraDirectories: string[] = launch?.extra_directories ?? [];
+    const mcp = Array.isArray(argv) && argv[15] === "--mcp-config";
+    const extraStart = mcp ? 17 : 15;
     requireGate(Array.isArray(extraDirectories) && extraDirectories.every(path => typeof path === 'string' && isAbsolute(path)),
       "review_extra_directories", { extraDirectories });
     const boundary = claude
-      ? launch?.cli === "Claude Code" && Array.isArray(argv) && argv.length === 15 + 2 * extraDirectories.length &&
-        JSON.stringify(argv.slice(15)) === JSON.stringify(extraDirectories.flatMap(path => ['--add-dir', path])) &&
+      ? launch?.cli === "Claude Code" && Array.isArray(argv) && argv.length === extraStart + 2 * extraDirectories.length &&
+        (!mcp || typeof launch.env?.HOME === "string" && isAbsolute(launch.env.HOME) && argv[16] === join(launch.env.HOME, ".claude.json")) &&
+        JSON.stringify(argv.slice(extraStart)) === JSON.stringify(extraDirectories.flatMap(path => ['--add-dir', path])) &&
         worker?.cli === "Claude Code" && worker.role === "worker" && Array.isArray(worker.argv) &&
         argv[4] === worker.argv[4] && argv[6] === worker.argv[6] &&
         typeof workerSignal === "string" && workerSignal.endsWith(` '--launch' '${worker.id}'`) &&

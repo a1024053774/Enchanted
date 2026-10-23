@@ -117,8 +117,8 @@ export type EmptyInputDeclaration = {
 // Claude Code worker and reviewer launch (T-122, evidence/2026-10-21-batch19/T-122/probe-01..05):
 // never asks for approval, file tools write only where `writable` allows, shell commands run in
 // Claude's sandbox, and no settings file is loaded (`--setting-sources ""`: with `local`, a linked
-// worktree also loads the main checkout's .claude/settings.local.json, probe-04). User MCP
-// servers remain available (T-141); their own permissions run outside the Bash sandbox.
+// worktree also loads the main checkout's .claude/settings.local.json, probe-04). User-scope MCP
+// is supplied separately with --mcp-config (T-141); its services run outside the Bash sandbox.
 // A worker writes its worktree and the request directory. In a linked worktree Claude's sandbox
 // itself makes the repository's whole .git writable (probe-04); `gitDenied` takes back the whole
 // Git common dir, and only a standalone `git add` or `git commit`
@@ -128,7 +128,7 @@ export type EmptyInputDeclaration = {
 // one-off candidate copy (its working directory). Both can still write Claude's $TMPDIR: denying
 // it breaks every shell command (probe-04).
 async function claudeArgv(executable: string, signal: string, session: string,
-  selection: { model: string; effort: string; fast: boolean }, writable: string[], shellWritable: string[], gitDenied: string[] = [], extraDirectories: string[] = []) {
+  selection: { model: string; effort: string; fast: boolean }, writable: string[], shellWritable: string[], gitDenied: string[] = [], extraDirectories: string[] = [], mcpConfig: string | null = null) {
   const hook = [{ hooks: [{ type: "command", command: signal, timeout: 10 }] }];
   // MCP server wildcards are invalid in permissions.allow. The native hook matcher supports
   // this prefix and approves MCP only; Bash and native file tools retain their own checks.
@@ -147,6 +147,7 @@ async function claudeArgv(executable: string, signal: string, session: string,
   // dontAsk denies AskUserQuestion anyway; without the tool the model asks through `issue` (T-124 ruling 1a).
   return [executable, "--session-id", session, "--model", selection.model, "--effort", selection.effort, "--permission-mode", "dontAsk",
     "--setting-sources", "", "--disallowedTools", "AskUserQuestion", "--settings", JSON.stringify(settings),
+    ...(mcpConfig ? ["--mcp-config", mcpConfig] : []),
     ...extraDirectories.flatMap(path => ["--add-dir", path])];
 }
 const STARTUP_DEADLINE_MS = 120_000;
@@ -715,9 +716,14 @@ export class Panes implements GateRuntime {
     // T-141: inherit the user's trust, tools and proxy configuration. Only the write
     // roots, open network, per-session instrumentation and execution selection are supplied.
     const writeRoots = [...(review || monitor ? [] : [requestDirectory]), ...extraDirectories];
+    // --setting-sources also excludes user MCP. Pass only its native MCP source, without
+    // enabling user settings that can merge wider native file-tool permission grants.
+    const userConfig = claude && environment.HOME ? join(environment.HOME, ".claude.json") : null;
+    const mcpConfig = userConfig && existsSync(userConfig) &&
+      Object.keys(JSON.parse(readFileSync(userConfig, "utf8")).mcpServers ?? {}).length ? userConfig : null;
     const argv = claude ? await claudeArgv(executable, signalCommand, nativeSession!, { model, effort, fast },
       [...(monitor ? [] : review ? [realpathSync(launchWorkspace)] : [realpathSync(launchWorkspace), requestDirectory]), ...extraDirectories],
-      [...(review || monitor ? [] : [requestDirectory]), ...extraDirectories], review || monitor ? [] : await workerGitDenied(launchWorkspace), extraDirectories) : [executable, "--no-daemon", "--no-alt-screen", "-C", launchWorkspace,
+      [...(review || monitor ? [] : [requestDirectory]), ...extraDirectories], review || monitor ? [] : await workerGitDenied(launchWorkspace), extraDirectories, mcpConfig) : [executable, "--no-daemon", "--no-alt-screen", "-C", launchWorkspace,
       "-a", "never", "--sandbox", sandboxMode, "-m", model,
       "-c", `model_reasoning_effort=${JSON.stringify(effort)}`, "-c", `service_tier=${JSON.stringify(fast ? 'fast' : 'default')}`,
       "-c", "check_for_update_on_startup=false",

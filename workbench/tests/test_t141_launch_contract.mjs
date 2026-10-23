@@ -18,8 +18,9 @@ try {
   const context = vm.createContext({});
   vm.runInContext(stripTypeScriptTypes(text.slice(begin, end)), context);
   const argv = await context.claudeArgv('/claude', 'signal', 'session',
-    { model: 'claude-haiku-5-5', effort: 'low', fast: false }, ['/work', '/requests'], ['/requests'], ['/git'], ['/extra']);
+    { model: 'claude-haiku-5-5', effort: 'low', fast: false }, ['/work', '/requests'], ['/requests'], ['/git'], ['/extra'], '/user/.claude.json');
   assert.ok(!argv.includes('--strict-mcp-config'), 'T-141: user MCP must load');
+  assert.equal(argv[argv.indexOf('--mcp-config') + 1], '/user/.claude.json', 'User MCP must load even with setting-sources empty');
   const settings = JSON.parse(argv[argv.indexOf('--settings') + 1]);
   assert.ok(!settings.permissions.allow.includes('mcp__*'), 'Claude rejects server-wildcard MCP allow rules at startup');
   const mcpHook = settings.hooks.PreToolUse.find(group => group.matcher === '^mcp__');

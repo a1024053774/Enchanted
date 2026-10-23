@@ -627,8 +627,11 @@ worker 的 CLI 取任务卡 `executor.cli`（Claude Code 或 Codex，T-122），
 没有普通 attach 会话。生产 CLI 没有直接开库的运行时替代入口。
 
 Claude Code worker 的启动参数（证据 `evidence/2026-10-21-batch19/T-122/probe-01`～`05`）：`--session-id`、
-`--permission-mode dontAsk`（不弹批准，越界即拒）、`--setting-sources ""`（不加载设置文件，登录与用户 MCP 照常；
-`local` 会连主 checkout 的 `.claude/settings.local.json` 一起加载）。T-141 去掉 `--strict-mcp-config`，
+`--permission-mode dontAsk`（不弹批准，越界即拒）、`--setting-sources ""`（不加载设置文件；
+`local` 会连主 checkout 的 `.claude/settings.local.json` 一起加载）。此参数也会屏蔽用户 MCP；
+T-141 去掉 `--strict-mcp-config`，在 `$HOME/.claude.json` 顶层有 `mcpServers` 时，将该文件单独传给原生
+`--mcp-config`。它只加载 MCP，不合入用户设置中的文件权限规则；没有用户 MCP 时不加此参数。
+这里支持用户作用域 MCP，不加载项目 `.mcp.json`、项目局部 MCP 或插件设置。CLI 的 deferred MCP 工具由模型先经 `ToolSearch` 发现再调用。
 `--settings` 的 allow 规则允许 `Bash`、`Read`、`Glob`、`Grep`，以及 worktree、请求目录与项目额外目录内的 `Edit`。
 用户 MCP 通过每会话 `PreToolUse` hook 的 `^mcp__` 匹配器返回原生 `permissionDecision: allow`；
 该匹配器不匹配 Bash 或原生文件工具，CLI 自己的 deny/ask 规则仍适用。不使用无效的 `permissions.allow: ["mcp__*"]`：
