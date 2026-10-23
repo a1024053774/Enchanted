@@ -9,6 +9,8 @@
 3. 终端 X 里启动 claude，用户提交 REQUEST_EXECUTOR，它申请执行主控。界面上的批准卡片有“上级”选项，默认是终端 I 的
    构思主控；用户批准。侧栏里执行主控挂在构思主控下。
 （审查 01 后补充：同一次运行里，桌面操作员派出 T-1 的 worker，用户在问题面板答复它的上报、在它的窗格里打一段字，两条都标人工介入。）
+（T-107 #3，用户 2026-10-22“一二都要”：worker 的上报没人答复时，侧栏里它是“等待主控回答”，问题面板照旧列出这条上报；
+   答复之后不再是“等待主控回答”。）
 4. 用户在终端 I 让它放弃身份（`a2a release`），之后再提交 AFTER_RELEASE。
    记录页列出 IDEA_PROMPT、RELEASE（主控终端提交、构思主控）和对 AskUserQuestion 的答复，不列 REQUEST_IDEATION、
    REQUEST_EXECUTOR（批准之前）与 AFTER_RELEASE（身份结束之后）。
@@ -20,6 +22,7 @@
 3. 终端主控的状态不随回合变化：问用户时不是“等待用户回答”，跑命令时不是“运行中”，结束后不是“空闲”。
 4. 批准时选的上级没保存，执行主控进“未归属”。
 5. 分支行不显示或数字与 git 不一致。
+7. 有未答复的上报时 worker 不是“等待主控回答”，或答复之后仍是。
 6. 钩子往终端输出或改变回合（提示词被拦下、模型看到钩子输出）。
 --revision 在该版本源码上跑（修前没有钩子）；--mutant 跑已知坏实现。
 """
@@ -54,7 +57,7 @@ def main():
     parser.add_argument('--claude', default=shutil.which('claude') or str(Path.home() / '.local/bin/claude'))
     target = parser.add_mutually_exclusive_group()
     target.add_argument('--revision')
-    target.add_argument('--mutant', choices=['recorded-without-role', 'terminal-state-unknown', 'parent-not-saved'])
+    target.add_argument('--mutant', choices=['recorded-without-role', 'terminal-state-unknown', 'parent-not-saved', 'issue-not-waiting'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
     report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant, checks=[], observed={})
@@ -69,6 +72,8 @@ def main():
                                     "parent: roleRequest.parent_launch, state: 'unknown', question_id: null, state_label: stateLabels.unknown,")],
         # The parent the user picked not saved with the decision.
         'parent-not-saved': [('src/roleRequests.ts', "...(parent ? { parent_launch: parent } : {})", "")],
+        # An unanswered issue report not shown in the sidebar, as before T-107 #3.
+        'issue-not-waiting': [('src/sidebar.ts', "waiting?.has(record.thread) ? 'waiting_controller_answer' : native", "native")],
     }.get(args.mutant, [])
 
     def plan(body):
@@ -234,14 +239,26 @@ def main():
         dispatched = fixture.request('dispatch', fixture.operator, task='demo+T-1', runtimeMode='workspace-write')
         assert dispatched.get('ok'), dispatched
         views = fixture.wait('T-1 问题进门禁', lambda: fixture.request('issues', fixture.operator, task='demo+T-1')['issues'], 120)
+        worker = dispatched['attempt']['runtime_identity']['launch']
+        # T-107 #3: unanswered, the worker waits for its controller's answer, and the issue panel lists the report.
+        electron.until('上报未答复：等待主控回答', state_is(worker, 'waiting_controller_answer'), 60)
+        electron.evaluate("document.querySelector('[data-project-id=\"demo\"]').click()")
+        electron.until('问题页签', "!!document.querySelector('[data-issues-tab]')", 20)
+        electron.evaluate("document.querySelector('[data-issues-tab]').click()")
+        electron.until('问题面板列出这条上报', f"!!document.querySelector('[data-issue-id=\"{views[0]['issue']['id']}\"]')", 30)
+        electron.screenshot(fixture.out / '05-issue-waiting.png')
+        check('unanswered_issue_waits_for_controller', True)
         # The gate's operation lock may be held by the worker's own call at that moment (operation_busy); only that is retried.
         def answer():
             result = fixture.request('answer_issue', fixture.operator, task='demo+T-1', issue=views[0]['issue']['id'], answer=ANSWER)
             assert result.get('ok') or result.get('error') == 'operation_busy', result
             return result.get('ok')
         fixture.wait('答复问题', answer, 60)
+        electron.until('答复之后不再等待主控回答', f"(()=>{{const r=document.querySelector('.agent-row[data-agent-launch=\"{worker}\"]');"
+                       "return !!r&&r.dataset.agentState!=='waiting_controller_answer'}})()", 60)
+        report['observed']['worker_after_answer'] = agent(worker)
+        check('answered_issue_no_longer_waits', True)
         fixture.wait('T-1 交付', lambda: fixture.request('status', fixture.operator, task='demo+T-1')['task']['state'] == 'submitted', 180)
-        worker = dispatched['attempt']['runtime_identity']['launch']
         pane = fixture.request('window_open', fixture.operator, launch=worker, task=dispatched['attempt']['task_id'])
         assert pane['ok'], pane
         for sequence, data in enumerate(['\x1b[200~' + TYPED + '\x1b[201~', '\r'], 1):
@@ -270,7 +287,7 @@ def main():
         electron.until('记录页签', "!!document.querySelector('[data-records-tab]')", 20)
         electron.evaluate("document.querySelector('[data-records-tab]').click()")
         electron.until('记录表', f"document.querySelectorAll('.user-input-page tr[data-input-id]').length === {len(stored)}", 30)
-        electron.screenshot(fixture.out / '05-records.png')
+        electron.screenshot(fixture.out / '06-records.png')
         listed = electron.evaluate("[...document.querySelectorAll('.user-input-page tr[data-input-id]')].map(r=>({id:r.dataset.inputId,text:r.innerText}))")
         report['observed']['records_rows'] = listed
         by_id = {row['id']: row['text'] for row in listed}

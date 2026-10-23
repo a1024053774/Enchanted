@@ -6,7 +6,7 @@ import { A2AGates, Refusal, type TerminalController } from "./gates/core.ts";
 import { ControllerQuota, type QuotaState } from "./controllerQuota.ts";
 import { A2AGateRequest } from "./contracts/a2aGates.ts";
 import { OrchestrationStore } from "./store.ts";
-import { Panes, spawnHelper, claudeSubmittedText, type LaunchConfig } from "./panes.ts";
+import { Panes, spawnHelper, claudeSubmittedText, codexQuestionReply, type LaunchConfig } from "./panes.ts";
 import { socketPath } from "./transport.ts";
 import { RequestRelay, isPendingInboxResult } from "./relay.ts";
 import { writeReviewRequest, writeControllerContext } from "./relayFiles.ts";
@@ -303,19 +303,28 @@ export async function serve(
       let payload: any;
       try { payload = JSON.parse(String(input.raw_stdin)); } catch { return { ok: true, kept: false }; }
       if (!held || !held.native_session || payload?.session_id !== held.native_session) return { ok: true, kept: false };
-      const name = payload.hook_event_name, tool = payload.tool_name === "AskUserQuestion";
+      // Claude Code asks with AskUserQuestion and reports the answer when the tool returns. Codex asks with
+      // request_user_input_async, which returns at once ({"accepted":true}); the user's reply comes back later as a
+      // submitted prompt (T-133 probe-04, -05), so for Codex only that reply ends the wait.
+      const codex = held.cli === "codex", name = payload.hook_event_name;
+      const tool = payload.tool_name === (codex ? "request_user_input_async" : "AskUserQuestion");
       const state = name === "UserPromptSubmit" ? "running" : name === "PreToolUse" && tool ? "waiting_user_answer"
-        : ["PostToolUse", "PostToolUseFailure"].includes(name) && tool ? "running"
+        : !codex && ["PostToolUse", "PostToolUseFailure"].includes(name) && tool ? "running"
         : name === "Stop" || name === "Notification" && payload.notification_type === "idle_prompt" ? "idle" : null;
       if (!state) return { ok: true, kept: false };
       if (name === "UserPromptSubmit") {
-        if (typeof payload.prompt !== "string" || typeof payload.prompt_id !== "string" || !payload.prompt_id) return { ok: true, kept: false };
+        // Codex gives a submission no id of its own: a reply shares its turn_id with the prompt that asked.
+        const submission = codex ? payload.turn_id : payload.prompt_id;
+        if (typeof payload.prompt !== "string" || typeof submission !== "string" || !submission) return { ok: true, kept: false };
+        const reply = codex ? codexQuestionReply(payload.prompt) : null;
         // The whole prompt the user submitted to their controller (T-133 option A); a2a injects nothing into project terminals.
+        // A Codex hook call is one submission, so its record gets an id of its own.
         try {
-          gates.appendUserInput({ id: randomUUID(), schema: 1, form: "message", text: claudeSubmittedText(payload.prompt) as string,
-            target: { project: held.project, task: null, attempt: null, thread: store.launchRecord(terminal.id)!.thread, turn: null, message: null, request: null },
-            channel: "controller-terminal", reply_to: null, certainty: "observed", created_at: new Date().toISOString(),
-            source_ref: { event_id: payload.prompt_id, label: held.id } }, `terminal:${terminal.id}:${payload.prompt_id}`);
+          gates.appendUserInput({ id: randomUUID(), schema: 1, form: reply ? "answer" : "message", text: reply ? reply.text : claudeSubmittedText(payload.prompt) as string,
+            target: { project: held.project, task: null, attempt: null, thread: store.launchRecord(terminal.id)!.thread, turn: null, message: null, request: reply?.call ?? null },
+            channel: "controller-terminal", reply_to: reply?.call ?? null, certainty: "observed", created_at: new Date().toISOString(),
+            source_ref: { event_id: reply?.call ?? submission, label: held.id } },
+            `terminal:${terminal.id}:${reply ? reply.call : codex ? randomUUID() : submission}`);
         } catch (error) {
           gates.setUserInputObserverStatus("failed", { reason: String(error) });
           throw error;
@@ -337,7 +346,7 @@ export async function serve(
         }
       }
       store.event("terminal_turn", { role_request: held.id, session: held.native_session, hook_event_name: name, state,
-        prompt_id: typeof payload.prompt_id === "string" ? payload.prompt_id : null,
+        prompt_id: typeof payload.prompt_id === "string" ? payload.prompt_id : null, turn_id: typeof payload.turn_id === "string" ? payload.turn_id : null,
         tool_use_id: typeof payload.tool_use_id === "string" ? payload.tool_use_id : null }, terminal);
       return { ok: true, kept: true };
     }

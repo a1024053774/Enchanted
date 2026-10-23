@@ -3,6 +3,12 @@
 # that points to `a2a help`, unless the user passes developer_instructions themselves.
 . "$(dirname "$0")/real-cli.sh"
 real=$(a2a_real_cli codex) || exit 127
+# T-133, T-107: Enchanted's hooks for this session only, as launch arguments. Codex asks the user to trust them once and
+# keeps that trust in the user's own Codex config (a2a writes none); the definition never changes between terminals, so
+# the trust holds. The command names the a2a shim through the terminal's environment, not a path of this install.
+hook='{type="command",command="\"$A2A_TERMINAL_BIN/a2a\" hook",timeout=10}'
+set -- -c "hooks.UserPromptSubmit=[{hooks=[$hook]}]" -c "hooks.Stop=[{hooks=[$hook]}]" \
+  -c "hooks.PreToolUse=[{matcher=\"request_user_input_async\",hooks=[$hook]}]" "$@"
 # The user's own setting wins: a -c override, or the key in their Codex config file.
 for argument in "$@"; do
   case $argument in developer_instructions=*|--config=developer_instructions=*) exec "$real" "$@" ;; esac

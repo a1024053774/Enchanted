@@ -148,6 +148,20 @@ export function claudeSubmittedText(prompt: unknown) {
   const wrapped = typeof prompt === "string" ? /^\n\n<pasted_content id="([0-9A-Za-z]+)">\n([\s\S]*)\n<\/pasted_content id="\1">\n$/.exec(prompt) : null;
   return wrapped ? wrapped[2] : prompt;
 }
+// Codex hands the user's answers to request_user_input_async back as a submitted prompt (T-133 probe-05): a JSON list of
+// { question, answer, questionItemId: '["request_user_input_async","<call id>",<index>]' } inside this wrapper.
+// Anything else, an unreadable wrapper included, is not a reply: it is kept as the prompt it is, word for word.
+export function codexQuestionReply(prompt: string): { call: string; text: string } | null {
+  const wrapped = /^<send_user_message_question_reply>\n([\s\S]*)\n<\/send_user_message_question_reply>$/.exec(prompt);
+  if (!wrapped) return null;
+  try {
+    const replies = JSON.parse(wrapped[1]);
+    if (!Array.isArray(replies) || !replies.length) return null;
+    const [tool, call] = JSON.parse(replies[0].questionItemId);
+    if (tool !== "request_user_input_async" || typeof call !== "string" || !call) return null;
+    return { call, text: replies.map(reply => `${reply.question}：${reply.answer}`).join("\n") };
+  } catch { return null; }
+}
 // The Git paths a Claude worker's sandboxed shell must not write (see claudeArgv).
 async function workerGitDenied(worktree: string) {
   // Claude's sandbox already refuses writes to the worktree's own .git file (T-122 e2e red and

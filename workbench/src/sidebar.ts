@@ -123,6 +123,14 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
       OR type='native_record' AND (json_extract(data,'$.record.type')='session_meta'
         OR json_extract(data,'$.record.payload.type') IN ('function_call','task_started'))
     ORDER BY seq`).all().map(row => ({ ...row, data: JSON.parse(String(row.data)) }));
+  // T-107 #3: a session whose issue report nobody has answered yet waits for its controller's answer. The same test the
+  // gate applies before it takes an answer (open, no answer); a task whose issues cannot be read leaves its sessions unknown.
+  const unanswered = new Map<string, Set<string> | null>();
+  for (const task of new Set(launches.map(record => record.task).filter((task): task is string => typeof task === 'string'))) {
+    const result = await gates.call({ command: 'issues', task });
+    unanswered.set(task, result.ok ? new Set((result.issues ?? []).filter((view: any) => view.state !== '已关闭' && !view.answer)
+      .map((view: any) => String(view.issue.thread_id))) : null);
+  }
   const agents = launches.map(record => {
     // A role address or an ordinary reply is not delegation. Correlate the
     // authenticated sender launch, successful assign and actual dispatch target.
@@ -137,7 +145,10 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
           result.entry?.kind === 'assign' && result.entry.from === parent.preset && result.entry.to === recipient) senders.add(parent.id);
     }
     const launchEvents = events.filter(event => event.launch === record.id);
-    const state = agentState(statuses.get(record.id), launchEvents, record.worktree);
+    const native = agentState(statuses.get(record.id), launchEvents, record.worktree);
+    const waiting = record.task ? unanswered.get(record.task) : undefined;
+    const state: AgentState = ['ended', 'unrestored', 'waiting_user_answer'].includes(native) ? native
+      : waiting === null ? 'unknown' : waiting?.has(record.thread) ? 'waiting_controller_answer' : native;
     const question_id = state === 'waiting_user_answer'
       ? projectQuestions(launchEvents).find(question => question.status === 'waiting' &&
         question.submission === statuses.get(record.id)?.active?.id)?.id ?? null : null;
@@ -149,9 +160,10 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
       parent: senders.size === 1 ? [...senders][0] : null, state, question_id, state_label: stateLabels[state],
       created_at: record.created_at ?? null };
   });
-  // T-121: a terminal whose CLI the user approved as a controller. Its state is the last turn event the Enchanted
-  // plugin's hooks reported for this role (T-107); it is running from the confirmation on, since the CLI confirms
-  // from inside the turn that asked. A Codex controller has no hooks yet (T-133 probe), so it stays unknown.
+  // T-121: a terminal whose CLI the user approved as a controller. Its state is the last turn event Enchanted's hooks
+  // reported for this role (T-107). Claude Code loads them with the plugin, so it is running from the confirmation on,
+  // since the CLI confirms from inside the turn that asked. Codex runs them only once the user trusts them, so a Codex
+  // controller stays unknown until its first hook event.
   const current = roleRequests.all();
   const turns = store.db.prepare("SELECT json_extract(data,'$.role_request') AS role_request, json_extract(data,'$.state') AS state FROM orchestration_events WHERE type='terminal_turn' ORDER BY seq").all();
   for (const roleRequest of current.filter(row => row.state === 'approved')) {
@@ -209,8 +221,8 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
   // Approved controllers whose CLI hit its usage limit: the workbench announces them (T-124).
   const controllerQuota = quota.map(row => ({ ...row, role_label: roleLabel({ role: 'controller', preset: row.role }) }));
   return { projects, agents: treeAgents, controller_quota: controllerQuota, role_requests: pendingRequests, granted_role_requests: grantedRequests, unconfirmed_role_requests: unconfirmed, gaps: [
-    '等待主控回答：T-095 需要 Herdr 屏幕与状态互证；本工作台不调用 Herdr，当前显示未知。',
     '未保存父 launch、父会话缺失或关系冲突时显示未归属；不回填旧会话。',
-    '经角色申请成为主控的 Codex 没有回合信号（Codex 的钩子要用户在自己的 Codex 里信任，会写用户配置），状态显示未知；Claude Code 主控被用户按 Esc 中断后，要等它空闲 60 秒的通知才显示空闲。',
+    '经角色申请成为主控的 Codex：用户在 Codex 里信任 Enchanted 的钩子之前状态显示未知（信任由 Codex 写进用户自己的配置）；Plan 模式下的同步提问（request_user_input）不显示等待用户回答，答复也不记；被 Esc 中断后 Codex 不发回合结束，一直显示运行中，直到下一次提交。',
+    'Claude Code 主控被用户按 Esc 中断后，要等它空闲 60 秒的通知才显示空闲。',
   ] };
 }

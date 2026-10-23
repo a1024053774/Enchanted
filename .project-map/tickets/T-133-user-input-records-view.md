@@ -59,3 +59,7 @@ ready_rev: 1
   - 信任后 Codex 把 `hooks.state` 写进 `CODEX_HOME/config.toml`，在用户真实环境里就是 `~/.codex/config.toml`；
   - 经 `-c` 预填的信任不生效。
   - 按决定停下，没有用 `--dangerously-bypass-hook-trust`。
+
+## 用户决定：Codex 一侧（2026-10-22）
+
+用户逐字（在本 session 对“Codex 钩子 A/B/C”与“T-107 #3 一/二”两问的回复）：“1. A 2. 一二都要.”第 1 条选 A：Codex 主控也记录，用户在自己的 Codex 里信任一次 Enchanted 的钩子，由 Codex 自己把信任写进 `~/.codex/config.toml`；a2a 不写用户配置，不用 `--dangerously-bypass-hook-trust`。接法依据 `evidence/2026-10-22-batch20/T-133-T-107/codex-hook-probe/RESULTS.md` 的 probe-04～06。
