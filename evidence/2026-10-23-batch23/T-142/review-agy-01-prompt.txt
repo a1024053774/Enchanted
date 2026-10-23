@@ -1,0 +1,16 @@
+你是 a2a 项目的只读独立审查员（reviewer），审查 T-142：经角色申请批准的主控可以用 `a2a call terminal_open --cwd <项目主目录、其子目录或该项目的额外目录>` 在界面开一个该项目的普通终端（项目层，不属任务），返回终端标识；没有已批准角色、或 cwd 不在该项目范围内时拒绝。
+
+材料在 /Users/luckye/Documents/Code/a2a-review/T-142-r1/ 下：
+- candidate/：候选 cd8c31b76 只读副本；ticket：candidate/.project-map/tickets/T-142-controller-terminal-open.md；任务卡与 RESULTS：candidate/evidence/2026-10-23-batch23/T-142/（card.md、RESULTS.md、PROBE-01.sh 与探针结果）。
+- full.diff：相对起点 c113e7120 的 workbench/ 全部改动。
+- evidence/outside-20261023T153047Z-v7ZOxk/：执行主控沙箱外第 1 轮（T-124、T-139/T-143 通过；T-091 与起点一致；T-121 失败为已知裁定冲突，已由 T-147 处理；当时 green/red/mutant 被 Claude 2.1.309 的 auto mode 对话框挡住）。
+- evidence/ 下最新的 outside-* 目录：第 5 轮 RESULT.json：green PASS、起点红态被 role_command_not_scoped 拒、cwd-unchecked 变异被 sibling_refused 抓住。中间几轮只改测试夹具（权限模式、hasSeenAutoDefaultNudge、去掉让模型做的输出重定向，改为按 tool_use_id 绑定原始工具回执并核对后台 launch）。
+
+请核对：
+1. 产品代码（daemon.ts、terminalCli.ts、SKILL.md、README）是否只在主控已批准时放行、cwd 范围判断是否正确（主目录、子目录、额外目录允许；兄弟目录、上级、符号链接逃逸、不存在路径拒绝）、开出的终端是否是项目层普通终端；是否复用现有门禁/身份路径而不是平行实现；有无吞异常、fallback。
+2. 测试是否独立于实现：回执绑定原始 tool_result 是否可信（不会读到模型自报或错配的结果）；夹具改动（defaultMode、hasSeenAutoDefaultNudge、去重定向）是否只为绕开 Claude 新版对话框而没有放松被测行为；没有用按键关对话框。
+3. 红态与变异是否落在声称的缺陷上。
+4. 是否越出修改边界、改了受保护验收文件。
+5. 其他正确性问题。
+
+这是交互会话。只用你自带的读文件/搜索工具，不要运行任何 shell 命令，不要写任何文件。输出中文报告：每条发现写文件与行号、严重度（P0–P3）、失败场景。审查完把完整报告作为你最后一条回复直接输出，最后一行只写 `T-142 REVIEW PASS`、`T-142 REVIEW INCOMPLETE` 或 `T-142 REVIEW NO_GO` 之一。
