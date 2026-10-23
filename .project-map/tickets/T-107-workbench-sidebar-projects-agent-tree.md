@@ -149,7 +149,7 @@ PASS，2026-10-22 关闭。验收逐条：
 1. 层级与点击聚焦：live 测试 7 项，T-133 的 Claude/Codex 主控测试，侧栏回放 rerun-09。
 2. 七种状态与“未知”“未归属”反例：见上文“#3 与 Codex 终端主控”一节与 rerun-09。
 3. 项目行汇总：codex-row-green。通知按用户决定改为应用内通知，由 T-110 验收（已关）。
-4. 分支与领先、落后数与 git 一致：live `branch_counts_match_git`。项目登记自 `3070bbe1a` 起走“打开目录”，背后是后台入口 `project_open`，live 测试经这个入口登记；系统的“打开目录”对话框没有自动驱动。
+4. 分支与领先、落后数与 git 一致：live `branch_counts_match_git`。项目登记自 `3070bbe1a` 起走“打开目录”，背后是后台入口 `project_open`，live 测试经这个入口登记；2026-10-23 又经真实的系统对话框验证（用户选定由 Codex 经 Computer Use 操作）：取消不登记、不报错；打开后登记的就是选中的目录，侧栏行与主区域都切到它，分支行与 git 一致。green-03 PASS，“不用选中的目录”“取消时登记默认目录”两个变异失败。见 `evidence/2026-10-22-batch20/T-107-dialog/RESULTS.md`。
 5. 截图、命令与模型回合数都在各批证据里；`project_map.py status` 0 问题。
 
 **已知边界**：

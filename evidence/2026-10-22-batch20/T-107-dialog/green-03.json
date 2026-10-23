@@ -1,0 +1,81 @@
+{
+ "status": "PASS",
+ "argv": [
+  "workbench/tests/test_t107_open_directory_dialog.py",
+  "--summary",
+  "evidence/2026-10-22-batch20/T-107-dialog/green-03.json"
+ ],
+ "mutant": null,
+ "checks": [
+  "starts_without_projects",
+  "dialog_opened_before_cancel",
+  "cancel_registers_nothing",
+  "cancel_shows_no_error",
+  "registers_the_picked_directory",
+  "sidebar_row_selected",
+  "main_area_shows_the_project",
+  "branch_line_matches_git",
+  "codex_finished_the_steps"
+ ],
+ "observed": {
+  "expected": {
+   "repo": "/private/tmp/t107o-pasrp4_1/pick-me",
+   "branch": "main",
+   "ahead": 1,
+   "behind": 0
+  },
+  "after_cancel": {
+   "projects": [],
+   "alerts": []
+  },
+  "registered": {
+   "/private/tmp/t107o-pasrp4_1/pick-me": {
+    "project_id": "pick-me",
+    "repo": "/private/tmp/t107o-pasrp4_1/pick-me",
+    "tasks": [],
+    "opened": true,
+    "git": {
+     "branch": "main",
+     "upstream": "origin/main",
+     "ahead": 1,
+     "behind": 0,
+     "error": null
+    },
+    "state": "unknown",
+    "state_label": "未知",
+    "issues_waiting": 0
+   }
+  },
+  "row": {
+   "text": "pick-me\nmain · ↑1 ↓0\n未知",
+   "title": "/private/tmp/t107o-pasrp4_1/pick-me\nmain · 领先 1 / 落后 0",
+   "git": "main · ↑1 ↓0"
+  },
+  "header": {
+   "title": "pick-me",
+   "eyebrow": "/private/tmp/t107o-pasrp4_1/pick-me"
+  }
+ },
+ "model_calls": "Codex 操作者，见 codex.jsonl",
+ "fixture": "/private/tmp/t107o-pasrp4_1",
+ "codex_argv": [
+  "codex",
+  "exec",
+  "-m",
+  "gpt-6.1-sol",
+  "-c",
+  "model_reasoning_effort=\"high\"",
+  "--sandbox",
+  "workspace-write",
+  "--skip-git-repo-check",
+  "-C",
+  "/private/tmp/t107o-pasrp4_1/out",
+  "--json",
+  "-o",
+  "/private/tmp/t107o-pasrp4_1/out/codex-last.txt",
+  "你在做一次界面验证，只能用 Computer Use 操作一个窗口：应用名为 Electron 的测试窗口（Enchanted 工作台，左侧栏顶部有一个“+”按钮，提示是“打开项目目录”），以及它弹出的 macOS 系统对话框。不要操作任何别的应用或窗口，不要改系统设置，不要登录，不要删除文件。遇到权限请求或别的意外，停下并在最后的回复里如实说明。\n\n步骤：\n1. 点侧栏顶部的“+”（打开项目目录）。会弹出标题为“打开项目目录”的系统对话框。在对话框里点“取消”。确认对话框已关闭后，运行：touch /private/tmp/t107o-pasrp4_1/out/cancelled\n2. 运行：for i in $(seq 1 120); do [ -f /private/tmp/t107o-pasrp4_1/out/go ] && break; sleep 1; done\n3. 再点一次“+”。对话框出现后按 Command+Shift+G，输入下面这个路径，按回车跳转，然后点对话框的“打开”按钮：\n/private/tmp/t107o-pasrp4_1/pick-me\n确认对话框已关闭后，运行：touch /private/tmp/t107o-pasrp4_1/out/opened\n4. 不要再点任何东西。最后用几句话说明每一步实际看到了什么。"
+ ],
+ "codex_version": "codex-cli 0.163.0",
+ "codex_exit": 0,
+ "codex_last_message": "PASS。第一次点击“+”后出现“打开项目目录”对话框；点击“取消”后确认已返回 Enchanted，并创建了 `cancelled` 标记。\n\n等待命令已执行完成。第二次打开对话框后，通过 Command+Shift+G 跳转到指定的 `pick-me` 目录，看到了 `NOTES.md` 和 `README.md`。点击“打开”后对话框关闭，工作台显示 `pick-me` 及完整路径，并创建了 `opened` 标记。\n\n之后没有再点击任何内容，未遇到权限请求或其他意外。"
+}

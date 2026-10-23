@@ -1,0 +1,71 @@
+{
+ "status": "INCOMPLETE",
+ "argv": [
+  "workbench/tests/test_t107_open_directory_dialog.py",
+  "--mutant",
+  "pick-ignored",
+  "--summary",
+  "evidence/2026-10-22-batch20/T-107-dialog/mutant-pick-ignored-03.json"
+ ],
+ "mutant": "pick-ignored",
+ "checks": [
+  "starts_without_projects",
+  "dialog_opened_before_cancel",
+  "cancel_registers_nothing",
+  "cancel_shows_no_error"
+ ],
+ "observed": {
+  "expected": {
+   "repo": "/private/tmp/t107o-ql2fsi4w/pick-me",
+   "branch": "main",
+   "ahead": 1,
+   "behind": 0
+  },
+  "after_cancel": {
+   "projects": [],
+   "alerts": []
+  },
+  "codex_stopped": "Codex 在 opened 之前结束（exit 0）",
+  "registered": {
+   "/private/tmp/t107o-ql2fsi4w/home": {
+    "project_id": "home",
+    "repo": "/private/tmp/t107o-ql2fsi4w/home",
+    "tasks": [],
+    "opened": true,
+    "git": {
+     "branch": null,
+     "upstream": null,
+     "ahead": null,
+     "behind": null,
+     "error": "无法读取 Git：Error: Command failed: git -C /private/tmp/t107o-ql2fsi4w/home status --porcelain=v2 --branch --untracked-files=no\nfatal: not a git repository (or any of the parent directories): .git\n"
+    },
+    "state": "unknown",
+    "state_label": "未知",
+    "issues_waiting": 0
+   }
+  }
+ },
+ "model_calls": "Codex 操作者，见 codex.jsonl",
+ "fixture": "/private/tmp/t107o-ql2fsi4w",
+ "codex_argv": [
+  "codex",
+  "exec",
+  "-m",
+  "gpt-6.1-sol",
+  "-c",
+  "model_reasoning_effort=\"high\"",
+  "--sandbox",
+  "workspace-write",
+  "--skip-git-repo-check",
+  "-C",
+  "/private/tmp/t107o-ql2fsi4w/out",
+  "--json",
+  "-o",
+  "/private/tmp/t107o-ql2fsi4w/out/codex-last.txt",
+  "你在做一次界面验证，只能用 Computer Use 操作一个窗口：应用名为 Electron 的测试窗口（Enchanted 工作台，左侧栏顶部有一个“+”按钮，提示是“打开项目目录”），以及它弹出的 macOS 系统对话框。不要操作任何别的应用或窗口，不要改系统设置，不要登录，不要删除文件。遇到权限请求或别的意外，停下并在最后的回复里如实说明。\n\n步骤：\n1. 点侧栏顶部的“+”（打开项目目录）。会弹出标题为“打开项目目录”的系统对话框。在对话框里点“取消”。确认对话框已关闭后，运行：touch /private/tmp/t107o-ql2fsi4w/out/cancelled\n2. 运行：for i in $(seq 1 120); do [ -f /private/tmp/t107o-ql2fsi4w/out/go ] && break; sleep 1; done\n3. 再点一次“+”。对话框出现后按 Command+Shift+G，输入下面这个路径，按回车跳转，然后点对话框的“打开”按钮：\n/private/tmp/t107o-ql2fsi4w/pick-me\n确认对话框已关闭后，运行：touch /private/tmp/t107o-ql2fsi4w/out/opened\n4. 不要再点任何东西。最后用几句话说明每一步实际看到了什么。"
+ ],
+ "codex_version": "codex-cli 0.163.0",
+ "error": "AssertionError: registers_the_picked_directory: {'/private/tmp/t107o-ql2fsi4w/home': {'project_id': 'home', 'repo': '/private/tmp/t107o-ql2fsi4w/home', 'tasks': [], 'opened': True, 'git': {'branch': None, 'upstream': None, 'ahead': None, 'behind': None, 'error': '无法读取 Git：Error: Command failed: git -C /private/tmp/t107o-ql2fsi4w/home status --porcelain=v2 --branch --untracked-files=no\\nfatal: not a git repository (or any of the parent directories): .git\\n'}, 'state': 'unknown', 'state_label': '未知', 'issues_waiting': 0}}",
+ "codex_exit": 0,
+ "codex_last_message": "INCOMPLETE：第一次点击“+”后出现“打开项目目录”对话框；点击“取消”后确认已关闭，已创建 `cancelled`，并执行了等待命令。\n\n第二次通过 Command+Shift+G 跳转到指定的 `pick-me`，看到了 `NOTES.md` 和 `README.md`。点击“打开”后对话框关闭，但工作台显示的项目是 `home`，并报“无法读取 Git / not a git repository”。\n\n遇到此异常后已停止，没有创建 `opened`，也没有再点击任何东西。"
+}
