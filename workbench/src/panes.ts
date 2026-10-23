@@ -57,7 +57,8 @@ function requireNotNormalLogin(record: Record<string, any>) {
 function requireMonitorRestore(record: Record<string, any>) {
   requireNotNormalLogin(record);
   const shell = record.shell_argv;
-  check(record.role === "monitor" && ["Claude Code", "Codex"].includes(record.cli) && record.sandbox === "read-only" &&
+  check(record.role === "monitor" && ["Claude Code", "Codex"].includes(record.cli) &&
+    record.sandbox === (record.extra_directories?.length ? "workspace-write" : "read-only") &&
     typeof record.parent_launch === "string" && record.shell === "/bin/zsh" && Array.isArray(shell) && shell.length === 4 &&
     shell[0] === "-f" && shell[1] === "-i" && shell[2] === "-c" && typeof shell[3] === "string", "restore_record_unrecognized");
 }
@@ -126,7 +127,7 @@ export type EmptyInputDeclaration = {
 // one-off candidate copy (its working directory). Both can still write Claude's $TMPDIR: denying
 // it breaks every shell command (probe-04).
 async function claudeArgv(executable: string, signal: string, session: string,
-  selection: { model: string; effort: string; fast: boolean }, writable: string[], shellWritable: string[], gitDenied: string[] = []) {
+  selection: { model: string; effort: string; fast: boolean }, writable: string[], shellWritable: string[], gitDenied: string[] = [], extraDirectories: string[] = []) {
   const hook = [{ hooks: [{ type: "command", command: signal, timeout: 10 }] }];
   const settings = {
     permissions: { allow: ["Bash", "Read", "Glob", "Grep", ...writable.map(path => `Edit(/${path}/**)`)] },
@@ -138,7 +139,8 @@ async function claudeArgv(executable: string, signal: string, session: string,
   };
   // dontAsk denies AskUserQuestion anyway; without the tool the model asks through `issue` (T-124 ruling 1a).
   return [executable, "--session-id", session, "--model", selection.model, "--effort", selection.effort, "--permission-mode", "dontAsk",
-    "--setting-sources", "", "--strict-mcp-config", "--disallowedTools", "AskUserQuestion", "--settings", JSON.stringify(settings)];
+    "--setting-sources", "", "--strict-mcp-config", "--disallowedTools", "AskUserQuestion", "--settings", JSON.stringify(settings),
+    ...extraDirectories.flatMap(path => ["--add-dir", path])];
 }
 const STARTUP_DEADLINE_MS = 120_000;
 // The text a Claude prompt submitted. A long paste reaches UserPromptSubmit wrapped in Claude's
@@ -706,7 +708,9 @@ export class Panes implements GateRuntime {
           ...(task.card.executor.effort.trim() ? { effort: task.card.executor.effort } : {}), ...overrides } : overrides);
     const launchWorkspace = review ? review.candidate_workspace : attempt.workspace;
     const nativeSession = claude ? randomUUID() : null;
-    const sandboxMode = monitor ? "read-only" : "workspace-write";
+    const extraDirectories = (this.store.openedProjects().find(project => project.project_id === task.project_id)?.extra_directories ?? [])
+      .map(path => realpathSync(path));
+    const sandboxMode = monitor && !extraDirectories.length ? "read-only" : "workspace-write";
     const networkAccess = "false";
     const networkProxy = "false";
     const excludeSlashTmp = review ? "true" : "false";
@@ -717,13 +721,14 @@ export class Panes implements GateRuntime {
     // then asks "Open restricted" once, which saves nothing; openCodexRestricted answers it.
     const trustRoot = claude ? null : review || monitor ? realpathSync(launchWorkspace) : await repositoryRoot(launchWorkspace);
     const argv = claude ? await claudeArgv(executable, signalCommand, nativeSession!, { model, effort, fast },
-      monitor ? [] : review ? [realpathSync(launchWorkspace)] : [realpathSync(launchWorkspace), requestDirectory],
-      review || monitor ? [] : [requestDirectory], review || monitor ? [] : await workerGitDenied(launchWorkspace)) : [executable, "--no-daemon", "--no-alt-screen", "-C", launchWorkspace,
+      [...(monitor ? [] : review ? [realpathSync(launchWorkspace)] : [realpathSync(launchWorkspace), requestDirectory]), ...extraDirectories],
+      [...(review || monitor ? [] : [requestDirectory]), ...extraDirectories], review || monitor ? [] : await workerGitDenied(launchWorkspace), extraDirectories) : [executable, "--no-daemon", "--no-alt-screen", "-C", launchWorkspace,
       "-a", "never", "--sandbox", sandboxMode, "-m", model,
       "-c", `model_reasoning_effort=${JSON.stringify(effort)}`, "-c", `service_tier=${JSON.stringify(fast ? 'fast' : 'default')}`,
       "-c", "check_for_update_on_startup=false", "-c", "tui.notifications=false",
       "-c", `sandbox_workspace_write.network_access=${networkAccess}`, "-c", `features.network_proxy=${networkProxy}`,
       "-c", `projects={${JSON.stringify(trustRoot)}={trust_level="untrusted"}}`,
+      ...extraDirectories.flatMap(path => ["--add-dir", path]),
       ...(review ? ["-c", `sandbox_workspace_write.exclude_slash_tmp=${excludeSlashTmp}`,
         "-c", `sandbox_workspace_write.exclude_tmpdir_env_var=${excludeTmpdir}`] : [])];
     if (!claude) {
@@ -755,7 +760,7 @@ export class Panes implements GateRuntime {
     const { A2A_CAPABILITY: _secret, ...recordedEnvironment } = environment;
     const record = { id: launch, project: task.project_id, task: task.task_id, attempt: attempt.attempt_id,
       session: attempt.session_id, fence: attempt.fence, spec_rev: attempt.spec_rev, thread: attempt.thread_id,
-      role, sandbox: sandboxMode, parent_launch: this.parentLaunch.getStore() ?? null,
+      role, sandbox: sandboxMode, extra_directories: extraDirectories, parent_launch: this.parentLaunch.getStore() ?? null,
       cli: claude ? "Claude Code" : "Codex", ...(claude ? { native_session: nativeSession } : {}),
       ...(review ? { review_id: review.review_id, review_verification_id: review.verification_id,
         review_workspace: review.workspace, candidate_workspace: review.candidate_workspace } : {}),
@@ -763,7 +768,7 @@ export class Panes implements GateRuntime {
       model_requested: model, effort_requested: effort, service_tier_requested: fast ? 'fast' : 'default',
       turn_limit: c.turn_limit, turn_authorization: c.turn_authorization ?? null,
       code_revision: c.code_revision, source_snapshot: c.source_snapshot ?? null, role_card: c.role_card, role_card_revision: c.role_card_revision,
-      role_text: readFileSync(c.role_card, "utf8"), base_commit: attempt.base_commit, worktree: launchWorkspace,
+      role_text: readFileSync(c.role_card, "utf8") + `\n\n本会话可写的项目额外目录：${JSON.stringify(extraDirectories)}。其中的改动不进门禁的审查与集成。`, base_commit: attempt.base_commit, worktree: launchWorkspace,
       shell: "/bin/zsh", shell_argv: shellArgv, env: recordedEnvironment, helper, hook_authorization: c.hook_authorization };
     this.store.launch(record);
     mkdirSync(join(this.root, "traces", launch), { recursive: true, mode: 0o700 });

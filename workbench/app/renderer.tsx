@@ -8,6 +8,7 @@ import '@xterm/xterm/css/xterm.css';
 import './style.css';
 import { FlowPage } from './FlowPage';
 import { ExecutionSettings } from './ExecutionSettings';
+import { ProjectSettings } from './ProjectSettings';
 import type { ExecutionRole, ExecutionSelection } from '../src/executionSettings.ts';
 import type { FlowSnapshot } from '../src/flow.ts';
 import { TerminalScrollToBottom } from './TerminalScrollToBottom';
@@ -101,6 +102,8 @@ declare global { interface Window { a2a: { readonly paneKeys: readonly string[];
   records(project: string): Promise<UserInputRecord[]>; metrics(project: string, since: string | null, until: string | null): Promise<any>;
   selection(): Promise<Selection>; selectTask(task: string | null): Promise<Selection>;
   openProject(): Promise<Selection | null>; removeProject(project: string): Promise<Selection>;
+  projectSettings(project: string, directories?: string[]): Promise<{ repo: string; extra_directories: string[] }>;
+  pickExtraDirectory(): Promise<string | null>;
   selectProject(project: string | null): Promise<Selection>; theme(theme: Theme): Promise<void>;
   newTerminal(): Promise<Selection>;
   paneAction(key: string, action: { type: string; direction?: string; name?: string }): Promise<Selection>;
@@ -486,6 +489,7 @@ function Workbench() {
   const [theme, setTheme] = useState<Theme>(readTheme);
   const [projectMenu, setProjectMenu] = useState<{ project: ProjectItem; x: number; y: number; opener: HTMLElement } | null>(null);
   const projectMenuRef = useRef<HTMLDivElement>(null);
+  const [editingProject, setEditingProject] = useState<string | null>(null);
   const dismissProjectMenu = () => { projectMenu?.opener.focus(); setProjectMenu(null); };
   const [now, setNow] = useState(Date.now());
   const sidebarRead = useRef(false);
@@ -747,6 +751,7 @@ function Workbench() {
       </nav>
       <div className="sidebar-footer"><button className="text-button" disabled={busy} onClick={() => void refresh()}>刷新列表</button></div>
     </aside>
+    {editingProject && <ProjectSettings project={editingProject} onClose={() => setEditingProject(null)} />}
     {projectMenu && <div ref={projectMenuRef} className="pane-menu" role="menu" aria-label="项目操作" style={{ left: projectMenu.x, top: projectMenu.y }}
       onMouseDown={event => event.stopPropagation()} onKeyDown={event => {
         const items = [...projectMenuRef.current!.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')];
@@ -757,6 +762,7 @@ function Workbench() {
         } else if (event.key === 'Escape' || event.key === 'Tab') { if (event.key === 'Escape') event.preventDefault(); dismissProjectMenu(); }
       }}>
       <button role="menuitem" disabled={busy} onClick={() => { setProjectMenu(null); selectProject(projectMenu.project.project_id); }}>打开终端区</button>
+      <button role="menuitem" data-edit-project disabled={busy || !projectMenu.project.opened} onClick={() => { setEditingProject(projectMenu.project.project_id); setProjectMenu(null); }}>编辑项目</button>
       <button role="menuitem" disabled={busy || !projectMenu.project.opened || projectMenu.project.tasks.length > 0}
         title={projectMenu.project.tasks.length ? '项目已有门禁任务，不能移除' : undefined} onClick={() => removeProject(projectMenu.project.project_id)}>从列表移除</button>
     </div>}

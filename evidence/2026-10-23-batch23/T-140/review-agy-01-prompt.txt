@@ -1,0 +1,19 @@
+你是 a2a 项目的只读独立审查员（reviewer），审查 T-140 的候选交付。不要修改任何文件，不要运行会改动文件、启动服务或联网的命令；只读文件。
+
+材料（都在 /Users/luckye/Documents/Code/a2a-review/T-140-r1/）：
+- candidate/：候选提交 708f30e08 的完整副本（只读）。ticket：candidate/.project-map/tickets/T-140-project-extra-directories.md；任务卡：/Users/luckye/Documents/Code/a2a-review/T-140-r1/evidence/card.md；worker 交付说明：candidate/evidence/2026-10-23-batch23/T-140/RESULTS.md。
+- full.diff：相对起点 ebbae7bd0 的 workbench/ 全部改动。
+- outside-03-run.json：执行主控在沙箱外运行 RUN-OUTSIDE-03 的结果（9 项）；各项原始 json 在 /Users/luckye/Documents/Code/a2a-review/T-140-r1/evidence/outside-03-20261023-064800-130165/。
+
+用户原话（ticket 里）：“可写,不要太重,不然只读的话,比如我想在我博客的文件夹发个博客,他就没办法写”。额外目录可写；门禁只集成项目主仓库，额外目录的改动不进门禁审查与集成，界面和角色卡要写明；用户项目终端不受影响；不做独立门禁、worktree 隔离、只读模式。网络、MCP、Codex 配置放宽是 T-141 的事，不在本票。
+
+请核对：
+1. 目标是否达成：编辑项目的增删与追加式保存；worker/reviewer/monitor 启动带上额外目录（Claude --add-dir 加沙箱 allowWrite，Codex 可写根）；移除后新启动的会话写不进去；未添加的目录写不进；argv 记录完整。
+2. 门禁 workbench/src/gates/** 的改动（审查员额外目录核对）是否只按启动记录放行，没有放宽其他核对项；有没有吞异常、fallback、兼容分支或平行路径。
+3. 安全边界：额外目录路径的校验（绝对路径、真实路径、去重、不能是 Git 公共目录或主仓库之外的敏感位置？按代码实际看），只有操作员能保存设置。
+4. 测试是否独立于实现，红态（修前 ebbae7bd0）与两个变异是否确实落在所声称的检查上；“真实用户双击保存不会存旧列表”的结论与依据是否成立。
+5. 其他正确性问题。
+
+输出中文报告：每条发现写文件与行号、严重度（P0–P3）、失败场景；最后一行只写 `T-140 REVIEW PASS`、`T-140 REVIEW INCOMPLETE` 或 `T-140 REVIEW NO_GO` 之一，前面给出理由。
+
+补充：这是交互会话。所有材料都在 /Users/luckye/Documents/Code/a2a-review/T-140-r1 下（evidence/ 是沙箱外运行结果与任务卡的副本）。只用你自带的读文件/搜索工具，不要运行任何 shell 命令，不要写任何文件。审查完把完整中文报告作为你最后一条回复直接输出。

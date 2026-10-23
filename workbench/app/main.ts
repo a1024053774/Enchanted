@@ -346,6 +346,25 @@ function registerHandlers() {
     context.switching = changeView(context, { project: opened.project });
     try { return await context.switching; } finally { context.switching = undefined; }
   });
+  ipcMain.handle('a2a:project-settings', async (event, project: string, directories?: string[]) => {
+    const context = windowTarget(event);
+    if (directories !== undefined) {
+      const saved = await request(context.options.state, { command: 'project_settings_save', project, extra_directories: directories }, context.operator);
+      if (!saved.ok) throw new Error(saved.error);
+      return saved;
+    }
+    const result = await request(context.options.state, { command: 'sidebar_snapshot' });
+    if (!result.ok) throw new Error(result.error);
+    const found = result.projects.find((entry: any) => entry.project_id === project);
+    if (!found?.opened) throw new Error('项目未登记，请先打开项目目录');
+    return found;
+  });
+  ipcMain.handle('a2a:pick-extra-directory', async event => {
+    const context = windowTarget(event);
+    const picked = await dialog.showOpenDialog(context.window, { title: '添加额外目录', buttonLabel: '添加',
+      properties: ['openDirectory', 'createDirectory'] });
+    return picked.canceled ? null : picked.filePaths[0];
+  });
   ipcMain.handle('a2a:remove-project', async (event, project: string) => {
     const context = windowTarget(event);
     if (typeof project !== 'string' || !project) throw new Error('Invalid project');

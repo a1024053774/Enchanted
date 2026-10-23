@@ -92,7 +92,7 @@ export async function gitFacts(repo: string) {
 // A project is a directory the user opened, or a gate project that has tasks.
 // An opened directory names the project's repo; otherwise the tasks must agree.
 export async function projectCatalog(gates: any, store: OrchestrationStore) {
-  const opened = new Map(store.openedProjects().map(project => [project.project_id, project.repo]));
+  const opened = new Map(store.openedProjects().map(project => [project.project_id, project]));
   const ids = [...new Set([...gates.listProjects().map((project: any) => String(project.project_id)), ...opened.keys()])].sort();
   return Promise.all(ids.map(async project_id => {
     const tasks = gates.listTasks(project_id);
@@ -102,8 +102,9 @@ export async function projectCatalog(gates: any, store: OrchestrationStore) {
       if (!result.ok) throw new Error('Task catalog changed: ' + task.task_id);
       repos.add(result.task.repo);
     }
-    const repo = opened.get(project_id) ?? (repos.size === 1 ? [...repos][0] : null);
-    return { project_id, repo, tasks, opened: opened.has(project_id) };
+    const repo = opened.get(project_id)?.repo ?? (repos.size === 1 ? [...repos][0] : null);
+    return { project_id, repo, tasks, opened: opened.has(project_id),
+      extra_directories: opened.get(project_id)?.extra_directories ?? [] };
   }));
 }
 
