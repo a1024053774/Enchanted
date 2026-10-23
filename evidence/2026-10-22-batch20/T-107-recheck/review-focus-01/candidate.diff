@@ -1,0 +1,119 @@
+diff --git a/workbench/app/renderer.tsx b/workbench/app/renderer.tsx
+index 251eb4abf..0046e9e46 100644
+--- a/workbench/app/renderer.tsx
++++ b/workbench/app/renderer.tsx
+@@ -128,11 +128,17 @@ function SessionPane({ paneKey, name, home, focusRequest, zoomed, onZoom, onActi
+   const reconnect = useRef<() => void>(() => {});
+   const releaseQueue = useRef<() => void>(() => {});
+   const [terminal, setTerminal] = useState<Terminal | null>(null);
+-  useEffect(() => { if (focusRequest && terminal) terminal.focus(); }, [focusRequest, terminal]);
+   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+   const [error, setError] = useState<string | null>(null);
+   const [connecting, setConnecting] = useState(true);
+   const [restoring, setRestoring] = useState(true);
++  // The mount is hidden while its backlog replays (T-118) and a hidden element takes no focus, so a request made then
++  // waits for the reveal. Each request is served once, so a later reconnect does not take focus back.
++  const servedFocus = useRef(0);
++  useEffect(() => {
++    if (!focusRequest || !terminal || restoring || servedFocus.current === focusRequest) return;
++    servedFocus.current = focusRequest; terminal.focus();
++  }, [focusRequest, terminal, restoring]);
+   const [offset, setOffset] = useState(0);
+   const [inputError, setInputError] = useState<string | null>(null);
+   const [releasing, setReleasing] = useState(false);
+diff --git a/workbench/tests/run_t107_sidebar.py b/workbench/tests/run_t107_sidebar.py
+index 50aa3966d..4120f245d 100644
+--- a/workbench/tests/run_t107_sidebar.py
++++ b/workbench/tests/run_t107_sidebar.py
+@@ -182,6 +182,11 @@ def main():
+             assert result['status'] == 'PASS' and result['cleanup_complete'], result
+         report['checks'].append(dict(name='实际 daemon：根／辅助会话隔离、未消费日志下全部表与 trace 零写入', status='PASS'))
+         start(candidate)
++        # The candidate's start migrates the fixture's task ids to project+task (T-123, gates/core.ts); the UI below must
++        # leave the migrated values as they are.
++        with sqlite3.connect(state / 'state.sqlite3') as db:
++            before = list(db.execute('SELECT id,data FROM tasks ORDER BY id'))
++        assert [row[0] for row in before] == ['project-0+task-0', 'project-1+task-1'], before
+         green_build = build(candidate, 'green')
+         green = window(candidate, green_build, 'green')
+         green.wait(lambda row: len(row['projects']) == 2 and 'sidebar' in row['bridge'] and not any(project['disabled'] for project in row['projects']))
+@@ -224,7 +229,10 @@ def main():
+         view = green.wait(lambda row: len(row['agents']) == 7 and not any(agent['disabled'] for agent in row['agents']))
+         assert not any(row['overflow'] for row in view['agents'])
+         green.call('project', target='project-1')
+-        green.wait(lambda row: not row['agents'] and row['task'].endswith('/repo-two') and not any(project['disabled'] for project in row['projects']))
++        # Since 3070bbe1a every project lists its own agents under its row (T-107 "全部项目分组"); project-1 has none,
++        # so choosing it keeps project-0's seven and moves the terminal area to repo-two.
++        green.wait(lambda row: len(row['agents']) == 7 and row['task'].endswith('/repo-two') and not any(project['disabled'] for project in row['projects'])
++                   and next(project for project in row['projects'] if project['id'] == 'project-1')['selected'] == 'page')
+         green.call('project', target='project-0')
+         green.wait(lambda row: len(row['agents']) == 7 and row['task'].endswith('/repo-one') and not any(agent['disabled'] for agent in row['agents']))
+         green.call('notifications')
+diff --git a/workbench/tests/t107_sidebar_driver.mjs b/workbench/tests/t107_sidebar_driver.mjs
+index 9bf90b09b..72bc90061 100644
+--- a/workbench/tests/t107_sidebar_driver.mjs
++++ b/workbench/tests/t107_sidebar_driver.mjs
+@@ -21,6 +21,7 @@ void run({ state: values.state, task: values.task, userData: values['user-data']
+     panes: [...document.querySelectorAll('section.pane')].map(n=>({key:n.dataset.paneKey,launch:n.dataset.launchId,input:n.dataset.inputEnabled,
+       alerts:[...n.querySelectorAll('[role=alert]')].map(a=>a.textContent)})),
+     focusedLaunch: document.activeElement?.closest('section.pane')?.dataset.launchId,
++    active: (e=>e&&[e.tagName,e.className,e.closest('section.pane')?'in-pane':'',e.closest('[data-pane-key]')?.dataset.paneKey||''].join('|'))(document.activeElement), hasFocus: document.hasFocus(),
+     task: document.querySelector('.task-header .eyebrow')?.textContent,
+     alerts:[...document.querySelectorAll('[role=alert]')].map(n=>n.textContent),
+     notificationChecked: document.querySelector('.sidebar-settings input')?.checked,
+diff --git a/workbench/tests/test_t107_daemon_readonly.mjs b/workbench/tests/test_t107_daemon_readonly.mjs
+index 300951450..e2d232767 100644
+--- a/workbench/tests/test_t107_daemon_readonly.mjs
++++ b/workbench/tests/test_t107_daemon_readonly.mjs
+@@ -143,6 +143,9 @@ finally {
+     } catch (error) { report.status = 'INCOMPLETE'; report.cleanup_error = String(error); }
+   }
+   if (previousCredential === undefined) delete process.env.A2A_OPERATOR_CREDENTIAL; else process.env.A2A_OPERATOR_CREDENTIAL = previousCredential;
++  // The dependency copy is ~500 MB per run and was never removed (2026-10-22, the disk filled up); the rest of the run
++  // directory stays as its evidence.
++  fs.rmSync(join(tree, 'node_modules'), { recursive: true, force: true });
+ }
+ fs.writeFileSync(output, JSON.stringify(report, null, 2) + '\n', { flag: 'wx' });
+ console.log(JSON.stringify(report)); process.exitCode = report.status === 'PASS' ? 0 : 1;
+diff --git a/workbench/tests/test_t133_codex_terminal_controller_e2e.py b/workbench/tests/test_t133_codex_terminal_controller_e2e.py
+index 9dd942d7c..75beb6832 100644
+--- a/workbench/tests/test_t133_codex_terminal_controller_e2e.py
++++ b/workbench/tests/test_t133_codex_terminal_controller_e2e.py
+@@ -78,7 +78,7 @@ def main():
+     parser.add_argument('--claude', default=shutil.which('claude') or str(Path.home() / '.local/bin/claude'))
+     target = parser.add_mutually_exclusive_group()
+     target.add_argument('--revision')
+-    target.add_argument('--mutant', choices=['hooks-not-passed', 'post-hook-passed', 'reply-as-message'])
++    target.add_argument('--mutant', choices=['hooks-not-passed', 'post-hook-passed', 'reply-as-message', 'project-needs-hidden'])
+     args = parser.parse_args()
+     assert not args.summary.exists(), '保留既有证据，改用新路径'
+     report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant, checks=[], observed={})
+@@ -90,6 +90,8 @@ def main():
+         'post-hook-passed': [('terminal/bin/codex', '-c "hooks.PreToolUse=', '-c "hooks.PostToolUse=[{matcher=\\"request_user_input_async\\",hooks=[$hook]}]" -c "hooks.PreToolUse=')],
+         # The user's reply kept as an ordinary message.
+         'reply-as-message': [('src/daemon.ts', 'const reply = codex ? codexQuestionReply(payload.prompt) : null;', 'const reply = null as any;')],
++        # The project row no longer says how many of its sessions wait for the user.
++        'project-needs-hidden': [('app/renderer.tsx', '{waiting > 0 && <span className="project-needs">', '{false && <span className="project-needs">')],
+     }.get(args.mutant, [])
+ 
+     api = dict(bodies=[], error=None, turns={})
+@@ -273,6 +275,10 @@ def main():
+         held = agent(ideation['launch'])
+         electron.screenshot(fixture.out / '01-waiting-user-answer.png')
+         check('still_waiting_after_accepted', held['state'] == 'waiting_user_answer', held)
++        # T-107 acceptance: the project row of a session waiting for the user stands out, and goes back once answered.
++        needs = "[...document.querySelectorAll('[data-project-id=\"demo\"] .project-needs:not([data-project-issues])')].map(n => n.textContent)"
++        report['observed']['project_needs_waiting'] = electron.evaluate(needs)
++        check('project_row_needs_user', report['observed']['project_needs_waiting'] == ['1 个等你'], report['observed']['project_needs_waiting'])
+         wait('问题显示在终端', lambda: QUESTION.replace(' ', '') in screen(ideation), 30)
+         type_in(ideation, '\x1b[1;2D')
+         time.sleep(2)
+@@ -285,6 +291,8 @@ def main():
+         check('ideation_running_after_answer', True)
+         electron.until('回合结束：空闲', state_is(ideation['launch'], 'idle'), 60)
+         check('ideation_idle_after_turn', True)
++        report['observed']['project_needs_answered'] = electron.evaluate(needs)
++        check('project_row_back_after_answer', report['observed']['project_needs_answered'] == [], report['observed']['project_needs_answered'])
+ 
+         executor = terminal('X')
+         type_in(executor, 'codex --sandbox danger-full-access -a never\r')

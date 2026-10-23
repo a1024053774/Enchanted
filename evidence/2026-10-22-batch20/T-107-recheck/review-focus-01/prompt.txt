@@ -1,0 +1,14 @@
+你是只读审查员。只读文件，不要运行任何命令，不要修改任何文件。
+
+审查对象：/Users/luckye/Documents/Code/a2a/evidence/2026-10-22-batch20/T-107-recheck/review-focus-01/candidate.diff（提交 89cc73645^..df8f972a4，Enchanted 工作台）。
+背景与证据：/Users/luckye/Documents/Code/a2a/evidence/2026-10-22-batch20/T-107-recheck/RESULTS.md 最后一节“补充：历史窗格聚焦查明并修复”。
+需要时读源码：/Users/luckye/Documents/Code/a2a/workbench/app/renderer.tsx（SessionPane 与 selectAgent）、workbench/app/style.css（terminal-scroll data-restoring）、workbench/tests/run_t107_sidebar.py、workbench/tests/test_t107_daemon_readonly.mjs、workbench/tests/test_t133_codex_terminal_controller_e2e.py、workbench/src/gates/core.ts（任务号迁移，约 1078 行）。
+验收来源：/Users/luckye/Documents/Code/a2a/.project-map/tickets/T-107-workbench-sidebar-projects-agent-tree.md 的 Acceptance。
+
+请判断：
+1. renderer 的修复是否正确：回放隐藏期间发出的聚焦请求是否会在显示后执行；每个请求只执行一次是否成立；有没有新的抢焦点、焦点丢失或竞态（例如回放中途 paneKey 变化、重连、同一窗格连续两次请求、隐藏页签 terminal-page hidden）。
+2. 测试改动是否把期望从独立来源取得，而不是照着实现写；新检查能否被所述反例抓住；“任务原值不变”基准改到迁移之后是否掩盖了界面写库。
+3. 探针清理是否可能删到不该删的东西。
+4. RESULTS 的陈述有没有超出证据。
+
+按 P0～P3 列出发现，每条写位置、证据、影响；最后给 PASS 或 NO_GO。用中文。
