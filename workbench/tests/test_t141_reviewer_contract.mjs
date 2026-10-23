@@ -55,6 +55,13 @@ try {
         if (cli === 'Codex') row.argv[row.argv.indexOf('-a') + 1] = 'on-request';
         else row.argv[row.argv.indexOf('--permission-mode') + 1] = 'manual';
       }],
+      ...(cli === 'Claude Code' ? [['mcp_hook_matches_native_tools', row => {
+        const i = row.argv.indexOf('--settings') + 1, s = JSON.parse(row.argv[i]);
+        s.hooks.PreToolUse[1].matcher = '.*'; row.argv[i] = JSON.stringify(s);
+      }], ['mcp_hook_missing', row => {
+        const i = row.argv.indexOf('--settings') + 1, s = JSON.parse(row.argv[i]);
+        s.hooks.PreToolUse.pop(); row.argv[i] = JSON.stringify(s);
+      }]] : []),
     ]) {
       const row = structuredClone(launch); mutate(row);
       assert.throws(() => validate(row), e => e.code === 'review_launch_boundary', cli + ': ' + name);

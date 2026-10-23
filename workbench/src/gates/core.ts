@@ -2342,6 +2342,8 @@ export class A2AGates {
     let settings: any = null;
     try { settings = claude ? JSON.parse(String(argv?.[14])) : null; } catch { settings = null; }
     const hookEvents = ["SessionStart", "SessionEnd", "UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse"];
+    const mcpPermission = { matcher: "^mcp__", hooks: [{ type: "command", timeout: 10,
+      command: "printf '%s\\n' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\"}}'" }] };
     const signal = settings?.hooks?.Stop?.[0]?.hooks?.[0]?.command;
     // D24: same model, effort and Fast as the worker launch, and the worker's signal command with
     // only the launch id changed. The executable is recorded, not compared: its real path names
@@ -2368,11 +2370,12 @@ export class A2AGates {
         argv[2] === launch.native_session && settings !== null && typeof settings === "object" &&
         JSON.stringify(Object.keys(settings).sort()) === JSON.stringify(["fastMode", "hooks", "permissions", "sandbox"]) &&
         typeof settings.fastMode === "boolean" &&
-        JSON.stringify(settings.permissions) === JSON.stringify({ allow: ["Bash", "Read", "Glob", "Grep", "mcp__*", `Edit(/${realpathSync(review.candidate_workspace)}/**)`, ...extraDirectories.map(path => `Edit(/${path}/**)`)] }) &&
+        JSON.stringify(settings.permissions) === JSON.stringify({ allow: ["Bash", "Read", "Glob", "Grep", `Edit(/${realpathSync(review.candidate_workspace)}/**)`, ...extraDirectories.map(path => `Edit(/${path}/**)`)] }) &&
         JSON.stringify(settings.sandbox) === JSON.stringify({ enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false,
           network: { allowedDomains: ["*"], allowAllUnixSockets: true, allowLocalBinding: true }, filesystem: { allowWrite: extraDirectories } }) &&
         JSON.stringify(Object.keys(settings.hooks)) === JSON.stringify(hookEvents) &&
-        hookEvents.every(event => JSON.stringify(settings.hooks[event]) === JSON.stringify([{ hooks: [{ type: "command", command: signal, timeout: 10 }] }])) &&
+        hookEvents.every(event => JSON.stringify(settings.hooks[event]) === JSON.stringify([
+          { hooks: [{ type: "command", command: signal, timeout: 10 }] }, ...(event === "PreToolUse" ? [mcpPermission] : [])])) &&
         live.workspace === review.candidate_workspace
       : launch?.cli !== "Claude Code" && live.workspace === review.candidate_workspace && cwd >= 0 && argv[cwd + 1] === review.candidate_workspace &&
         JSON.stringify(argv.flatMap((arg, index) => arg === '--add-dir' ? [argv[index + 1]] : [])) === JSON.stringify(extraDirectories) &&

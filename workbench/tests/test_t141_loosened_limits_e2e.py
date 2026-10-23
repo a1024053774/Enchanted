@@ -172,8 +172,8 @@ def main():
                                 'const item = { id: "t141-dropped-answer" };')],
             'shared-temp-writable': [('src/panes.ts', '"sandbox_workspace_write.exclude_slash_tmp=true"',
                                      '"sandbox_workspace_write.exclude_slash_tmp=false"')],
-            'native-tools-unrestricted': [('src/panes.ts', '"Bash", "Read", "Glob", "Grep", "mcp__*", ...writable.map',
-                                          '"Bash", "Read", "Glob", "Grep", "Write", "mcp__*", ...writable.map')],
+            'native-tools-unrestricted': [('src/panes.ts', '"Bash", "Read", "Glob", "Grep", ...writable.map',
+                                          '"Bash", "Read", "Glob", "Grep", "Write", ...writable.map')],
         }.get(args.mutant, [])
         fixture = Fixture('t141-', claude_plan, revision=args.revision, patches=patches)
         report['fixture'] = str(fixture.dir)
@@ -202,10 +202,14 @@ for line in sys.stdin:
         user_config.write_text(json.dumps(settings), encoding='utf-8')
         codex_home = fixture.home / '.codex'
         (codex_home / 'rules').mkdir(parents=True)
+        review_copies = fixture.state / 'review-copies'
+        review_copies.mkdir(mode=0o700)
+        report['isolated_trust_roots'] = [str(fixture.repo.resolve()), str(review_copies.resolve())]
         server = ThreadingHTTPServer(('127.0.0.1', 0), CodexApi)
         threading.Thread(target=server.serve_forever, daemon=True).start()
         (codex_home / 'config.toml').write_text('model_provider="t141"\ncli_auth_credentials_store="file"\n'
-            f'[projects.{json.dumps(str(fixture.dir))}]\ntrust_level="trusted"\n'
+            f'[projects.{json.dumps(str(fixture.repo))}]\ntrust_level="trusted"\n'
+            f'[projects.{json.dumps(str(review_copies.resolve()))}]\ntrust_level="trusted"\n'
             '[model_providers.t141]\nname="T141 fixture"\n'
             f'base_url="http://127.0.0.1:{server.server_port}/v1"\nwire_api="responses"\nrequires_openai_auth=false\n', encoding='utf-8')
         (codex_home / 'rules/default.rules').write_text('prefix_rule(pattern=["git","add"],decision="allow")\n'
@@ -229,9 +233,19 @@ for line in sys.stdin:
                 'assert r["extra"] is True and r["outside"] is False and r["temporary_file"] is True\n'
                 + ('assert r["continued"] is True and r["slash_tmp"] is False and r["original_tmpdir"] is False\n' if task == 'T-D' else ''))
         fixture.start(args.claude, files)
+        check('isolated_trust_roots_checked', fixture.git('rev-parse', '--show-toplevel') == str(fixture.repo.resolve()) and
+              review_copies.is_dir() and review_copies.parent.resolve() == fixture.state.resolve(), report['isolated_trust_roots'])
         report['versions'] = {name: subprocess.check_output([binary, '--version'], text=True).strip()
                               for name, binary in [('Claude Code', args.claude), ('Codex', args.codex)]}
         electron = Electron(fixture, fixture.dir.name)
+        # The native listener is authoritative. In outside-01 the client's error
+        # named port 65535, while this owned Electron advertised 49154.
+        # Do not keep querying a port inferred before Electron actually bound it.
+        listener = fixture.wait('native DevTools listener', lambda: re.search(
+            r'DevTools listening on ws://127\.0\.0\.1:(\d+)/devtools/browser/[^\s]+',
+            (fixture.out / 'electron.log').read_text(encoding='utf-8')), 30)
+        report['observed']['devtools'] = dict(requested_port=electron.port, listener=listener.group(0))
+        electron.port = int(listener.group(1))
         electron.until('project', "!!document.querySelector('[data-project-id=\"demo\"]')")
         saved = fixture.request('project_settings_save', fixture.operator, project='demo', extra_directories=[str(x)])
         assert saved.get('ok'), saved

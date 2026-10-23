@@ -130,13 +130,18 @@ export type EmptyInputDeclaration = {
 async function claudeArgv(executable: string, signal: string, session: string,
   selection: { model: string; effort: string; fast: boolean }, writable: string[], shellWritable: string[], gitDenied: string[] = [], extraDirectories: string[] = []) {
   const hook = [{ hooks: [{ type: "command", command: signal, timeout: 10 }] }];
+  // MCP server wildcards are invalid in permissions.allow. The native hook matcher supports
+  // this prefix and approves MCP only; Bash and native file tools retain their own checks.
+  const mcpPermission = { matcher: "^mcp__", hooks: [{ type: "command", timeout: 10,
+    command: "printf '%s\\n' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\"}}'" }] };
   const settings = {
-    permissions: { allow: ["Bash", "Read", "Glob", "Grep", "mcp__*", ...writable.map(path => `Edit(/${path}/**)`)] },
+    permissions: { allow: ["Bash", "Read", "Glob", "Grep", ...writable.map(path => `Edit(/${path}/**)`)] },
     sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false,
       ...(gitDenied.length ? { excludedCommands: ["git add *", "git commit *"] } : {}),
       network: { allowedDomains: ["*"], allowAllUnixSockets: true, allowLocalBinding: true },
       filesystem: { allowWrite: shellWritable, ...(gitDenied.length ? { denyWrite: gitDenied } : {}) } },
-    hooks: Object.fromEntries(["SessionStart", "SessionEnd", "UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse"].map(event => [event, hook])),
+    hooks: Object.fromEntries(["SessionStart", "SessionEnd", "UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse"].map(event =>
+      [event, event === "PreToolUse" ? [...hook, mcpPermission] : hook])),
     fastMode: selection.fast,
   };
   // dontAsk denies AskUserQuestion anyway; without the tool the model asks through `issue` (T-124 ruling 1a).

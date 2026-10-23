@@ -629,7 +629,10 @@ worker 的 CLI 取任务卡 `executor.cli`（Claude Code 或 Codex，T-122），
 Claude Code worker 的启动参数（证据 `evidence/2026-10-21-batch19/T-122/probe-01`～`05`）：`--session-id`、
 `--permission-mode dontAsk`（不弹批准，越界即拒）、`--setting-sources ""`（不加载设置文件，登录与用户 MCP 照常；
 `local` 会连主 checkout 的 `.claude/settings.local.json` 一起加载）。T-141 去掉 `--strict-mcp-config`，
-`--settings` 允许 `Bash`、`Read`、`Glob`、`Grep`、用户 MCP 工具，以及 worktree、请求目录与项目额外目录内的 `Edit`。
+`--settings` 的 allow 规则允许 `Bash`、`Read`、`Glob`、`Grep`，以及 worktree、请求目录与项目额外目录内的 `Edit`。
+用户 MCP 通过每会话 `PreToolUse` hook 的 `^mcp__` 匹配器返回原生 `permissionDecision: allow`；
+该匹配器不匹配 Bash 或原生文件工具，CLI 自己的 deny/ask 规则仍适用。不使用无效的 `permissions.allow: ["mcp__*"]`：
+Claude CLI 不允许 allow 规则的 server 部分包含通配符，旧候选会在信任确认后停在 Settings Warning。
 shell 沙箱禁止沙箱外命令，另可写请求目录与项目额外目录。网络允许所有域名、Unix socket 和本地连接。MCP 工具由用户配置的服务执行，
 不在 Claude 的 Bash 文件沙箱内，服务本身的写入权限不由这些设置限制。linked worktree 里
 Claude 的沙箱自己把主仓库整个 `.git` 设为可写，所以 `denyWrite` 收回整个 Git common dir（worktree 的 `.git` 文件 Claude 沙箱本身就拒写）；
