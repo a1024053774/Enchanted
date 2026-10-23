@@ -234,7 +234,12 @@ def main():
         dispatched = fixture.request('dispatch', fixture.operator, task='demo+T-1', runtimeMode='workspace-write')
         assert dispatched.get('ok'), dispatched
         views = fixture.wait('T-1 问题进门禁', lambda: fixture.request('issues', fixture.operator, task='demo+T-1')['issues'], 120)
-        assert fixture.request('answer_issue', fixture.operator, task='demo+T-1', issue=views[0]['issue']['id'], answer=ANSWER).get('ok')
+        # The gate's operation lock may be held by the worker's own call at that moment (operation_busy); only that is retried.
+        def answer():
+            result = fixture.request('answer_issue', fixture.operator, task='demo+T-1', issue=views[0]['issue']['id'], answer=ANSWER)
+            assert result.get('ok') or result.get('error') == 'operation_busy', result
+            return result.get('ok')
+        fixture.wait('答复问题', answer, 60)
         fixture.wait('T-1 交付', lambda: fixture.request('status', fixture.operator, task='demo+T-1')['task']['state'] == 'submitted', 180)
         worker = dispatched['attempt']['runtime_identity']['launch']
         pane = fixture.request('window_open', fixture.operator, launch=worker, task=dispatched['attempt']['task_id'])
