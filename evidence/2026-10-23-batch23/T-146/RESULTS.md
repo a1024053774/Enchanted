@@ -61,6 +61,8 @@ python3 workbench/tests/test_t146_session_state_e2e.py --revision ebbae7bd0 --su
 
 **当前入口是 RUN-OUTSIDE-04.sh，请主控在沙箱外运行。** 它在全新 outside04-时间-PID 目录重跑原有八项并增加严格审查员钩子合约；保留既有 red/native-red/mutant 的具体失败原因核对，所有六项绿态均 PASS 才输出 PASS。本地通过不替代本轮真实 Electron、门禁回收与真实审查员的完整通过证据。
 
+本轮冻结候选 `2b6aad5c16c38cf0e2c4bc45a6ba50ae0a84adf4` 已经独立只读审查，未见确定错误或虚报，确认仍保留活跃 busy、额外钩子与权限扩大等拒绝条件；结论 INCOMPLETE，待 04 外部复验。见 `behavioral-review-04.md`。收尾工作区干净；project-map 的 README stale 仍交主控在集成收口时核验。
+
 提交诊断候选后执行既有流程基线：`node workbench/tests/test_t111_flow.mjs /private/tmp/t146-t111-baseline-c49e7749a.json .`，退出 0，摘要 `{"status":"PASS","task":"T-111","model_calls":0}`。该结果只证明未改产品时的既有流程契约成立，也实证当前 oracle 排除 ended；不替代 T-146 修复后的回归。fixture 清理后 `control.sock`、`daemon.pid` 均不存在。收尾 project-map status 仍为 Problems 0、Stale living docs 0。
 
 ## 主控已裁定与后续待裁定
