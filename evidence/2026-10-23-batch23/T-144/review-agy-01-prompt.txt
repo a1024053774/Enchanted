@@ -1,0 +1,18 @@
+你是 a2a 项目的只读独立审查员（reviewer），审查 T-144 的候选交付：流程页卡片标题改为角色与任务名（UUID 只在悬停提示）；执行主控按它派发了哪个任务的 worker 挂到那条泳道，确实无关联的才进“未归属”并说明原因；不同任务泳道互相独立；一个任务带额外目录时泳道显示多个路径。
+
+材料都在 /Users/luckye/Documents/Code/a2a-review/T-144-r1/ 下：
+- candidate/：候选 9eb9a4c5f 完整副本（只读）。ticket：candidate/.project-map/tickets/T-144-flow-page-fixes.md（含用户原话）；worker 说明：candidate/evidence/2026-10-23-batch23/T-144/RESULTS.md。
+- evidence/card.md：任务卡（修改边界、验收文件）。
+- evidence/20261023T141657Z-executor-needs-decision-001.md 与 evidence/20261023T142024Z-ideation-answer-001.md：用户裁定 A，授权只把 test_t111_flow.mjs:36,41 与 test_t146_ended_projection.mjs:65 中“执行主控在未归属”改为“按派发关系在其任务泳道；确实无关联的才在未归属”，其余不动。
+- full.diff：相对起点 6af6e3028 的 workbench/ 全部改动。
+- evidence/outside-20261023T141754Z-U3kdek/：执行主控沙箱外第 1 轮（真实 Electron 绿态、红态、两个变异 uuid-title 与 terminal-task、投影、T-146、T-137；t111 与 t146-ended 因旧断言失败）。
+- evidence/outside-02-20261023T142626Z-bmaYji/：第 2 轮（改后断言在起点失败、候选通过；绿态通过）。
+
+请核对：
+1. 是否实现 ticket 四点；“确实无关联”的判定依据是否是派发关系（gate/dispatch 事实），而不是终端或名字等启发式；原因文字是否显示。
+2. 受保护文件改动是否只在授权范围，其余断言、检查名、期望值是否未变；RESULTS.md 是否逐条写明。
+3. 状态来源是否仍沿用 T-146 的同一来源（不另算）；已结束会话仍按裁定 B 列出。
+4. 新测试是否独立于实现，红态与变异是否落在所声称的缺陷上；是否放宽断言或加长超时。
+5. 是否越出修改边界（daemon.ts、gates 禁止）；有无吞异常、fallback、平行路径；其他正确性问题。
+
+这是交互会话。只用你自带的读文件/搜索工具，不要运行任何 shell 命令，不要写任何文件。输出中文报告：每条发现写文件与行号、严重度（P0–P3）、失败场景。审查完把完整报告作为你最后一条回复直接输出，最后一行只写 `T-144 REVIEW PASS`、`T-144 REVIEW INCOMPLETE` 或 `T-144 REVIEW NO_GO` 之一。

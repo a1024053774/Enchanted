@@ -33,12 +33,12 @@ try {
   const view = projectFlow(tasks, agents, events);
   assert.equal(view.lanes.length, 2);
   assert.equal(view.lanes[0].stage, 'implementation');
-  assert.deepEqual(view.lanes[0].agents.map(a=>a.id), ['w1','w2','ended']);
+  assert.deepEqual(view.lanes[0].agents.map(a=>a.id), ['controller','w1','w2','ended']);
   assert.equal(view.lanes[0].agents.find(a=>a.id === 'ended').state, 'ended', 'T-146 B retains ended sessions');
   assert.deepEqual(view.lanes[0].monitors.map(a=>a.id), ['monitor']);
   assert.equal(view.lanes[1].stage, 'review');
   assert.deepEqual(view.lanes[1].agents.map(a=>a.id), ['r']);
-  assert.deepEqual(view.unassigned.map(a=>a.id), ['controller','old','orphan']);
+  assert.deepEqual(view.unassigned.map(a=>a.id), ['old','orphan']);
   assert.equal(JSON.stringify({tasks,agents,events}), frozen);
   assert.equal(projectFlow(tasks, agents, [...events, {task:'T-B',attempt:'b',type:'review_result',details:{review:{state:'passed'}}}]).lanes[1].stage, 'integration');
   const rejected = [...events, {task:'T-B',attempt:'b',type:'review_result',details:{review:{state:'needs_fix'}}},

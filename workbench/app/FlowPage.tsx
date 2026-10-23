@@ -9,9 +9,11 @@ function Agents({ agents, group }: { agents: FlowAgent[]; group: string }) {
   const [expanded, setExpanded] = useState(false);
   return <div className="flow-agents">
     {(expanded ? agents : agents.slice(0, 4)).map((agent, index) => <div className="flow-agent" key={agent.id}
-      data-flow-agent={agent.id} data-flow-role={agent.role} data-flow-state={agent.state}>
+      data-flow-agent={agent.id} data-flow-role={agent.role} data-flow-state={agent.state}
+      title={`${agent.id}${agent.attempt ? ` · attempt ${agent.attempt}` : ''}`}>
       <span className="flow-dot" aria-hidden="true" style={{ background: colors[index % colors.length] }} />
-      <span><strong>{agent.id}</strong><small>{agent.role_label ?? agent.role} · {agent.cli ?? 'CLI 未知'} · {agent.attempt ?? 'attempt 未知'}</small>
+      <span><strong>{agent.role_label ?? agent.role}{agent.task_name && ` · ${agent.task_name}`}</strong><small>{agent.cli ?? 'CLI 未知'}</small>
+        {agent.unassigned_reason && <small className="flow-unassigned-reason">{agent.unassigned_reason}</small>}
         <small><span aria-hidden="true">{icons[agent.state] ?? '?'}</span> {agent.state_label ?? '未知'}</small></span>
     </div>)}
     {agents.length > 4 && <button className="flow-more" data-flow-more={group} aria-expanded={expanded}
@@ -26,6 +28,7 @@ function Lane({ lane }: { lane: FlowSnapshot['lanes'][number] }) {
       <span aria-hidden="true">{open ? '⌄' : '›'}</span> {lane.name} · {lane.title}</button>
       <span>{lane.project} · {lane.integrated ? '已集成' : current < 0 ? '阶段未知 · 核对门禁记录' : flowStages[current].label}
         {lane.returns.length > 0 && ` · 打回 ${lane.returns.length} 次`}</span></header>
+    <ul className="flow-paths" aria-label="任务路径">{lane.paths.map(path => <li key={path}>{path}</li>)}</ul>
     {open && <div className="flow-lane-body">
       {lane.monitors.length > 0 && <div className="flow-monitors"><span>贯穿监视</span><Agents agents={lane.monitors} group={lane.task + '-monitors'} /></div>}
       <div className="flow-stages">
@@ -71,7 +74,7 @@ export function FlowPage() {
         {snapshot.lanes.map(lane => <Lane key={lane.task} lane={lane} />)}
       </div>
       {snapshot.unassigned.length > 0 && <section className="flow-unassigned" aria-label="未归属"><h3>未归属</h3>
-        <p>父记录、任务或当前 attempt 无法对应，或角色不属于票内阶段的会话。</p><Agents agents={snapshot.unassigned} group="unassigned" /></section>}
+        <p>各会话下方列出未归属原因。</p><Agents agents={snapshot.unassigned} group="unassigned" /></section>}
     </>}
   </section>;
 }
