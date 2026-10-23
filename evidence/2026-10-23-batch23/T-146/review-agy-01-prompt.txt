@@ -1,0 +1,19 @@
+你是 a2a 项目的只读独立审查员（reviewer），审查 T-146 的候选交付。不要修改任何文件，不要运行会改动文件、启动服务或联网的命令；只读文件。
+
+材料（都在 /Users/luckye/Documents/Code/a2a-review/T-146-r1/）：
+- candidate/：候选提交 acf17e6ad 的完整副本（只读）。ticket 在 candidate/.project-map/tickets/T-146-stale-running-state.md；任务卡在 /Users/luckye/Documents/Code/a2a-review/T-146-r1/evidence/card.md；worker 的交付说明在 candidate/evidence/2026-10-23-batch23/T-146/RESULTS.md。
+- full.diff：相对起点 ebbae7bd0 的 workbench/ 全部改动。
+- outside-04-run-results.json：执行主控在沙箱外运行 RUN-OUTSIDE-04 的结果摘要（红态、绿态、变异、回归的退出码与错误）。各项原始 json 在 /Users/luckye/Documents/Code/a2a-review/T-146-r1/evidence/outside04-20261023T104746Z-9083/。
+
+执行主控在派发中做过的裁定（以 RESULTS.md 和下列为准）：允许改 daemon.ts 的 Reflect 入口、panes.ts 中 Claude SessionEnd 结束事实、门禁只新增认可 SessionEnd 钩子；T-137 只许改夹具不许改断言；侧栏与流程沿用“不列已结束会话”的现有规则，已结束的会话任何一页都不得显示“运行中”（侧栏/流程是否也要列出已结束会话已另交决策，不在本次审查范围）。
+
+请核对：
+1. 改动是否达成 ticket 目标：Reflect、侧栏、流程同一会话同一状态、同一来源；终端关闭或 CLI 退出后为已结束；仍运行的显示运行中。是否还有另算状态的地方。
+2. 门禁 gates/core.ts 与 panes.ts 的改动是否只限授权范围，有没有放宽其他核对、引入吞异常、fallback 或平行路径。
+3. T-137 测试的改动是否只动夹具，断言、检查名、期望值是否未变。
+4. 新测试是否独立于实现（期望来自 ticket 而非被测代码输出）；红态与变异是否确实落在所声称的缺陷上；结果摘要与说明是否一致。
+5. 其他正确性问题。
+
+输出中文报告：每条发现写文件与行号、严重度（P0–P3）、失败场景；最后一行只写 `T-146 REVIEW PASS`、`T-146 REVIEW INCOMPLETE` 或 `T-146 REVIEW NO_GO` 之一，前面给出理由。
+
+补充：这是交互会话。所有材料都在 /Users/luckye/Documents/Code/a2a-review/T-146-r1 下（evidence/ 是沙箱外运行结果与任务卡的副本）。只用你自带的读文件/搜索工具，不要运行任何 shell 命令，不要写任何文件。审查完把完整中文报告作为你最后一条回复直接输出。
