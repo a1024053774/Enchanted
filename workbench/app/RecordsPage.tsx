@@ -4,7 +4,7 @@ import './records.css';
 export type UserInputRecord = { id: string; created_at: string; form: string; channel: string; certainty: string; text: string;
   task: string | null; attempt: string | null; thread: string; launch: string | null; role: string | null; intervention: number | null };
 const forms: Record<string, string> = { message: '消息', answer: '答复', approval: '批准', denial: '拒绝', choice: '选择', action: '操作', gap: '记录缺口' };
-const channels: Record<string, string> = { 'terminal-window': '窗格键入', 'issue-panel': '问题面板', 'thread-message': '会话消息', 'ws-rpc': '界面操作',
+const channels: Record<string, string> = { 'terminal-window': '窗格键入', 'controller-terminal': '主控终端提交', 'issue-panel': '问题面板', 'thread-message': '会话消息', 'ws-rpc': '界面操作',
   'ui-derived': '界面推断', 'settings-page': '设置页', 'commit-trailer': '提交（缺尾注）' };
 const roles: Record<string, string> = { worker: 'worker', reviewer: '审查员', monitor: '监视器', ideation: '构思主控', executor: '执行主控', shell: '项目终端' };
 const time = (value: string) => new Date(value).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -36,7 +36,7 @@ export function RecordsPage({ project }: { project: string | null }) {
   const rows = all.filter(record => (!task || (record.task ?? '') === task) && (!session || record.thread === session));
   return <div className="records-page user-input-page">
     <div className="records-intro"><h2>用户输入记录</h2>
-      <p>你亲手打的字、在面板里的答复和审批都记在这里，主控和后台派发的文字不算。落在受管 worker 会话里的输入记为人工介入。</p></div>
+      <p>你亲手打的字、在面板里的答复和审批都记在这里，主控和后台派发的文字不算。项目终端里只记你批准为主控的 Claude Code 收到的整条提示词。落在受管 worker 会话里的输入记为人工介入。</p></div>
     {error && <p className="catalog-error" role="alert">{error}</p>}
     {!project ? <p className="records-empty">先在左侧选一个项目。</p>
       : records === null && !error ? <p className="records-empty" role="status">正在读取…</p>

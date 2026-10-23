@@ -6,7 +6,7 @@ import { A2AGates, Refusal, type TerminalController } from "./gates/core.ts";
 import { ControllerQuota, type QuotaState } from "./controllerQuota.ts";
 import { A2AGateRequest } from "./contracts/a2aGates.ts";
 import { OrchestrationStore } from "./store.ts";
-import { Panes, spawnHelper, type LaunchConfig } from "./panes.ts";
+import { Panes, spawnHelper, claudeSubmittedText, type LaunchConfig } from "./panes.ts";
 import { socketPath } from "./transport.ts";
 import { RequestRelay, isPendingInboxResult } from "./relay.ts";
 import { writeReviewRequest, writeControllerContext } from "./relayFiles.ts";
@@ -294,6 +294,52 @@ export async function serve(
       if (!ended) throw new Refusal("no_role");
       return { ok: true, role_request: ended };
     }
+    // T-133, T-107: an event from the Enchanted plugin's hooks in this terminal's CLI. Kept only while the terminal
+    // holds an approved role and the event comes from the session that asked for it; anything else is dropped
+    // unrecorded, so an ordinary terminal's prompts never reach the records.
+    if (input.command === "terminal_hook") {
+      const held = roleRequests.approved(terminal.id);
+      let payload: any;
+      try { payload = JSON.parse(String(input.raw_stdin)); } catch { return { ok: true, kept: false }; }
+      if (!held || !held.native_session || payload?.session_id !== held.native_session) return { ok: true, kept: false };
+      const name = payload.hook_event_name, tool = payload.tool_name === "AskUserQuestion";
+      const state = name === "UserPromptSubmit" ? "running" : name === "PreToolUse" && tool ? "waiting_user_answer"
+        : ["PostToolUse", "PostToolUseFailure"].includes(name) && tool ? "running"
+        : name === "Stop" || name === "Notification" && payload.notification_type === "idle_prompt" ? "idle" : null;
+      if (!state) return { ok: true, kept: false };
+      if (name === "UserPromptSubmit") {
+        if (typeof payload.prompt !== "string" || typeof payload.prompt_id !== "string" || !payload.prompt_id) return { ok: true, kept: false };
+        // The whole prompt the user submitted to their controller (T-133 option A); a2a injects nothing into project terminals.
+        try {
+          gates.appendUserInput({ id: randomUUID(), schema: 1, form: "message", text: claudeSubmittedText(payload.prompt) as string,
+            target: { project: held.project, task: null, attempt: null, thread: store.launchRecord(terminal.id)!.thread, turn: null, message: null, request: null },
+            channel: "controller-terminal", reply_to: null, certainty: "observed", created_at: new Date().toISOString(),
+            source_ref: { event_id: payload.prompt_id, label: held.id } }, `terminal:${terminal.id}:${payload.prompt_id}`);
+        } catch (error) {
+          gates.setUserInputObserverStatus("failed", { reason: String(error) });
+          throw error;
+        }
+      }
+      // The user's answer to the controller's own question, as the CLI reports it after the tool returns.
+      if (name === "PostToolUse" && tool && typeof payload.tool_use_id === "string" && payload.tool_use_id) {
+        const answers = payload.tool_response?.answers;
+        const text = answers && typeof answers === "object" && !Array.isArray(answers)
+          ? Object.entries(answers).map(([question, answer]) => `${question}：${String(answer)}`).join("\n") : JSON.stringify(payload.tool_response ?? null);
+        try {
+          gates.appendUserInput({ id: randomUUID(), schema: 1, form: "answer", text,
+            target: { project: held.project, task: null, attempt: null, thread: store.launchRecord(terminal.id)!.thread, turn: null, message: null, request: payload.tool_use_id },
+            channel: "controller-terminal", reply_to: payload.tool_use_id, certainty: "observed", created_at: new Date().toISOString(),
+            source_ref: { event_id: payload.tool_use_id, label: held.id } }, `terminal:${terminal.id}:${payload.tool_use_id}`);
+        } catch (error) {
+          gates.setUserInputObserverStatus("failed", { reason: String(error) });
+          throw error;
+        }
+      }
+      store.event("terminal_turn", { role_request: held.id, session: held.native_session, hook_event_name: name, state,
+        prompt_id: typeof payload.prompt_id === "string" ? payload.prompt_id : null,
+        tool_use_id: typeof payload.tool_use_id === "string" ? payload.tool_use_id : null }, terminal);
+      return { ok: true, kept: true };
+    }
     const roleRequest: RoleRequest | undefined = roleRequests.approved(terminal.id);
     if (!roleRequest) throw new Refusal("approved_role_required");
     if (input.command === "inbox_ready") {
@@ -431,7 +477,16 @@ export async function serve(
     }
     if (input.command === "role_request_decide") {
       if (authority.kind !== "operator") throw new Refusal("operator_required");
-      return { ok: true, role_request: roleRequests.decide(input.role_request, input.approved) };
+      // T-107: an executor may be put under an ideation controller of its project, a terminal one holding the role
+      // or a running managed one.
+      const isIdeation = (launch: string, project: string) => {
+        const held = roleRequests.approved(launch);
+        if (held) return held.role === "ideation" && held.project === project;
+        const record = store.launchRecord(launch);
+        return record?.role === "controller" && record.preset === "ideation" && record.project === project &&
+          panes.status(record.thread).lifecycle === "running";
+      };
+      return { ok: true, role_request: roleRequests.decide(input.role_request, input.approved, input.parent_launch ?? null, isIdeation) };
     }
     if (input.command === "shell_start") {
       if (authority.kind !== "operator") throw new Refusal("operator_required");
@@ -786,27 +841,28 @@ export async function serve(
       activeRequests++;
       let envelope: any;
       let result: any;
-      let shellInput = false;
+      let unlogged = false;
       try {
         envelope = JSON.parse(buffer.slice(0, end));
-        shellInput = isShellInput(envelope);
+        // A hook event carries the prompt itself; the terminal_hook command decides whether to keep it.
+        unlogged = isShellInput(envelope) || envelope?.input?.command === "terminal_hook" && envelope?.identity?.kind === "terminal";
         // Checked before authenticating, so this socket never tells whether another kind of identity is valid.
         if (terminalOnly && envelope?.identity?.kind !== "terminal") throw new Refusal("terminal_socket_terminal_only");
         const authority = authenticate(envelope.identity);
         const catalogRead = catalogCommands.has(envelope.input?.command);
         const viewing = catalogRead || ["workbench_snapshot", "pane_output"].includes(envelope.input?.command);
-        if (!viewing && !shellInput) store.event("request_received", { id: envelope.id, input: eventInput(envelope.input), source: authority.source });
+        if (!viewing && !unlogged) store.event("request_received", { id: envelope.id, input: eventInput(envelope.input), source: authority.source });
         result = await handle(envelope, authority, asker);
         if (result.ok && ["controller_start", "window_release", "signal"].includes(envelope.input.command)) {
           await settleInboxFeedback();
         }
-        if (!catalogRead && !shellInput && (!viewing || !result.ok)) store.event("request_result", { id: envelope.id, command: envelope.input.command,
+        if (!catalogRead && !unlogged && (!viewing || !result.ok)) store.event("request_result", { id: envelope.id, command: envelope.input.command,
           ok: result.ok, error: result.error, details: result.details });
       } catch (error) {
         const processQuery = (error as { process_query?: unknown })?.process_query;
         result = { ok: false, error: error instanceof Refusal ? error.code : "orchestration_failed", details: String(error),
           ...(processQuery ? { diagnostics: { process_query: processQuery } } : {}) };
-        try { if (!shellInput && !catalogCommands.has(envelope?.input?.command)) store.event("request_rejected", { id: envelope?.id, input: eventInput(envelope?.input), result,
+        try { if (!unlogged && !catalogCommands.has(envelope?.input?.command)) store.event("request_rejected", { id: envelope?.id, input: eventInput(envelope?.input), result,
           ...(terminalOnly ? { socket: "terminal" } : {}) }); }
         catch (recordError) {
           gates.setUserInputObserverStatus("failed", { reason: String(recordError) });

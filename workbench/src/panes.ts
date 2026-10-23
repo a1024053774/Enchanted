@@ -144,7 +144,7 @@ const STARTUP_DEADLINE_MS = 120_000;
 // The text a Claude prompt submitted. A long paste reaches UserPromptSubmit wrapped in Claude's
 // own pasted_content markers (seen with the user's login, T-122 GUI round 01); anything else
 // is compared as it is.
-function claudeSubmittedText(prompt: unknown) {
+export function claudeSubmittedText(prompt: unknown) {
   const wrapped = typeof prompt === "string" ? /^\n\n<pasted_content id="([0-9A-Za-z]+)">\n([\s\S]*)\n<\/pasted_content id="\1">\n$/.exec(prompt) : null;
   return wrapped ? wrapped[2] : prompt;
 }

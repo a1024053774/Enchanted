@@ -149,15 +149,19 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
       parent: senders.size === 1 ? [...senders][0] : null, state, question_id, state_label: stateLabels[state],
       created_at: record.created_at ?? null };
   });
-  // T-121: a terminal whose CLI the user approved as a controller. It has no task
-  // and no structured turn signals yet, so its state stays unknown.
+  // T-121: a terminal whose CLI the user approved as a controller. Its state is the last turn event the Enchanted
+  // plugin's hooks reported for this role (T-107); it is running from the confirmation on, since the CLI confirms
+  // from inside the turn that asked. A Codex controller has no hooks yet (T-133 probe), so it stays unknown.
   const current = roleRequests.all();
+  const turns = store.db.prepare("SELECT json_extract(data,'$.role_request') AS role_request, json_extract(data,'$.state') AS state FROM orchestration_events WHERE type='terminal_turn' ORDER BY seq").all();
   for (const roleRequest of current.filter(row => row.state === 'approved')) {
     const record = store.launchRecord(roleRequest.launch);
     if (!record) continue;
+    const last = turns.findLast(row => row.role_request === roleRequest.id)?.state as AgentState | undefined;
+    const state: AgentState = last ?? (roleRequest.cli === 'claude' && roleRequest.native_session ? 'running' : 'unknown');
     agents.push({ id: roleRequest.launch, project: roleRequest.project, task: null, task_name: null, attempt: null, thread: record.thread,
       role: 'controller', preset: roleRequest.role, role_label: roleLabel({ role: 'controller', preset: roleRequest.role }), cli: roleRequest.cli ?? '未知',
-      parent: null, state: 'unknown', question_id: null, state_label: stateLabels.unknown, created_at: roleRequest.decided_at, terminal: true } as any);
+      parent: roleRequest.parent_launch, state, question_id: null, state_label: stateLabels[state], created_at: roleRequest.decided_at, terminal: true } as any);
   }
   const recordedParents = new Map(agents.map(agent => [agent.id, agent.parent]));
   for (const agent of agents) {
@@ -207,6 +211,6 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
   return { projects, agents: treeAgents, controller_quota: controllerQuota, role_requests: pendingRequests, granted_role_requests: grantedRequests, unconfirmed_role_requests: unconfirmed, gaps: [
     '等待主控回答：T-095 需要 Herdr 屏幕与状态互证；本工作台不调用 Herdr，当前显示未知。',
     '未保存父 launch、父会话缺失或关系冲突时显示未归属；不回填旧会话。',
-    '经角色申请成为主控的项目终端没有结构化回合信号，状态显示未知。',
+    '经角色申请成为主控的 Codex 没有回合信号（Codex 的钩子要用户在自己的 Codex 里信任，会写用户配置），状态显示未知；Claude Code 主控被用户按 Esc 中断后，要等它空闲 60 秒的通知才显示空闲。',
   ] };
 }

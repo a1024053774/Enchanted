@@ -31,6 +31,17 @@ async function main(argv: string[]) {
     process.stdout.write(usage + "\n");
     return 0;
   }
+  // T-133, T-107: the Enchanted plugin's hooks hand each event to the daemon. Whatever happens, it prints nothing
+  // (a UserPromptSubmit hook's output becomes the model's context) and exits 0, so it never changes the user's turn.
+  if (command === "hook" && !rest.length) {
+    try {
+      const chunks: Buffer[] = [];
+      for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
+      if (socket && launch && token) await requestAt(socket, { command: "terminal_hook", raw_stdin: Buffer.concat(chunks).toString("utf8") },
+        { kind: "terminal", launch, token });
+    } catch { /* The daemon decides what to keep; a hook that cannot reach it leaves the turn alone. */ }
+    return 0;
+  }
   if (!socket || !launch || !token) {
     process.stderr.write("a2a：这个终端不是 Enchanted 打开的项目终端，没有终端身份。\n");
     return 2;

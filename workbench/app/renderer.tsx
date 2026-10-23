@@ -49,6 +49,9 @@ type RoleRequest = { id: string; launch: string; project: string; role: string; 
   terminal_cwd: string | null; terminal_opened_at: string | null };
 type Sidebar = { projects: ProjectItem[]; agents: AgentItem[]; role_requests: RoleRequest[]; granted_role_requests: RoleRequest[];
   unconfirmed_role_requests: (RoleRequest & { decided_at: string })[]; gaps: string[]; notifications: boolean; dockBadges: boolean; notices: AppNotice[] };
+// T-107: the project's branch and how far it is from its upstream, shown under the name.
+const projectGit = (git: ProjectItem['git']) => git.error ? git.error : `${git.branch === '(detached)' ? '分离 HEAD' : git.branch ?? '分支未知'}${
+  git.upstream ? ` · ↑${git.ahead} ↓${git.behind}` : ' · 无上游'}`;
 const glyphs: Record<string, ReactNode> = {
   running: <circle className="glyph-spin" cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeDasharray="26 10" />,
   waiting_user_answer: <><circle cx="8" cy="8" r="5.8" fill="none" stroke="currentColor" strokeWidth="1.6" /><circle cx="8" cy="8" r="2.8" fill="currentColor" /></>,
@@ -88,7 +91,7 @@ type ProjectView = { project_id: string; repo: string | null };
 type Selection = { task: Snapshot['task'] | null; project: ProjectView | null; paneKeys: string[]; layout: Layout | null; names: Record<string, string>; launches?: Record<string, string> };
 declare global { interface Window { a2a: { readonly paneKeys: readonly string[]; readonly home: string;
   executionSettings(change?: ExecutionSelection & { role: ExecutionRole }): Promise<Record<ExecutionRole, ExecutionSelection>>;
-  flow(): Promise<FlowSnapshot>; sidebar(): Promise<Sidebar>; selectAgent(launch: string): Promise<Selection & { focusKey: string }>; decideRoleRequest(roleRequest: string, approved: boolean): Promise<unknown>; notificationSetting(enabled?: boolean, preference?: 'notifications' | 'dockBadges'): Promise<boolean>;
+  flow(): Promise<FlowSnapshot>; sidebar(): Promise<Sidebar>; selectAgent(launch: string): Promise<Selection & { focusKey: string }>; decideRoleRequest(roleRequest: string, approved: boolean, parentLaunch?: string | null): Promise<unknown>; notificationSetting(enabled?: boolean, preference?: 'notifications' | 'dockBadges'): Promise<boolean>;
   projects(): Promise<ProjectItem[]>; tasks(project: string): Promise<TaskItem[]>;
   issues(project: string): Promise<TaskIssues[]>; answerIssue(task: string, issue: string, answer: string): Promise<void>;
   disposeIssue(task: string, issue: string, action: 'close' | 'snooze', reason?: string, basis?: string): Promise<void>;
@@ -452,6 +455,7 @@ function Workbench() {
   const [roleRequests, setRoleRequests] = useState<RoleRequest[]>([]);
   const [unconfirmedRequests, setUnconfirmedRequests] = useState<(RoleRequest & { decided_at: string })[]>([]);
   const [grantedRequests, setGrantedRequests] = useState<RoleRequest[]>([]);
+  const [parentChoices, setParentChoices] = useState<Record<string, string>>({});
   // The list moving under the pointer must not turn a click into a decision on another request.
   const [requestsSettling, setRequestsSettling] = useState(false);
   const requestIds = roleRequests.map(roleRequest => roleRequest.id).join(',');
@@ -623,9 +627,9 @@ function Workbench() {
     } catch (error) { setNavigationError('聚焦会话失败：' + String(error)); }
     finally { setNavigating(false); }
   };
-  const decideRoleRequest = async (roleRequest: RoleRequest, approved: boolean) => {
+  const decideRoleRequest = async (roleRequest: RoleRequest, approved: boolean, parentLaunch: string | null = null) => {
     setDeciding(roleRequest.id); setRoleRequestError(null);
-    try { await window.a2a.decideRoleRequest(roleRequest.id, approved); }
+    try { await window.a2a.decideRoleRequest(roleRequest.id, approved, approved ? parentLaunch : null); }
     catch (error) { setRoleRequestError((approved ? '批准' : '拒绝') + '没有生效：' + String(error)); }
     // Refresh either way: a failed decision may mean the request is already gone.
     try { applySidebar(await window.a2a.sidebar()); } catch (error) { setCatalogError('列表未更新：' + String(error)); }
@@ -717,7 +721,8 @@ function Workbench() {
                 const pointer = event.clientX || event.clientY;
                 setProjectMenu({ project: item, x: pointer ? event.clientX : box.left + 12, y: pointer ? event.clientY : box.bottom, opener: event.currentTarget });
               }}>
-              <span className="project-title">{item.project_id}</span>
+              <span className="project-heading"><span className="project-title">{item.project_id}</span>
+                <span className="project-git" data-project-git={item.project_id}>{projectGit(item.git)}</span></span>
               <span className="project-count">{scope.length || ''}</span>
               {waiting > 0 && <span className="project-needs">{waiting} 个等你</span>}
               {item.issues_waiting === null ? <span className="project-needs" data-project-issues="unknown" title="这个项目的问题列表读取失败">问题数未知</span>
@@ -801,14 +806,24 @@ function Workbench() {
           const opened = roleRequest.terminal_opened_at ? new Date(roleRequest.terminal_opened_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : null;
           const place = key ? (names[key] ? `终端「${names[key]}」` : `第 ${paneKeys.indexOf(key) + 1} 个窗格`)
             : `${opened ? opened + ' 打开的' : ''}终端（${tilde(roleRequest.terminal_cwd ?? '', home) || '目录未知'}）`;
+          // T-107: an executor goes under an ideation controller of its project, the first one unless the user picks another.
+          const ideations = roleRequest.role === 'executor' ? agents.filter(agent => agent.project === roleRequest.project &&
+            agent.role === 'controller' && agent.preset === 'ideation' && agent.state !== 'ended') : [];
+          const parent = parentChoices[roleRequest.id] !== undefined ? parentChoices[roleRequest.id] : ideations[0]?.id ?? '';
           return <div className="role-request" key={roleRequest.id} data-role-request={roleRequest.id} role="alert">
             <span className="role-request-number" aria-label={`申请 ${index + 1}`}>{index + 1}</span>
             <p><strong>{roleRequest.project}</strong> 的{place}里的 {roleRequest.cli ?? 'agent'} 申请成为<strong>{roleRequest.role_label}</strong>
               {!key && <span className="role-request-hint">，不在当前视图</span>}
               {roleTaken && <span className="role-request-hint">。这个角色已批准给另一个终端，正在等它确认</span>}
               {rivals > 0 && <span className="role-request-hint">。同一角色另有 {rivals} 个申请：批准其中一个，它确认生效后其余自动拒绝</span>}</p>
+            {ideations.length > 0 && <label className="role-request-parent">上级
+              <select data-role-request-parent={roleRequest.id} value={parent} disabled={deciding !== null || requestsSettling}
+                onChange={event => setParentChoices(previous => ({ ...previous, [roleRequest.id]: event.target.value }))}>
+                {ideations.map(agent => <option key={agent.id} value={agent.id}>构思主控 · {agent.terminal ? '项目终端' : agent.task_name ?? '任务未知'} · {agent.cli}</option>)}
+                <option value="">不归属</option>
+              </select></label>}
             <button className="text-button" disabled={deciding !== null || requestsSettling} onClick={() => void decideRoleRequest(roleRequest, false)}>拒绝</button>
-            <button className="primary-button" disabled={deciding !== null || requestsSettling || roleTaken} onClick={() => void decideRoleRequest(roleRequest, true)}>批准</button>
+            <button className="primary-button" disabled={deciding !== null || requestsSettling || roleTaken} onClick={() => void decideRoleRequest(roleRequest, true, parent || null)}>批准</button>
           </div>;
         })}
         {roleRequestError && <p className="catalog-error" role="alert">{roleRequestError}</p>}

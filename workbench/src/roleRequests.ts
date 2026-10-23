@@ -17,6 +17,8 @@ export const confirmWindowMs = 15_000;
 // environment): shown to the user and used only to read that session's usage-limit records (T-124), never trusted.
 export type RoleRequest = { id: string; launch: string; project: string; role: RequestRole; state: RequestState; cli: string | null;
   native_session: string | null; native_home: string | null;
+  // T-107: the ideation controller the user put an executor under when approving it.
+  parent_launch: string | null;
   requested_at: string; decided_at: string | null; ended_reason: string | null };
 
 const refuse = (condition: unknown, code: string) => { if (!condition) throw new Refusal(code); };
@@ -39,7 +41,7 @@ export class RoleRequests {
       const data = JSON.parse(String(row.data));
       if (row.type === "role_requested") {
         roleRequests.set(data.role_request, { id: data.role_request, launch: String(row.launch), project: data.project, role: data.role, cli: data.cli,
-          native_session: data.native_session ?? null, native_home: data.native_home ?? null, state: "pending", requested_at: String(row.time), decided_at: null, ended_reason: null });
+          native_session: data.native_session ?? null, native_home: data.native_home ?? null, parent_launch: null, state: "pending", requested_at: String(row.time), decided_at: null, ended_reason: null });
         continue;
       }
       const roleRequest = roleRequests.get(data.role_request);
@@ -47,6 +49,7 @@ export class RoleRequests {
       if (row.type === "role_request_decided" && roleRequest.state === "pending") {
         roleRequest.state = data.approved ? "granted" : "rejected";
         roleRequest.decided_at = String(row.time);
+        roleRequest.parent_launch = data.parent_launch ?? null;
         if (!data.approved) roleRequest.ended_reason = data.reason ?? null;
       }
       if (row.type === "role_request_confirmed" && roleRequest.state === "granted") roleRequest.state = "approved";
@@ -83,14 +86,16 @@ export class RoleRequests {
       native_session: reported && session && home ? session : null, native_home: reported && session && home ? home : null }, terminal);
     return this.all().find(row => row.id === roleRequest)!;
   }
-  decide(id: unknown, approved: unknown) {
+  // parent: whether a launch is an ideation controller of a project, checked by the caller that knows the launches.
+  decide(id: unknown, approved: unknown, parent: unknown = null, isIdeation: (launch: string, project: string) => boolean = () => false) {
     refuse(typeof approved === "boolean", "invalid_role_decision");
     const roleRequest = this.all().find(row => row.id === id);
     refuse(roleRequest, "unknown_role_request");
     refuse(roleRequest!.state === "pending", "request_not_pending");
+    refuse(parent === null || approved && roleRequest!.role === "executor" && typeof parent === "string" && isIdeation(parent, roleRequest!.project), "invalid_role_parent");
     // Approval is checked again here: another terminal may hold the role by now.
     if (approved) refuse(!this.holder(roleRequest!.project, roleRequest!.role), "role_taken");
-    this.store.event("role_request_decided", { role_request: roleRequest!.id, approved }, { id: roleRequest!.launch, task: null });
+    this.store.event("role_request_decided", { role_request: roleRequest!.id, approved, ...(parent ? { parent_launch: parent } : {}) }, { id: roleRequest!.launch, task: null });
     // A grant nobody confirms in time is ended by an event, timed on this process's
     // monotonic clock rather than the wall clock.
     if (approved) setTimeout(() => {

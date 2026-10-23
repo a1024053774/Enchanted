@@ -404,7 +404,7 @@ export interface A2AUserInput {
     request?: string | null;
     eventSequence?: number;
   };
-  channel: "thread-message" | "issue-panel" | "ws-rpc" | "ui-derived" | "settings-page" | "commit-trailer" | "terminal-window";
+  channel: "thread-message" | "issue-panel" | "ws-rpc" | "ui-derived" | "settings-page" | "commit-trailer" | "terminal-window" | "controller-terminal";
   reply_to: string | null;
   source_ref: {
     window_id?: string;

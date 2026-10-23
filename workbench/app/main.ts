@@ -230,10 +230,11 @@ function registerHandlers() {
     context.switching = select();
     try { return await context.switching; } finally { context.switching = undefined; }
   });
-  ipcMain.handle('a2a:decide-role-request', async (event, roleRequest: unknown, approved: unknown) => {
+  ipcMain.handle('a2a:decide-role-request', async (event, roleRequest: unknown, approved: unknown, parentLaunch: unknown) => {
     const context = windowTarget(event);
-    if (typeof roleRequest !== 'string' || !roleRequest || typeof approved !== 'boolean') throw new Error('Invalid role request decision');
-    const result = await request(context.options.state, { command: 'role_request_decide', role_request: roleRequest, approved }, context.operator);
+    if (typeof roleRequest !== 'string' || !roleRequest || typeof approved !== 'boolean' ||
+        !(parentLaunch === null || typeof parentLaunch === 'string' && parentLaunch)) throw new Error('Invalid role request decision');
+    const result = await request(context.options.state, { command: 'role_request_decide', role_request: roleRequest, approved, parent_launch: parentLaunch }, context.operator);
     if (!result.ok) throw new Error(result.error);
     return result.role_request;
   });
