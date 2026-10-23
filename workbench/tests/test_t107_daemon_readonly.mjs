@@ -113,9 +113,9 @@ try {
     // Missing file/session attribution must not release it either.
     host.store.event('native_record', { record: start('root-turn') }, pane.record);
     assert.equal(await read(), 'unknown', 'Unknown native origin must not release the root question');
-    fs.writeFileSync(join(logs, 'other-session.jsonl'), [meta('other-session'), start('other-turn')].map(JSON.stringify).join('\n') + '\n');
-    assert.throws(() => host.scan(pane), error => error.code === 'ambiguous_native_session',
-      'Conflicting CLI session must retain the collector refusal');
+    // The old "another CLI session in the same directory is refused" case is gone: since T-127 the user's own sessions
+    // share the sessions directory and the collector reads only this launch's dated day directories (README "用户的
+    // Codex home"), so a file written here never reaches it. test_t127_codex_home_e2e.py covers other sessions.
     assert.equal(pane.native, 'root-session'); assert.equal(pane.turn, 'root-turn');
   } else {
     // Fresh native bytes remain unconsumed. Any scan or direct store.event in
