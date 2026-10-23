@@ -729,6 +729,10 @@ Codex worker 与 reviewer 的 `CODEX_HOME` 就是 launch config 的 `codex_home`
   Codex 自己会往 config.toml 写 `[tui]` 状态键，那不是 a2a 写的。
 - T-141 不再传 `projects=...` 覆盖信任：项目 `.codex` 的加载由用户自己的配置和原生 CLI 决定。
   `--sandbox`、写入根与临时目录排除仍由每会话启动参数约束；模型、强度、tier、更新检查与 a2a hook 继续按启动记录核对。
+- Codex CLI 0.163.0 的[无模型原生探针](../evidence/2026-10-23-batch23/T-141/probe-trust-inheritance-01/facts.json)确认：
+  放在其他目录的 Git worktree 继承主仓库信任；非 Git 目录继承已信任祖先目录；已信任父目录下新建的独立 Git 仓库不继承该信任。
+  因此用户自己信任一次项目仓库和 `<state>/review-copies` 后，新 worker worktree 与新 reviewer 非 Git 副本可直接启动，
+  不需要逐个信任新任务或新审查目录。尚无适用信任时仍上报，等用户在终端自行处理；a2a 不代选 Trust and continue，不写用户配置。
 - 用户自己的会话也写在同一个 `sessions/` 下。后台只读启动当天起的日期目录里、启动后写过的文件，
   且只认 `session_meta.cwd` 等于本会话工作目录的那一份。
 - worker 或 reviewer 第一个回合提交后 120 秒内，若本目录里仍没有它的会话记录（在别的目录跑了，
