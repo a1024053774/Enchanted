@@ -27,6 +27,7 @@ try {
     { id: 'project-shell', project: 'demo', task: null, role: 'shell', terminal: true, attempt: null, session: null, fence: null },
   ];
   const tasks = ['A', 'B'].map(x => ({ task_id: 'demo+T-' + x, project_id: 'demo', repo: '/fixture/demo', current_attempt: { attempt_id: x === 'A' ? 'a1' : 'b1' } }));
+  for (let i = 0; i < 6; i++) agents.push({ ...agents.find(a => a.id === 'project-shell'), id: 'additional-shell-' + i });
   const request = async (_state, input, identity) => {
     if (input.command === 'sidebar_snapshot') return { ok: true, projects: [{ project_id: 'demo', repo: '/fixture/demo', tasks }], agents, terminals: [] };
     if (input.command === 'pane_layout') return { ok: true, saved: true, panes: input.project
@@ -118,9 +119,26 @@ try {
   try { await handlers.get('a2a:snapshot')({ sender: foreignWindow.webContents, senderFrame: foreignWindow.webContents.mainFrame }, shellKey); }
   catch { foreignDenied = true; }
   check('foreign_window_cannot_read_parked_key', foreignDenied);
+  let oldestKey, oldestCredential;
+  for (let i = 0; i < 6; i++) {
+    const current = await invoke('select-agent', 'additional-shell-' + i);
+    const value = await invoke('snapshot', current.focusKey);
+    if (i === 0) { oldestKey = current.focusKey; oldestCredential = value.window_id; }
+    check('retained_set_bounded_' + i, current.connectedPaneKeys.length <= 5, current.connectedPaneKeys);
+    if (i === 3 || i === 4) {
+      const kept = await invoke('snapshot', oldestKey);
+      check('oldest_kept_before_and_at_limit_' + i, kept.launch.id === 'additional-shell-0' && !kept.input_enabled && !closed.includes(oldestCredential));
+    }
+    if (i === 5) {
+      let evicted = false;
+      try { await invoke('snapshot', oldestKey); } catch { evicted = true; }
+      check('oldest_evicted_and_credential_revoked_over_limit', evicted && closed.includes(oldestCredential) && !current.connectedPaneKeys.includes(oldestKey));
+    }
+  }
   window.emit('close', { preventDefault() {} });
   for (let n = 0; !window.destroyed && n < 50; n++) await new Promise(resolve => setTimeout(resolve, 0));
-  check('window_close_revokes_active_and_parked_credentials', window.destroyed && opened.length === closed.length && new Set(closed).size === closed.length,
+  check('window_close_revokes_active_and_parked_credentials', window.destroyed &&
+    JSON.stringify([...closed].sort()) === JSON.stringify(opened.map((_, i) => 'window-' + (i + 1)).sort()),
     { opened, closed });
   report.status = 'PASS';
 } catch (error) { report.error = String(error); report.status = 'NO_GO'; }

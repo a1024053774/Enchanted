@@ -24,7 +24,7 @@
 
 投影修复将未认领/已放弃角色的普通终端放到 `sidebar_snapshot.terminals`，经批准的角色继续进入 agents；
 侧栏单独显示普通终端。因此放弃角色后它从 agents 消失，普通终端入口仍在。真实 SQLite 的 catalog-red-01.json
-准确复现旧投影违反该合同；catalog-shape-red-01.json 还检出了终端行缺少下属摘要的夹具遗漏；catalog-green-02.json 通过对应检查。
+准确复现旧投影违反该合同；catalog-shape-red-01.json 还检出了终端行缺少下属摘要的投影字段遗漏；catalog-green-02.json 通过对应检查。
 当前源码的 T-107 投影检查 sidebar-projection-02.json 通过，原真实 T-133/T-107 必须再跑。
 
 此前布局缺陷及修复记录保留：selection-red-03.json、layout-red-01.json、store-layout-red-02.json 逐步检出任务混终端、
@@ -55,7 +55,7 @@ RUN-OUTSIDE-01 的同一夹具：两个真实 Claude CLI worker，模型请求 c
 | 本地当前候选检查 | 证据 |
 | --- | --- |
 | 缺少连接复用的红态 | retention-red-01.json，切回得到不同 pane key |
-| 选择与权限检查 | retention-green-03.json，16 项：复用绑定/输入凭据、隐藏快照绑定原任务且不可输入、跨窗口拒绝读取保留 key、关窗撤销全部凭据等 |
+| 选择与权限检查 | retention-boundaries-01.json，25 项：复用绑定/输入凭据、隐藏快照绑定原任务且不可输入、跨窗口拒绝读取保留 key、上限前/上限处保留、超限淘汰并撤销凭据、关窗撤销全部凭据等 |
 | 真实 SQLite / 后台原布局校验 | store-layout-retention-01.json，10 项通过 |
 | 普通终端投影 | catalog-green-02.json，两项合同及行结构检查通过 |
 | 构建 | t143-build-candidate-01.json、t143-build-webgl-control-01.json 均通过，临时构建目录已清理；不代表 GPU 实际渲染已验证 |
@@ -64,6 +64,8 @@ RUN-OUTSIDE-01 的同一夹具：两个真实 Claude CLI worker，模型请求 c
 新 e2e 在原联合夹具中额外核对：真实 xterm 对象与输入凭据在切换后相同、隐藏窗格不能输入、设置可手动开读屏、
 WebGL2 canvas 确实启用且未报告 context loss。增加 inactive-input 变异，不能用只读快照代替输入拒绝。
 retention-harness-failure-01.txt 保留了关闭窗口检查初次遇到的测试边界缺方法错误；它不是业务红态。
+
+独立只读审查 T143-REVIEW-01.md 对冻结候选 8faf2a646 为 INCOMPLETE：检出读屏开关选择器指向标题、无法匹配复选框。已改为选择整个设置 section 下的 input；原报告保留。另补上保留集上限边界检查，并把 WebGL context loss 计数保存在窗口上，避免切换销毁节点后遗漏已发生的丢失。真实 Electron/GPU 检查仍待 RUN-OUTSIDE-02。
 
 下一步：主控在沙箱外运行，回传新目录与 COMPARISON.json。
 

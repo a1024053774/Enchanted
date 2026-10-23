@@ -48,7 +48,7 @@ def main():
             ('app/renderer.tsx', "import { FitAddon } from '@xterm/addon-fit';",
              "import { FitAddon } from '@xterm/addon-fit'; import { WebglAddon } from '@xterm/addon-webgl';"),
             ('app/renderer.tsx', 'term.open(mount.current!);',
-             "term.open(mount.current!); const probeMount = mount.current!; const webgl = new WebglAddon(); term.loadAddon(webgl); webgl.onContextLoss(() => { probeMount.dataset.testContextLost = 'true'; });")])
+             "term.open(mount.current!); const probeMount = mount.current!; const webgl = new WebglAddon(); term.loadAddon(webgl); webgl.onContextLoss(() => { probeMount.dataset.testContextLost = 'true'; (window as any).__testWebglLosses = ((window as any).__testWebglLosses ?? 0) + 1; });")])
     if args.experiment == 'destroy-on-switch':
         patches.append(('app/main.ts', 'const retainedPaneLimit = 4;', 'const retainedPaneLimit = 0;'))
     if args.mutant == 'inactive-input':
@@ -166,7 +166,7 @@ def main():
             check('switch_retains_xterm_and_input_credential', shell_key == initial_shell_key and initial_window == current_window and
                   electron.evaluate(f'{mount}.__testTerminal===window.__initialShellTerminal'))
         if args.experiment == 'webgl':
-            check('webgl_context_survives_scroll_and_switch', electron.evaluate(f'{mount}.dataset.testContextLost!=="true"&&!!{mount}.querySelector(".xterm-screen canvas")?.getContext("webgl2")'))
+            check('webgl_context_survives_scroll_and_switch', electron.evaluate(f'({mount}.dataset.testContextLost!=="true"&&!window.__testWebglLosses&&!{mount}.querySelector(".xterm-screen canvas").getContext("webgl2").isContextLost())'))
         after = electron.evaluate(buffer)
         check('numbered_output_once_after_switch', re.findall(r'^BENCH_\d{5}$', after, re.M) == expected)
         check('controller_focus_after_switch', electron.evaluate(f'{mount}.__testTerminal.textarea===document.activeElement'))
@@ -203,10 +203,10 @@ def main():
             check('screen_reader_default_off', electron.evaluate(f'{mount}.__testTerminal.options.screenReaderMode===false'))
             click('[aria-label="设置"]')
             electron.until('设置对话框打开', 'document.querySelector(".settings-dialog").open')
-            click('#settings-terminal-accessibility input')
+            click('[aria-labelledby="settings-terminal-accessibility"] input')
             electron.until('手动启用读屏支持', f'{mount}.__testTerminal.options.screenReaderMode===true')
             check('screen_reader_can_be_enabled', True)
-            click('#settings-terminal-accessibility input')
+            click('[aria-labelledby="settings-terminal-accessibility"] input')
             click('[aria-label="关闭设置"]')
 
         click('[data-project-id="demo"]')
