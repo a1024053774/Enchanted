@@ -16,3 +16,5 @@
 未运行整个 Electron 批次，未重审其他产品能力。新版真实 output_to_visible 基线/候选均未取得；模拟边界只证明完成合同，不证明性能。
 
 冻结候选的地图检查为 0 problems，但 README 因 package.json 变化 stale；worker 在审查结束后补明当前采用 xterm 默认渲染器；提交前 status 仍按旧提交判 stale（session-status-06.txt），提交后再核对。
+
+README 提交后复核为 0 problems、0 stale docs，见 session-status-07.txt。
