@@ -9,6 +9,8 @@ Failure modes (listed before implementation):
 5. Tests inject input through a bridge instead of CDP, or a report never occurs.
 6. Input.insertText alone has no keypress and is ignored by xterm's enabled
    screenReaderMode; a failed injection must not look like lost PTY bytes.
+7. Waiting for the optional accessibility tree times out when T-143 leaves
+   screen reader support off; observe visible rendered rows in either mode.
 --revision runs the same assertions on the specified production tree; --mutant
 recreates recording or drops reports before the PTY. Summary paths are exclusive.
 """
@@ -120,9 +122,9 @@ def main():
         electron.evaluate(f'document.querySelector(\'[data-agent-launch="{launch}"]\').click()')
         pane_selector = f'[data-pane-key][data-launch-id="{launch}"]'
         textarea = json.dumps(pane_selector + ' .xterm-helper-textarea')
-        electron.until('终端可输入', f'!!document.querySelector({json.dumps(pane_selector + "[data-input-enabled=true]")}) && !!document.querySelector({textarea})')
+        electron.until('终端可输入', f'(()=>{{const p=document.querySelector({json.dumps(pane_selector + "[data-input-enabled=true]")});return !!p?.getClientRects().length && !!p.querySelector("[data-restoring=false]") && !!p.querySelector(".xterm-helper-textarea")}})()')
         (home / 'enable-mouse').touch(exist_ok=False)
-        electron.until('鼠标模式输出已显示', f'[...document.querySelectorAll({json.dumps(pane_selector + " .xterm-accessibility-tree [role=listitem]")})].some(r=>r.textContent.includes("T145_MOUSE_READY"))')
+        electron.until('鼠标模式输出已显示', f'[...document.querySelectorAll({json.dumps(pane_selector + " .xterm-rows > div")})].some(r=>r.getClientRects().length && getComputedStyle(r).visibility === "visible" && r.textContent.includes("T145_MOUSE_READY"))')
         time.sleep(.5)
         rect = electron.evaluate(f'(()=>{{const r=document.querySelector({json.dumps(pane_selector + " .xterm-screen")}).getBoundingClientRect();return {{x:r.x,y:r.y,w:r.width,h:r.height}}}})()')
         x, y = round(rect['x'] + min(80, rect['w'] / 2)), round(rect['y'] + min(55, rect['h'] / 2))
