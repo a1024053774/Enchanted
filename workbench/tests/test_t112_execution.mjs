@@ -1,3 +1,4 @@
+// 历史测试：只针对 e161476d6bb17e6f372d4a3d98ed03feccf36755，当前 main 不跑；当前无人守护：五角色设置持久化、覆盖优先级、角色隔离、权限字段拒绝、未知 effort 透传、原生启动失败记录（证据与边界见 HISTORICAL.md）。
 // Failure cases: stale settings, role leakage, wrong precedence, enum filtering,
 // lost Fast selection, permission injection, reviewer using worker selection,
 // CLI startup error masked by a shell. PTY is supplied; this is not native E2E.

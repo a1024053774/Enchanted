@@ -1,3 +1,4 @@
+// 历史测试：只针对 5f19062f52154914123e3796fdff87caaa22fc1f，当前 main 不跑；当前无人守护：Claude 主控原生问答关联、畸形/过期/外来 hook 与 permission 伪造拒收、答复记录/写入竞争、重复答复拒收（证据与边界见 HISTORICAL.md）。
 // Contract from T-108 and installed CLI hook samples. Real signal entry, SQLite,
 // PTY write boundary; supplied process identity is not a live CLI proof.
 // Failures: missing/stale/auxiliary fields, duplicate answer, changed input,

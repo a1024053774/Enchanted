@@ -1,3 +1,4 @@
+# 历史测试：只针对 e161476d6bb17e6f372d4a3d98ed03feccf36755，当前 main 不跑；当前无人守护：真实设置 DOM→SQLite→下次派发→原生首轮请求、覆盖优先级、未知 effort 原样透传（证据与边界见 HISTORICAL.md；保留 closed_fixture_launches 离线导入）。
 """真实 daemon/CLI/PTY/Electron；仅本地固定 Responses API，不调用模型。Python 3.9。"""
 import argparse
 from contextlib import closing
