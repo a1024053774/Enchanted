@@ -133,3 +133,7 @@ python3 -B evidence/2026-10-23-batch23/T-153/MUTATION-SWEEP-04.py --candidate /p
 ## 范围外上报
 
 已通过 `scripts/inbox send` 上报 `20261023T193353Z-worker:b23-t153-issue-001`（非阻塞）：被索引的 native-cli spec §5:118 仍写旧 socket/关网络契约，与 T-075 最终文件交付通道及 T-141 网络裁定冲突。正文见 [issue-spec-network.md](issue-spec-network.md)。本任务依据已授权的 T-153/T-141 继续，未修改规格。收件箱条目留在本 worktree `.project-map/inbox/`，不纳入允许路径以外的测试交付提交。
+
+## 执行主控补记（2026-10-23，沙箱外第 4 轮之后）
+
+上文开头的 INCOMPLETE 是 worker 交付 7b3cf6c6c 时的状态，原文保留。执行主控以授权 04 运行 RUN-OUTSIDE-04（`outside-04-DGpPxgHM/summary.json`）：repeat-feedback 变异 NO_GO、contract_failure、STOP-BATCH-ONE-NOTICE；绿态 PASS（真实 worker 交付、真实 reviewer 审查、集成）；relay-cli、relay-core、hook-turn-facts 回归 PASS。本轮 5 个真实回合，四轮累计 15 个（01 为 0）。独立审查见 review-agy-01.md（PASS，一条 P3 即本段所补）。
