@@ -176,6 +176,18 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
       role: 'controller', preset: roleRequest.role, role_label: roleLabel({ role: 'controller', preset: roleRequest.role }), cli: roleRequest.cli ?? '未知',
       parent: roleRequest.parent_launch, state, question_id: null, state_label: stateLabels[state], created_at: roleRequest.decided_at, terminal: true } as any);
   }
+  // Ordinary project terminals have their own selectable view too. An approved
+  // terminal is already represented by its controller row above.
+  const terminals: typeof agents = [];
+  for (const record of store.launches().filter(record => record.role === 'shell' && record.project !== null &&
+    !agents.some(agent => agent.id === record.id))) {
+    const pane = panes.status(record.thread);
+    const state: AgentState = pane?.lifecycle === 'ended' ? 'ended' : pane?.lifecycle === 'running' ? 'running' : 'unknown';
+    terminals.push({ id: record.id, project: record.project, task: null, task_name: null, attempt: null, thread: record.thread,
+      role: 'shell', preset: null, role_label: '普通终端', cli: 'zsh', parent: null, state, question_id: null,
+      descendants: { count: 0, state: 'unknown', state_label: stateLabels.unknown, counts: [] },
+      state_label: stateLabels[state], created_at: record.created_at, terminal: true } as any);
+  }
   const recordedParents = new Map(agents.map(agent => [agent.id, agent.parent]));
   for (const agent of agents) {
     const parent = agents.find(row => row.id === agent.parent);
@@ -221,7 +233,7 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
     .map(row => ({ ...requestView(row), decided_at: row.decided_at }));
   // Approved controllers whose CLI hit its usage limit: the workbench announces them (T-124).
   const controllerQuota = quota.map(row => ({ ...row, role_label: roleLabel({ role: 'controller', preset: row.role }) }));
-  return { projects, agents: treeAgents, controller_quota: controllerQuota, role_requests: pendingRequests, granted_role_requests: grantedRequests, unconfirmed_role_requests: unconfirmed, gaps: [
+  return { projects, agents: treeAgents, terminals, controller_quota: controllerQuota, role_requests: pendingRequests, granted_role_requests: grantedRequests, unconfirmed_role_requests: unconfirmed, gaps: [
     '未保存父 launch、父会话缺失或关系冲突时显示未归属；不回填旧会话。',
     '经角色申请成为主控的 Codex：用户在 Codex 里信任 Enchanted 的钩子之前状态显示未知（信任由 Codex 写进用户自己的配置）；Plan 模式下的同步提问（request_user_input）不显示等待用户回答，答复也不记；被 Esc 中断后 Codex 不发回合结束，一直显示运行中，直到下一次提交。',
     'Claude Code 主控被用户按 Esc 中断后，要等它空闲 60 秒的通知才显示空闲。',

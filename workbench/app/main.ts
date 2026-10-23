@@ -10,16 +10,16 @@ import { randomUUID } from 'node:crypto';
 import { NotificationCenter, type NotificationPreference } from './notificationCenter.ts';
 import type { EmptyInputDeclaration } from '../src/panes.ts';
 
-type Options = { state: string; task?: string; project?: string; launch?: string | string[]; userData: string };
+type Options = { state: string; task?: string; project?: string; launch?: string | string[]; userData: string; inspect?: boolean };
 type PaneBinding = {
-  key: string; launch?: string; project?: string | null; identity?: Record<string, unknown>; opening?: Promise<void>;
+  key: string; launch?: string; task?: string; project?: string | null; identity?: Record<string, unknown>; opening?: Promise<void>;
   sequence: number; inputQueue: Promise<unknown>; pendingRelease: Promise<any> | null;
   closing?: boolean;
   viewOnly?: boolean;
 };
 type WindowBinding = {
   window: BrowserWindow; options: Options; operator: NonNullable<ReturnType<typeof readOperatorCredential>>;
-  panes: Map<string, PaneBinding>; closing: boolean; closed: boolean;
+  panes: Map<string, PaneBinding>; parked: Map<string, PaneBinding>; closing: boolean; closed: boolean;
   layout: Layout | null; names: Record<string, string>;
   task: any; project: { project_id: string; repo: string | null } | null;
   switching?: Promise<unknown>; creating?: Promise<unknown>;
@@ -61,15 +61,29 @@ function mapLayout(tree: Layout | null, convert: (key: string) => string | null)
   const first = mapLayout(tree.first, convert), second = mapLayout(tree.second, convert);
   return first && second ? { ...tree, first, second } : first ?? second;
 }
-function serializedArrangement(context: WindowBinding, tree = context.layout, names = context.names) {
-  return { tree: mapLayout(tree, key => context.panes.get(key)?.viewOnly ? null : context.panes.get(key)?.launch ?? null),
+async function serializedArrangement(context: WindowBinding, tree = context.layout, names = context.names) {
+  const selected = { tree: mapLayout(tree, key => context.panes.get(key)?.viewOnly ? null : context.panes.get(key)?.launch ?? null),
     names: Object.fromEntries(Object.entries(names).flatMap(([key, name]) => {
       const pane = context.panes.get(key), id = pane?.launch; return id && !pane.viewOnly ? [[id, name]] : [];
     })) };
+  if (!context.options.inspect) return selected;
+  // A single-agent view edits only its leaf, not the hidden siblings in the
+  // task/project arrangement. Reconstruct the saved open set before changing it.
+  const saved = await request(context.options.state, { command: 'pane_layout',
+    ...(context.options.task ? { task: context.options.task } : { project: context.options.project }) });
+  if (!saved.ok) throw new Error(saved.error);
+  const opened = saved.panes.filter((pane: { task: string | null }) => context.options.task !== undefined || pane.task === null);
+  const full = restoreArrangement(opened.map((pane: { launch: string }) => ({ key: pane.launch, launch: pane.launch })), saved.arrangement);
+  const kept = new Set<string>();
+  mapLayout(selected.tree, id => { kept.add(id); return id; });
+  for (const pane of context.panes.values()) if (pane.launch && !pane.viewOnly && !kept.has(pane.launch)) {
+    full.layout = replaceLeaf(full.layout, pane.launch, null); delete full.names[pane.launch];
+  }
+  return { tree: full.layout, names: { ...full.names, ...selected.names } };
 }
 async function saveArrangement(context: WindowBinding) {
   const result = await request(context.options.state, { command: 'pane_layout_save', task: context.options.task,
-    project: context.options.task ? undefined : context.options.project, arrangement: serializedArrangement(context) }, context.operator);
+    project: context.options.task ? undefined : context.options.project, arrangement: await serializedArrangement(context) }, context.operator);
   if (!result.ok) throw new Error(result.error);
 }
 
@@ -80,7 +94,7 @@ function requireCurrentPane(task: string, launch: string, result: any) {
   if (result.pane?.lifecycle !== 'running' || result.pane.failed || result.pane.historical ||
       !(record.role === 'controller' && record.attempt === null && ['ideation', 'executor'].includes(record.preset) ||
         record.role === 'worker' && record.attempt !== null && result.task.current_attempt?.attempt_id === record.attempt ||
-        record.role === 'reviewer' && record.attempt !== null)) {
+        ['reviewer', 'monitor'].includes(record.role) && record.attempt !== null)) {
     throw new Error('Pane is not a current running session');
   }
 }
@@ -107,10 +121,10 @@ function windowTarget(event: Electron.IpcMainInvokeEvent) {
   }
   return context;
 }
-function target(event: Electron.IpcMainInvokeEvent, key: string) {
+function target(event: Electron.IpcMainInvokeEvent, key: string, readOnly = false) {
   const context = windowTarget(event);
-  if (context.switching || context.closing) throw new Error('Task view is changing');
-  const pane = typeof key === 'string' ? context.panes.get(key) : undefined;
+  if (context.switching && !readOnly || context.closing) throw new Error('Task view is changing');
+  const pane = typeof key === 'string' ? context.panes.get(key) ?? (readOnly ? context.parked.get(key) : undefined) : undefined;
   if (!pane) throw new Error('Unknown pane key');
   return { context, pane };
 }
@@ -205,10 +219,9 @@ function registerHandlers() {
     const select = async () => {
       const catalog = await request(context.options.state, { command: 'sidebar_snapshot' });
       if (!catalog.ok) throw new Error(catalog.error);
-      const agent = catalog.agents.find((row: any) => row.id === launch);
+      const agent = [...catalog.agents, ...catalog.terminals].find((row: any) => row.id === launch);
       if (agent?.terminal) {
-        // A controller from a role request is the user's own terminal in the project view.
-        if (context.task || context.project?.project_id !== agent.project) await changeView(context, { project: agent.project });
+        await changeView(context, { project: agent.project, launch });
         const pane = [...context.panes.values()].find(p => p.launch === launch);
         if (!pane) throw new Error('This terminal is not open in this window');
         return { ...selection(context), focusKey: pane.key };
@@ -216,15 +229,8 @@ function registerHandlers() {
       if (!agent?.task || !catalog.projects.some((p: any) => p.project_id === agent.project && p.tasks.some((t: any) => t.task_id === agent.task))) throw new Error('Unknown agent launch');
       const snapshot = await request(context.options.state, { command: 'workbench_snapshot', task: agent.task, launch });
       requireAgentView(agent.task, launch, snapshot);
-      if (context.options.task !== agent.task) await changeView(context, { task: agent.task });
-      let pane = [...context.panes.values()].find(p => p.launch === launch);
-      if (!pane) {
-        // A sidebar click may inspect an ended or old attempt. This transient
-        // view never gets an input credential or changes the saved pane layout.
-        pane = { key: randomUUID(), launch, viewOnly: true, sequence: 0, inputQueue: Promise.resolve(), pendingRelease: null };
-        context.panes.set(pane.key, pane);
-        context.layout = context.layout ? { direction: 'right', first: context.layout, second: pane.key } : pane.key;
-      }
+      await changeView(context, { task: agent.task, launch });
+      const pane = [...context.panes.values()].find(p => p.launch === launch)!;
       return { ...selection(context), focusKey: pane.key };
     };
     context.switching = select();
@@ -381,7 +387,8 @@ function registerHandlers() {
     const context = windowTarget(event);
     if (project !== null && (typeof project !== 'string' || !project)) throw new Error('Invalid project');
     if (context.closing || context.switching || context.creating || [...context.panes.values()].some(pane => pane.closing)) throw new Error('Task view is changing');
-    if (!context.options.task && (context.options.project ?? null) === project) return selection(context);
+    if (!context.options.task && context.options.launch === undefined && (context.options.project ?? null) === project &&
+        (project === null || !context.panes.size)) return selection(context);
     context.switching = changeView(context, project === null ? {} : { project });
     try { return await context.switching; }
     finally { context.switching = undefined; }
@@ -412,22 +419,22 @@ function registerHandlers() {
     const context = windowTarget(event);
     if (task !== null && (typeof task !== 'string' || !task)) throw new Error('Invalid task');
     if (context.closing || context.switching || context.creating || [...context.panes.values()].some(pane => pane.closing)) throw new Error('Task view is changing');
-    if (task === (context.options.task ?? null)) return selection(context);
+    if (task === (context.options.task ?? null) && context.options.launch === undefined) return selection(context);
     context.switching = changeView(context, task === null ? {} : { task });
     try { return await context.switching; }
     finally { context.switching = undefined; }
   });
   ipcMain.handle('a2a:snapshot', async (event, key: string) => {
-    const { context, pane } = target(event, key);
-    const task = context.options.task!;
+    const { context, pane } = target(event, key, true);
+    const task = pane.task!;
     const scope = pane.project !== undefined ? { project: pane.project } : { task };
     const result = await request(context.options.state, { command: 'workbench_snapshot', ...scope,
       ...(pane.launch ? { launch: pane.launch } : {}) });
-    if (context.switching || pane.closing || context.panes.get(key) !== pane) throw new Error('Task view changed');
+    if (pane.closing || context.panes.get(key) !== pane && context.parked.get(key) !== pane) throw new Error('Task view changed');
     if (!result.ok) throw new Error(result.error);
     if (pane.project !== undefined) requireShellPane(pane.project, pane.launch!, result);
     else if (pane.viewOnly) requireAgentView(task, pane.launch!, result);
-    else if ([...context.panes.values()].filter(value => value.project === undefined && !value.viewOnly).length > 1) requireSavedPane(task, pane.launch!, result);
+    else if ([...context.panes.values()].filter(value => value.task === task && !value.viewOnly).length > 1) requireSavedPane(task, pane.launch!, result);
     if (pane.launch && result.launch?.id !== pane.launch) throw new Error('Pane launch changed');
     if (result.launch && !pane.launch) {
       const opened = await request(context.options.state, { command: 'pane_layout_open', task,
@@ -435,8 +442,8 @@ function registerHandlers() {
       if (!opened.ok) throw new Error(opened.error);
       pane.launch = result.launch.id;
     }
-    if (context.switching || pane.closing || context.panes.get(key) !== pane) throw new Error('Task view changed');
-    const writable = !pane.viewOnly && !result.recovering && !pane.closing && result.pane?.lifecycle === 'running' && !result.pane.failed &&
+    if (pane.closing || context.panes.get(key) !== pane && context.parked.get(key) !== pane) throw new Error('Task view changed');
+    const writable = context.panes.get(key) === pane && !context.switching && !pane.viewOnly && !result.recovering && !pane.closing && result.pane?.lifecycle === 'running' && !result.pane.failed &&
       result.pane?.restoration?.status !== 'pending' &&
       Boolean(result.launch && (pane.project !== undefined && result.launch.role === 'shell' ||
         result.launch.role === 'controller' && result.launch.attempt === null ||
@@ -451,8 +458,9 @@ function registerHandlers() {
         });
       await pane.opening;
     }
-    return { ...result, pane_key: pane.key, window_id: pane.identity?.window,
-      input_enabled: Boolean(writable && pane.identity && !context.closing) };
+    const selected = context.panes.get(key) === pane && !context.switching;
+    return { ...result, pane_key: pane.key, window_id: selected ? pane.identity?.window : undefined,
+      input_enabled: Boolean(selected && writable && pane.identity && !context.closing) };
   });
   ipcMain.handle('a2a:resize', (event, key: string, cols: number, rows: number) => {
     const { context, pane } = target(event, key);
@@ -488,7 +496,7 @@ function registerHandlers() {
     return sendWindowCommand(context, pane, { command: 'window_observation', type: 'focus-mode-intercept', raw_sequence: rawSequence });
   });
   ipcMain.handle('a2a:output', async (event, key: string, offset: number) => {
-    const { context, pane } = target(event, key);
+    const { context, pane } = target(event, key, true);
     if (!pane.launch || !Number.isSafeInteger(offset) || offset < 0) throw new Error('Invalid output request');
     const result = await request(context.options.state, { command: 'pane_output', launch: pane.launch, offset, max_bytes: 65536 });
     if (!result.ok) throw new Error(result.error);
@@ -505,7 +513,7 @@ function registerHandlers() {
     if (pane.launch && !pane.viewOnly) {
       const closed = await request(context.options.state, { command: 'pane_layout_close',
         ...(pane.project !== undefined ? { project: pane.project } : { task: context.options.task }),
-        launch: pane.launch, layout_task: context.options.task, arrangement: serializedArrangement(context, nextLayout, nextNames) }, context.operator);
+        launch: pane.launch, layout_task: context.options.task, arrangement: await serializedArrangement(context, nextLayout, nextNames) }, context.operator);
       if (!closed.ok) { pane.closing = false; throw new Error(closed.error); }
     }
     if (pane.identity) {
@@ -520,28 +528,52 @@ function registerHandlers() {
 }
 
 function selection(context: WindowBinding) {
-  return { task: context.task, project: context.task ? { project_id: context.task.project_id, repo: context.task.repo } : context.project, paneKeys: [...context.panes.keys()], layout: context.layout, names: context.names,
+  return { task: context.task, project: context.task ? { project_id: context.task.project_id, repo: context.task.repo } : context.project, paneKeys: [...context.panes.keys()], connectedPaneKeys: [...context.panes.keys(), ...context.parked.keys()], layout: context.layout, names: context.names,
     launches: Object.fromEntries([...context.panes.values()].filter(pane => pane.launch).map(pane => [pane.key, pane.launch!])) };
 }
 
-async function changeView(context: WindowBinding, view: { task?: string; project?: string }) {
-  const options = { ...context.options, task: view.task, project: view.project, launch: undefined };
+async function changeView(context: WindowBinding, view: { task?: string; project?: string; launch?: string }) {
+  const options = { ...context.options, task: view.task, project: view.project, launch: view.launch, inspect: view.launch !== undefined };
   // Validate before detaching. Original admission rules still apply to saved
   // panes; transient sidebar inspection is separately read-only.
   const prepared = await prepareSelection(options);
   if (context.closing) throw new Error('Window is closing');
-  for (const pane of context.panes.values()) pane.closing = true;
+  // Four inactive terminals bound scrollback memory. Eviction releases the
+  // credential and renderer; the daemon retains full output for later replay.
+  const retainedPaneLimit = 4;
+  const connected = [...context.panes.values(), ...context.parked.values()];
+  const retained = new Map<string, PaneBinding>();
+  for (const pane of prepared.panes) {
+    const existing = connected.find(old => old.launch === pane.launch && old.task === pane.task && old.project === pane.project && old.viewOnly === pane.viewOnly);
+    if (existing) retained.set(pane.key, existing);
+  }
+  const parked = new Map(context.parked), retiring: PaneBinding[] = [];
+  for (const pane of retained.values()) parked.delete(pane.key);
+  for (const pane of context.panes.values()) if (![...retained.values()].includes(pane)) {
+    if (pane.launch) parked.set(pane.key, pane); else retiring.push(pane);
+  }
+  // A launch becoming historical/read-only must not retain its writable binding.
+  for (const [key, pane] of parked) if (prepared.panes.some(next => next.launch === pane.launch)) {
+    parked.delete(key); retiring.push(pane);
+  }
+  while (parked.size > retainedPaneLimit) {
+    const pane = parked.values().next().value!;
+    parked.delete(pane.key); retiring.push(pane);
+  }
+  for (const pane of retiring) pane.closing = true;
   try {
-    await detachPanes(context);
+    await detachPanes(context, retiring);
     if (context.closing) throw new Error('Window is closing');
     context.options = options; context.task = prepared.task; context.project = prepared.project;
-    context.layout = prepared.layout; context.names = prepared.names;
-    context.panes = new Map(prepared.panes.map(pane => [pane.key, pane]));
+    context.layout = mapLayout(prepared.layout, key => retained.get(key)?.key ?? key);
+    context.names = Object.fromEntries(Object.entries(prepared.names).map(([key, name]) => [retained.get(key)?.key ?? key, name]));
+    context.panes = new Map(prepared.panes.map(pane => { const binding = retained.get(pane.key) ?? pane; return [binding.key, binding]; }));
+    context.parked = parked;
     return selection(context);
   } finally { for (const pane of context.panes.values()) pane.closing = false; }
 }
 
-function restoreArrangement(panes: PaneBinding[], saved: any) {
+function restoreArrangement(panes: Pick<PaneBinding, 'key' | 'launch'>[], saved: any) {
   const names: Record<string, string> = {}, included = new Set<string>();
   let layout = mapLayout(saved?.tree ?? null, id => {
     const pane = panes.find(p => p.launch === id);
@@ -569,6 +601,9 @@ async function createTerminal(context: WindowBinding, relative?: PaneBinding, di
     if (context.closing) throw new Error('Window is closing');
     const result = await request(context.options.state, { command: 'shell_start', project, cwd }, context.operator);
     requireShellPane(project, result.launch?.id, { ...result, task: null });
+    // A project terminal never becomes a task agent. Starting one from a task
+    // opens its project-level terminal view before adding the new pane.
+    if (context.task) { await changeView(context, project === null ? {} : { project }); relative = undefined; }
     const pane: PaneBinding = { key: randomUUID(), launch: result.launch.id, project, sequence: 0,
       inputQueue: Promise.resolve(), pendingRelease: null };
     for (const [key, existing] of context.panes) {
@@ -586,11 +621,11 @@ async function createTerminal(context: WindowBinding, relative?: PaneBinding, di
   try { return await context.creating; } finally { context.creating = undefined; }
 }
 
-async function detachPanes(context: WindowBinding) {
-  const outcomes = await Promise.allSettled([...context.panes.values()].flatMap(pane =>
+async function detachPanes(context: WindowBinding, panes = [...context.panes.values(), ...context.parked.values()]) {
+  const outcomes = await Promise.allSettled(panes.flatMap(pane =>
     [pane.inputQueue, pane.pendingRelease, pane.opening]));
   for (const outcome of outcomes) if (outcome.status === 'rejected') console.error('Window input outcome remains unconfirmed:', String(outcome.reason));
-  const revocations = await Promise.allSettled([...context.panes.values()].filter(pane => pane.identity).map(async pane => {
+  const revocations = await Promise.allSettled(panes.filter(pane => pane.identity).map(async pane => {
     const result = await request(context.options.state, { command: 'window_close' }, pane.identity);
     if (!result.ok) throw new Error(result.error);
     pane.identity = undefined;
@@ -602,7 +637,7 @@ async function detachPanes(context: WindowBinding) {
 
 async function prepareSelection(options: Options) {
   if (!options.task) {
-    if (options.launch !== undefined) throw new Error('--launch requires --task');
+    if (Array.isArray(options.launch)) throw new Error('A project agent view requires one launch');
     const project = options.project ?? null;
     let catalogEntry: { project_id: string; repo: string | null } | null = null;
     if (project !== null) {
@@ -615,7 +650,9 @@ async function prepareSelection(options: Options) {
     const saved = await request(options.state, { command: 'pane_layout', ...(project === null ? { free: true } : { project }) });
     if (!saved.ok) throw new Error(saved.error);
     const panes: PaneBinding[] = [];
-    for (const opened of saved.panes.filter((pane: { task: string | null }) => pane.task === null)) {
+    // A project is a task overview. Unassigned terminals keep their dedicated area.
+    const selected = options.launch ? [{ launch: options.launch, task: null }] : project === null ? saved.panes : [];
+    for (const opened of selected.filter((pane: { task: string | null }) => pane.task === null)) {
       const value = await request(options.state, { command: 'workbench_snapshot', project, launch: opened.launch });
       requireShellPane(project, opened.launch, value);
       panes.push({ key: randomUUID(), launch: opened.launch, project, sequence: 0, inputQueue: Promise.resolve(), pendingRelease: null });
@@ -646,17 +683,24 @@ async function prepareSelection(options: Options) {
     }
     if (!saved) launches.sort((a, b) => ranks.get(a!)! - ranks.get(b!)!);
   }
-  let panes: PaneBinding[] = launches.map(launch => ({ key: randomUUID(), launch, sequence: 0,
+  const panes: PaneBinding[] = launches.map(launch => ({ key: randomUUID(), launch, task: options.task, sequence: 0,
     inputQueue: Promise.resolve(), pendingRelease: null }));
-  const shells = await request(options.state, { command: 'pane_layout', project: snapshot.task.project_id });
-  if (!shells.ok) throw new Error(shells.error);
-  for (const opened of shells.panes.filter((pane: { task: string | null }) => pane.task === null)) {
-    const value = await request(options.state, { command: 'workbench_snapshot', project: snapshot.task.project_id, launch: opened.launch });
-    requireShellPane(snapshot.task.project_id, opened.launch, value);
-    panes.push({ key: randomUUID(), launch: opened.launch, project: snapshot.task.project_id,
-      sequence: 0, inputQueue: Promise.resolve(), pendingRelease: null });
+  if (options.inspect && typeof options.launch === 'string') {
+    const value = await request(options.state, { command: 'workbench_snapshot', task: options.task, launch: options.launch });
+    requireAgentView(options.task, options.launch, value);
+    if (value.pane?.lifecycle !== 'running' || value.pane.failed || value.pane.historical ||
+        value.launch.attempt && value.task.current_attempt?.attempt_id !== value.launch.attempt ||
+        !['worker', 'controller'].includes(value.launch.role)) panes[0]!.viewOnly = true;
+    // Agent inspection does not replace the task's saved arrangement.
+    const layout = await request(options.state, { command: 'pane_layout', task: options.task });
+    if (!layout.ok) throw new Error(layout.error);
+    if (!panes[0]!.viewOnly && !layout.panes.some((pane: { launch: string }) => pane.launch === options.launch)) {
+      const opened = await request(options.state, { command: 'pane_layout_open', task: options.task,
+        launch: options.launch, position: layout.panes.length }, readOperatorCredential(options.state)!);
+      if (!opened.ok) throw new Error(opened.error);
+    }
+    arrangement = layout.arrangement; saved = true;
   }
-  if (panes.some(pane => pane.project) && !snapshot.launch) panes = panes.filter(pane => pane.launch !== undefined);
   return { task: snapshot.task, project: null, saved, panes, ...restoreArrangement(panes, arrangement) };
 }
 
@@ -690,7 +734,7 @@ export async function run(options: Options) {
     webPreferences: { preload: join(directory, 'preload.cjs'), nodeIntegration: false,
       contextIsolation: true, sandbox: true, backgroundThrottling: false,
       additionalArguments: ['--a2a-pane-keys=' + JSON.stringify(panes.map(pane => pane.key)), '--a2a-home=' + homedir()] } });
-  const context: WindowBinding = { window, options, operator, task, project, layout, names, panes: new Map(panes.map(pane => [pane.key, pane])), closing: false, closed: false };
+  const context: WindowBinding = { window, options, operator, task, project, layout, names, panes: new Map(panes.map(pane => [pane.key, pane])), parked: new Map(), closing: false, closed: false };
   const senderId = window.webContents.id;
   windows.set(senderId, context);
   registerHandlers();

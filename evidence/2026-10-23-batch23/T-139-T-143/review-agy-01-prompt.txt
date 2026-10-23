@@ -1,0 +1,18 @@
+你是 a2a 项目的只读独立审查员（reviewer），审查 T-139 与 T-143 的联合候选交付（用户要求两张同一批验证）。
+
+材料都在 /Users/luckye/Documents/Code/a2a-review/T-139-T-143-r1/ 下：
+- candidate/：候选提交 7c60d0d67 的完整副本。ticket：candidate/.project-map/tickets/T-139-view-model-split-screen.md、T-143-terminal-performance.md；worker 交付说明：candidate/evidence/2026-10-23-batch23/T-139-T-143/RESULTS.md。
+- full.diff：相对起点 ebbae7bd0 的 workbench/ 全部改动。
+- evidence/card.md、evidence/COMMON.md：任务卡与公共约定。
+- evidence/outside-05-uAcv4xAj/：执行主控在沙箱外运行最终联合验收 RUN-OUTSIDE-05 的结果（COMPARISON.json 与各项 json/log/截图）。
+
+执行主控已定：test_t091_pane_ipc.mjs 在起点就失败，本卡只要求“与起点同样、不更差”；WebGL 已撤掉；滚动平均帧率被刷新率封顶，worker 写的是“未证明改善”。
+
+请核对：
+1. T-139：项目视图分屏列任务；进任务只见该任务 agent，不含项目普通终端；点单个 agent 只见它自己；项目终端只在它自己的视图出现。窗格布局持久化、输入凭据只发给可输入窗格、ended 只读仍成立。截图与检查是否支持这些。
+2. T-143：每项性能改动是否都有同一夹具同一命令的前后数字；保留的都有改善、没改善的已撤掉（含依赖）；没有把封顶的 FPS 当成收益。切换后输出不丢不重复、焦点与输入正确。
+3. 有没有吞异常、fallback、兼容分支、平行路径；有没有超出任务卡修改边界的改动。
+4. 测试是否独立于实现；红态（baseline 五项失败）与三个变异是否确实落在声称的检查上。
+5. 其他正确性问题。
+
+只用你自带的读文件/搜索工具，不要运行任何 shell 命令，不要写任何文件。输出中文报告：每条发现写文件与行号、严重度（P0–P3）、失败场景；最后一行只写 `T-139-T-143 REVIEW PASS`、`T-139-T-143 REVIEW INCOMPLETE` 或 `T-139-T-143 REVIEW NO_GO` 之一，前面给出理由。把完整报告作为最后一条回复直接输出。

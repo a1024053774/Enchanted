@@ -48,7 +48,7 @@ type AgentItem = { id: string; project: string; task: string | null; task_name: 
   descendants: { count: number; state: string; state_label: string; counts: { state: string; label: string; count: number }[] } };
 type RoleRequest = { id: string; launch: string; project: string; role: string; role_label: string; cli: string | null; requested_at: string;
   terminal_cwd: string | null; terminal_opened_at: string | null };
-type Sidebar = { projects: ProjectItem[]; agents: AgentItem[]; role_requests: RoleRequest[]; granted_role_requests: RoleRequest[];
+type Sidebar = { projects: ProjectItem[]; agents: AgentItem[]; terminals: AgentItem[]; role_requests: RoleRequest[]; granted_role_requests: RoleRequest[];
   unconfirmed_role_requests: (RoleRequest & { decided_at: string })[]; gaps: string[]; notifications: boolean; dockBadges: boolean; notices: AppNotice[] };
 // T-107: the project's branch and how far it is from its upstream, shown under the name.
 const projectGit = (git: ProjectItem['git']) => git.error ? git.error : `${git.branch === '(detached)' ? '分离 HEAD' : git.branch ?? '分支未知'}${
@@ -89,7 +89,7 @@ const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
 type Layout = string | { direction: 'right' | 'down'; first: Layout; second: Layout };
 type ProjectView = { project_id: string; repo: string | null };
-type Selection = { task: Snapshot['task'] | null; project: ProjectView | null; paneKeys: string[]; layout: Layout | null; names: Record<string, string>; launches?: Record<string, string> };
+type Selection = { task: Snapshot['task'] | null; project: ProjectView | null; paneKeys: string[]; connectedPaneKeys: string[]; layout: Layout | null; names: Record<string, string>; launches?: Record<string, string> };
 declare global { interface Window { a2a: { readonly paneKeys: readonly string[]; readonly home: string;
   executionSettings(change?: ExecutionSelection & { role: ExecutionRole }): Promise<Record<ExecutionRole, ExecutionSelection>>;
   flow(): Promise<FlowSnapshot>; sidebar(): Promise<Sidebar>; selectAgent(launch: string): Promise<Selection & { focusKey: string }>; decideRoleRequest(roleRequest: string, approved: boolean, parentLaunch?: string | null): Promise<unknown>; notificationSetting(enabled?: boolean, preference?: 'notifications' | 'dockBadges'): Promise<boolean>;
@@ -126,7 +126,7 @@ const restoreErrors: Record<string, string> = {
 
 type PaneStatus = { snapshot: Snapshot | null; error: string | null; connecting: boolean };
 
-function SessionPane({ paneKey, name, home, focusRequest, zoomed, onZoom, onAction, onStatus, onClose }: { paneKey: string; name?: string; home: string | null; focusRequest: number; zoomed: boolean; onZoom: () => void; onAction: (key: string, action: { type: string; direction?: string; name?: string }) => Promise<void>; onStatus: (key: string, status: PaneStatus) => void; onClose: (key: string, value: Selection) => void }) {
+function SessionPane({ paneKey, active, screenReader, name, home, focusRequest, zoomed, onZoom, onAction, onStatus, onClose }: { paneKey: string; active: boolean; screenReader: boolean; name?: string; home: string | null; focusRequest: number; zoomed: boolean; onZoom: () => void; onAction: (key: string, action: { type: string; direction?: string; name?: string }) => Promise<void>; onStatus: (key: string, status: PaneStatus) => void; onClose: (key: string, value: Selection) => void }) {
   const mount = useRef<HTMLDivElement>(null);
   const reconnect = useRef<() => void>(() => {});
   const releaseQueue = useRef<() => void>(() => {});
@@ -135,13 +135,22 @@ function SessionPane({ paneKey, name, home, focusRequest, zoomed, onZoom, onActi
   const [error, setError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(true);
   const [restoring, setRestoring] = useState(true);
+  const [restoredVisibility, setRestoredVisibility] = useState(-1);
+  const visibility = useRef({ active, version: 0 });
+  if (visibility.current.active !== active) visibility.current = { active, version: visibility.current.version + 1 };
+  const wakeRead = useRef<() => void>(() => {});
+  useLayoutEffect(() => { if (active) { setRestoring(true); wakeRead.current(); } }, [active]);
+  useEffect(() => { if (terminal) terminal.options.screenReaderMode = screenReader; }, [terminal, screenReader]);
   // The mount is hidden while its backlog replays (T-118) and a hidden element takes no focus, so a request made then
-  // waits for the reveal. Each request is served once, so a later reconnect does not take focus back.
+  // waits for this visibility's reveal. The previous visibility may still have restoring=false
+  // during activation; its value must not consume the new focus request before replay hides the mount.
+  // Each successful request is served once, so a later reconnect does not take focus back.
   const servedFocus = useRef(0);
   useEffect(() => {
-    if (!focusRequest || !terminal || restoring || servedFocus.current === focusRequest) return;
-    servedFocus.current = focusRequest; terminal.focus();
-  }, [focusRequest, terminal, restoring]);
+    if (!active || !focusRequest || !terminal || restoring || restoredVisibility !== visibility.current.version || servedFocus.current === focusRequest) return;
+    terminal.focus();
+    if (document.activeElement === terminal.textarea) servedFocus.current = focusRequest;
+  }, [active, focusRequest, terminal, restoring, restoredVisibility]);
   const [offset, setOffset] = useState(0);
   const [inputError, setInputError] = useState<string | null>(null);
   const [releasing, setReleasing] = useState(false);
@@ -173,7 +182,7 @@ function SessionPane({ paneKey, name, home, focusRequest, zoomed, onZoom, onActi
     finally { setActing(false); menuButton.current?.focus(); }
   };
   const [closeError, setCloseError] = useState<string | null>(null);
-  useEffect(() => { onStatus(paneKey, { snapshot, error, connecting }); }, [paneKey, snapshot, error, connecting, onStatus]);
+  useEffect(() => { if (active) onStatus(paneKey, { snapshot, error, connecting }); }, [active, paneKey, snapshot, error, connecting, onStatus]);
 
   useEffect(() => {
     let mounted = true, running = false, cursor = 0, total = 0, hidden = true;
@@ -187,7 +196,7 @@ function SessionPane({ paneKey, name, home, focusRequest, zoomed, onZoom, onActi
       void operation().catch(failInput).finally(() => { pendingInput--; });
     };
     const term = new Terminal({ cols: 160, rows: 45, disableStdin: true, cursorBlink: true,
-      cursorInactiveStyle: 'none', screenReaderMode: true, scrollback: 10000, fontSize: 12, lineHeight: 1.15,
+      cursorInactiveStyle: 'none', screenReaderMode: screenReader, scrollback: 10000, fontSize: 12, lineHeight: 1.15,
       fontFamily: '"SF Mono", "SFMono-Regular", Menlo, monospace',
       theme: terminalPalettes[darkQuery.matches ? 'dark' : 'light'] });
     const followScheme = () => { term.options.theme = terminalPalettes[darkQuery.matches ? 'dark' : 'light']; };
@@ -240,16 +249,23 @@ function SessionPane({ paneKey, name, home, focusRequest, zoomed, onZoom, onActi
     term.textarea!.addEventListener('focus', focused);
     term.textarea!.addEventListener('blur', blurred);
     setTerminal(term);
-    const delay = () => new Promise((resolve) => setTimeout(resolve, 100));
+    const delay = () => new Promise<void>(resolve => {
+      const done = () => { clearTimeout(timer); wakeRead.current = () => {}; resolve(); };
+      const timer = setTimeout(done, 100);
+      wakeRead.current = done;
+    });
     async function read() {
       if (running || !mounted) return;
       running = true; setConnecting(true); setError(null);
       // First attach and every reconnect replay their backlog hidden until the live end.
       setRestoring(true); hidden = true;
-      let nextSnapshot = 0;
+      let nextSnapshot = 0, seenVisibility = -1;
       try {
         while (mounted) {
-          if (Date.now() >= nextSnapshot) {
+          if (!visibility.current.active) { await delay(); continue; }
+          if (Date.now() >= nextSnapshot || seenVisibility !== visibility.current.version) {
+            const visibleVersion = visibility.current.version;
+            if (seenVisibility !== visibleVersion) { hidden = true; setRestoring(true); }
             const version = inputVersion, settled = pendingInput === 0;
             const value = await window.a2a.snapshot(paneKey);
             if (!mounted) break;
@@ -267,6 +283,7 @@ function SessionPane({ paneKey, name, home, focusRequest, zoomed, onZoom, onActi
                   interruption: p.interruption!, input_generation: p.input_generation! } : null;
             setDeclarationReady(Boolean(releaseBasis));
             setSnapshot(value); setConnecting(false);
+            seenVisibility = visibleVersion;
             nextSnapshot = Date.now() + 1000;
           }
           if (!boundLaunch) { setRestoring(false); await delay(); continue; }
@@ -285,7 +302,9 @@ function SessionPane({ paneKey, name, home, focusRequest, zoomed, onZoom, onActi
           if (cursor === total) {
             // Reveal only after xterm has painted the caught-up screen, never its previous paint.
             if (hidden) { await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); hidden = false; }
-            if (mounted) setRestoring(false);
+            if (mounted && visibility.current.active && seenVisibility === visibility.current.version) {
+              setRestoredVisibility(seenVisibility); setRestoring(false);
+            }
             await delay();
           }
         }
@@ -298,6 +317,7 @@ function SessionPane({ paneKey, name, home, focusRequest, zoomed, onZoom, onActi
     void read();
     return () => {
       mounted = false;
+      wakeRead.current();
       term.textarea!.removeEventListener('compositionstart', beginComposition);
       term.textarea!.removeEventListener('focus', focused);
       term.textarea!.removeEventListener('blur', blurred);
@@ -414,8 +434,9 @@ function ArchiveUsage() {
   return <p className="settings-note" data-archive-sessions={usage.sessions} data-archive-bytes={usage.bytes}>{usage.sessions} 个会话，占用 {size}</p>;
 }
 
-function SettingsDialog({ open, onClose, theme, onTheme, notifications, dockBadges, onNotification, gaps }: {
+function SettingsDialog({ open, onClose, theme, onTheme, screenReader, onScreenReader, notifications, dockBadges, onNotification, gaps }: {
   open: boolean; onClose: () => void; theme: Theme; onTheme: (theme: Theme) => void;
+  screenReader: boolean; onScreenReader: (enabled: boolean) => void;
   notifications: boolean; dockBadges: boolean; onNotification: (enabled: boolean, preference: 'notifications' | 'dockBadges') => void; gaps: string[] }) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -436,6 +457,9 @@ function SettingsDialog({ open, onClose, theme, onTheme, notifications, dockBadg
         </div></section>
       <section aria-labelledby="settings-notify"><h3 id="settings-notify">通知</h3>
         <NotificationSettings notifications={notifications} dockBadges={dockBadges} onChange={onNotification} /></section>
+      <section aria-labelledby="settings-terminal-accessibility"><h3 id="settings-terminal-accessibility">终端辅助功能</h3>
+        <label><input type="checkbox" checked={screenReader} onChange={event => onScreenReader(event.target.checked)} /> 启用屏幕阅读器支持</label>
+        <p className="settings-note">使用读屏软件时开启。应用于本窗口的所有终端。</p></section>
       <section aria-labelledby="settings-models"><h3 id="settings-models">主控派发的默认模型</h3>
         <p className="settings-note">主控派发新会话时按角色取这里的模型和思考强度，主控也可以按你在对话里的要求临时改。只影响之后启动的会话；已经打开的终端、正在运行的会话，以及你在终端里自己启动的 claude / codex 都不受影响。</p>
         <ExecutionSettings /></section>
@@ -454,6 +478,8 @@ function Workbench() {
   const [page, setPage] = useState<'terminal' | 'flow' | 'issues' | 'records' | 'metrics' | 'reflect'>('terminal');
   const [statuses, setStatuses] = useState<Record<string, PaneStatus>>({});
   const [paneKeys, setPaneKeys] = useState([...window.a2a.paneKeys]);
+  const [connectedPaneKeys, setConnectedPaneKeys] = useState([...window.a2a.paneKeys]);
+  const [screenReader, setScreenReader] = useState(false);
   const [layout, setLayout] = useState<Layout | null>(null);
   const [names, setNames] = useState<Record<string, string>>({});
   const [zoom, setZoom] = useState<string | null>(null);
@@ -461,6 +487,7 @@ function Workbench() {
   const [viewProject, setViewProject] = useState<ProjectView | null>(null);
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [agents, setAgents] = useState<AgentItem[]>([]);
+  const [ordinaryTerminals, setOrdinaryTerminals] = useState<AgentItem[]>([]);
   const [roleRequests, setRoleRequests] = useState<RoleRequest[]>([]);
   const [unconfirmedRequests, setUnconfirmedRequests] = useState<(RoleRequest & { decided_at: string })[]>([]);
   const [grantedRequests, setGrantedRequests] = useState<RoleRequest[]>([]);
@@ -499,7 +526,7 @@ function Workbench() {
     try { localStorage.setItem(themeKey, theme); } catch { /* Per-viewer convenience only. */ }
   }, [theme]);
   const applySidebar = useCallback((value: Sidebar) => {
-    setProjects(value.projects); setAgents(value.agents); setRoleRequests(value.role_requests ?? []); setUnconfirmedRequests(value.unconfirmed_role_requests ?? []); setGrantedRequests(value.granted_role_requests ?? []); setGaps(value.gaps); setNotifications(value.notifications);
+    setProjects(value.projects); setAgents(value.agents); setOrdinaryTerminals(value.terminals); setRoleRequests(value.role_requests ?? []); setUnconfirmedRequests(value.unconfirmed_role_requests ?? []); setGrantedRequests(value.granted_role_requests ?? []); setGaps(value.gaps); setNotifications(value.notifications);
     setDockBadges(value.dockBadges); setNotices(value.notices); setNow(Date.now());
   }, []);
   const [loading, setLoading] = useState(true);
@@ -512,13 +539,14 @@ function Workbench() {
   const busyRef = useRef(busy); busyRef.current = busy;
   const paneKeysRef = useRef(paneKeys); paneKeysRef.current = paneKeys;
   const applySelection = useCallback((value: Selection) => {
-    setSelectedTask(value.task); setViewProject(value.project); setPaneKeys(value.paneKeys); setLayout(value.layout); setNames(value.names); setLaunches(value.launches ?? {}); setZoom(null); setStatuses({});
+    setSelectedTask(value.task); setViewProject(value.project); setPaneKeys(value.paneKeys); setConnectedPaneKeys(value.connectedPaneKeys); setLayout(value.layout); setNames(value.names); setLaunches(value.launches ?? {}); setZoom(null);
+    setStatuses(rows => Object.fromEntries(Object.entries(rows).filter(([key]) => value.connectedPaneKeys.includes(key))));
   }, []);
   const refresh = useCallback(async () => {
     setLoading(true); setCatalogError(null);
     try {
       const current = await window.a2a.selection();
-      setSelectedTask(current.task); setViewProject(current.project); setPaneKeys(current.paneKeys); setLayout(current.layout); setNames(current.names); setLaunches(current.launches ?? {});
+      setSelectedTask(current.task); setViewProject(current.project); setPaneKeys(current.paneKeys); setConnectedPaneKeys(current.connectedPaneKeys); setLayout(current.layout); setNames(current.names); setLaunches(current.launches ?? {});
       const sidebar = await window.a2a.sidebar();
       applySidebar(sidebar);
       if (current.task && !sidebar.projects.some(project => project.tasks.some(task => task.task_id === current.task!.task_id))) {
@@ -541,13 +569,13 @@ function Workbench() {
           const current = await window.a2a.selection();
           if (mounted && !busyRef.current && current.paneKeys.join('\0') !== paneKeysRef.current.join('\0')) {
             const live = new Set(current.paneKeys);
-            setPaneKeys(current.paneKeys); setLayout(current.layout); setNames(current.names); setLaunches(current.launches ?? {});
+            setPaneKeys(current.paneKeys); setConnectedPaneKeys(current.connectedPaneKeys); setLayout(current.layout); setNames(current.names); setLaunches(current.launches ?? {});
             setZoom(key => key !== null && live.has(key) ? key : null);
             setStatuses(rows => Object.fromEntries(Object.entries(rows).filter(([key]) => live.has(key))));
           }
         }
       }
-      catch (error) { if (mounted) { setNotices([]); setCatalogError('侧栏状态未知：' + String(error)); setAgents(rows => rows.map(row => ({ ...row, state: 'unknown', state_label: '未知' }))); setProjects(rows => rows.map(row => ({ ...row, state: 'unknown', state_label: '未知', git: { branch: null, upstream: null, ahead: null, behind: null, error: '读取未确认' } }))); } }
+      catch (error) { if (mounted) { setNotices([]); setCatalogError('侧栏状态未知：' + String(error)); setAgents(rows => rows.map(row => ({ ...row, state: 'unknown', state_label: '未知' }))); setOrdinaryTerminals(rows => rows.map(row => ({ ...row, state: 'unknown', state_label: '未知' }))); setProjects(rows => rows.map(row => ({ ...row, state: 'unknown', state_label: '未知', git: { branch: null, upstream: null, ahead: null, behind: null, error: '读取未确认' } }))); } }
       finally { sidebarRead.current = false; }
     }, 3000);
     return () => { mounted = false; clearInterval(timer); };
@@ -560,11 +588,12 @@ function Workbench() {
     finally { setNavigating(false); }
   };
   const selectTask = (task: string | null) => {
-    if (task === (selectedTask?.task_id ?? null) && (task !== null || !viewProject)) return;
+    if (!focusedAgent && task === (selectedTask?.task_id ?? null) && (task !== null || !viewProject)) return;
+    setFocusedAgent(null);
     void navigate('切换任务', () => window.a2a.selectTask(task));
   };
   const selectProject = (project: string | null) => {
-    if (!selectedTask && project === (viewProject?.project_id ?? null)) { setPage('terminal'); return; }
+    if (!selectedTask && !focusedAgent && !paneKeys.length && project === (viewProject?.project_id ?? null)) { setPage('terminal'); return; }
     setFocusedAgent(null);
     void navigate('切换项目', () => window.a2a.selectProject(project));
   };
@@ -594,7 +623,8 @@ function Workbench() {
     setCreating(true); setTerminalError(null); setPage('terminal');
     try {
       const value = await window.a2a.newTerminal();
-      setSelectedTask(value.task); setViewProject(value.project); setPaneKeys(value.paneKeys); setLayout(value.layout); setNames(value.names); setLaunches(value.launches ?? {}); setZoom(null);
+      setFocusedAgent(null);
+      setSelectedTask(value.task); setViewProject(value.project); setPaneKeys(value.paneKeys); setConnectedPaneKeys(value.connectedPaneKeys); setLayout(value.layout); setNames(value.names); setLaunches(value.launches ?? {}); setZoom(null);
       setStatuses(previous => Object.fromEntries(Object.entries(previous).filter(([key]) => value.paneKeys.includes(key))));
       const added = value.paneKeys.find(key => !paneKeys.includes(key));
       if (added) setFocusRequest(previous => ({ key: added, version: previous.version + 1 }));
@@ -620,7 +650,7 @@ function Workbench() {
     return () => window.removeEventListener('mousedown', dismiss);
   }, [projectMenu]);
   const onClose = useCallback((key: string, value: Selection) => {
-    setPaneKeys(value.paneKeys); setLayout(value.layout); setNames(value.names); setLaunches(value.launches ?? {});
+    setPaneKeys(value.paneKeys); setConnectedPaneKeys(value.connectedPaneKeys); setLayout(value.layout); setNames(value.names); setLaunches(value.launches ?? {});
     setZoom(value => value === key ? null : value);
     setStatuses(previous => { const next = { ...previous }; delete next[key]; return next; });
   }, []);
@@ -694,7 +724,7 @@ function Workbench() {
         </div>)}
       </div>}</>;
   };
-  const states = Object.values(statuses);
+  const states = paneKeys.flatMap(key => statuses[key] ? [statuses[key]] : []);
   const task = states.find(value => value.snapshot)?.snapshot?.task ?? selectedTask;
   const error = states.some(value => value.error);
   const connecting = states.length < paneKeys.length || states.some(value => value.connecting);
@@ -740,6 +770,7 @@ function Workbench() {
               <span className="sr-only project-state">{item.state_label}</span>
             </button>
             {renderProjectAgents(scope)}
+            <div className="project-terminals" aria-label="普通终端">{renderAgents(ordinaryTerminals.filter(row => row.project === item.project_id), 0, ordinaryTerminals)}</div>
           </section>;
         })}
         {!loading && !projects.length && <div className="catalog-status"><p>还没有项目。打开一个目录，在里面开终端，让主控开始干活。</p>
@@ -843,17 +874,26 @@ function Workbench() {
       {navigationError && <div className="connection-error" role="alert">{navigationError}</div>}
       {terminalError && <div className="connection-error" role="alert">{terminalError}</div>}
       <div className="pane-grid pane-layout" aria-label="终端窗格">
-        {!navigating && paneKeys.map(key => {
+        {!navigating && !task && viewProject && !paneKeys.length && <div className="project-task-grid" aria-label="项目任务分屏">
+          {project?.tasks.map(item => <button key={item.task_id} className="project-task-tile" data-task-tile={item.task_id}
+            disabled={busy} onClick={() => selectTask(item.task_id)}>
+            <span className="task-meta">{gateNames[item.state] ?? item.state}</span>
+            <strong>{item.title}</strong><span className="task-meta">{item.task_id}</span>
+            <span className="task-agents">{agents.filter(agent => agent.task === item.task_id).length} 个 agent<span aria-hidden="true"> ↗</span></span>
+          </button>)}
+        </div>}
+        {connectedPaneKeys.map(key => {
+          const active = !navigating && paneKeys.includes(key) && (!zoom || zoom === key);
           const rect = zoom === key ? { x: 0, y: 0, w: 100, h: 100 } : paneRects(layout)[key] ?? { x: 0, y: 0, w: 100, h: 100 };
-          return <div className="pane-slot" key={key} hidden={Boolean(zoom && zoom !== key)} data-role-request-pending={roleRequests.some(roleRequest => roleRequest.launch === launches[key]) || undefined} data-edge-right={rect.x + rect.w < 99.9} data-edge-bottom={rect.y + rect.h < 99.9}
+          return <div className="pane-slot" key={key} hidden={!active} data-role-request-pending={roleRequests.some(roleRequest => roleRequest.launch === launches[key]) || undefined} data-edge-right={rect.x + rect.w < 99.9} data-edge-bottom={rect.y + rect.h < 99.9}
             style={{ left: rect.x + '%', top: rect.y + '%', width: rect.w + '%', height: rect.h + '%' }}>
             {roleRequests.map((roleRequest, index) => roleRequest.launch === launches[key] &&
               <span className="role-request-tag" key={roleRequest.id}>申请 {index + 1} · {roleRequest.role_label}</span>)}
-            <SessionPane paneKey={key} name={names[key]} home={home} focusRequest={focusRequest.key === key ? focusRequest.version : 0} zoomed={zoom === key} onZoom={() => setZoom(value => value === key ? null : key)}
-              onAction={async (key, action) => { const value = await window.a2a.paneAction(key, action); setPaneKeys(value.paneKeys); setLayout(value.layout); setNames(value.names); setLaunches(value.launches ?? {}); setZoom(null); }} onStatus={onStatus} onClose={onClose} />
+            <SessionPane paneKey={key} active={active} screenReader={screenReader} name={names[key]} home={home} focusRequest={focusRequest.key === key ? focusRequest.version : 0} zoomed={zoom === key} onZoom={() => setZoom(value => value === key ? null : key)}
+              onAction={async (key, action) => { const value = await window.a2a.paneAction(key, action); setPaneKeys(value.paneKeys); setConnectedPaneKeys(value.connectedPaneKeys); setLayout(value.layout); setNames(value.names); setLaunches(value.launches ?? {}); setZoom(null); }} onStatus={onStatus} onClose={onClose} />
           </div>;
         })}
-        {navigating ? <p className="selection-hint" role="status">正在切换…</p> : !paneKeys.length &&
+        {navigating ? <p className="selection-hint" role="status">正在切换…</p> : !paneKeys.length && !(viewProject && !task && project?.tasks.length) &&
           <div className="selection-hint">
             <h2>{task ? '这个任务没有打开的窗格' : viewProject ? `在 ${viewProject.project_id} 里开一个终端` : '开一个终端'}</h2>
             <p>{task ? '从左侧点选这个任务下的会话，或新建终端。'
@@ -870,7 +910,7 @@ function Workbench() {
       </section>}
       </div>
     </main>
-    <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} theme={theme} onTheme={setTheme} gaps={gaps}
+    <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} theme={theme} onTheme={setTheme} screenReader={screenReader} onScreenReader={setScreenReader} gaps={gaps}
       notifications={notifications} dockBadges={dockBadges} onNotification={(enabled, preference) => {
         void window.a2a.notificationSetting(enabled, preference).then(value => {
           if (preference === 'notifications') { setNotifications(value); if (!value) setNotices([]); }
