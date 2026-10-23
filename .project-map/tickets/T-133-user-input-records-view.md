@@ -2,7 +2,7 @@
 id: T-133
 title: 界面显示用户输入记录与人工介入
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -20,8 +20,8 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 真实 Electron：夹具里用户在主控终端和受管 worker 窗格各打一段字、在面板答复一条；视图列出三条，worker 那条标人工介入，内容与库读回一致；后台注入的派发文字不出现。修前没有这个视图。
-- [ ] 截图与复现命令入证据。
+- [x] 真实 Electron：夹具里用户在主控终端和受管 worker 窗格各打一段字、在面板答复一条；视图列出三条，worker 那条标人工介入，内容与库读回一致；后台注入的派发文字不出现。修前没有这个视图。
+- [x] 截图与复现命令入证据。
 
 ## 不做
 
@@ -63,3 +63,24 @@ ready_rev: 1
 ## 用户决定：Codex 一侧（2026-10-22）
 
 用户逐字（在本 session 对“Codex 钩子 A/B/C”与“T-107 #3 一/二”两问的回复）：“1. A 2. 一二都要.”第 1 条选 A：Codex 主控也记录，用户在自己的 Codex 里信任一次 Enchanted 的钩子，由 Codex 自己把信任写进 `~/.codex/config.toml`；a2a 不写用户配置，不用 `--dangerously-bypass-hook-trust`。接法依据 `evidence/2026-10-22-batch20/T-133-T-107/codex-hook-probe/RESULTS.md` 的 probe-04～06。
+
+## Resolution
+
+2026-10-22 关闭，PASS。
+
+- **Claude Code 一侧**（方案 A）：
+  - 代码 `36fa74f6a`～`c24d58955`、`fbf68c404`；
+  - 证据 `evidence/2026-10-22-batch20/T-133-T-107/candidate-1`、`candidate-2`；
+  - 同一次运行里，记录页列出主控终端提交、面板答复、受管窗格键入三种；
+  - 审查 review-01、02 没有阻碍项。
+- **Codex 一侧**（用户定 A）：
+  - 代码 `af838d77e`、`d0c006ee1`；
+  - 证据 `candidate-3`（NO_GO：一个变异存活、一处测试错误）与 `candidate-4`（PASS）；
+  - candidate-4 的 Codex green 14 项 PASS，修前 `d0f89b48a` 与 3 个变异失败，审查 PASS（1 条 P2、3 条 P3，处理见 RESULTS）。
+  - 包装脚本经 `-c` 传入三个钩子；用户在 Codex 里信任一次，信任由 Codex 写进用户配置，a2a 不写。
+  - 用户自己 `hooks.json` 的钩子照常运行；用户对 `request_user_input_async` 的答复记为“问题：答复”。
+- **已知边界**：
+  - 没有在用户真实的 `~/.codex` 里跑过：信任要用户亲手点；
+  - 默认沙箱下 `a2a request` 能否运行没有验证；
+  - Plan 模式下的同步提问不记；
+  - Codex 被 Esc 中断后一直显示“运行中”。

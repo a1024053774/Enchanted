@@ -1,0 +1,308 @@
+{
+  "status": "INCOMPLETE",
+  "task": "T-107",
+  "attempt": "a1",
+  "model_calls": 0,
+  "argv": [
+    "tests/run_t107_sidebar.py",
+    "--source",
+    "/private/tmp/a2a-t133-c3",
+    "--dependencies",
+    "/Users/luckye/Documents/Code/a2a/workbench/node_modules",
+    "--electron-dist",
+    "/Users/luckye/Documents/Code/a2a/workbench/node_modules/electron/dist",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a/evidence/2026-10-22-batch20/T-107-recheck/e2e/t107-sidebar-rerun-03.json"
+  ],
+  "baseline": "0967cd465ce20c01b0a6ee29b2931ecbf4032caf",
+  "checks": [
+    {
+      "name": "真实 Electron 已知坏基线",
+      "status": "PASS",
+      "observed": "无侧栏 IPC、agent 树与 Git 摘要，符合预期红态"
+    }
+  ],
+  "commands": [
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-rl2tubyz/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-rl2tubyz/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":57148,\"root\":\"/private/tmp/t107-real-rl2tubyz/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-rl2tubyz/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-rl2tubyz/state",
+        "pane_layout"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"recovering\":false,\"saved\":false,\"panes\":[],\"arrangement\":null}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-rl2tubyz/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-rl2tubyz/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":57148,\"stopping\":true}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "init",
+        "-b",
+        "main",
+        "/private/tmp/t107-real-rl2tubyz/repo-one"
+      ],
+      "exit": 0,
+      "stdout": "Initialized empty Git repository in /private/tmp/t107-real-rl2tubyz/repo-one/.git/\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-rl2tubyz/repo-one",
+        "add",
+        "."
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-rl2tubyz/repo-one",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "fixture base"
+      ],
+      "exit": 0,
+      "stdout": "[main (root-commit) de9fa30] fixture base\n 1 file changed, 1 insertion(+)\n create mode 100644 content\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "init",
+        "-b",
+        "main",
+        "/private/tmp/t107-real-rl2tubyz/repo-two"
+      ],
+      "exit": 0,
+      "stdout": "Initialized empty Git repository in /private/tmp/t107-real-rl2tubyz/repo-two/.git/\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-rl2tubyz/repo-two",
+        "add",
+        "."
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-rl2tubyz/repo-two",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "fixture base"
+      ],
+      "exit": 0,
+      "stdout": "[main (root-commit) de9fa30] fixture base\n 1 file changed, 1 insertion(+)\n create mode 100644 content\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-rl2tubyz/repo-one",
+        "rev-parse",
+        "HEAD"
+      ],
+      "exit": 0,
+      "stdout": "de9fa309c3be4b67b475b98c5b36935db965f565\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-rl2tubyz/repo-one",
+        "config",
+        "remote.origin.url",
+        "/private/tmp/t107-real-rl2tubyz/unused-origin"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-rl2tubyz/repo-one",
+        "config",
+        "remote.origin.fetch",
+        "+refs/heads/*:refs/remotes/origin/*"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-rl2tubyz/repo-one",
+        "update-ref",
+        "refs/remotes/origin/main",
+        "de9fa309c3be4b67b475b98c5b36935db965f565"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-rl2tubyz/repo-one",
+        "branch",
+        "--set-upstream-to=origin/main",
+        "main"
+      ],
+      "exit": 0,
+      "stdout": "branch 'main' set up to track 'origin/main'.\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-rl2tubyz/repo-one",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-am",
+        "fixture ahead"
+      ],
+      "exit": 0,
+      "stdout": "[main 4b458d0] fixture ahead\n 1 file changed, 1 insertion(+), 1 deletion(-)\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-rl2tubyz/repo-one",
+        "status",
+        "-sb"
+      ],
+      "exit": 0,
+      "stdout": "## main...origin/main [ahead 1]\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-rl2tubyz/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-rl2tubyz/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":57171,\"root\":\"/private/tmp/t107-real-rl2tubyz/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-rl2tubyz/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-rl2tubyz/state",
+        "pane_layout"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"recovering\":false,\"saved\":true,\"panes\":[{\"launch\":\"agent-0\",\"task\":\"task-0\",\"position\":0,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-1\",\"task\":\"task-0\",\"position\":1,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-2\",\"task\":\"task-0\",\"position\":2,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-3\",\"task\":\"task-0\",\"position\":3,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-4\",\"task\":\"task-0\",\"position\":4,\"native_session\":null,\"resume_argv\":null}],\"arrangement\":null}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-rl2tubyz/baseline/workbench/app/build.mjs",
+        "--slot",
+        "t107-red-2121296e"
+      ],
+      "exit": 0,
+      "stdout": "{\"schema\":1,\"out\":\"/private/tmp/a2a-build-t107-red-2121296e/dist\",\"main\":\"/private/tmp/a2a-build-t107-red-2121296e/dist/main.mjs\",\"preload\":\"/private/tmp/a2a-build-t107-red-2121296e/dist/preload.cjs\",\"renderer\":\"/private/tmp/a2a-build-t107-red-2121296e/dist/renderer/index.html\",\"cacheDir\":\"/private/tmp/a2a-build-t107-red-2121296e/vite-cache\",\"temporary\":\"/private/tmp/a2a-build-t107-red-2121296e/tmp\",\"source\":\"/private/tmp/t107-real-rl2tubyz/baseline/workbench/app\"}\n",
+      "stderr": "[plugin builtin:vite-reporter] \n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\n"
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-rl2tubyz/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-rl2tubyz/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":57171,\"stopping\":true}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "--experimental-vm-modules",
+        "/private/tmp/a2a-t133-c3/workbench/tests/test_t107_daemon_readonly.mjs",
+        "/private/tmp/t107-real-rl2tubyz/daemon-identity.json",
+        "/private/tmp/t107-real-rl2tubyz/candidate",
+        "identity"
+      ],
+      "exit": 1,
+      "stdout": "{\"status\":\"INCOMPLETE\",\"mode\":\"identity\",\"source\":\"/private/tmp/t107-real-rl2tubyz/candidate\",\"root\":\"/private/tmp/t107-daemon-read-I2kZtC\",\"model_calls\":0,\"scope\":\"actual daemon/socket/Panes/collector/SQLite/traces; seeded PTY identity, no CLI or model\",\"error\":\"SyntaxError: The requested module './panes.ts' does not provide an export named 'claudeSubmittedText'\",\"stack\":\"SyntaxError: The requested module './panes.ts' does not provide an export named 'claudeSubmittedText'\\n    at SourceTextModule.link (node:internal/vm/module:209:17)\\n    at async file:///private/tmp/a2a-t133-c3/workbench/tests/test_t107_daemon_readonly.mjs:63:3\"}\n",
+      "stderr": "(node:57199) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:57199) ExperimentalWarning: VM Modules is an experimental feature and might change at any time\n"
+    }
+  ],
+  "limitations": [
+    "等待用户回答、等待主控回答的真实信号缺口未解决；七状态验收 INCOMPLETE。",
+    "现有 worker 派发无具体父 launch 绑定，worker/reviewer 在未归属的任务下；完整层级验收 INCOMPLETE。",
+    "真实系统通知未触发；转换和开关只由 IPC 合同验证。"
+  ],
+  "error": "AssertionError({'argv': ['node', '--experimental-vm-modules', '/private/tmp/a2a-t133-c3/workbench/tests/test_t107_daemon_readonly.mjs', '/private/tmp/t107-real-rl2tubyz/daemon-identity.json', '/private/tmp/t107-real-rl2tubyz/candidate', 'identity'], 'exit': 1, 'stdout': '{\"status\":\"INCOMPLETE\",\"mode\":\"identity\",\"source\":\"/private/tmp/t107-real-rl2tubyz/candidate\",\"root\":\"/private/tmp/t107-daemon-read-I2kZtC\",\"model_calls\":0,\"scope\":\"actual daemon/socket/Panes/collector/SQLite/traces; seeded PTY identity, no CLI or model\",\"error\":\"SyntaxError: The requested module \\'./panes.ts\\' does not provide an export named \\'claudeSubmittedText\\'\",\"stack\":\"SyntaxError: The requested module \\'./panes.ts\\' does not provide an export named \\'claudeSubmittedText\\'\\\\n    at SourceTextModule.link (node:internal/vm/module:209:17)\\\\n    at async file:///private/tmp/a2a-t133-c3/workbench/tests/test_t107_daemon_readonly.mjs:63:3\"}\\n', 'stderr': '(node:57199) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time\\n(Use `node --trace-warnings ...` to show where the warning was created)\\n(node:57199) ExperimentalWarning: VM Modules is an experimental feature and might change at any time\\n'})",
+  "traceback": "Traceback (most recent call last):\n  File \"/private/tmp/a2a-t133-c3/workbench/tests/run_t107_sidebar.py\", line 187, in main\n    run(['node', '--experimental-vm-modules', source / 'workbench/tests/test_t107_daemon_readonly.mjs', probe, candidate, mode])\n  File \"/private/tmp/a2a-t133-c3/workbench/tests/run_t107_sidebar.py\", line 75, in run\n    assert value.returncode == 0, report['commands'][-1]\nAssertionError: {'argv': ['node', '--experimental-vm-modules', '/private/tmp/a2a-t133-c3/workbench/tests/test_t107_daemon_readonly.mjs', '/private/tmp/t107-real-rl2tubyz/daemon-identity.json', '/private/tmp/t107-real-rl2tubyz/candidate', 'identity'], 'exit': 1, 'stdout': '{\"status\":\"INCOMPLETE\",\"mode\":\"identity\",\"source\":\"/private/tmp/t107-real-rl2tubyz/candidate\",\"root\":\"/private/tmp/t107-daemon-read-I2kZtC\",\"model_calls\":0,\"scope\":\"actual daemon/socket/Panes/collector/SQLite/traces; seeded PTY identity, no CLI or model\",\"error\":\"SyntaxError: The requested module \\'./panes.ts\\' does not provide an export named \\'claudeSubmittedText\\'\",\"stack\":\"SyntaxError: The requested module \\'./panes.ts\\' does not provide an export named \\'claudeSubmittedText\\'\\\\n    at SourceTextModule.link (node:internal/vm/module:209:17)\\\\n    at async file:///private/tmp/a2a-t133-c3/workbench/tests/test_t107_daemon_readonly.mjs:63:3\"}\\n', 'stderr': '(node:57199) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time\\n(Use `node --trace-warnings ...` to show where the warning was created)\\n(node:57199) ExperimentalWarning: VM Modules is an experimental feature and might change at any time\\n'}\n",
+  "cleanup_complete": true,
+  "retained_fixture": "/private/tmp/t107-real-rl2tubyz",
+  "retained_builds": [
+    "/private/tmp/a2a-build-t107-red-2121296e"
+  ]
+}

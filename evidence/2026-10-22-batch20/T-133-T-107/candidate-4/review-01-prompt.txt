@@ -1,0 +1,5 @@
+你是只读的独立审查员。不要修改任何文件，也不要运行任何命令：只用读文件的工具读这个目录里的文件。
+审查对象：T-133 方案 A 的 Codex 一侧与 T-107 #3。用户 2026-10-22 逐字：“1. A 2. 一二都要.”——第 1 条：Codex 主控也记录，由用户在自己的 Codex 里信任一次 Enchanted 的钩子，信任由 Codex 写进用户配置，a2a 不写用户配置、不用 --dangerously-bypass-hook-trust；第 2 条：worker 有未答复的问题上报时侧栏显示“等待主控回答”，问题面板照旧列出。
+材料：candidate.diff（d0f89b48a..d0c006ee1 的全部 workbench 改动）；完整文件 daemon.ts、sidebar.ts、panes.ts、codex（包装脚本）；探针记录 probe-RESULTS.md 与 probe-0*-hooks.jsonl（Codex 钩子的真实载荷）；candidate-3-RESULTS.md、candidate-4-RESULTS.md；运行摘要 codex-green.json、claude-green.json、exits.txt；两张 ticket。
+核对：1）实现是否符合用户决定与探针事实（会话 id 匹配、答复格式解析、提问期间状态、去重键、信任不由 a2a 写）；2）侧栏“等待主控回答”的判定是否与门禁接受答复的条件一致、有无误报漏报；3）是否有吞异常、fallback、死代码或平行路径；4）测试的期望是否独立于实现、每个新检查是否有修前红态或变异证明；5）README 与缺口说明是否如实。
+输出中文报告：每条发现写文件与行号、严重度（P0-P3）、失败场景；最后给总体结论 PASS / INCOMPLETE / NO_GO 与理由。

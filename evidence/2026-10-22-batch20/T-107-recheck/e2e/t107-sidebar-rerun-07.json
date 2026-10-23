@@ -1,0 +1,408 @@
+{
+  "status": "INCOMPLETE",
+  "task": "T-107",
+  "attempt": "a1",
+  "model_calls": 0,
+  "argv": [
+    "tests/run_t107_sidebar.py",
+    "--source",
+    "/private/tmp/a2a-t133-c3",
+    "--dependencies",
+    "/Users/luckye/Documents/Code/a2a/workbench/node_modules",
+    "--electron-dist",
+    "/Users/luckye/Documents/Code/a2a/workbench/node_modules/electron/dist",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a/evidence/2026-10-22-batch20/T-107-recheck/e2e/t107-sidebar-rerun-07.json"
+  ],
+  "baseline": "0967cd465ce20c01b0a6ee29b2931ecbf4032caf",
+  "checks": [
+    {
+      "name": "真实 Electron 已知坏基线",
+      "status": "PASS",
+      "observed": "无侧栏 IPC、agent 树与 Git 摘要，符合预期红态"
+    },
+    {
+      "name": "实际 daemon：根／辅助会话隔离、未消费日志下全部表与 trace 零写入",
+      "status": "PASS"
+    },
+    {
+      "name": "真实 Electron 侧栏 IPC：所有 SQLite 表、schema 和 trace 原值不变",
+      "status": "PASS"
+    },
+    {
+      "name": "项目与 agent 层级、角色、attempt、Git 与三种历史状态",
+      "status": "PASS",
+      "git_status": "## main...origin/main [ahead 1]\n"
+    }
+  ],
+  "commands": [
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-gl2v8g6i/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-gl2v8g6i/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":60071,\"root\":\"/private/tmp/t107-real-gl2v8g6i/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-gl2v8g6i/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-gl2v8g6i/state",
+        "pane_layout"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"recovering\":false,\"saved\":false,\"panes\":[],\"arrangement\":null}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-gl2v8g6i/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-gl2v8g6i/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":60071,\"stopping\":true}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "init",
+        "-b",
+        "main",
+        "/private/tmp/t107-real-gl2v8g6i/repo-one"
+      ],
+      "exit": 0,
+      "stdout": "Initialized empty Git repository in /private/tmp/t107-real-gl2v8g6i/repo-one/.git/\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-gl2v8g6i/repo-one",
+        "add",
+        "."
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-gl2v8g6i/repo-one",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "fixture base"
+      ],
+      "exit": 0,
+      "stdout": "[main (root-commit) 8a805d9] fixture base\n 1 file changed, 1 insertion(+)\n create mode 100644 content\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "init",
+        "-b",
+        "main",
+        "/private/tmp/t107-real-gl2v8g6i/repo-two"
+      ],
+      "exit": 0,
+      "stdout": "Initialized empty Git repository in /private/tmp/t107-real-gl2v8g6i/repo-two/.git/\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-gl2v8g6i/repo-two",
+        "add",
+        "."
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-gl2v8g6i/repo-two",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "fixture base"
+      ],
+      "exit": 0,
+      "stdout": "[main (root-commit) 8a805d9] fixture base\n 1 file changed, 1 insertion(+)\n create mode 100644 content\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-gl2v8g6i/repo-one",
+        "rev-parse",
+        "HEAD"
+      ],
+      "exit": 0,
+      "stdout": "8a805d9caf6706c60125f1c098ce231257ed7a5c\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-gl2v8g6i/repo-one",
+        "config",
+        "remote.origin.url",
+        "/private/tmp/t107-real-gl2v8g6i/unused-origin"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-gl2v8g6i/repo-one",
+        "config",
+        "remote.origin.fetch",
+        "+refs/heads/*:refs/remotes/origin/*"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-gl2v8g6i/repo-one",
+        "update-ref",
+        "refs/remotes/origin/main",
+        "8a805d9caf6706c60125f1c098ce231257ed7a5c"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-gl2v8g6i/repo-one",
+        "branch",
+        "--set-upstream-to=origin/main",
+        "main"
+      ],
+      "exit": 0,
+      "stdout": "branch 'main' set up to track 'origin/main'.\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-gl2v8g6i/repo-one",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-am",
+        "fixture ahead"
+      ],
+      "exit": 0,
+      "stdout": "[main 07d842c] fixture ahead\n 1 file changed, 1 insertion(+), 1 deletion(-)\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-gl2v8g6i/repo-one",
+        "status",
+        "-sb"
+      ],
+      "exit": 0,
+      "stdout": "## main...origin/main [ahead 1]\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-gl2v8g6i/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-gl2v8g6i/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":60094,\"root\":\"/private/tmp/t107-real-gl2v8g6i/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-gl2v8g6i/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-gl2v8g6i/state",
+        "pane_layout"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"recovering\":false,\"saved\":true,\"panes\":[{\"launch\":\"agent-0\",\"task\":\"task-0\",\"position\":0,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-1\",\"task\":\"task-0\",\"position\":1,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-2\",\"task\":\"task-0\",\"position\":2,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-3\",\"task\":\"task-0\",\"position\":3,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-4\",\"task\":\"task-0\",\"position\":4,\"native_session\":null,\"resume_argv\":null}],\"arrangement\":null}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-gl2v8g6i/baseline/workbench/app/build.mjs",
+        "--slot",
+        "t107-red-5b1120bf"
+      ],
+      "exit": 0,
+      "stdout": "{\"schema\":1,\"out\":\"/private/tmp/a2a-build-t107-red-5b1120bf/dist\",\"main\":\"/private/tmp/a2a-build-t107-red-5b1120bf/dist/main.mjs\",\"preload\":\"/private/tmp/a2a-build-t107-red-5b1120bf/dist/preload.cjs\",\"renderer\":\"/private/tmp/a2a-build-t107-red-5b1120bf/dist/renderer/index.html\",\"cacheDir\":\"/private/tmp/a2a-build-t107-red-5b1120bf/vite-cache\",\"temporary\":\"/private/tmp/a2a-build-t107-red-5b1120bf/tmp\",\"source\":\"/private/tmp/t107-real-gl2v8g6i/baseline/workbench/app\"}\n",
+      "stderr": "[plugin builtin:vite-reporter] \n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\n"
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-gl2v8g6i/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-gl2v8g6i/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":60094,\"stopping\":true}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "--experimental-vm-modules",
+        "/private/tmp/a2a-t133-c3/workbench/tests/test_t107_daemon_readonly.mjs",
+        "/private/tmp/t107-real-gl2v8g6i/daemon-identity.json",
+        "/private/tmp/t107-real-gl2v8g6i/candidate",
+        "identity"
+      ],
+      "exit": 0,
+      "stdout": "{\"status\":\"PASS\",\"mode\":\"identity\",\"source\":\"/private/tmp/t107-real-gl2v8g6i/candidate\",\"root\":\"/private/tmp/t107-daemon-read-1bESaE\",\"model_calls\":0,\"scope\":\"actual daemon/socket/Panes/collector/SQLite/traces; seeded PTY identity, no CLI or model\",\"observed\":\"unknown\",\"cleanup_complete\":true}\n",
+      "stderr": "(node:60117) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:60117) ExperimentalWarning: VM Modules is an experimental feature and might change at any time\n"
+    },
+    {
+      "argv": [
+        "node",
+        "--experimental-vm-modules",
+        "/private/tmp/a2a-t133-c3/workbench/tests/test_t107_daemon_readonly.mjs",
+        "/private/tmp/t107-real-gl2v8g6i/daemon-readonly.json",
+        "/private/tmp/t107-real-gl2v8g6i/candidate",
+        "readonly"
+      ],
+      "exit": 0,
+      "stdout": "{\"status\":\"PASS\",\"mode\":\"readonly\",\"source\":\"/private/tmp/t107-real-gl2v8g6i/candidate\",\"root\":\"/private/tmp/t107-daemon-read-y5rJCM\",\"model_calls\":0,\"scope\":\"actual daemon/socket/Panes/collector/SQLite/traces; seeded PTY identity, no CLI or model\",\"observed\":\"unknown\",\"databases\":[\"locks/t.sqlite3\",\"membership.sqlite3\",\"state.sqlite3\"],\"trace_files\":[\"traces/launch/pty.raw\"],\"cleanup_complete\":true}\n",
+      "stderr": "(node:60177) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:60177) ExperimentalWarning: VM Modules is an experimental feature and might change at any time\n"
+    },
+    {
+      "argv": [
+        "node",
+        "--experimental-vm-modules",
+        "/private/tmp/a2a-t133-c3/workbench/tests/test_t107_daemon_readonly.mjs",
+        "/private/tmp/t107-real-gl2v8g6i/daemon-filename.json",
+        "/private/tmp/t107-real-gl2v8g6i/candidate",
+        "filename"
+      ],
+      "exit": 0,
+      "stdout": "{\"status\":\"PASS\",\"mode\":\"filename\",\"source\":\"/private/tmp/t107-real-gl2v8g6i/candidate\",\"root\":\"/private/tmp/t107-daemon-read-FVpFnq\",\"model_calls\":0,\"scope\":\"actual daemon/socket/Panes/collector/SQLite/traces; seeded PTY identity, no CLI or model\",\"before_question\":\"running\",\"observed\":\"unknown\",\"filename\":\"/private/tmp/t107-daemon-read-FVpFnq/state/native-home/sessions/2026/10/22/root-session.jsonl\",\"cleanup_complete\":true}\n",
+      "stderr": "(node:60236) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:60236) ExperimentalWarning: VM Modules is an experimental feature and might change at any time\n"
+    },
+    {
+      "argv": [
+        "node",
+        "--experimental-vm-modules",
+        "/private/tmp/a2a-t133-c3/workbench/tests/test_t107_daemon_readonly.mjs",
+        "/private/tmp/t107-real-gl2v8g6i/daemon-rollout.json",
+        "/private/tmp/t107-real-gl2v8g6i/candidate",
+        "rollout"
+      ],
+      "exit": 0,
+      "stdout": "{\"status\":\"PASS\",\"mode\":\"rollout\",\"source\":\"/private/tmp/t107-real-gl2v8g6i/candidate\",\"root\":\"/private/tmp/t107-daemon-read-dhPReC\",\"model_calls\":0,\"scope\":\"actual daemon/socket/Panes/collector/SQLite/traces; seeded PTY identity, no CLI or model\",\"before_question\":\"running\",\"observed\":\"unknown\",\"filename\":\"/private/tmp/t107-daemon-read-dhPReC/state/native-home/sessions/2026/10/22/rollout-2026-10-19T12-00-00-root-session.jsonl\",\"cleanup_complete\":true}\n",
+      "stderr": "(node:60301) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:60301) ExperimentalWarning: VM Modules is an experimental feature and might change at any time\n"
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-gl2v8g6i/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-gl2v8g6i/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":60375,\"root\":\"/private/tmp/t107-real-gl2v8g6i/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-gl2v8g6i/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-gl2v8g6i/state",
+        "pane_layout"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"recovering\":false,\"saved\":true,\"panes\":[{\"launch\":\"agent-0\",\"task\":\"project-0+task-0\",\"position\":0,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-1\",\"task\":\"project-0+task-0\",\"position\":1,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-2\",\"task\":\"project-0+task-0\",\"position\":2,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-3\",\"task\":\"project-0+task-0\",\"position\":3,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-4\",\"task\":\"project-0+task-0\",\"position\":4,\"native_session\":null,\"resume_argv\":null}],\"arrangement\":null}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-gl2v8g6i/candidate/workbench/app/build.mjs",
+        "--slot",
+        "t107-green-adacf5c4"
+      ],
+      "exit": 0,
+      "stdout": "{\"schema\":1,\"out\":\"/private/tmp/a2a-build-t107-green-adacf5c4/dist\",\"main\":\"/private/tmp/a2a-build-t107-green-adacf5c4/dist/main.mjs\",\"preload\":\"/private/tmp/a2a-build-t107-green-adacf5c4/dist/preload.cjs\",\"renderer\":\"/private/tmp/a2a-build-t107-green-adacf5c4/dist/renderer/index.html\",\"cacheDir\":\"/private/tmp/a2a-build-t107-green-adacf5c4/vite-cache\",\"temporary\":\"/private/tmp/a2a-build-t107-green-adacf5c4/tmp\",\"source\":\"/private/tmp/t107-real-gl2v8g6i/candidate/workbench/app\"}\n",
+      "stderr": "[plugin builtin:vite-reporter] \n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\n"
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-gl2v8g6i/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-gl2v8g6i/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":60375,\"stopping\":true}\n",
+      "stderr": ""
+    }
+  ],
+  "limitations": [
+    "等待用户回答、等待主控回答的真实信号缺口未解决；七状态验收 INCOMPLETE。",
+    "现有 worker 派发无具体父 launch 绑定，worker/reviewer 在未归属的任务下；完整层级验收 INCOMPLETE。",
+    "真实系统通知未触发；转换和开关只由 IPC 合同验证。"
+  ],
+  "error": "AssertionError({'expected': None, 'UI condition not reached': {'text': 'project-0\\nmain · ↑1 ↓0\\n7\\n未知\\n构思主控\\ntask-0 · codex\\n未恢复\\n4 天\\n执行主控\\ntask-0 · codex\\n未恢复\\n4 天\\n未归属\\nworker\\ntask-0 · codex\\n未恢复\\n4 天\\nworker\\ntask-0 · codex\\n未恢复\\n4 天\\n审查员\\ntask-0 · codex\\n未恢复\\n4 天\\n监视器\\ntask-0 · codex\\n未知\\n4 天\\nworker\\ntask-0 · codex\\n已结束\\n4 天\\nproject-1\\nmain · 无上游\\n未知\\n独立终端\\n家目录\\n刷新列表\\n独立项目任务 0\\nproject-0 / task-0\\n终端\\n流程\\n问题\\n记录\\n指标\\nReflect\\n后台已连接\\n新建终端\\n任务\\n独立项目任务 0\\n待认领\\n未恢复：restore_record_unrecognized。启动记录已保留。\\n构思主控\\ntask-0 · codex-cli 0.163.0\\n只读\\n未知\\n关闭窗格\\n独立\\n历史\\n启动\\n记录\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n独立历史启动记录\\n独立\\n历史\\n启动\\n记录\\n \\n在此窗格输入会记录为用户输入\\n执行：未知\\n未恢复：restore_record_unrecognized。启动记录已保留。\\n执行主控\\ntask-0 · codex-cli 0.163.0\\n只读\\n未知\\n关闭窗格\\n独立\\n历史\\n启动\\n记录\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n独立历史启动记录\\n独立\\n历史\\n启动\\n记录\\n \\n在此窗格输入会记录为用户输入\\n执行：未知\\n未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。\\n受管 worker\\ntask-0 · attempt attempt- · codex-cli 0.163.0\\n历史 attempt · 只读\\n只读\\n未知\\n关闭窗格\\n独立历史启动记\\n录\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n独立历史启动记录\\n独立历史启动记\\n录\\n \\n在此窗格输入会记录为人工介入\\n执行：未知\\n未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。\\n受管 worker\\ntask-0 · attempt attempt- · codex-cli 0.163.0\\n历史 attempt · 只读\\n只读\\n未知\\n关闭窗格\\n独立历史启动记录\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n独立历史启动记录\\n独立历史启动记录\\n \\n在此窗格输入会记录为人工介入\\n执行：未知\\n未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。\\n独立审查\\ntask-0 · attempt attempt- · codex-cli 0.163.0\\n历史 attempt · 只读\\n只读\\n未知\\n关闭窗格\\n独立历史启动记录\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n独立历史启动记录\\n独立历史启动记录\\n \\n独立审查 · 只读\\n执行：未知\\n门禁\\n待认领\\n执行尝试\\n尚未认领\\n候选提交\\n尚未交付\\n验收\\n尚未开始\\n集成\\n尚未开始', 'bridge': ['paneKeys', 'home', 'executionSettings', 'projects', 'flow', 'sidebar', 'selectAgent', 'decideRoleRequest', 'notificationSetting', 'tasks', 'issues', 'answerIssue', 'disposeIssue', 'records', 'metrics', 'archiveUsage', 'reflect', 'retrospectives', 'startRetrospective', 'saveRetrospectiveSchedule', 'decideRetrospectiveSuggestion', 'selection', 'openProject', 'removeProject', 'selectProject', 'selectTask', 'newTerminal', 'theme', 'paneAction', 'resize', 'snapshot', 'closePane', 'output', 'input', 'answer', 'beginComposition', 'releaseQueue', 'observeFocus'], 'node': 'undefined', 'projects': [{'id': 'project-0', 'text': 'project-0\\nmain · ↑1 ↓0\\n7\\n未知', 'state': 'unknown', 'selected': 'page', 'disabled': False}, {'id': 'project-1', 'text': 'project-1\\nmain · 无上游\\n未知', 'state': 'unknown', 'selected': None, 'disabled': False}], 'agents': [{'id': 'agent-0', 'parent': '', 'level': 0, 'state': 'unrestored', 'text': '构思主控\\ntask-0 · codex\\n未恢复\\n4 天', 'x': 28, 'overflow': False, 'disabled': False, 'visible': True}, {'id': 'agent-1', 'parent': 'agent-0', 'level': 1, 'state': 'unrestored', 'text': '执行主控\\ntask-0 · codex\\n未恢复\\n4 天', 'x': 42, 'overflow': False, 'disabled': False, 'visible': True}, {'id': 'agent-2', 'parent': '', 'level': 0, 'state': 'unrestored', 'text': 'worker\\ntask-0 · codex\\n未恢复\\n4 天', 'x': 28, 'overflow': False, 'disabled': False, 'visible': True}, {'id': 'agent-3', 'parent': '', 'level': 0, 'state': 'unrestored', 'text': 'worker\\ntask-0 · codex\\n未恢复\\n4 天', 'x': 28, 'overflow': False, 'disabled': False, 'visible': True}, {'id': 'agent-4', 'parent': '', 'level': 0, 'state': 'unrestored', 'text': '审查员\\ntask-0 · codex\\n未恢复\\n4 天', 'x': 28, 'overflow': False, 'disabled': False, 'visible': True}, {'id': 'agent-5', 'parent': '', 'level': 0, 'state': 'unknown', 'text': '监视器\\ntask-0 · codex\\n未知\\n4 天', 'x': 28, 'overflow': False, 'disabled': False, 'visible': True}, {'id': 'agent-6', 'parent': '', 'level': 0, 'state': 'ended', 'text': 'worker\\ntask-0 · codex\\n已结束\\n4 天', 'x': 28, 'overflow': False, 'disabled': False, 'visible': True}], 'summaries': [], 'panes': [{'key': 'aca55d14-2481-46bd-b8d1-ce292cb499f5', 'launch': 'agent-0', 'input': 'false', 'alerts': ['未恢复：restore_record_unrecognized。启动记录已保留。']}, {'key': '23ede9b9-73f7-4e4f-9054-7571dbaeca94', 'launch': 'agent-1', 'input': 'false', 'alerts': ['未恢复：restore_record_unrecognized。启动记录已保留。']}, {'key': 'f5d1afa7-6c47-4e7a-b7ef-c8188274aca4', 'launch': 'agent-2', 'input': 'false', 'alerts': ['未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。']}, {'key': '535530fb-c800-49c0-9801-4ea0778d1e16', 'launch': 'agent-3', 'input': 'false', 'alerts': ['未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。']}, {'key': '12e1b4a6-52ed-49c9-b2c6-f5d3e86f6fc1', 'launch': 'agent-4', 'input': 'false', 'alerts': ['未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。']}], 'task': 'project-0 / task-0', 'alerts': ['未恢复：restore_record_unrecognized。启动记录已保留。', '未恢复：restore_record_unrecognized。启动记录已保留。', '未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。', '未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。', '未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。'], 'notificationChecked': True, 'unassigned': '未归属\\nworker\\ntask-0 · codex\\n未恢复\\n4 天\\nworker\\ntask-0 · codex\\n未恢复\\n4 天\\n审查员\\ntask-0 · codex\\n未恢复\\n4 天\\n监视器\\ntask-0 · codex\\n未知\\n4 天\\nworker\\ntask-0 · codex\\n已结束\\n4 天'}})",
+  "traceback": "Traceback (most recent call last):\n  File \"/private/tmp/a2a-t133-c3/workbench/tests/run_t107_sidebar.py\", line 214, in main\n    view = green.wait(lambda row: row.get('focusedLaunch') == launch and not any(agent['disabled'] for agent in row['agents'])\n  File \"/private/tmp/a2a-t133-c3/workbench/tests/run_t103_picker.py\", line 95, in wait\n    raise AssertionError({'expected': expected, 'UI condition not reached': value})\nAssertionError: {'expected': None, 'UI condition not reached': {'text': 'project-0\\nmain · ↑1 ↓0\\n7\\n未知\\n构思主控\\ntask-0 · codex\\n未恢复\\n4 天\\n执行主控\\ntask-0 · codex\\n未恢复\\n4 天\\n未归属\\nworker\\ntask-0 · codex\\n未恢复\\n4 天\\nworker\\ntask-0 · codex\\n未恢复\\n4 天\\n审查员\\ntask-0 · codex\\n未恢复\\n4 天\\n监视器\\ntask-0 · codex\\n未知\\n4 天\\nworker\\ntask-0 · codex\\n已结束\\n4 天\\nproject-1\\nmain · 无上游\\n未知\\n独立终端\\n家目录\\n刷新列表\\n独立项目任务 0\\nproject-0 / task-0\\n终端\\n流程\\n问题\\n记录\\n指标\\nReflect\\n后台已连接\\n新建终端\\n任务\\n独立项目任务 0\\n待认领\\n未恢复：restore_record_unrecognized。启动记录已保留。\\n构思主控\\ntask-0 · codex-cli 0.163.0\\n只读\\n未知\\n关闭窗格\\n独立\\n历史\\n启动\\n记录\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n独立历史启动记录\\n独立\\n历史\\n启动\\n记录\\n \\n在此窗格输入会记录为用户输入\\n执行：未知\\n未恢复：restore_record_unrecognized。启动记录已保留。\\n执行主控\\ntask-0 · codex-cli 0.163.0\\n只读\\n未知\\n关闭窗格\\n独立\\n历史\\n启动\\n记录\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n独立历史启动记录\\n独立\\n历史\\n启动\\n记录\\n \\n在此窗格输入会记录为用户输入\\n执行：未知\\n未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。\\n受管 worker\\ntask-0 · attempt attempt- · codex-cli 0.163.0\\n历史 attempt · 只读\\n只读\\n未知\\n关闭窗格\\n独立历史启动记\\n录\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n独立历史启动记录\\n独立历史启动记\\n录\\n \\n在此窗格输入会记录为人工介入\\n执行：未知\\n未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。\\n受管 worker\\ntask-0 · attempt attempt- · codex-cli 0.163.0\\n历史 attempt · 只读\\n只读\\n未知\\n关闭窗格\\n独立历史启动记录\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n独立历史启动记录\\n独立历史启动记录\\n \\n在此窗格输入会记录为人工介入\\n执行：未知\\n未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。\\n独立审查\\ntask-0 · attempt attempt- · codex-cli 0.163.0\\n历史 attempt · 只读\\n只读\\n未知\\n关闭窗格\\n独立历史启动记录\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n独立历史启动记录\\n独立历史启动记录\\n \\n独立审查 · 只读\\n执行：未知\\n门禁\\n待认领\\n执行尝试\\n尚未认领\\n候选提交\\n尚未交付\\n验收\\n尚未开始\\n集成\\n尚未开始', 'bridge': ['paneKeys', 'home', 'executionSettings', 'projects', 'flow', 'sidebar', 'selectAgent', 'decideRoleRequest', 'notificationSetting', 'tasks', 'issues', 'answerIssue', 'disposeIssue', 'records', 'metrics', 'archiveUsage', 'reflect', 'retrospectives', 'startRetrospective', 'saveRetrospectiveSchedule', 'decideRetrospectiveSuggestion', 'selection', 'openProject', 'removeProject', 'selectProject', 'selectTask', 'newTerminal', 'theme', 'paneAction', 'resize', 'snapshot', 'closePane', 'output', 'input', 'answer', 'beginComposition', 'releaseQueue', 'observeFocus'], 'node': 'undefined', 'projects': [{'id': 'project-0', 'text': 'project-0\\nmain · ↑1 ↓0\\n7\\n未知', 'state': 'unknown', 'selected': 'page', 'disabled': False}, {'id': 'project-1', 'text': 'project-1\\nmain · 无上游\\n未知', 'state': 'unknown', 'selected': None, 'disabled': False}], 'agents': [{'id': 'agent-0', 'parent': '', 'level': 0, 'state': 'unrestored', 'text': '构思主控\\ntask-0 · codex\\n未恢复\\n4 天', 'x': 28, 'overflow': False, 'disabled': False, 'visible': True}, {'id': 'agent-1', 'parent': 'agent-0', 'level': 1, 'state': 'unrestored', 'text': '执行主控\\ntask-0 · codex\\n未恢复\\n4 天', 'x': 42, 'overflow': False, 'disabled': False, 'visible': True}, {'id': 'agent-2', 'parent': '', 'level': 0, 'state': 'unrestored', 'text': 'worker\\ntask-0 · codex\\n未恢复\\n4 天', 'x': 28, 'overflow': False, 'disabled': False, 'visible': True}, {'id': 'agent-3', 'parent': '', 'level': 0, 'state': 'unrestored', 'text': 'worker\\ntask-0 · codex\\n未恢复\\n4 天', 'x': 28, 'overflow': False, 'disabled': False, 'visible': True}, {'id': 'agent-4', 'parent': '', 'level': 0, 'state': 'unrestored', 'text': '审查员\\ntask-0 · codex\\n未恢复\\n4 天', 'x': 28, 'overflow': False, 'disabled': False, 'visible': True}, {'id': 'agent-5', 'parent': '', 'level': 0, 'state': 'unknown', 'text': '监视器\\ntask-0 · codex\\n未知\\n4 天', 'x': 28, 'overflow': False, 'disabled': False, 'visible': True}, {'id': 'agent-6', 'parent': '', 'level': 0, 'state': 'ended', 'text': 'worker\\ntask-0 · codex\\n已结束\\n4 天', 'x': 28, 'overflow': False, 'disabled': False, 'visible': True}], 'summaries': [], 'panes': [{'key': 'aca55d14-2481-46bd-b8d1-ce292cb499f5', 'launch': 'agent-0', 'input': 'false', 'alerts': ['未恢复：restore_record_unrecognized。启动记录已保留。']}, {'key': '23ede9b9-73f7-4e4f-9054-7571dbaeca94', 'launch': 'agent-1', 'input': 'false', 'alerts': ['未恢复：restore_record_unrecognized。启动记录已保留。']}, {'key': 'f5d1afa7-6c47-4e7a-b7ef-c8188274aca4', 'launch': 'agent-2', 'input': 'false', 'alerts': ['未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。']}, {'key': '535530fb-c800-49c0-9801-4ea0778d1e16', 'launch': 'agent-3', 'input': 'false', 'alerts': ['未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。']}, {'key': '12e1b4a6-52ed-49c9-b2c6-f5d3e86f6fc1', 'launch': 'agent-4', 'input': 'false', 'alerts': ['未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。']}], 'task': 'project-0 / task-0', 'alerts': ['未恢复：restore_record_unrecognized。启动记录已保留。', '未恢复：restore_record_unrecognized。启动记录已保留。', '未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。', '未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。', '未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。'], 'notificationChecked': True, 'unassigned': '未归属\\nworker\\ntask-0 · codex\\n未恢复\\n4 天\\nworker\\ntask-0 · codex\\n未恢复\\n4 天\\n审查员\\ntask-0 · codex\\n未恢复\\n4 天\\n监视器\\ntask-0 · codex\\n未知\\n4 天\\nworker\\ntask-0 · codex\\n已结束\\n4 天'}}\n",
+  "cleanup_complete": true,
+  "retained_fixture": "/private/tmp/t107-real-gl2v8g6i",
+  "retained_builds": [
+    "/private/tmp/a2a-build-t107-red-5b1120bf",
+    "/private/tmp/a2a-build-t107-green-adacf5c4"
+  ]
+}
