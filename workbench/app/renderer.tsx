@@ -128,11 +128,17 @@ function SessionPane({ paneKey, name, home, focusRequest, zoomed, onZoom, onActi
   const reconnect = useRef<() => void>(() => {});
   const releaseQueue = useRef<() => void>(() => {});
   const [terminal, setTerminal] = useState<Terminal | null>(null);
-  useEffect(() => { if (focusRequest && terminal) terminal.focus(); }, [focusRequest, terminal]);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(true);
   const [restoring, setRestoring] = useState(true);
+  // The mount is hidden while its backlog replays (T-118) and a hidden element takes no focus, so a request made then
+  // waits for the reveal. Each request is served once, so a later reconnect does not take focus back.
+  const servedFocus = useRef(0);
+  useEffect(() => {
+    if (!focusRequest || !terminal || restoring || servedFocus.current === focusRequest) return;
+    servedFocus.current = focusRequest; terminal.focus();
+  }, [focusRequest, terminal, restoring]);
   const [offset, setOffset] = useState(0);
   const [inputError, setInputError] = useState<string | null>(null);
   const [releasing, setReleasing] = useState(false);

@@ -21,6 +21,7 @@ void run({ state: values.state, task: values.task, userData: values['user-data']
     panes: [...document.querySelectorAll('section.pane')].map(n=>({key:n.dataset.paneKey,launch:n.dataset.launchId,input:n.dataset.inputEnabled,
       alerts:[...n.querySelectorAll('[role=alert]')].map(a=>a.textContent)})),
     focusedLaunch: document.activeElement?.closest('section.pane')?.dataset.launchId,
+    active: (e=>e&&[e.tagName,e.className,e.closest('section.pane')?'in-pane':'',e.closest('[data-pane-key]')?.dataset.paneKey||''].join('|'))(document.activeElement), hasFocus: document.hasFocus(),
     task: document.querySelector('.task-header .eyebrow')?.textContent,
     alerts:[...document.querySelectorAll('[role=alert]')].map(n=>n.textContent),
     notificationChecked: document.querySelector('.sidebar-settings input')?.checked,

@@ -182,6 +182,11 @@ def main():
             assert result['status'] == 'PASS' and result['cleanup_complete'], result
         report['checks'].append(dict(name='实际 daemon：根／辅助会话隔离、未消费日志下全部表与 trace 零写入', status='PASS'))
         start(candidate)
+        # The candidate's start migrates the fixture's task ids to project+task (T-123, gates/core.ts); the UI below must
+        # leave the migrated values as they are.
+        with sqlite3.connect(state / 'state.sqlite3') as db:
+            before = list(db.execute('SELECT id,data FROM tasks ORDER BY id'))
+        assert [row[0] for row in before] == ['project-0+task-0', 'project-1+task-1'], before
         green_build = build(candidate, 'green')
         green = window(candidate, green_build, 'green')
         green.wait(lambda row: len(row['projects']) == 2 and 'sidebar' in row['bridge'] and not any(project['disabled'] for project in row['projects']))
@@ -224,7 +229,10 @@ def main():
         view = green.wait(lambda row: len(row['agents']) == 7 and not any(agent['disabled'] for agent in row['agents']))
         assert not any(row['overflow'] for row in view['agents'])
         green.call('project', target='project-1')
-        green.wait(lambda row: not row['agents'] and row['task'].endswith('/repo-two') and not any(project['disabled'] for project in row['projects']))
+        # Since 3070bbe1a every project lists its own agents under its row (T-107 "全部项目分组"); project-1 has none,
+        # so choosing it keeps project-0's seven and moves the terminal area to repo-two.
+        green.wait(lambda row: len(row['agents']) == 7 and row['task'].endswith('/repo-two') and not any(project['disabled'] for project in row['projects'])
+                   and next(project for project in row['projects'] if project['id'] == 'project-1')['selected'] == 'page')
         green.call('project', target='project-0')
         green.wait(lambda row: len(row['agents']) == 7 and row['task'].endswith('/repo-one') and not any(agent['disabled'] for agent in row['agents']))
         green.call('notifications')
