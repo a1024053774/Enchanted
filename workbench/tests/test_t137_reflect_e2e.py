@@ -10,6 +10,8 @@
 4. 在 Reflect 页开启定期复盘，把执行者改成 Claude Code · claude-haiku-5-5 · low 并保存；注入时钟到下一个时间点，启动一次，
    用的是刚选的模型与强度。
 5. 在 Reflect 页选模型与强度点“立即复盘”，报告进 findings/，建议出现在页面上。原“复盘”页签不再出现。
+6. 后台重启后，保存过的周期设置不变（出厂默认只在设置表为空时写入）。
+（审查 01 后补充：E2 还给 T-2 挂了一个监视器，挂在 E2 下；T-3 由桌面的操作员身份派出、没有主控，进“未归属”。）
 
 失败方式（先列再写）：
 1. 默认开启，到点自己启动。
@@ -33,7 +35,7 @@ import uuid
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from scripted_claude import Electron, Fixture, prompt_text, quote, working_directory  # noqa: E402
 
-FILES = {'T-1': 'a.txt', 'T-2': 'b.txt'}
+FILES = {'T-1': 'a.txt', 'T-2': 'b.txt', 'T-3': 'c.txt'}
 MODEL = 'claude-haiku-5-5'
 SCORE = dict(result='通过', boundary_discipline=3, boundary_reason='只改了 a.txt', engineering_taste=2, engineering_reason='提交信息偏简单', notes='T-137 fixture')
 REPORT = '# 复盘\n\nT-137 夹具复盘报告。\n'
@@ -48,7 +50,7 @@ def main():
     parser.add_argument('--claude', default=shutil.which('claude') or str(Path.home() / '.local/bin/claude'))
     target = parser.add_mutually_exclusive_group()
     target.add_argument('--revision')
-    target.add_argument('--mutant', choices=['schedule-on-by-default', 'ended-not-listed', 'role-by-terminal-only', 'score-on-attempt'])
+    target.add_argument('--mutant', choices=['schedule-on-by-default', 'ended-not-listed', 'role-by-terminal-only', 'score-on-attempt', 'defaults-overwrite-saved'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
     report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant, checks=[], observed={})
@@ -58,8 +60,11 @@ def main():
         'ended-not-listed': [('src/reflect.ts', "const held = roleRequests.filter(row => row.project === project && row.confirmed_at);",
                               "const held = roleRequests.filter(row => row.project === project && row.confirmed_at && row.state !== 'ended');")],
         # A session under a terminal goes to the first role that terminal ever held.
-        'role-by-terminal-only': [('src/reflect.ts', "const roleAt = (launch: string, time: string) => held.find(row => row.launch === launch && row.confirmed_at! <= time &&",
+        'role-by-terminal-only': [('src/reflect.ts', "const roleAt = (launch: string, time: string) => held.findLast(row => row.launch === launch && row.confirmed_at! <= time &&",
                                    "const roleAt = (launch: string, time: string) => held.find(row => row.launch === launch || row.confirmed_at! <= time &&")],
+        # Review 01: the factory default written over the saved schedule on every start.
+        'defaults-overwrite-saved': [('src/retrospective.ts', "db.prepare('INSERT INTO retrospective_schedule(data) VALUES (?)').run(JSON.stringify({ ...defaults, effective_from: new Date().toISOString() }));",
+                                      "{}\n    db.prepare('INSERT INTO retrospective_schedule(data) VALUES (?)').run(JSON.stringify({ ...defaults, effective_from: new Date().toISOString() }));")],
         # The score attached by attempt to every session of it, the reviewer's included.
         'score-on-attempt': [('src/reflect.ts', "score: record.role === 'worker' ? scores.get(record.id) ?? null : null });",
                               "score: [...scores.values()].find(score => score.attempt === record.attempt) ?? null });")],
@@ -74,6 +79,8 @@ def main():
             return 'retro:' + out, [('Write', dict(file_path=f'{out}/report.md', content=REPORT)),
                                     ('Write', dict(file_path=f'{out}/suggestions.json', content=json.dumps(
                                         [dict(title=SUGGESTION, body='T-1 的审查发现完成条件没先跑。', kind='role-card')], ensure_ascii=False)))], '复盘写完了。'
+        if '角色卡：monitor' in text:
+            return 'monitor', [('Bash', dict(command='git log --oneline -3', description='observe'))], '观察完毕：没有发现问题。'
         if '审查这一次交付' in text:
             shape = json.loads(text[text.rindex('{\n  "schema": 1'):])
             task = next(task for task in FILES if f'demo+{task}' in text)
@@ -179,9 +186,14 @@ def main():
             fixture.card(task, name, f'check_{task}.py')
         workers = {}
         for task in FILES:
-            dispatched = fixture.request('dispatch', executor, task=task, runtimeMode='workspace-write')
+            # T-3 is dispatched from the desktop's operator identity, with no controller: an unassigned session.
+            dispatched = fixture.request('dispatch', executor if task != 'T-3' else fixture.operator, task=task, runtimeMode='workspace-write')
             assert dispatched.get('ok'), dispatched
             workers[task] = dispatched['attempt']['runtime_identity']['launch']
+        instructions = fixture.out / 'monitor.txt'
+        instructions.write_text('看一下项目最近的提交，写一句观察。\n', encoding='utf-8')
+        attached = fixture.request('attach', executor, task='T-2', role='monitor', instructions=str(instructions), cli='Claude Code', model=MODEL, effort='low')
+        assert attached.get('ok'), attached
         for task in FILES:
             fixture.wait(f'{task} 交付', lambda: status(task)['state'] == 'submitted', 180)
         verified = fixture.request('verify', executor, task='T-1')
@@ -207,21 +219,27 @@ def main():
         check('reflect_tab_replaces_retrospective_tab', 'Reflect' in tabs and '复盘' not in tabs and
               not electron.evaluate("!!document.querySelector('[data-retrospective-tab]')"), tabs)
         electron.evaluate("document.querySelector('[data-reflect-tab]').click()")
-        electron.until('会话树', f"document.querySelectorAll('.reflect-node').length >= 6", 30)
+        electron.until('会话树', f"document.querySelectorAll('.reflect-node').length >= 8", 30)
         nodes = tree()
         report['observed']['tree'] = nodes
         electron.screenshot(fixture.out / '01-reflect-tree.png')
         by = {n['id']: n for n in nodes}
         reviewers = [n for n in nodes if n['role'] == '审查员']
+        monitors = [n for n in nodes if n['role'] == '监视器']
+        loose = electron.evaluate("[...document.querySelectorAll('.reflect-loose .reflect-node')].map(n=>n.dataset.reflectNode)")
+        report['observed']['loose'] = loose
         check('ended_controllers_listed', by.get(i1, {}).get('state') == 'ended' and by[i1]['level'] == '0' and by[i1]['role'] == '构思主控' and
               by.get(e1, {}).get('state') == 'ended' and by[e1]['role'] == '执行主控', nodes)
         check('executor_under_ended_ideation', by.get(e2, {}).get('parent') == i1 and by[e2]['level'] == '1' and by[e2]['state'] == 'running', nodes)
-        check('sessions_under_the_role_held_when_they_started', all(by.get(workers[t], {}).get('parent') == e2 and by[workers[t]]['level'] == '2' for t in FILES) and
+        check('sessions_under_the_role_held_when_they_started', all(by.get(workers[t], {}).get('parent') == e2 and by[workers[t]]['level'] == '2' for t in ('T-1', 'T-2')) and
               len(reviewers) == 1 and reviewers[0]['parent'] == e2 and reviewers[0]['state'] == 'ended' and
+              len(monitors) == 1 and monitors[0]['parent'] == e2 and monitors[0]['level'] == '2' and
               not any(n['parent'] == e1 for n in nodes), nodes)
         check('score_on_scored_worker_only', by[workers['T-1']]['score'] == dict(result='通过', boundary=f"3（{SCORE['boundary_reason']}）", taste=f"2（{SCORE['engineering_reason']}）") and
               recorded[0]['data']['boundary_discipline'] == 3 and recorded[0]['data']['engineering_taste'] == 2 and recorded[0]['launch_id'] == workers['T-1'] and
               by[workers['T-2']]['score'] is None and reviewers[0]['score'] is None, nodes)
+
+        check('session_without_controller_unassigned', by.get(workers['T-3'], {}).get('parent') == '' and loose == [workers['T-3']], dict(loose=loose, nodes=nodes))
 
         # 4: switch the schedule on and pick who runs it, on the Reflect page.
         electron.until('周期开关', "document.querySelector('[data-schedule-enabled]')?.checked === false", 20)
@@ -257,6 +275,14 @@ def main():
         report_path = Path(imported['data']['report'])
         check('retrospective_from_reflect_page', manual['trigger'] == 'manual' and manual['model'] == MODEL and manual['effort'] == 'low' and
               report_path.parent == fixture.repo / 'findings' and report_path.read_text(encoding='utf-8') == REPORT, report['observed']['manual'])
+
+        # 6: a restart keeps the saved schedule; the factory default only fills an empty table.
+        fixture.run_cli('daemon_stop')
+        fixture.run_cli('daemon_start', '--launch-config', str(fixture.dir / 'launch-config.json'))
+        fixture.wait('后台恢复结束', lambda: fixture.request('pane_layout').get('recovering') is False, 30)
+        kept = listing()['schedule']
+        report['observed']['schedule_after_restart'] = kept
+        check('saved_schedule_survives_restart', kept['enabled'] is True and kept['model'] == MODEL and kept['effort'] == 'low', kept)
         report['status'] = 'PASS'
     except BaseException as error:
         report['error'] = f'{type(error).__name__}: {error}'

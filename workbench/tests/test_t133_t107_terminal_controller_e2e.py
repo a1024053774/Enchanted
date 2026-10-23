@@ -8,6 +8,7 @@
    选第一个选项，之后主控跑一条 20 秒的命令，侧栏是“运行中”；回合结束后是“空闲”。
 3. 终端 X 里启动 claude，用户提交 REQUEST_EXECUTOR，它申请执行主控。界面上的批准卡片有“上级”选项，默认是终端 I 的
    构思主控；用户批准。侧栏里执行主控挂在构思主控下。
+（审查 01 后补充：同一次运行里，桌面操作员派出 T-1 的 worker，用户在问题面板答复它的上报、在它的窗格里打一段字，两条都标人工介入。）
 4. 用户在终端 I 让它放弃身份（`a2a release`），之后再提交 AFTER_RELEASE。
    记录页列出 IDEA_PROMPT、RELEASE（主控终端提交、构思主控）和对 AskUserQuestion 的答复，不列 REQUEST_IDEATION、
    REQUEST_EXECUTOR（批准之前）与 AFTER_RELEASE（身份结束之后）。
@@ -34,7 +35,7 @@ import time
 import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from scripted_claude import Electron, Fixture, prompt_text  # noqa: E402
+from scripted_claude import Electron, Fixture, gate_line, prompt_text, quote  # noqa: E402
 
 REQUEST_IDEATION = 'T-133：请申请构思主控'
 REQUEST_EXECUTOR = 'T-133：请申请执行主控'
@@ -43,6 +44,8 @@ QUESTION = '先做哪一个？'
 CHOICE = 'T-1 先做'
 RELEASE = 'T-133：请放弃构思主控身份'
 AFTER_RELEASE = 'T-133：放弃身份之后说的话'
+ANSWER = 'T-133：先按卡做，格式以后再说。'
+TYPED = 'T-133：用户在 worker 窗格里打的字'
 
 
 def main():
@@ -70,6 +73,17 @@ def main():
 
     def plan(body):
         text = json.dumps(body['messages'], ensure_ascii=False)
+        cwd = re.search(r'[Ww]orking directory: (/[^\s"\\]+)', json.dumps(body, ensure_ascii=False))
+        if cwd and cwd.group(1).endswith('/T-1-a1'):
+            # The managed worker: it reports an issue, then delivers.
+            first = prompt_text(body)
+            submit = re.search(r'显式交付：\n(.+)\n', first).group(1).replace("'FULL_COMMIT_SHA'", '"$(git rev-parse HEAD)"')
+            issue = gate_line(body, f"'issue' '--task' '{{task}}' '--title' {quote('a.txt 的格式没写')} '--body' {quote('先按纯文本做。')} '--blocking' 'false'")
+            return 'worker:T-1', [('Bash', dict(command=issue, description='issue')),
+                                  ('Write', dict(file_path=f'{cwd.group(1)}/a.txt', content='a\n')),
+                                  ('Bash', dict(command='git add a.txt', description='stage')),
+                                  ('Bash', dict(command='git commit -q -m "T-1 fixture change"', description='commit')),
+                                  ('Bash', dict(command=submit, description='submit'))], '已交付。'
         if REQUEST_EXECUTOR in text:
             return 'executor', [('Bash', dict(command='a2a request executor', description='request the executor role'))], '执行主控已获批。'
         assert REQUEST_IDEATION in text, prompt_text(body)[:300]
@@ -136,7 +150,7 @@ def main():
         return f"document.querySelector('.agent-row[data-agent-launch=\"{launch}\"]')?.dataset.agentState === {json.dumps(value)}"
 
     try:
-        fixture.start(args.claude, {'README.md': 'demo\n'})
+        fixture.start(args.claude, {'README.md': 'demo\n', 'check_T-1.py': 'import pathlib, sys\nsys.exit(0 if pathlib.Path("a.txt").is_file() else 1)\n'})
         # The fixture's own socket-only executor gives its role back, so the user's CLI can ask for it.
         assert fixture.request('role_release', fixture.terminal)['ok']
         # The fixture user already trusts the project in their own Claude and allows the two commands the controllers run.
@@ -207,6 +221,22 @@ def main():
         report['observed']['git'] = dict(branch=branch, ahead=ahead, behind=behind, shown=shown)
         check('branch_line_matches_git', shown == f'{branch} · ↑{ahead} ↓{behind}' and (ahead, behind) == ('1', '0'), report['observed']['git'])
 
+        # Review 01: a managed worker in the same run. The user answers its issue from the desktop and types in its pane.
+        fixture.terminal = fixture.operator
+        fixture.card('T-1', 'a.txt', 'check_T-1.py')
+        dispatched = fixture.request('dispatch', fixture.operator, task='T-1', runtimeMode='workspace-write')
+        assert dispatched.get('ok'), dispatched
+        views = fixture.wait('T-1 问题进门禁', lambda: fixture.request('issues', fixture.operator, task='T-1')['issues'], 120)
+        assert fixture.request('answer_issue', fixture.operator, task='T-1', issue=views[0]['issue']['id'], answer=ANSWER).get('ok')
+        fixture.wait('T-1 交付', lambda: fixture.request('status', fixture.operator, task='T-1')['task']['state'] == 'submitted', 180)
+        worker = dispatched['attempt']['runtime_identity']['launch']
+        pane = fixture.request('window_open', fixture.operator, launch=worker, task=dispatched['attempt']['task_id'])
+        assert pane['ok'], pane
+        for sequence, data in enumerate(['\x1b[200~' + TYPED + '\x1b[201~', '\r'], 1):
+            assert fixture.request('window_input', pane['identity'], sequence=sequence, request_id=str(uuid.uuid4()), data=data)['ok']
+            time.sleep(.5)
+        fixture.wait('键入送到 worker', lambda: any(TYPED in json.dumps(b['messages'], ensure_ascii=False) for b in fixture.api.bodies if b['key'] == 'worker:T-1'), 120)
+
         # The ideation controller gives its role back; what the user says after that is not a controller prompt.
         submit(ideation, RELEASE)
         fixture.wait('身份已放弃', lambda: not any(a['id'] == ideation['launch'] for a in fixture.request('sidebar_snapshot')['agents']), 60)
@@ -219,7 +249,7 @@ def main():
 
         # The records: only what the approved controller's CLI submitted, and the user's answer to its question.
         stored = [json.loads(row['data']) for row in database("SELECT data FROM user_inputs WHERE json_extract(data,'$.target.project')='demo' ORDER BY rowid")]
-        report['observed']['stored'] = [dict(form=i['form'], channel=i['channel'], text=i['text'], thread=i['target']['thread']) for i in stored]
+        report['observed']['stored'] = [dict(id=i['id'], form=i['form'], channel=i['channel'], text=i['text'], thread=i['target']['thread']) for i in stored]
         terminal_rows = [i for i in stored if i['channel'] == 'controller-terminal']
         check('only_approved_prompts_recorded', [(i['form'], i['text']) for i in terminal_rows] ==
               [('message', IDEA_PROMPT), ('answer', f'{QUESTION}：{CHOICE}'), ('message', RELEASE)] and
@@ -232,6 +262,12 @@ def main():
         listed = electron.evaluate("[...document.querySelectorAll('.user-input-page tr[data-input-id]')].map(r=>({id:r.dataset.inputId,text:r.innerText}))")
         report['observed']['records_rows'] = listed
         by_id = {row['id']: row['text'] for row in listed}
+        marked = {row['id'] for row in electron.evaluate("[...document.querySelectorAll('.user-input-page tr[data-input-id]')].filter(r=>r.dataset.intervention&&r.querySelector('.record-intervention')).map(r=>({id:r.dataset.inputId}))")}
+        typed = [i for i in stored if i['text'] == TYPED]
+        answer = [i for i in stored if i['form'] == 'answer' and ANSWER in i['text']]
+        check('three_kinds_in_one_view', len(typed) == 1 and len(answer) == 1 and typed[0]['id'] in marked and answer[0]['id'] in marked and
+              not any(i['id'] in marked for i in terminal_rows) and all(i['id'] in by_id for i in typed + answer + terminal_rows) and
+              not any('显式交付' in text for text in by_id.values()), dict(marked=sorted(marked), stored=report['observed']['stored']))
         check('records_page_shows_controller_prompt', all(i['id'] in by_id and '主控终端提交' in by_id[i['id']] and '构思主控' in by_id[i['id']] for i in terminal_rows), listed)
 
         # The hooks print nothing into the turn: the model never saw hook output and every prompt reached it.

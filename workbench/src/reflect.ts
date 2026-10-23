@@ -25,7 +25,8 @@ export function reflectTree(db: DatabaseSync, roleRequests: RoleRequest[], proje
   }
   // Only roles that took effect were controllers.
   const held = roleRequests.filter(row => row.project === project && row.confirmed_at);
-  const roleAt = (launch: string, time: string) => held.find(row => row.launch === launch && row.confirmed_at! <= time &&
+  // The latest match: when one role ends and the next starts in the same millisecond, the session belongs to the new one.
+  const roleAt = (launch: string, time: string) => held.findLast(row => row.launch === launch && row.confirmed_at! <= time &&
     (row.state !== 'ended' || (row.ended_at ?? closed.get(row.launch) ?? '9999') >= time));
   const nodes: (ReflectNode & { parent_launch: string | null })[] = held.map(row => ({ id: row.id, kind: 'terminal', launch: row.launch,
     role: row.role, role_label: roleNames[row.role] ?? row.role, task: null, attempt: null, cli: row.cli ? cliNames[row.cli] ?? row.cli : null,
