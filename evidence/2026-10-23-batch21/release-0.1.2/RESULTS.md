@@ -8,11 +8,11 @@
 | --- | --- | --- |
 | T-115、T-116 | 按用户决定不再做；验收 INCOMPLETE | 状态改为 out-of-scope，不记为 closed：验收条件没有达成；T-116 第 1 条已由 T-118 满足并勾选。`project_map.py status` 0 问题 |
 | 缓存清理 | PASS | `cache-cleanup-01.json` |
-| 产品页 | PASS（本地，44 项）；线上待复跑 | `page-check/check.mjs`。第一版本地 `run-06` 与线上 `live-01` 各 31 项全过，红态见 `run-03`（换步后页面偏移 13px、首屏第一下滚轮不进第二屏）。审查 review-01 后补了 13 项（停在离顶几像素时往上滚、方向键、焦点在演示里、在演示窗口上滚动、触摸三项、记录页会话筛选、指标页日期与逐会话表、设置弹窗 Tab），对已发布的 `dff00ec9c` 跑出 12 项失败（`old-dff00ec9c-02-report.json`），修后 `run-13` 44 项全过。触摸用 Chromium 模拟触点，没有在真机上试 |
+| 产品页 | PASS（本地 `run-13` 与线上 `live-02` 各 44 项） | `page-check/check.mjs`。第一版本地 `run-06` 与线上 `live-01` 各 31 项全过，红态见 `run-03`（换步后页面偏移 13px、首屏第一下滚轮不进第二屏）。审查 review-01 后补了 13 项（停在离顶几像素时往上滚、方向键、焦点在演示里、在演示窗口上滚动、触摸三项、记录页会话筛选、指标页日期与逐会话表、设置弹窗 Tab），对已发布的 `dff00ec9c` 跑出 12 项失败（`old-dff00ec9c-02-report.json`），修后 `run-13` 44 项全过。触摸用 Chromium 模拟触点，没有在真机上试 |
 | 0.1.2 安装包 | PASS | `build.py r2`，revision `b698347ce`，codesign 核对通过；r1 失败（`git archive` 副本没有 `.git`，打包要记源码 revision，T-122），日志在外置盘 |
 | /Applications 更新 | INCOMPLETE：窗口未核对 | 0.1.1 不在运行；替换后 `CFBundleShortVersionString` 0.1.2，`codesign --verify --deep --strict` 通过；启动后主进程、渲染进程与后台都从新包运行。osascript 无辅助功能权限；截屏时前台是终端，没有为核对而把应用拉到前台抢焦点，窗口是否出现没有核对 |
 | 推送 | 已推送；凭据豁免待用户确认 | 推送前凭据扫描 `credential-scan-01`：63 处命中，逐条看过都是测试夹具字符串，由我列入 `credential-exemptions-03.json`，没有先问用户（T-101 的清单写明不预先授权新命中）；`credential-scan-02` 0 处；`3070bbe1a..dff00ec9c`。扫描当时只扫了文件内容，漏了提交说明（review-01 P0）；推送后补扫 123 个提交说明 0 处（`credential-scan-commits-01.json`），脚本已改为同时扫提交与标签 |
-| Pages | PASS | 构建 `built dff00ec9c`，线上复跑 31 项通过 |
+| Pages | PASS | 构建 `built 6b9c1b550`，线上复跑 44 项通过（`live-02`）；推送前扫描 `credential-scan-03` 0 处 |
 | Release v0.1.2 | PASS | `Enchanted-0.1.2-macos-arm64.zip` 147,610,771 字节，下载回来逐字节相同；v0.1.0、v0.1.1 保留 |
 
 ## 产品页
