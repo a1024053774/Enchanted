@@ -106,6 +106,9 @@
     metrics: {
       byModel: [['claude-haiku-5-5', '项目级', 2, 41], ['gpt-6.1-sol', '前端界面', 1, 14], ['unknown', '前端界面', 1, 3], ['gpt-6.1-sol', '后端逻辑', 2, 29],
         ['gpt-6.1-sol', '重构', 1, 4], ['gpt-6.1-sol', '缺陷修复', 1, 9]],
+      sessions: [['项目级', '构思主控', 'claude', 'claude-haiku-5-5', 'low', 26], ['项目级', '执行主控', 'claude', 'claude-haiku-5-5', 'low', 15],
+        ['T-12', 'worker', 'codex', 'gpt-6.1-sol', 'high', 14], ['T-12', '监视器', 'codex', 'unknown', 'unknown', 3], ['T-11', 'worker', 'codex', 'gpt-6.1-sol', 'high', 21],
+        ['T-11', '审查员', 'codex', 'gpt-6.1-sol', 'high', 8], ['T-14', 'worker', 'codex', 'gpt-6.1-sol', 'high', 4], ['T-09', 'worker', 'codex', 'gpt-6.1-sol', 'high', 9]],
       firstTime: { integrated: 1, firstTime: 0, rejections: [['路径边界', 1], ['完成条件', 1], ['独立审查', 1]] },
       attention: [['T-09', '缺陷修复', 1, 0, 1, 0]],
       scores: [['codex', 'gpt-6.1-sol', 'high', '缺陷修复', 1, '通过 1', 3, 2]],
@@ -177,7 +180,7 @@
     ui = { project: 'inkwell', task: 'T-12', page: 'terminal', focusedAgent: null, focusedPane: null, collapsed: new Set(),
       notifications: true, dockBadges: true, menu: null, renaming: null, zoom: null, settingsOpen: false, theme: 'system', execRole: 'worker', execDraft: null, execMessage: '',
       flowOpen: {}, flowExpanded: {}, drafts: {}, noticeSeen: new Set(), noticeActive: new Map(),
-      issueDrafts: {}, closing: null, closeDraft: { reason: '', basis: '' }, parentChoice: 'launch-3b10', recordTask: '', spot: null };
+      issueDrafts: {}, closing: null, closeDraft: { reason: '', basis: '' }, parentChoice: 'launch-3b10', recordTask: '', recordSession: '', spot: null };
     panes = {}; layouts = {}; paneSeq = 0;
     const agentPane = launch => { const key = 'p' + (++paneSeq); panes[key] = { kind: 'agent', launch, lines: (lines[launch] || [['dim', '（演示没有为这个会话预设输出）']]).slice(), forward: false }; return key; };
     const shellPane = (cwd, label) => { const key = 'p' + (++paneSeq); panes[key] = { kind: 'shell', cwd, lines: shellLines(cwd), forward: false, project: label }; return key; };
@@ -522,7 +525,6 @@
               <button type="button" class="text-button" data-action="issue-closing" data-issue="${issue.id}" data-fk="issue-closing:${issue.id}" aria-expanded="${ui.closing === issue.id}">关闭…</button></div>
           </form>` : ''}
           ${ui.closing === issue.id ? `<form class="record-actions" data-issue-close="${issue.id}">
-            ${issue.blocking ? '<p class="record-meta">标了“阻塞”的问题只有你能关闭。</p>' : ''}
             <label>为什么关闭<input maxlength="1000" data-close-field="reason" data-fk="close-reason" value="${esc(ui.closeDraft.reason)}"></label>
             <label>依据（看了什么）<input maxlength="1000" data-close-field="basis" data-fk="close-basis" value="${esc(ui.closeDraft.basis)}"></label>
             <div class="record-buttons"><button class="primary-button" data-fk="close-confirm" ${ui.closeDraft.reason.trim() && ui.closeDraft.basis.trim() ? '' : 'disabled'}>确认关闭</button></div>
@@ -535,13 +537,16 @@
   function recordsPage() {
     const all = ui.project === 'inkwell' ? data.records : [];
     const tasks = [...new Set(all.map(record => record.task ?? ''))];
-    const rows = all.filter(record => !ui.recordTask || (record.task ?? '') === ui.recordTask);
+    const sessions = [...new Set(all.filter(record => !ui.recordTask || (record.task ?? '') === ui.recordTask).map(record => record.role + ' · ' + (record.task ?? '项目级')))];
+    const rows = all.filter(record => (!ui.recordTask || (record.task ?? '') === ui.recordTask) && (!ui.recordSession || record.role + ' · ' + (record.task ?? '项目级') === ui.recordSession));
     return `<div class="records-page user-input-page" data-sk="page:records">
       <div class="records-intro"><h2>用户输入记录</h2>
         <p>你亲手打的字、在面板里的答复和审批都记在这里，主控和后台派发的文字不算。项目终端里只记你批准为主控的 Claude Code 或 Codex 收到的整条提示词，以及你对它提问的答复。落在受管 worker 会话里的输入记为人工介入。</p></div>
       ${!ui.project ? emptyProject() : !all.length ? '<p class="records-empty">这个项目还没有用户输入记录。</p>' : `
       <div class="record-filter"><label>任务 <select data-record-task data-fk="record-task"><option value="">全部</option>${tasks.map(task =>
         `<option value="${task}" ${ui.recordTask === task ? 'selected' : ''}>${task || '项目级'}</option>`).join('')}</select></label>
+        <label>会话 <select data-record-session data-fk="record-session"><option value="">全部</option>${sessions.map(session =>
+          `<option ${ui.recordSession === session ? 'selected' : ''}>${session}</option>`).join('')}</select></label>
         <span class="record-meta">${rows.length} 条，其中人工介入 ${rows.filter(record => record.intervention).length} 条</span></div>
       <table class="record-table"><thead><tr><th>时间</th><th>任务</th><th>会话</th><th>形态</th><th>来源</th><th>内容</th></tr></thead>
         <tbody>${rows.map(record => `<tr ${record.intervention ? 'data-intervention="true"' : ''}><td>${record.time}</td><td>${record.task ?? '项目级'}</td><td>${record.role}</td>
@@ -560,8 +565,9 @@
       <div class="records-intro"><h2>指标</h2>
         <p>每次打开都从记录现算，不另存计数。模型取会话里实际观察到的值；看不到的记为 unknown，单独成行。看板上的变化只算观察，不能当成改进的证明。</p></div>
       ${!ui.project ? emptyProject() : `
+      <div class="record-filter"><label>从 <input type="date" data-fk="metrics-since"></label><label>到 <input type="date" data-fk="metrics-until"></label></div>
       <section class="metric-section" data-metric="model-use"><h3>模型使用</h3>
-        ${mine ? table(['模型', '任务类型', '会话数', '回合数'], metrics.byModel) : none}</section>
+        ${mine ? table(['模型', '任务类型', '会话数', '回合数'], metrics.byModel) + table(['任务', '角色', 'CLI', '模型', '强度', '回合数'], metrics.sessions) : none}</section>
       <section class="metric-section" data-metric="first-time"><h3>一次到位率</h3>
         <p class="record-body">第一次交付就过完整门禁、全程没人介入，才算一次到位。</p>
         ${mine && rate !== null ? `<p class="metric-figure">${rate}%<span class="record-meta">（集成 ${metrics.firstTime.integrated} 个，一次到位 ${metrics.firstTime.firstTime} 个）</span></p>` : none}
@@ -606,7 +612,10 @@
           <div class="record-filter"><label><input type="checkbox" data-retro-enabled data-fk="retro-enabled" ${retro.enabled ? 'checked' : ''}>开启</label>
             <label>每 <select data-fk="retro-weekday">${weekdays.map((name, index) => `<option ${index === retro.weekday ? 'selected' : ''}>${name}</option>`).join('')}</select></label>
             <label><input type="time" value="${retro.time}" data-fk="retro-time"></label></div>
-          <p class="record-meta">现在用 ${retro.runner}${retro.enabled ? '' : '（未开启）'}</p></section>
+          <div class="record-filter"><label>由 <select data-fk="retro-runner-cli"><option>Claude Code</option><option>Codex</option></select></label>
+            <label>模型 <input value="claude-opus-5-5" data-fk="retro-runner-model"></label><label>思考强度 <input value="medium" size="8" data-fk="retro-runner-effort"></label>
+            <button class="text-button" data-action="note" data-note="真实应用会保存定期复盘用的 CLI、模型和思考强度；演示不保存。" data-fk="retro-runner-save">保存</button>
+            <span class="record-meta">现在用 ${retro.runner}${retro.enabled ? '' : '（未开启）'}</span></div></section>
         <section class="metric-section"><h3>改进建议</h3>
           ${mine ? retro.suggestions.map(item => `<article class="record-card suggestion-card" data-suggestion-id="${item.id}">
             <header class="record-heading"><strong>${item.number}. ${esc(item.title)}</strong>
@@ -879,7 +888,8 @@
       render();
     }
     else if (el.hasAttribute('data-role-parent')) ui.parentChoice = el.value;
-    else if (el.hasAttribute('data-record-task')) { ui.recordTask = el.value; render(); }
+    else if (el.hasAttribute('data-record-task')) { ui.recordTask = el.value; ui.recordSession = ''; render(); }
+    else if (el.hasAttribute('data-record-session')) { ui.recordSession = el.value; render(); }
     else if (el.hasAttribute('data-retro-enabled')) {
       data.retro.enabled = el.checked;
       ui.note = el.checked ? '已开启：每周一 09:00 自动复盘。' : '已关闭定期复盘。'; render();
@@ -896,6 +906,12 @@
         event.preventDefault();
         items[event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus({ preventScroll: true });
       } else if (event.key === 'Escape' || event.key === 'Tab') { event.preventDefault(); closeMenu(); render(); }
+    } else if (event.key === 'Tab' && ui.settingsOpen) {
+      const items = [...root.querySelectorAll('.settings-dialog button, .settings-dialog input, .settings-dialog select')].filter(el => !el.disabled);
+      const first = items[0], last = items[items.length - 1];
+      if (!document.activeElement.closest('.settings-dialog')) { event.preventDefault(); (event.shiftKey ? last : first).focus(); }
+      else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     } else if (event.key === 'Escape' && ui.settingsOpen) {
       ui.settingsOpen = false; ui.focusTarget = 'settings'; render();
     } else if (event.key === 'Escape' && event.target.dataset.renameInput) {

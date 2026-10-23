@@ -53,8 +53,63 @@ for (const scheme of ['light', 'dark']) {
     await page.mouse.wheel(0, 100); await page.waitForTimeout(500);
     s = await state(); const st = await page.$eval('.wb .metrics-page', n => [n.scrollTop, n.scrollHeight, n.clientHeight]);
     check('wheel over overflowing metrics page scrolls it, not the step', s.step === '8' && st[0] > 0 || st[1] <= st[2] + 1, { s, st });
+    // 与真实页面源码对照：记录页有任务、会话两个筛选；指标页模型使用有汇总表和逐会话表；设置弹窗里 Tab 不跑出去。
+    await page.click('[data-dot="6"]'); await page.waitForTimeout(300);
+    check('records page has task and session filters (RecordsPage.tsx)', await page.$$eval('.wb .user-input-page .record-filter select', n => n.length) === 2);
+    await page.click('[data-dot="7"]'); await page.waitForTimeout(300);
+    const heads = await page.$$eval('.wb [data-metric="model-use"] table thead', n => n.map(h => h.textContent));
+    check('metrics model use has summary and per-session tables (MetricsPage.tsx)', heads.length === 2 && heads[1].includes('角色'), heads);
+    check('metrics page has a date range (MetricsPage.tsx)', await page.$$eval('.wb .metrics-page input[type=date]', n => n.length) === 2);
+    await page.click('[data-dot="9"]'); await page.waitForTimeout(300);
+    for (let i = 0; i < 40; i++) await page.keyboard.press('Tab');
+    check('Tab stays inside the settings dialog', await page.evaluate(() => !!document.activeElement.closest('.wb .settings-dialog')));
   } catch (error) { check('light interactions', false, String(error).slice(0, 400)); }
   await page.close();
+}
+// review-01 的边界：停在离顶部几像素时往上滚、键盘、焦点在演示里时按方向键、在演示窗口上滚动、触摸。
+{
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  page.on('pageerror', e => report.errors.push('edge: ' + e.message));
+  await page.goto('http://127.0.0.1:8765/'); await page.waitForTimeout(500);
+  const state = () => page.evaluate(() => ({ tourTop: Math.round(document.querySelector('.tour').getBoundingClientRect().top), step: document.querySelector('[data-tour-index]').textContent }));
+  await page.mouse.move(150, 450); await page.mouse.wheel(0, 100); await page.waitForTimeout(1200);
+  for (let i = 0; i < 4; i++) { await page.mouse.wheel(0, 100); await page.waitForTimeout(500); }
+  let s = await state(); check('edge: at step 5 before drift', s.step === '5' && s.tourTop === 0, s);
+  await page.evaluate(() => scrollBy(0, 5)); await page.waitForTimeout(100);
+  await page.mouse.wheel(0, -100); await page.waitForTimeout(1200);
+  s = await state(); check('edge: 5px drift then wheel up goes to step 4, not the last step', s.step === '4' && s.tourTop === 0, s);
+  await page.evaluate(() => document.activeElement?.blur());
+  await page.keyboard.press('ArrowDown'); await page.waitForTimeout(300);
+  s = await state(); check('edge: ArrowDown moves one step', s.step === '5', s);
+  await page.keyboard.press('ArrowUp'); await page.waitForTimeout(300);
+  s = await state(); check('edge: ArrowUp moves one step back', s.step === '4', s);
+  await page.focus('.wb .workspace-pages button'); await page.keyboard.press('ArrowDown'); await page.waitForTimeout(300);
+  s = await state(); check('edge: arrow keys with focus inside the demo stay in the demo', s.step === '4', s);
+  const tabs = await (await page.$('.wb .workspace-pages')).boundingBox();
+  await page.mouse.move(tabs.x + 20, tabs.y + 5); await page.mouse.wheel(0, 100); await page.waitForTimeout(500);
+  s = await state(); check('edge: wheel over the demo window header moves one step', s.step === '5' && s.tourTop === 0, s);
+  await page.close();
+}
+{
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  const page = await context.newPage();
+  page.on('pageerror', e => report.errors.push('touch: ' + e.message));
+  await page.goto('http://127.0.0.1:8765/'); await page.waitForTimeout(500);
+  const cdp = await context.newCDPSession(page);
+  const swipe = async (from, to) => {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 195, y: from }] });
+    for (let i = 1; i <= 6; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 195, y: from + (to - from) * i / 6 }] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.waitForTimeout(1200);
+  };
+  const state = () => page.evaluate(() => ({ tourTop: Math.round(document.querySelector('.tour').getBoundingClientRect().top), step: document.querySelector('[data-tour-index]').textContent }));
+  await swipe(700, 300);
+  let s = await state(); check('touch: one swipe up from the intro lands on the tour at step 1', s.tourTop === 0 && s.step === '1', s);
+  await swipe(600, 300);
+  s = await state(); check('touch: swipe up on the tour moves one step', s.step === '2' && s.tourTop === 0, s);
+  await swipe(300, 600);
+  s = await state(); check('touch: swipe down moves one step back', s.step === '1' && s.tourTop === 0, s);
+  await context.close();
 }
 for (const [w, h] of [[390, 844], [820, 1180]]) {
   const page = await browser.newPage({ viewport: { width: w, height: h }, hasTouch: true, isMobile: w < 500 });

@@ -35,6 +35,9 @@
 
   const top = () => tour.getBoundingClientRect().top;
   const pinned = () => Math.abs(top()) < 2;
+  // 离顶部只差几十像素（惯性、浏览器取整）也算在第二屏里：先贴回去，再按换步处理。
+  const near = () => Math.abs(top()) < 48;
+  const repin = () => { if (!pinned()) window.scrollTo({ top: window.scrollY + top(), behavior: 'auto' }); };
   let snapping = false;
   function scrollToY(y, then) {
     snapping = true;
@@ -75,7 +78,8 @@
     lastWheel = now;
     if (snapping) { event.preventDefault(); return; }
     const t = top(), h = innerHeight;
-    if (pinned()) {
+    if (near()) {
+      repin();
       if (wb.contains(event.target) && scrollable(event.target, delta)) { locked = true; return; }
       event.preventDefault();
       if (locked && (gap < 160 || now - stepAt < 350)) return;
@@ -86,27 +90,42 @@
       move(Math.sign(delta));
     } else if (delta > 0 && t > 0 && t <= h + 1) { // 首屏往下：进入第一步（或回到上次看到的那步）。
       event.preventDefault(); locked = true; stepAt = now; enter(index);
-    } else if (delta < 0 && t < 0 && t > -h) { // 下载说明往上：回到最后一步。
+    } else if (delta < 0 && t < 0 && t > -h) { // 下载说明往上：回到最后一步（near 已排除只差几像素的情况）。
       event.preventDefault(); locked = true; stepAt = now; enter(steps.length - 1);
     }
   }, { passive: false });
 
   window.addEventListener('keydown', event => {
-    if (!pinned() || event.altKey || event.metaKey || event.ctrlKey) return;
-    if (event.target.closest('input, textarea, select, [contenteditable], .pane-menu') || (event.key === ' ' && event.target.closest('button'))) return;
+    if (!near() || event.altKey || event.metaKey || event.ctrlKey) return;
+    // 焦点在演示窗口里时，按键归演示自己用。
+    if (wb.contains(event.target) || event.target.closest('input, textarea, select, [contenteditable]') || (event.key === ' ' && event.target.closest('button'))) return;
     const direction = { ArrowDown: 1, PageDown: 1, ' ': 1, ArrowUp: -1, PageUp: -1 }[event.key];
     if (!direction) return;
-    event.preventDefault(); move(event.shiftKey && event.key === ' ' ? -1 : direction);
+    event.preventDefault(); repin(); move(event.shiftKey && event.key === ' ' ? -1 : direction);
   });
 
-  let touchY = null;
-  tour.addEventListener('touchstart', event => { touchY = event.touches[0].clientY; }, { passive: true });
-  tour.addEventListener('touchmove', event => { if (pinned() && !scrollable(event.target, touchY - event.touches[0].clientY)) event.preventDefault(); }, { passive: false });
-  tour.addEventListener('touchend', event => {
-    if (touchY === null || !pinned()) return;
+  // 触摸：第二屏贴顶时，一次滑动换一步；还没贴顶时，手指离开且第二屏露出大半，就贴到第二屏。
+  let touchY = null, touchPinned = false;
+  window.addEventListener('touchstart', event => { touchY = event.touches[0].clientY; touchPinned = near(); }, { passive: true });
+  tour.addEventListener('touchmove', event => { if (touchPinned && !scrollable(event.target, touchY - event.touches[0].clientY)) event.preventDefault(); }, { passive: false });
+  window.addEventListener('touchend', event => {
+    if (touchY === null || snapping) return;
     const dy = touchY - event.changedTouches[0].clientY; touchY = null;
-    if (Math.abs(dy) > 48 && !scrollable(event.target, dy)) move(Math.sign(dy));
+    if (touchPinned) {
+      repin();
+      if (tour.contains(event.target) && Math.abs(dy) > 48 && !scrollable(event.target, dy)) move(Math.sign(dy));
+    } else settle(() => { if (Math.abs(top()) < innerHeight * .6) enter(index); });
   });
+  // 手指离开后还有惯性滚动；等页面停下再决定贴不贴。
+  function settle(then) {
+    let last = NaN, still = 0;
+    const watch = () => {
+      if (window.scrollY === last && ++still > 5) return then();
+      if (window.scrollY !== last) still = 0;
+      last = window.scrollY; requestAnimationFrame(watch);
+    };
+    requestAnimationFrame(watch);
+  }
 
   dots.addEventListener('click', event => {
     const dot = event.target.closest('[data-dot]');

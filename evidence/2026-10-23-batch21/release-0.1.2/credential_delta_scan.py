@@ -1,4 +1,4 @@
-"""Before pushing: scan every blob reachable from main but not origin/main with T-101's TOKEN_RULES; hits not in the
+"""Before pushing: scan every blob, commit and tag reachable from main but not origin/main with T-101's TOKEN_RULES; hits not in the
 exemption list (T-114's plus the fixture strings read in credential-scan-01) (object + offset) block the push. Also refuse credential file names anywhere in the delta."""
 import json, subprocess, sys
 from pathlib import Path
@@ -11,7 +11,13 @@ git = lambda *a: subprocess.run(['git', '-C', str(root), *a], capture_output=Tru
 rows = [line.split(' ', 1) for line in git('rev-list', '--objects', 'origin/main..main').decode().splitlines()]
 blobs, names, hits = 0, [], []
 for oid, *path in rows:
-    if git('cat-file', '-t', oid).strip() != b'blob': continue
+    kind = git('cat-file', '-t', oid).strip()
+    # Commit messages and annotated tags can carry a token too (review-01 P0); trees only hold names, checked below.
+    if kind in (b'commit', b'tag'):
+        hits += [dict(object=oid, path='(' + kind.decode() + ')', **hit) for hit in scan_bytes(git('cat-file', kind.decode(), oid))
+                 if (oid, hit['offset']) not in exempt]
+        continue
+    if kind != b'blob': continue
     blobs += 1
     name = path[0] if path else ''
     if Path(name).name in ('auth.json', 'operator.json', '.credentials.json', 'credentials.json', '.netrc') or name.endswith('.pem'):

@@ -128,3 +128,9 @@ pre.cmd { background: var(--code-bg); border-radius: 6px; padding: 10px 12px; ov
   .reset:hover, .theme-toggle:hover { border-color: var(--muted); }
   .tour-dots button:hover::after { background: var(--muted); }
 }
+/* 触屏：用浏览器自己的吸附，甩一下也停在第二屏，不会划过去；第二屏里的换步由 tour.js 处理。 */
+@media (pointer: coarse) {
+  html { scroll-snap-type: y mandatory; }
+  .intro, .tour { scroll-snap-align: start; scroll-snap-stop: always; }
+  #download { scroll-snap-align: start; }
+}
