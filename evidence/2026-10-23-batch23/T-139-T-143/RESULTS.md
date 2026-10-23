@@ -79,6 +79,7 @@ CDP 的 returnByValue 会尝试序列化其循环/深引用。修正为 `void (.
 隔离 CDP 序列化检查为 PASS：serialization-inspector-01.json。CHECK-CDP-SERIALIZATION.mjs 读取实际 e2e 的捕获表达式，
 通过 Node V8 inspector 的 Runtime.evaluate 复现旧表达式对循环对象报同错，新表达式返回 undefined 且保留引用身份。
 这只证明序列化边界，不是 Electron/GPU 或性能指标。
+独立只读审查 T143-SERIALIZATION-REVIEW-01.md 为 INCOMPLETE：复核上述边界、实际滚动 JS 语法与空指标停止哨兵均通过；真实指标仍缺失。
 
 修正后尝试单项真实命令：
 
