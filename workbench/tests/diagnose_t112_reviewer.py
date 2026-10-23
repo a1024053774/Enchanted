@@ -1,3 +1,4 @@
+# 历史测试：只针对 5f19062f52154914123e3796fdff87caaa22fc1f，当前 main 不跑
 """Real reviewer -> native CLI -> local Responses API -> shell -> file boundary.
 
 No sandbox subcommand, PTY replacement, global config or model calls. Python 3.9.

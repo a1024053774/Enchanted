@@ -1,3 +1,4 @@
+// 历史测试：只针对 5f19062f52154914123e3796fdff87caaa22fc1f，当前 main 不跑
 // Run the production daemon and reviewer constructor with their real PTY/hooks.
 // The fixture owns task objects; this is a launch/sandbox test, not gate delivery.
 import assert from 'node:assert/strict';
