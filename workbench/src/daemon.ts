@@ -305,11 +305,11 @@ export async function serve(
       if (!held || !held.native_session || payload?.session_id !== held.native_session) return { ok: true, kept: false };
       // Claude Code asks with AskUserQuestion and reports the answer when the tool returns. Codex asks with
       // request_user_input_async, which returns at once ({"accepted":true}); the user's reply comes back later as a
-      // submitted prompt (T-133 probe-04, -05), so for Codex only that reply ends the wait.
+      // submitted prompt (T-133 probe-04, -05). So the codex shim passes no PostToolUse hook, and that reply ends the wait.
       const codex = held.cli === "codex", name = payload.hook_event_name;
       const tool = payload.tool_name === (codex ? "request_user_input_async" : "AskUserQuestion");
       const state = name === "UserPromptSubmit" ? "running" : name === "PreToolUse" && tool ? "waiting_user_answer"
-        : !codex && ["PostToolUse", "PostToolUseFailure"].includes(name) && tool ? "running"
+        : ["PostToolUse", "PostToolUseFailure"].includes(name) && tool ? "running"
         : name === "Stop" || name === "Notification" && payload.notification_type === "idle_prompt" ? "idle" : null;
       if (!state) return { ok: true, kept: false };
       if (name === "UserPromptSubmit") {

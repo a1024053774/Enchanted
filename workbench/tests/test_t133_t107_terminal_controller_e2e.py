@@ -255,7 +255,7 @@ def main():
             return result.get('ok')
         fixture.wait('答复问题', answer, 60)
         electron.until('答复之后不再等待主控回答', f"(()=>{{const r=document.querySelector('.agent-row[data-agent-launch=\"{worker}\"]');"
-                       "return !!r&&r.dataset.agentState!=='waiting_controller_answer'}})()", 60)
+                       "return !!r&&r.dataset.agentState!=='waiting_controller_answer'})()", 60)
         report['observed']['worker_after_answer'] = agent(worker)
         check('answered_issue_no_longer_waits', True)
         fixture.wait('T-1 交付', lambda: fixture.request('status', fixture.operator, task='demo+T-1')['task']['state'] == 'submitted', 180)

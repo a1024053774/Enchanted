@@ -78,16 +78,16 @@ def main():
     parser.add_argument('--claude', default=shutil.which('claude') or str(Path.home() / '.local/bin/claude'))
     target = parser.add_mutually_exclusive_group()
     target.add_argument('--revision')
-    target.add_argument('--mutant', choices=['hooks-not-passed', 'accepted-ends-wait', 'reply-as-message'])
+    target.add_argument('--mutant', choices=['hooks-not-passed', 'post-hook-passed', 'reply-as-message'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
     report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant, checks=[], observed={})
     patches = {
         # The shim starts Codex without Enchanted's hooks, as before.
         'hooks-not-passed': [('terminal/bin/codex', 'set -- -c "hooks.UserPromptSubmit=', 'true || set -- -c "hooks.UserPromptSubmit=')],
-        # The ask tool's immediate {"accepted":true} taken as the end of the wait, as for Claude's AskUserQuestion.
-        'accepted-ends-wait': [('src/daemon.ts', ': !codex && ["PostToolUse", "PostToolUseFailure"].includes(name) && tool ? "running"',
-                                ': ["PostToolUse", "PostToolUseFailure"].includes(name) && tool ? "running"')],
+        # The shim also hands Codex a PostToolUse hook for the ask tool, as Claude's plugin does for AskUserQuestion: its
+        # immediate {"accepted":true} then ends the wait before the user answers.
+        'post-hook-passed': [('terminal/bin/codex', '-c "hooks.PreToolUse=', '-c "hooks.PostToolUse=[{matcher=\\"request_user_input_async\\",hooks=[$hook]}]" -c "hooks.PreToolUse=')],
         # The user's reply kept as an ordinary message.
         'reply-as-message': [('src/daemon.ts', 'const reply = codex ? codexQuestionReply(payload.prompt) : null;', 'const reply = null as any;')],
     }.get(args.mutant, [])
@@ -240,7 +240,9 @@ def main():
         type_in(ideation, 'codex --sandbox danger-full-access -a never\r')
         wait('终端 I 的 Codex 启动', lambda: ready(ideation), 60)
         time.sleep(5)
-        asked = TRUST in screen(ideation)
+        # Enchanted's hooks join the user's own one, all new to this Codex home: more than one hook to review
+        # (with the user's hook alone, Codex says "1 hook is new or changed").
+        asked = TRUST in screen(ideation) and 'hooksareneworchanged' in screen(ideation)
         before = config.read_text(encoding='utf-8')
         report['observed']['first_screen'] = screen(ideation)[-600:]
         check('codex_asks_to_trust_the_hooks', asked, report['observed']['first_screen'])
