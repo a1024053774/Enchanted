@@ -53,7 +53,7 @@ def main():
         report['pane'] = fixture.request('pane_status', thread=thread)
         sidebar = next((a['state'] for a in report['sidebar']['agents'] if a['id'] == launch), 'MISSING')
         reflect = next((n['state'] for n in report['reflect']['nodes'] if n['launch'] == launch), 'MISSING')
-        assert sidebar in ('MISSING', 'ended') and reflect == 'ended', f'CLI exited with live zsh: sidebar={sidebar}, reflect={reflect}'
+        assert sidebar == 'ended' and reflect == 'ended', f'CLI exited with live zsh: sidebar={sidebar}, reflect={reflect}'
         report['status'] = 'PASS'
     except BaseException as error:
         report['error'] = f'{type(error).__name__}: {error}'

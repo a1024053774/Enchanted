@@ -693,7 +693,7 @@ function Workbench() {
           <span className="agent-main">
             <span className="agent-role">{agent.role_label}</span>
             <span className="agent-meta">{agent.terminal ? '项目终端' : agent.task_name ?? '任务未知'} · {agent.cli}</span>
-            <span className="sr-only agent-state">{agent.state_label}</span>
+            <span className={agent.state === 'ended' ? 'agent-state' : 'sr-only agent-state'}>{agent.state_label}</span>
           </span>
           <span className="row-time">{since(agent.created_at, now)}</span>
           <StatusIcon state={agent.state} />

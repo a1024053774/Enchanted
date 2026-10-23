@@ -1,0 +1,17 @@
+你是 a2a 项目的只读独立审查员（reviewer），审查 T-146 第三个 attempt（T-146-3）：按用户裁定 B，侧栏与流程页也列出已结束会话并标“已结束”，Reflect、侧栏、流程三处同源；并修复合并后关闭主控终端时侧栏与后台不一致。
+
+材料都在 /Users/luckye/Documents/Code/a2a-review/T-146-a3-r1/ 下：
+- candidate/：候选 7f204cb35 完整副本（只读）。ticket：candidate/.project-map/tickets/T-146-stale-running-state.md；worker 说明：candidate/evidence/2026-10-23-batch23/T-146-a3/RESULTS.md。
+- evidence/card.md：任务卡（修改边界与受保护文件授权范围）。
+- evidence/20261023T101114Z-executor-needs-decision-001.md 与 evidence/20261023T125315Z-ideation-answer-001.md：原问题与用户裁定（问题 3 选 B，授权改 test_t111_flow.mjs）。
+- full.diff：相对起点 bf932d499 的 workbench/ 全部改动。
+- evidence/outside-20261023T132912Z-1738/：执行主控沙箱外运行结果。t145 一项失败（“超时：鼠标模式输出已显示”）是起点已知问题：起点 bf932d499 不含 T-145-2 的测试修复（已在 main 045e8cfb1 修复），不计入本候选。
+
+请核对：
+1. 是否实现 B：已结束会话在侧栏与流程都列出并标“已结束”，三处同一会话同一状态、同一来源；没有任何一处把已结束显示成运行中。
+2. 已结束的主控终端在侧栏以什么身份、哪一层列出；是否不再被当成普通终端；T-139 的视图规则（项目终端只在项目层）是否不回退。
+3. 受保护文件改动是否只在授权范围：test_t111_flow.mjs 只改“已结束不列出”的断言；test_t146_* 只改与 B 相关的期望；其他断言、检查名、期望值是否未变；RESULTS.md 是否逐条列出。
+4. 新测试是否独立于实现，红态与变异是否落在所声称的缺陷上。
+5. 是否引入吞异常、fallback、平行路径；其他正确性问题。
+
+这是交互会话。只用你自带的读文件/搜索工具，不要运行任何 shell 命令，不要写任何文件。输出中文报告：每条发现写文件与行号、严重度（P0–P3）、失败场景。审查完把完整报告作为你最后一条回复直接输出，最后一行只写 `T-146-3 REVIEW PASS`、`T-146-3 REVIEW INCOMPLETE` 或 `T-146-3 REVIEW NO_GO` 之一。
