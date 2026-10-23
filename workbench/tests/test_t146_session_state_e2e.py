@@ -175,6 +175,7 @@ def main():
         reclaimed = fixture.request('reclaim', executor, task='T-done')
         assert reclaimed.get('ok'), reclaimed
         closed = fixture.request('shell_close', fixture.operator, launch=fixture.terminal_launch)
+        report['controller_close_result'] = closed
         assert closed.get('ok'), closed
         # Wait for each page's polling cycle and the ended Reflect node before recording.
         electron.evaluate("document.querySelector('[data-reflect-tab]').click()")

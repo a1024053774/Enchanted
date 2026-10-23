@@ -8,6 +8,9 @@ OUT="$ROOT/evidence/2026-10-23-batch23/T-146-a3/outside-$(date -u +%Y%m%dT%H%M%S
 mkdir "$OUT" || exit 2
 export PYTHONDONTWRITEBYTECODE=1
 failures=0
+node_version="$(node --version)"
+print "Node $node_version；起点 bf932d499；证据 $OUT"
+python3 workbench/tests/test_t146_red_verdict.py "$OUT/red-verdict-checks.json" >"$OUT/red-verdict-checks.log" 2>&1 || failures=$((failures + 1))
 run_green() {
   local name="$1"
   shift
@@ -18,20 +21,11 @@ run_green() {
 }
 run_red() {
   local name="$1"
-  shift
+  local kind="$2"
+  shift 2
   "$@" --summary "$OUT/$name.json" >"$OUT/$name.log" 2>&1
   local code=$?
-  # 只有到达退出/关闭场景后的合同失败才是红态；启动错误不计。
-  python3 - "$OUT/$name.json" "$code" <<'PY'
-import json, sys
-from pathlib import Path
-r = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
-assert int(sys.argv[2]) != 0 and r['status'] != 'PASS', r
-assert 'flow_running' in r['checks'], '未通过三处初始运行状态检查，不能当作所需红态'
-assert ('natural_cli_exit' in r.get('error', '') or 'sidebar_exit_label_visible' in r.get('error', '')
-        or '侧栏轮询已刷新' in r.get('error', '')), r.get('error')
-print('PASS: 已到达目标场景，已知坏行为被拒绝')
-PY
+  python3 "$ROOT/evidence/2026-10-23-batch23/T-146-a3/red_verdict.py" "$OUT/$name.json" "$code" "$kind"
   local checked=$?
   print "$name exit=$code contract_check=$checked"
   if (( checked != 0 )); then failures=$((failures + 1)); fi
@@ -60,10 +54,10 @@ print('PASS: T-111 新旧合同互拒，T-091 与起点同样（不冒称 T-091 
 PY
 if (( $? != 0 )); then failures=$((failures + 1)); fi
 node workbench/tests/test_t146_session_end.mjs "$OUT/session-end.json" >"$OUT/session-end.log" 2>&1 || failures=$((failures + 1))
-run_red t146-red python3 workbench/tests/test_t146_session_state_e2e.py --revision bf932d49940104ec099023aa957d06fe95116e92
+run_red t146-red baseline python3 workbench/tests/test_t146_session_state_e2e.py --revision bf932d49940104ec099023aa957d06fe95116e92
 run_green t146-green python3 workbench/tests/test_t146_session_state_e2e.py
-run_red t146-mutant-flow python3 workbench/tests/test_t146_session_state_e2e.py --mutant flow-hide-ended
-run_red t146-mutant-controller python3 workbench/tests/test_t146_session_state_e2e.py --mutant controller-becomes-shell
+run_red t146-mutant-flow flow python3 workbench/tests/test_t146_session_state_e2e.py --mutant flow-hide-ended
+run_red t146-mutant-controller controller python3 workbench/tests/test_t146_session_state_e2e.py --mutant controller-becomes-shell
 run_green t139-t143 python3 workbench/tests/test_t139_t143_views_perf_e2e.py
 run_green t140 python3 workbench/tests/test_t140_extra_dirs_e2e.py
 run_green t137 python3 workbench/tests/test_t137_reflect_e2e.py
