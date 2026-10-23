@@ -113,6 +113,11 @@ def main():
         raw = (fixture.state / 'traces' / term['launch'] / 'pty.raw').read_text(encoding='utf-8', errors='replace')
         return re.sub(r'\s+', '', re.sub(r'\x1b\[[0-9;?<>=]*[A-Za-z~]|\x1b\][^\x07\x1b]*(\x07|\x1b\\)|\x1b[()][A-Z0-9]|\x1b[=>78]', '', raw))
 
+    def ready(term):
+        # Claude Code's input box is up once its banner and the prompt marker are drawn.
+        text = screen(term)
+        return 'ClaudeCodev' in text and '❯' in text[text.index('ClaudeCodev'):]
+
     def submit(term, text):
         type_in(term, text)
         time.sleep(1)
@@ -149,7 +154,7 @@ def main():
 
         ideation = terminal('I')
         type_in(ideation, f'claude --model claude-haiku-5-5\r')
-        fixture.wait('终端 I 的 Claude 启动', lambda: '?forshortcuts' in screen(ideation) or 'forshortcuts' in screen(ideation), 60)
+        fixture.wait('终端 I 的 Claude 启动', lambda: ready(ideation), 60)
         submit(ideation, REQUEST_IDEATION)
         request_card = electron.until('构思主控申请出现', "document.querySelector('[data-role-request]')?.dataset.roleRequest ?? null", 60)
         electron.evaluate(f"[...document.querySelectorAll('[data-role-request=\"{request_card}\"] button')].find(b=>b.textContent==='批准').click()")
@@ -172,7 +177,7 @@ def main():
 
         executor = terminal('X')
         type_in(executor, f'claude --model claude-haiku-5-5\r')
-        fixture.wait('终端 X 的 Claude 启动', lambda: 'forshortcuts' in screen(executor), 60)
+        fixture.wait('终端 X 的 Claude 启动', lambda: ready(executor), 60)
         submit(executor, REQUEST_EXECUTOR)
         request_card = electron.until('执行主控申请出现', "document.querySelector('[data-role-request]')?.dataset.roleRequest ?? null", 60)
         offered = electron.evaluate(f"(()=>{{const s=document.querySelector('[data-role-request-parent=\"{request_card}\"]');"
