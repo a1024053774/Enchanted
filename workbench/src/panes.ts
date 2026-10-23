@@ -1131,6 +1131,12 @@ export class Panes implements GateRuntime {
     check(data.length > 0 && !pane.failed && !pane.stopped && !pane.archived, "pane_unavailable");
     const binary = encoding === "binary";
     const bytes = Buffer.from(data, binary ? "latin1" : "utf8");
+    // xterm emits complete mouse/focus/device reports through the same onData
+    // channel as keys. Recognize only whole report packets, never arbitrary CSI
+    // keys or bracketed-paste contents. CSI 1;modifier R is also modified F3;
+    // keep it as a key (device queries are already owned by terminalProtocol).
+    const protocolReport = binary ? /^(?:\x1b\[M[\s\S]{3})+(?![\s\S])/.test(data)
+      : /^(?:(?:\x1b\[|\x9b)(?:<[0-9]+;[0-9]+;[0-9]+[Mm]|[0-9]+;[0-9]+;[0-9]+M|[IO]|0n|(?!1;(?:[2-9]|1[0-6])R)\??[0-9]+;[0-9]+R|[?>][0-9;]+c|\??[0-9]+;[0-4]\$y|(?:4|6|8);[0-9]+;[0-9]+t)|\x1b\](?:4;[0-9]+|10|11|12);rgb:[0-9a-fA-F/]+(?:\x07|\x1b\\)|\x1bP[01]\$r[ -~]*\x1b\\)+(?![\s\S])/.test(data);
     const pasted = !binary && data.startsWith("\x1b[200~") && data.endsWith("\x1b[201~");
     const text = binary ? "终端二进制输入" : pasted ? data.slice(6, -6).replaceAll("\r", "\n") : data;
     const control = binary || (!pasted && /[\x00-\x1f\x7f]/.test(data));
@@ -1138,13 +1144,13 @@ export class Panes implements GateRuntime {
     // Input records and their bytes keep the same order as admission. Esc also
     // prevents the CR of a paste that is already waiting inside this stream.
     pane.pendingInputs++;
-    pane.inputGeneration++;
+    if (!protocolReport) pane.inputGeneration++;
     if (!binary && data === "\x1b") { pane.interrupted = true; pane.state = "busy"; }
     try { await this.serializeWrite(pane, async () => {
       await assertCurrent();
-      await record(text, control);
+      if (!protocolReport) await record(text, control);
       check(!pane.failed && !pane.stopped && !pane.archived, "pane_unavailable");
-      if (!binary) pane.userDraft = true;
+      if (!binary && !protocolReport) pane.userDraft = true;
       this.store.event("terminal_input_write_intent", { ...receipt, encoding,
         ...(binary ? { data_base64: bytes.toString("base64") } : { data }), byte_length: bytes.length }, pane.record);
       const permissionControl = Boolean(!binary && data === "\r" && pane.record.cli === "Claude Code" &&
