@@ -1,6 +1,6 @@
 # T-152-1 / a1 交付记录
 
-状态：**INCOMPLETE**。测试迁移候选已完成；沙箱外红态、绿态和回归尚未运行，不能据此验收或集成。产品代码未改。起点 `32ffb4e6dcc0472b20bbb64331a355621c9b73a9`，分支 `exec/t152`，worker `b23-t152`。
+状态：**INCOMPLETE**。01 沙箱外运行已取得真实入口失败，未到业务断言；已修正局部旧放行与证据采集前提，02 红态、绿态和回归待主控运行，不能据此验收或集成。产品代码未改。起点 `32ffb4e6dcc0472b20bbb64331a355621c9b73a9`，分支 `exec/t152`，worker `b23-t152`。
 
 ## 逐条改动
 
@@ -24,8 +24,18 @@
 
 ## 主控沙箱外复跑
 
-提交后运行：`zsh evidence/2026-10-23-batch23/T-152/RUN-OUTSIDE-01.sh`。
+下一轮运行：`zsh evidence/2026-10-23-batch23/T-152/RUN-OUTSIDE-02.sh`。01 脚本与证据均保留。
 
-它先运行四个有效检查变异，再运行四个非法启动变异，最后跑全部正常案例、T-090 直接继承方的 HEAD/branch/dirty 三例和既有 T-141 双 CLI reviewer 启动契约。摘要写入新的 `outside-01-XXXXXXXX/`，聚合 `SUMMARY.json`。结束核对、workspace、refs、假删除副本分别必须命中 `REVIEW-END-BEFORE-INTEGRATE`、`REVIEW-REQUIREMENTS-WORKSPACE`、`REVIEW-REFS-INVALIDATE`、`T082-COPY-REMOVED`；启动反例必须让三条拒收/暂停/上报断言全过。
+它先运行四个有效检查变异，再运行四个非法启动变异，最后跑全部正常案例、T-090 直接继承方的 HEAD/branch/dirty 三例和既有 T-141 双 CLI reviewer 启动契约。摘要写入新的 `outside-02-XXXXXXXX/`，聚合 `SUMMARY.json`。结束核对、workspace、refs、假删除副本分别必须命中 `REVIEW-END-BEFORE-INTEGRATE`、`REVIEW-REQUIREMENTS-WORKSPACE`、`REVIEW-REFS-INVALIDATE`、`T082-COPY-REMOVED`；启动反例必须让三条拒收/暂停/上报断言全过。
+
+## 01 运行结果与第 2 轮改动
+
+主控 #6 实跑 `RUN-OUTSIDE-01.sh`，绑定 `c4197a89b`，摘要 `outside-01-cudCk6ZY/SUMMARY.json`：T-141 reviewer PASS，其余 10 项 INCOMPLETE，均为旧 pane_release 调用导致 CLI exit 2、零业务断言。它们不计为红态。绿态完整现场 `/private/tmp/t152-m9rps0h_`，摘要逐项列出其他现场；原始现场均保留。
+
+编辑前逐层命令清单与依据见 [REWORK-02.md](REWORK-02.md)。本次只在 ReviewBoundary 覆盖 release_worker，并移除本地 start_review 的 pane_release；两者都等待真实后台的 busy / fixture-turn-1 和绑定本次 launch 的 codex_startup_ready 事件。依旧由受控原生 PTY 输入触发，未直接调 drain、未造事件。
+
+01 还出现 request 证据采集失败：旧共享 close_fixture 不接受产品创建的 `.a2a-tmp/`。本次局部覆盖原清理流程，保持数据库/Git 读回、进程身份与退出检查、凭据核对/删除及错误记录，只将请求证据采集迁成递归保留目录（包括空目录）与普通文件；仍拒绝 symlink 和特殊文件。复制清理流程是因为共享测试不在修改范围，未新增产品兼容路径，也未删除原现场来迎合旧检查。
+
+本轮静态检查、目录采集反例结果写入 `local-checks-02.json`。它们不能替代 02 沙箱外端到端红绿态；最终状态继续 INCOMPLETE。
 
 局限：当前没有有效业务红态、绿态或 T-090/T-141 新回归通过证据；不声称真实原生 CLI 沙箱、网络访问或模型判断得到证明（原生 CLI/模型回合为 0）。不复用历史 PASS。最终验收、独立审查、submit/集成由执行主控门禁负责。

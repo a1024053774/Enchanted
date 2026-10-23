@@ -1,0 +1,64 @@
+{
+  "status": "PASS",
+  "scope": "local syntax and request-evidence copier only; no end-to-end red/green claim",
+  "fixture": "/private/tmp/t152-capture-02-_2csf6ym",
+  "checks": [
+    {
+      "check": "workbench/tests/test_t082_review_boundary_e2e.py AST",
+      "passed": true
+    },
+    {
+      "check": "evidence/2026-10-23-batch23/T-152/run_suite.py AST",
+      "passed": true
+    },
+    {
+      "check": "request tree preserves nested and empty directories plus exact payload",
+      "passed": true,
+      "entries": [
+        ".a2a-tmp",
+        ".a2a-tmp/empty",
+        "request.json"
+      ]
+    },
+    {
+      "check": "symlink rejected",
+      "passed": true,
+      "error": "HarnessFailure: Unexpected symlink in request evidence."
+    },
+    {
+      "check": "fifo rejected",
+      "passed": true,
+      "error": "HarnessFailure: Unexpected non-regular request evidence."
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "workbench/tests/t152_review_host.ts"
+      ],
+      "passed": true,
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "command": [
+        "zsh",
+        "-n",
+        "evidence/2026-10-23-batch23/T-152/RUN-OUTSIDE-02.sh"
+      ],
+      "passed": true,
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "passed": true,
+      "exit_code": 0,
+      "stderr": ""
+    }
+  ]
+}

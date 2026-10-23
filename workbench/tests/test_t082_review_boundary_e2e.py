@@ -10,11 +10,13 @@ integration before end checks (held-socket dirty/clean controls); dirty review
 end accepted; complete report lost in the native Stop/relay/gate path.
 """
 import argparse
+from contextlib import closing
 import datetime
 import json
 import os
 from pathlib import Path
 import socket
+import sqlite3
 import subprocess
 import time
 import uuid
@@ -33,6 +35,15 @@ class ReviewBoundary(Tracer):
         config.pop('reviewers')
         config['reviewer_role_card'] = config['role_card']
         config['reviewer_role_card_revision'] = 'T-152/controlled-reviewer'
+
+    def release_worker(self, attempt):
+        # T-127/T-141: native-ready admission drains the queued task itself.
+        self.a = attempt
+        self.launch = self.gate('pane_status', '--thread', attempt['thread_id'], task=False)['launch']
+        self.native = json.loads((self.control / (self.launch + '.json')).read_text(encoding='utf-8'))
+        self.wait_pane(lambda pane: pane['state'] == 'busy' and pane['turn'] == 'fixture-turn-1')
+        self.wait_for(self.orchestration, lambda events: any(
+            event['type'] == 'codex_startup_ready' and event['launch'] == self.launch for event in events))
 
     def start_host(self):
         # Dedicated native-ready fixture; shared historical hosts remain intact.
@@ -93,11 +104,96 @@ class ReviewBoundary(Tracer):
                    and 'sandbox_workspace_write.exclude_slash_tmp=true' in details['argv']
                    and 'sandbox_workspace_write.exclude_tmpdir_env_var=true' in details['argv'],
                    'T-141 reviewer: candidate-copy writes, open network, inherited proxy, never approval, untrusted copy and excluded shared tmp', details)
-        self.gate('pane_release', '--thread', review['thread_id'], '--reason',
-                  'controlled fresh reviewer release', task=False)
         self.wait_for(lambda: self.gate('pane_status', '--thread', review['thread_id'], task=False),
                       lambda pane: pane['state'] == 'busy' and pane['turn'] == 'fixture-turn-1')
+        self.wait_for(self.orchestration, lambda events: any(
+            event['type'] == 'codex_startup_ready' and event['launch'] == launch for event in events))
         return review, record
+
+    def close_fixture(self):
+        # This local copy preserves the shared lifecycle checks while capturing
+        # the current per-launch TMPDIR tree, which the old flat copier rejects.
+        failures = []
+        if self.host is not None and self.host.poll() is None:
+            try:
+                database = self.state / 'state.sqlite3'
+                if database.is_file():
+                    with closing(sqlite3.connect(database.as_uri() + '?mode=ro', uri=True)) as db:
+                        db.row_factory = sqlite3.Row
+                        db.execute('BEGIN')
+                        names = [row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")]
+                        tables = {name: [dict(row) for row in db.execute('SELECT * FROM "' + name.replace('"', '""') + '"')] for name in names}
+                        save(self.evidence / 'database-readback.json', {'phase': 'before-host-stop', 'tables': tables})
+                save(self.evidence / 'git-readback.json', {'refs': self.git('show-ref'),
+                     'worktrees': self.git('worktree', 'list', '--porcelain'),
+                     'status': self.git('status', '--porcelain=v1', '--untracked-files=all')})
+                for launch in self.rows('launch_records'):
+                    record = json.loads(launch['data'])
+                    source = Path(record['request_dir'])
+                    if (source.is_symlink() or not source.is_dir() or not source.name.startswith('a2a-requests-')
+                            or source.parent != Path('/tmp').resolve()):
+                        raise HarnessFailure('Unexpected controlled launch request directory.')
+                    destination = self.evidence / 'requests' / record['id']
+                    destination.mkdir(parents=True)
+                    self.capture_request_tree(source, destination)
+            except Exception as error:
+                failures.append({'phase': 'capture', 'error': repr(error)})
+            try:
+                status = self.gate('daemon_status', task=False)
+                if status.get('pid') != self.host.pid:
+                    raise HarnessFailure('Refuse to stop a different daemon PID.')
+                stopped = self.gate('daemon_stop', task=False)
+                if not stopped['ok']:
+                    raise HarnessFailure('Owned daemon_stop was refused.')
+                self.host.wait(timeout=12)
+                if self.host.returncode != 0:
+                    raise HarnessFailure('Owned host shutdown returned nonzero.')
+            except Exception as error:
+                failures.append({'phase': 'stop', 'error': repr(error), 'pid': self.host.pid})
+        if self.run_child is not None:
+            try:
+                self.run_child.wait(timeout=5)
+            except subprocess.TimeoutExpired as error:
+                failures.append({'phase': 'run-exit', 'error': repr(error), 'pid': self.run_child.pid})
+        for stream in self.streams:
+            stream.close()
+        removed_credentials = []
+        for credential in self.operator_credentials:
+            try:
+                if credential.is_symlink():
+                    raise HarnessFailure('Owned credential became a symlink.')
+                if not credential.exists():
+                    continue
+                if self.host is not None and self.host.poll() is None:
+                    raise HarnessFailure('Retain the credential while the owned host is live.')
+                if credential.parent != self.root or credential.stat().st_mode & 0o077:
+                    raise HarnessFailure('Owned credential path or mode changed.')
+                value = json.loads(credential.read_text(encoding='utf-8'))
+                if value.get('kind') != 'operator' or value.get('state') != str(self.state.resolve()):
+                    raise HarnessFailure('Owned credential state binding changed.')
+                credential.unlink()
+                removed_credentials.append(str(credential))
+            except Exception as error:
+                failures.append({'phase': 'credential-cleanup', 'path': str(credential), 'error': repr(error)})
+        save(self.evidence / 'cleanup.json', {'failures': failures,
+             'host_exit': self.host.poll() if self.host else None, 'preserved_fixture': str(getattr(self, 'root', '')),
+             'removed_operator_credentials': removed_credentials})
+        return failures
+
+    @staticmethod
+    def capture_request_tree(source, destination):
+        for item in source.iterdir():
+            if item.is_symlink():
+                raise HarnessFailure('Unexpected symlink in request evidence.')
+            target = destination / item.name
+            if item.is_dir():
+                target.mkdir()
+                ReviewBoundary.capture_request_tree(item, target)
+            elif item.is_file():
+                with target.open('xb') as stream:
+                    stream.write(item.read_bytes())
+            else:
+                raise HarnessFailure('Unexpected non-regular request evidence.')
 
     def tracer_review_copy(self):
         _, candidate = self.good_submission()
