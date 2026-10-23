@@ -279,7 +279,10 @@ def main():
 
         # 6: a restart keeps the saved schedule; the factory default only fills an empty table.
         fixture.run_cli('daemon_stop')
+        fixture.running = False
+        fixture.wait('旧后台退出', lambda: not (fixture.state / 'control.sock').exists(), 60)
         fixture.run_cli('daemon_start', '--launch-config', str(fixture.dir / 'launch-config.json'))
+        fixture.running = True
         fixture.wait('后台恢复结束', lambda: fixture.request('pane_layout').get('recovering') is False, 30)
         kept = listing()['schedule']
         report['observed']['schedule_after_restart'] = kept
