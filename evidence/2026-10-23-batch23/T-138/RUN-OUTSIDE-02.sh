@@ -1,10 +1,14 @@
 #!/bin/zsh
 # T-138-1 / a1：修前红态、候选绿态、还原修复的变异和输入回归。
 set -u
+if (( $# != 1 )); then
+  print -u2 -- '用法：zsh RUN-OUTSIDE-02.sh <本次交付的完整提交号>'
+  exit 2
+fi
 cd /Users/luckye/Documents/Code/a2a-wt-t138 || exit 2
 OUT="evidence/2026-10-23-batch23/T-138/outside-02-$(date +%Y%m%d-%H%M%S)-$$"
 mkdir "$OUT" || exit 2
-python3 - "$OUT" <<'PY'
+python3 - "$OUT" "$1" <<'PY'
 import json
 from pathlib import Path
 import subprocess
@@ -15,7 +19,9 @@ root = Path.cwd()
 out = root / sys.argv[1]
 base = 'b99f4869bbe087946017716a5a8479c0cb47e6c8'
 candidate = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
-subprocess.run(['git', 'diff', '--quiet', 'HEAD', '--', 'workbench/app', 'workbench/src', 'workbench/terminal'], check=True)
+expected = subprocess.check_output(['git', 'rev-parse', '--verify', sys.argv[2] + '^{commit}'], text=True).strip()
+assert candidate == expected, f'HEAD {candidate} 不是待验收提交 {expected}'
+subprocess.run(['git', 'diff', '--quiet', expected, '--', 'workbench'], check=True)
 rows = []
 
 
@@ -66,7 +72,9 @@ checks = dict(red_rejects_fault=ime_bad('red'), green=report('green').get('statu
               t145=report('t145').get('status') == 'PASS',
               t091_unchanged=bool(report('t091-baseline')) and bool(report('t091-candidate'))
                   and signature(report('t091-baseline')) == signature(report('t091-candidate')))
-result = dict(status='PASS' if all(checks.values()) else 'INCOMPLETE', candidate=candidate, base=base,
+checks['candidate_unchanged'] = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip() == expected and \
+    subprocess.run(['git', 'diff', '--quiet', expected, '--', 'workbench']).returncode == 0
+result = dict(status='PASS' if all(checks.values()) else 'INCOMPLETE', candidate=candidate, expected=expected, base=base,
               checks=checks, commands=rows, baseline_fixture=str(baseline_fixture))
 with (out / 'run-summary.json').open('x', encoding='utf-8') as stream:
     json.dump(result, stream, ensure_ascii=False, indent=2)
