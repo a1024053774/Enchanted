@@ -103,7 +103,7 @@ outside-03-qCZMwEld/ 完整保留。候选滚动中位数为 59.998980 FPS、p95
 
 代码中发现保留窗格重新激活时的焦点竞态：旧显示周期留下 restoring=false；active 变化时 layout effect 先请求隐藏回放，
 同次提交的焦点 effect 仍可读到旧 false 并把 focusRequest 标为已服务。隐藏/重新显示后，它不再执行聚焦。
-这属于候选焦点处理缺陷。已把聚焦条件绑定到本次 visibility version 完成回放，且只有 document.activeElement
+这是可复现的候选焦点处理缺陷；但旧报告缺逐项条件，不能完整证明历史 timeout 就由它触发。已把聚焦条件绑定到本次 visibility version 完成回放，且只有 document.activeElement
 确实成为 terminal.textarea 才记录请求已服务。未放宽目标可见、可输入、恢复完成、textarea 聚焦这四项条件，也未延长 12 秒期限。
 
 新隔离检查 test_t143_retained_focus.mjs 执行实际 focus effect 回调：
@@ -111,6 +111,7 @@ outside-03-qCZMwEld/ 完整保留。候选滚动中位数为 59.998980 FPS、p95
 修正后四项通过（retained-focus-green-01.json），包括恢复后聚焦和后续快照不抢回用户焦点。
 该检查提供回调边界证据，未证明真实 React 调度或 Electron 焦点；真正超时是否解除必须由 RUN-OUTSIDE-04 再证。
 标准构建 focus-build-01.json 通过，临时构建目录已清理；25 项选择/权限检查 retention-after-focus-01.json 通过。
+独立只读审查 T143-FOCUS-REVIEW-01.md 为 INCOMPLETE：新跑父版本红态/候选绿态、1/37/126 请求边界、实际切换 JS 语法及缺指标停止门禁均通过；保留真实焦点/历史超时归因的局限。
 
 联合 e2e 现在保存已完成的切换样本；若超时，记录目标是否存在/可见、输入标记、恢复标记、焦点与告警字符串，
 不返回 DOM 对象。测量方法仍 v2，harness_version=4。RUN-OUTSIDE-04 仍先跑单项候选，指标完整且通过后才继续其余批次。
