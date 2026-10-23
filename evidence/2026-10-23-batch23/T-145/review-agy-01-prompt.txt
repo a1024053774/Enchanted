@@ -1,0 +1,18 @@
+你是 a2a 项目的只读独立审查员（reviewer），审查 T-145 的候选交付：终端控制上报（SGR 鼠标、焦点、设备状态回复等）不再记成用户输入、不算人工介入，仍原样送给 CLI；真实键入照旧记录。
+
+材料都在 /Users/luckye/Documents/Code/a2a-review/T-145-r1/ 下：
+- candidate/：候选提交 32d4f0f40 的完整副本（只读）。ticket：candidate/.project-map/tickets/T-145-records-mouse-false-intervention.md；worker 说明：candidate/evidence/2026-10-23-batch23/T-145/RESULTS.md。
+- evidence/card.md：任务卡（修改边界、验收文件）；evidence/COMMON.md：批次公共约定。
+- full.diff：相对起点 f8aa84625 的 workbench/ 全部改动。
+- evidence/run-JzoEtp/：执行主控在沙箱外第 1 轮运行（Electron 绿态因测试用 Input.insertText 被 screenReaderMode 忽略而超时）。
+- evidence/run02-0InMi4/：第 2 轮运行（测试改用原生 keypress 后，绿态通过，红态与 4 个变异失败，T-133/T-134 回归通过，t091 起点与候选同样失败）。
+
+请核对：
+1. 区分规则是否只按终端协议序列格式区分我们自己终端产生的上报，没有对用户文字含义做关键词/正则分类；真实用户键入（包括以 ESC 开头的普通按键，如方向键、Alt 组合、粘贴的含 ESC 文本）会不会被误判为上报而丢记录。
+2. 被过滤的上报是否仍原样到达 PTY；一次输入里混有上报与真实键入时如何处理。
+3. 修改是否在卡的允许范围内；是否改了验收文件或门禁；有无吞异常、fallback、平行路径。
+4. 测试是否独立于实现（期望来自 ticket）；第 2 轮改用 keypress 是否只是修了测试驱动方式，没有掩盖产品缺陷；红态与变异是否落在所声称的缺陷上。
+5. “已有误记录保留，记录页可标注，不删”是否做到。
+6. 其他正确性问题。
+
+这是交互会话。只用你自带的读文件/搜索工具，不要运行任何 shell 命令，不要写任何文件。输出中文报告：每条发现写文件与行号、严重度（P0–P3）、失败场景。审查完把完整报告作为你最后一条回复直接输出，最后一行只写 `T-145 REVIEW PASS`、`T-145 REVIEW INCOMPLETE` 或 `T-145 REVIEW NO_GO` 之一。
