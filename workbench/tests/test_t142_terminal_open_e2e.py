@@ -6,7 +6,9 @@
 4. 主目录、子目录或额外目录不能开，返回 id 不对应真实 shell/cwd。
 5. 新终端没有出现在界面项目层，混进任务层，或点开后的 pwd 不对。
 6. 真实 Claude 的 a2a request 没有经过界面批准，或其调用并未执行。
-7. Claude 默认进入 auto mode，其计费说明对话框挡住 Bash 调用；夹具须显式使用 default 权限模式。
+7. Claude Code 2.1.309 默认进入 auto mode，计费说明挡住 Bash；设 defaultMode="default" 后又会弹
+   “Make auto mode your default permission mode?” 并吃掉任务输入。夹具须同时设置 default 权限模式和
+   .claude.json 的 hasSeenAutoDefaultNudge=true，不发 Enter/Esc 关闭这些对话框。
 --backend-only 是沙箱内的真实后台/PTY/CLI 契约探针，不替代默认 Electron + Claude 验收。
 """
 import argparse
@@ -88,7 +90,7 @@ def main():
         else:
             assert fixture.request('role_release', fixture.terminal)['ok']
             config = fixture.home / '.claude.json'
-            config.write_text(json.dumps({'hasCompletedOnboarding': True, 'theme': 'dark',
+            config.write_text(json.dumps({'hasCompletedOnboarding': True, 'hasSeenAutoDefaultNudge': True, 'theme': 'dark',
                                           'projects': {str(fixture.repo): {'hasTrustDialogAccepted': True}}}), encoding='utf-8')
             (fixture.home / '.claude').mkdir(exist_ok=True)
             permissions = {'defaultMode': 'default', 'allow': ['Bash(a2a request:*)', 'Bash(a2a call:*)']}
