@@ -44,8 +44,9 @@ def main():
     report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant, checks=[], observed={})
     patches = {
         # A terminal controller without turn signals shown as idle instead of unknown.
-        'terminal-shown-idle': [('src/sidebar.ts', "parent: null, state: 'unknown', question_id: null, state_label: stateLabels.unknown, created_at: roleRequest.decided_at",
-                                 "parent: null, state: 'idle', question_id: null, state_label: stateLabels.idle, created_at: roleRequest.decided_at")],
+        # (Since T-107 #4 the state comes from the terminal's hook events; these terminals were approved over the socket and have none.)
+        'terminal-shown-idle': [('src/sidebar.ts', "const state: AgentState = last ?? (roleRequest.cli === 'claude' && roleRequest.native_session ? 'running' : 'unknown');",
+                                 "const state: AgentState = 'idle';")],
         # The saved parent launch not used for the tree.
         'parent-launch-ignored': [('src/sidebar.ts', "    if (typeof record.parent_launch === 'string') senders.add(record.parent_launch);\n", '')],
     }.get(args.mutant, [])
