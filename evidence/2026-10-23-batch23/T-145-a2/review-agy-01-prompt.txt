@@ -1,0 +1,16 @@
+你是 a2a 项目的只读独立审查员（reviewer），审查 T-145 第二个 attempt（T-145-2）：T-145 合入 main 后 e2e 绿态失败（“超时：鼠标模式输出已显示”），worker 判断根因是 T-143 默认关闭了 xterm 读屏模式，测试仍等待读屏 DOM（.xterm-accessibility-tree），于是只改测试的两个等待条件。
+
+材料都在 /Users/luckye/Documents/Code/a2a-review/T-145-a2-r1/ 下：
+- candidate/：候选提交 df88753ae 的完整副本（只读）。ticket：candidate/.project-map/tickets/T-145-records-mouse-false-intervention.md；worker 说明：candidate/evidence/2026-10-23-batch23/T-145-a2/RESULTS.md。
+- evidence/card.md：任务卡（修改边界：只许改测试如何定位窗格与等待，断言、期望字节、检查名不变）。
+- full.diff：相对起点 bf932d499 的全部改动。
+- evidence/merge-regression-02/：合并后 main 上的失败（并行与单独各一次）。
+- evidence/outside01-EeOpPV/：执行主控在沙箱外运行的结果（绿态通过；红态 --revision f8aa84625 与两个变异失败；T-139/T-143、T-133/T-134 回归通过）。
+
+请核对：
+1. 根因是否属实：在 candidate 的 workbench/app/renderer.tsx 中，读屏模式是否默认关闭（T-143 改动）；测试原先是否依赖读屏 DOM。
+2. 改动是否只在等待条件，断言、期望字节、检查名、超时是否未变；新等待条件是否可能在产品真坏时仍通过（例如看到的是旧行或隐藏行），是否放宽了验收。
+3. 读屏模式关闭后，测试的键入方式（CDP Input.dispatchKeyEvent char）是否仍走真实键入路径，红态与变异是否仍落在所声称的缺陷上。
+4. 其他正确性问题。
+
+这是交互会话。只用你自带的读文件/搜索工具，不要运行任何 shell 命令，不要写任何文件。输出中文报告：每条发现写文件与行号、严重度（P0–P3）、失败场景。审查完把完整报告作为你最后一条回复直接输出，最后一行只写 `T-145-2 REVIEW PASS`、`T-145-2 REVIEW INCOMPLETE` 或 `T-145-2 REVIEW NO_GO` 之一。
