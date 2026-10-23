@@ -8,7 +8,8 @@
 6. 真实 Claude 的 a2a request 没有经过界面批准，或其调用并未执行。
 7. Claude Code 2.1.309 默认进入 auto mode，计费说明挡住 Bash；设 defaultMode="default" 后又会弹
    “Make auto mode your default permission mode?” 并吃掉任务输入。夹具须同时设置 default 权限模式和
-   .claude.json 的 hasSeenAutoDefaultNudge=true，不发 Enter/Esc 关闭这些对话框。
+   .claude.json 的 hasSeenAutoDefaultNudge=true。Bash allow 规则不放行项目外的 out/ 重定向写入，
+   permissions.additionalDirectories 只能加入 fixture.out 的真实路径；不发 Enter/Esc 关闭这些对话框。
 --backend-only 是沙箱内的真实后台/PTY/CLI 契约探针，不替代默认 Electron + Claude 验收。
 """
 import argparse
@@ -93,7 +94,8 @@ def main():
             config.write_text(json.dumps({'hasCompletedOnboarding': True, 'hasSeenAutoDefaultNudge': True, 'theme': 'dark',
                                           'projects': {str(fixture.repo): {'hasTrustDialogAccepted': True}}}), encoding='utf-8')
             (fixture.home / '.claude').mkdir(exist_ok=True)
-            permissions = {'defaultMode': 'default', 'allow': ['Bash(a2a request:*)', 'Bash(a2a call:*)']}
+            permissions = {'defaultMode': 'default', 'allow': ['Bash(a2a request:*)', 'Bash(a2a call:*)'],
+                           'additionalDirectories': [str(fixture.out.resolve())]}
             (fixture.home / '.claude/settings.json').write_text(json.dumps({'permissions': permissions}), encoding='utf-8')
             report['observed']['fixture_permissions'] = permissions
             electron = Electron(fixture, 't142-' + fixture.dir.name[5:])

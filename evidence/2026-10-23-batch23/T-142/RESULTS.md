@@ -1,6 +1,6 @@
 # T-142-1 / a1：INCOMPLETE
 
-实现已完成；后台契约 PASS。执行主控已运行 RUN-OUTSIDE-01：T-124、T-139/T-143 通过，T-091 与起点一致；完整链路的 green/red/mutant 均被 Claude auto mode 计费说明对话框挡住而超时。测试夹具已固定 default 权限模式，并补上 Claude 2.1.309 的 hasSeenAutoDefaultNudge 标志，待 RUN-OUTSIDE-03 复验；整体仍为 INCOMPLETE。T-121 由执行主控本轮裁定交 T-147，不计入 T-142。
+实现已完成；后台契约 PASS。执行主控已运行 RUN-OUTSIDE-01：T-124、T-139/T-143 通过，T-091 与起点一致；完整链路的 green/red/mutant 均被 Claude auto mode 计费说明对话框挡住而超时。测试夹具已固定 default 权限模式、补上 Claude 2.1.309 的 hasSeenAutoDefaultNudge 标志，并仅授权向夹具 out/ 写入，待 RUN-OUTSIDE-04 复验；整体仍为 INCOMPLETE。T-121 由执行主控本轮裁定交 T-147，不计入 T-142。
 
 ## 改动
 
@@ -37,10 +37,10 @@ T-091 命令：`node --experimental-vm-modules workbench/tests/test_t091_pane_ip
 ## 待沙箱外运行
 
 ```sh
-zsh evidence/2026-10-23-batch23/T-142/RUN-OUTSIDE-03.sh
+zsh evidence/2026-10-23-batch23/T-142/RUN-OUTSIDE-04.sh
 ```
 
-每次创建新的 outside-03-* 目录，保存完整命令、退出码和 JSON，不覆盖旧证据。新脚本只重跑 green/red/mutant；产品代码未改，已通过的回归不重复跑。默认新 e2e 使用 claude-haiku-5-5 的真实交互 CLI，经真实 a2a request、界面批准、调用 terminal_open；点入项目层普通终端，核对 launch.id 并经界面输入 pwd。
+每次创建新的 outside-04-* 目录，保存完整命令、退出码和 JSON，不覆盖旧证据。新脚本只重跑 green/red/mutant；产品代码未改，已通过的回归不重复跑。默认新 e2e 使用 claude-haiku-5-5 的真实交互 CLI，经真实 a2a request、界面批准、调用 terminal_open；点入项目层普通终端，核对 launch.id 并经界面输入 pwd。
 
 ## RUN-OUTSIDE-01 回传与夹具修正（2026-10-23）
 
@@ -56,6 +56,14 @@ zsh evidence/2026-10-23-batch23/T-142/RUN-OUTSIDE-03.sh
 - 证据目录：`outside-02-20261023T154933Z-uhlQPc`。green/red/mutant 均在“执行主控申请”超时，未形成产品红态或变异证明。green 夹具 `/private/tmp/t142-1mg9k2cq` 的主控 PTY（launch `e465a31e-4bfd-408c-b83b-80f99ab9df2f`）可见“Make auto mode your default permission mode?”。
 - 执行主控已核对 Claude Code 2.1.309 安装包的 mJr 条件：hasCompletedOnboarding 为真、缺少 hasSeenAutoDefaultNudge，且 userSettings 配了非 auto defaultMode 时出现此提示。本轮按指令在隔离 home 的 `.claude.json` 中与 hasCompletedOnboarding 并列写 `hasSeenAutoDefaultNudge: true`；保留 `permissions.defaultMode="default"` 与原 allow 规则。测试失败方式第 7 条记录了版本、两个提示及处理条件。未新增发送 Enter/Esc 关闭提示的代码，未改产品代码或用户全局配置。
 - 新的 RUN-OUTSIDE-03 只重跑 green/red/mutant，创建独立 outside-03-* 目录；沿用具体业务断言、退出码、界面 pwd 与清理检查，不接受同一个超时。`run03-checker-negative.json` 记录新脚本对 RUN-OUTSIDE-02 三个“执行主控申请”超时的拒绝，red_expected_refusal、mutant_caught 均为 false。
-- 静态检查：`zsh -n evidence/2026-10-23-batch23/T-142/RUN-OUTSIDE-03.sh`、`PYTHONPYCACHEPREFIX=/private/tmp/t142-pycache python3 -m py_compile workbench/tests/test_t142_terminal_open_e2e.py`、`git diff --check` 通过。RUN-OUTSIDE-03 尚未执行，完整 UI 绿态、起点红态、变异与独立验收仍为 INCOMPLETE，交执行主控继续确认。
+- 静态检查：`zsh -n evidence/2026-10-23-batch23/T-142/RUN-OUTSIDE-03.sh`、`PYTHONPYCACHEPREFIX=/private/tmp/t142-pycache python3 -m py_compile workbench/tests/test_t142_terminal_open_e2e.py`、`git diff --check` 通过。RUN-OUTSIDE-03 已执行，回传及后续修正见下节。
+
+## RUN-OUTSIDE-03 回传与夹具修正（2026-10-23）
+
+- 证据目录：`outside-03-20261023T162737Z-KqE4Kr`。green/red/mutant 仍在“main 开终端回执”超时，未形成产品红态或变异证明。执行主控核对 green 夹具 `/private/tmp/t142-1cme1k11` 的 PTY 后回传：Claude 已发出真实 Bash(a2a call ... > out/main.json)，但弹出项目目录外写入的确认；原 Bash allow 规则仅放行命令，没有放行 out/ 的写入。
+- 本轮仅在隔离 settings.json 的 permissions 中加入 `additionalDirectories: [str(fixture.out.resolve())]`，数组只含该夹具专用 out/ 的真实路径；defaultMode、两条 allow、hasSeenAutoDefaultNudge 及交互逻辑保留。注释第 7 条补充了此失败方式。未发送确认按键，未修改产品或全局配置。
+- RUN-OUTSIDE-04 创建新的 outside-04-* 目录，仅重跑 green/red/mutant。汇总器按每个独立 fixture 的 out/ 路径核对完整 permissions，拒绝缺少该目录或扩展到其他目录的配置；原有具体红态、变异、退出码与界面 pwd 检查保留。
+- 本轮 `zsh -n evidence/2026-10-23-batch23/T-142/RUN-OUTSIDE-04.sh`、`PYTHONPYCACHEPREFIX=/private/tmp/t142-pycache python3 -m py_compile workbench/tests/test_t142_terminal_open_e2e.py`、`git diff --check` 通过。`run04-checker-negative.json` 记录新汇总器对 RUN-OUTSIDE-03 缺少 additionalDirectories 且超时的三个旧结果均拒绝；这不是新 UI 链路的通过证据。
+- RUN-OUTSIDE-04 尚未执行，完整 UI 绿态、起点红态、变异与独立验收仍为 INCOMPLETE，交执行主控继续确认；既有证据均保留。
 
 所有新探针的原始现场保留在 summary.fixture 指向的 /private/tmp/t142-*；包括 run、sqlite、PTY 与未来截图。按派发要求截图不提交，原始现场由执行主控按 T-088 归档；本提交只包含小文本摘要和重放脚本。初始已有的 card.md 派发修订保留原样，未由 worker 修改或纳入 worker 提交。收件箱上报条目由 scripts/inbox 生成，留在 worktree 供主控读取，不纳入本 ticket 代码提交。
