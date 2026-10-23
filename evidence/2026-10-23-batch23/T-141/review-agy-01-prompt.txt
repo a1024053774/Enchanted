@@ -1,0 +1,21 @@
+你是 a2a 项目的只读独立审查员（reviewer），审查 T-141：放宽受管会话限制——网络全开、Claude 不再用 strict-mcp-config（只加载 a2a 自己的 MCP 配置之外不再强制隔离）、Codex 与用户自己的配置一致，文件写入范围（worktree 加额外目录）是唯一硬边界；Codex 保持 `-a never`；问题上报 → 执行主控回复的路径要能走通。
+
+用户裁定（都在 evidence/ 下）：
+- 20261023T125315Z-ideation-answer-001.md：T-141 MCP 选 A；Codex 信任提示“不自动选”。
+- 20261023T151224Z-executor-report-001.md：T-127 冲突用户选 A——只有 Codex reviewer 的一次性审查副本仍以 untrusted 打开（只对审查副本保留这一条每会话 -c），worker（与 monitor）沿用用户配置。
+- 20261023T153252Z-executor-report-001.md：用户授权改受保护 test_t127_codex_home_e2e.py 中按“worker 强制 untrusted”写的四处 worker 期望；审查员 untrusted、候选钩子与配置在审查员处不生效的断言全部保留。
+- controller-decision.md：执行主控裁定 test_t140 可在其隔离 CODEX_HOME 里信任它自己创建的 demo 仓库。
+
+材料在 /Users/luckye/Documents/Code/a2a-review/T-141-r1/ 下：
+- candidate/：候选 65ca19f8b 只读副本；ticket：candidate/.project-map/tickets/T-141-loosen-managed-limits.md；任务卡与 RESULTS：candidate/evidence/2026-10-23-batch23/T-141/（RESULTS.md、diagnosis-outside-05.md、acceptance-review-06.md 等）。
+- full.diff：相对起点 3f8813b0e 的 workbench/ 全部改动（15 个文件）。
+- evidence/outside05-jYDNPNbR/matrix.json：执行主控沙箱外第 5 轮 29 场（25 场符合预期，4 场 T-127 场景当时不符）；evidence/outside06-pOPgrnDF/matrix.json：第 6 轮只跑那 4 场加 t127 绿，全部符合预期。
+
+请核对：
+1. 产品代码（panes.ts、gates/core.ts 等）是否实现了 ticket 与上述裁定：网络放开、写入边界仍硬、Codex `-a never`、Claude MCP 配置、Codex reviewer 副本 untrusted 且门禁核对、worker 不再加信任覆盖；是否有平行路径、吞异常、fallback。
+2. 受保护验收文件的改动是否严格落在授权内：test_t127 只改授权的四处 worker 期望与变异定位（三个检查改名，在授权范围内），审查员侧断言是否未被放宽；test_t140 是否只加 demo 仓库信任；其他受保护文件未改。
+3. 第 6 轮对 4 场判定的修正（证据读取、按实际拒绝层分类、paused 终态识别）是否只是修正判据而非放宽；变异是否仍被行为断言抓住。
+4. 安全：worker 能写的 .codex 配置、hooks、exec policy 能否在审查员会话里生效；写入边界能否被额外目录或共享临时目录绕过。
+5. 其他正确性问题。
+
+这是交互会话。只用你自带的读文件/搜索工具，不要运行任何 shell 命令，不要写任何文件。输出中文报告：每条发现写文件与行号、严重度（P0–P3）、失败场景。审查完把完整报告作为你最后一条回复直接输出，最后一行只写 `T-141 REVIEW PASS`、`T-141 REVIEW INCOMPLETE` 或 `T-141 REVIEW NO_GO` 之一。
