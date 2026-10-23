@@ -152,3 +152,5 @@ bash evidence/2026-10-23-batch24/T-155/START-APP.sh /private/tmp/t155-dogfood-oh
 ```
 
 重开后只核对任务/角色/历史记录与未知状态的保留，再由主控 STOP --all；停止后归档 raw run、只读核对数据库和本次 native session。原目录不删除。缺盘或无法确认退出时保留现场，不能写归档成功。报告独立审查在证据冻结后做，当前未做。
+
+阶段文本检查：报告 UTF-8 回读与 20 个本地引用存在性检查通过；project-map status 为 Problems 0、Stale living docs 0；产品 workbench 与基线无改动。默认 `git diff --check` 在原样保存的 AX 文本中报告 14 处 UI 字段自带尾随空白（分隔符与日期占位符），记录保留、不为消除告警改写原文。仅排除此原始 AX 文件后，手写报告与脚本的 diff check 退出 0；不把默认检查写成通过。
