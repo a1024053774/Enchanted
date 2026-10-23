@@ -42,3 +42,10 @@ ready_rev: 1
 
 ## Resolution
 
+2026-10-23 执行主控阶段记录（票保持 open，INCOMPLETE；待构思主控决定）：
+
+- 报告 `findings/2026-10-23-real-user-dogfood.md` 已合入本地 main（`c29615893`，worker 候选 `459c5ad86`，launch-646015ef1dc0400ab4910cd2cfee8502）：7 条发现（F01 阻断、F03/F05 严重、F02/F04/F06 一般、F07 轻微且已更正撤回编号部分）、4 条 Claude 模型行为记录、已查环节与 Herdr 对照（五项均“部分”）。
+- 验收第 1 条未满足：两个隔离实例、应用内 claude-haiku-5-5、37/60 真实回合，走到并行派发、上报答复、人工介入、审查打回与修复重交、记录/指标/Reflect、同后台重开；但三票无一集成——T-101、T-102 被 reviewer 以代码块包裹 JSON 的审查协议问题暂停（3 次），T-103 在 Stop 期间人工输入后交付 `worker_not_active` 且界面未知（F01）。未覆盖 Codex worker。
+- 第 2～4 条：每条发现有复现与证据；F04 在两个全新实例重复出现（红态意义）；原始证据外置盘归档 18 目录、574 文件、28,558,091 字节，`runs.archive.json`。
+- 独立审查 agy INCOMPLETE（同上理由），报告事实问题 1 条（F07）已更正并经执行主控对图核对。
+
