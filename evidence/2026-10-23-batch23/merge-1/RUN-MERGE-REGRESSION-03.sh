@@ -1,0 +1,38 @@
+#!/bin/zsh
+# Post-merge regression of main after T-146-3 (run 02 plus the T-146-3 projection test).
+# Runs in a detached worktree of the given revision; each summary goes to a new directory.
+set -u
+REV=${1:?revision}
+W=/Users/luckye/Documents/Code/a2a-merge-check
+OUT=/Users/luckye/Documents/Code/a2a/evidence/2026-10-23-batch23/merge-1/run-$(date -u +%Y%m%dT%H%M%SZ)
+mkdir -p "$OUT" || exit 2
+[ -d $W ] || { git -C /Users/luckye/Documents/Code/a2a worktree add --detach $W $REV && cp -cR /Users/luckye/Documents/Code/a2a/workbench/node_modules $W/workbench/node_modules; } || exit 2
+git -C $W checkout -q --detach $REV || exit 2
+cd $W || exit 2
+export PYTHONPYCACHEPREFIX=/private/tmp/a2a-merge-pycache
+run() { local name=$1; shift; "$@" > "$OUT/$name.log" 2>&1; echo "$name exit=$?" | tee -a "$OUT/exits.txt"; }
+run t140-green python3 workbench/tests/test_t140_extra_dirs_e2e.py --summary "$OUT/t140-green.json" &
+run t146-green python3 workbench/tests/test_t146_session_state_e2e.py --summary "$OUT/t146-green.json" &
+run t139-t143-candidate python3 workbench/tests/test_t139_t143_views_perf_e2e.py --summary "$OUT/t139-t143-candidate.json" &
+wait
+run t146-native-green python3 workbench/tests/test_t146_cli_exit_probe.py --summary "$OUT/t146-native-green.json" &
+run t137 python3 workbench/tests/test_t137_reflect_e2e.py --summary "$OUT/t137.json" &
+run t131 python3 workbench/tests/test_t131_parallel_workers_e2e.py --summary "$OUT/t131.json" &
+wait
+run t127 python3 workbench/tests/test_t127_codex_home_e2e.py --summary "$OUT/t127.json" &
+run t107 python3 workbench/tests/test_t107_live_sidebar_e2e.py --summary "$OUT/t107.json" &
+run t133-t107 python3 workbench/tests/test_t133_t107_terminal_controller_e2e.py --summary "$OUT/t133-t107.json" &
+wait
+run t111 node workbench/tests/test_t111_flow.mjs "$OUT/t111.json" .
+run t146-session-end node workbench/tests/test_t146_session_end.mjs "$OUT/t146-session-end.json" .
+run t146-reviewer-hooks node workbench/tests/test_t146_reviewer_hooks.mjs "$OUT/t146-reviewer-hooks.json" .
+run t143-retained-focus node workbench/tests/test_t143_retained_focus.mjs "$OUT/t143-retained-focus.json"
+run t139-selection node --experimental-vm-modules workbench/tests/test_t139_selection.mjs "$OUT/t139-selection.json"
+run t139-layout-store node --experimental-vm-modules workbench/tests/test_t139_layout_store.mjs "$OUT/t139-layout-store.json"
+run t139-terminal-catalog node workbench/tests/test_t139_terminal_catalog.mjs "$OUT/t139-terminal-catalog.json"
+run t140-project-events node workbench/tests/test_t140_project_events.ts
+run t145-green python3 workbench/tests/test_t145_mouse_reports_e2e.py --summary "$OUT/t145-green.json"
+run t145-protocol node workbench/tests/test_t145_protocol_input.mjs "$OUT/t145-protocol.json"
+run t146-ended-projection node workbench/tests/test_t146_ended_projection.mjs "$OUT/t146-ended-projection.json" .
+run build node workbench/app/build.mjs --slot merge-check-$(date -u +%Y%m%dT%H%M%SZ)
+echo "OUT=$OUT"
