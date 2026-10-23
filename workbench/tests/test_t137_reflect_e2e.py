@@ -281,8 +281,11 @@ def main():
         fixture.run_cli('daemon_stop')
         fixture.running = False
         fixture.wait('旧后台退出', lambda: not (fixture.state / 'control.sock').exists(), 60)
+        # Each daemon start writes a fresh operator credential (as in the T-124 restart).
+        (fixture.dir / 'operator.json').rename(fixture.dir / 'operator-before-restart.json')
         fixture.run_cli('daemon_start', '--launch-config', str(fixture.dir / 'launch-config.json'))
         fixture.running = True
+        fixture.operator = json.loads((fixture.dir / 'operator.json').read_text(encoding='utf-8'))
         fixture.wait('后台恢复结束', lambda: fixture.request('pane_layout').get('recovering') is False, 30)
         kept = listing()['schedule']
         report['observed']['schedule_after_restart'] = kept
