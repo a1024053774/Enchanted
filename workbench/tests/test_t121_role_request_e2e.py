@@ -512,7 +512,7 @@ def main():
         borrowed_after = request('inbox_list', dict(kind='terminal', launch=a['launch'], token=token_a))
         check('closed_terminal_identity_refused', borrowed_after['ok'] is False, borrowed_after)
         sidebar = request('sidebar_snapshot')
-        check('sidebar_drops_closed_controller', not [agent for agent in sidebar['agents'] if agent['id'] == a['launch']])
+        check('sidebar_drops_closed_controller', [agent['state'] for agent in sidebar['agents'] if agent['id'] == a['launch']] == ['ended'])
         type_line(b, f'(a2a request executor > {out}/b-request2.json 2>/dev/null; print $? > {out}/b-request2.exit) &!', 'T121-B-SENT2')
         [pending_b2] = wait_pending(('proj', 'executor'))
         check('role_free_again_after_close', pending_b2['launch'] == b['launch'])
