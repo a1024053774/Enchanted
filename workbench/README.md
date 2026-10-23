@@ -565,6 +565,7 @@ npm run package:mac -- --slot mac-新的编号
 UI 构建、stage、重建与临时文件集中在本次构建目录的 `work/`；打包、签名核对成功后
 自动清理 `work/`，目录里只保留 `Enchanted.app`。已有槽不复用，失败时保留现场。
 显示名和主可执行文件名为 Enchanted，helper 为 `Enchanted Helper*.app`；bundle id 仍为 `org.a2a.workbench`。
+应用的版本号取本目录 `package.json` 的 `version`（发版前同时改 `package-lock.json` 顶部两处）。
 `--variant test` 打出可与正式版并存的 `Enchanted Test.app`：bundle id `org.a2a.workbench.test`，
 数据目录 `~/Library/Application Support/a2a-orchestrator-test`，因此单实例锁、编排后台与项目列表都与正式版分开。
 应用品牌原图在 `workbench/app/brand/`，Pages 的静态发布副本在 `docs/assets/brand/`，两处均原样保留用户附件。
