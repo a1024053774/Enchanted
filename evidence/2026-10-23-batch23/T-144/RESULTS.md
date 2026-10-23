@@ -1,13 +1,13 @@
 # T-144-1 / attempt a1：INCOMPLETE
 
-实现已提交候选，真实 Electron 验收、业务红态和变异证据待主控在沙箱外运行。没有把本地构建或模型自报当作验收通过。
+首轮真实 Electron 绿态、业务红态、两个变异和 T-146/T-137 回归已由主控在沙箱外跑出预期结果。用户裁定 A 后，只调整指定三处合同断言；新断言在起点失败、在候选通过。当前等待 RUN-OUTSIDE-02 的新候选复验与独立审查，整体保持 INCOMPLETE。
 
 ## 修改
 
 - 卡片标题显示角色与任务名；launch 和 attempt 的 UUID 放到悬停提示。
 - 执行主控按侧栏已核实的父 launch 与当前 worker 的派发关系进入任务泳道，不用主控终端的 task 字段推断。不同任务分别计算；未关联的会话逐项说明原因。
 - 泳道逐行显示项目主目录与 T-140 当前设置的额外目录。沿用侧栏状态及已结束会话列出规则。
-- 只改流程投影、流程页、样式、README 流程段；未改 sidebar.ts、panes.ts、daemon.ts、门禁或验收文件。任务卡是派发前已有的脏改动，按原样保留。
+- 产品代码只改流程投影、流程页、样式、README 流程段；未改 sidebar.ts、panes.ts、daemon.ts、门禁。测试仅新增 T-144 文件及按下文裁定修改三处旧断言，受保护的 T-146/T-137 e2e 未改。任务卡是派发前已有的脏改动，按原样保留。
 
 ## 已运行证据
 
@@ -23,11 +23,25 @@
 
 原始探索现场保留 `/private/tmp/t144-1tpnqh45`、`/private/tmp/t144-pmv09lnl`；未归档或删除。依据 T-088，主控负责外置盘归档。
 
-## 旧合同冲突，未修改
+## 首轮旧合同冲突与用户裁定 A
 
 `test_t111_flow.mjs:36` 仍要求泳道只有 worker，第 41 行要求 controller 在未归属；`test_t146_ended_projection.mjs:65` 同样要求已结束主控在未归属。T-144 的派发归属正好改变这些期望。两项实际运行均失败，见 `t111-01.json`、`t146-ended-projection-01.json`。后者运行时误将 `--help` 用作输出名，完整产物已移到上述证据路径，没有丢弃。
 
-已通过 `scripts/inbox send` 上报 `20261023T140459Z-worker:b23-t144-issue-001`，正文在 worktree 的 `.project-map/inbox/`。此自动生成的上报文件不列入候选代码提交，主控可直接读取；等待主控裁定旧合同的授权更新，不自行改验收。
+已通过 `scripts/inbox send` 上报 `20261023T140459Z-worker:b23-t144-issue-001`，正文在 worktree 的 `.project-map/inbox/`。此自动生成的上报文件不列入候选代码提交，主控可直接读取。
+
+用户 2026-10-23 选择“A 授权改这两处 (Recommended)”。依据为主控本轮派发与 `/Users/luckye/Documents/Code/a2a/.project-map/inbox/20261023T142024Z-ideation-answer-001.md`；原件标记 `certainty: relayed`，转述用户答复 A，原样副本为 `decision-A.txt`：
+
+> 用户答复：A。授权只把“执行主控在未归属”改为“执行主控按派发关系在其任务泳道；确实无关联的才在未归属”，其余断言、检查名、期望值不动；改动逐条写入 RESULTS 与 report。可以合入 T-144。
+
+只修改以下三行，行号未变：
+
+| 文件与行 | 旧期望 | 新期望 | 依据 |
+| --- | --- | --- | --- |
+| `workbench/tests/test_t111_flow.mjs:36` | T-A 泳道成员为 `['w1','w2','ended']` | `['controller','w1','w2','ended']` | 裁定 A：controller 是该泳道当前 worker 的派发父会话，应进入该泳道。 |
+| `workbench/tests/test_t111_flow.mjs:41` | 未归属为 `['controller','old','orphan']` | `['old','orphan']` | 裁定 A：已按派发归属的 controller 不再进入未归属；旧 attempt 与缺父关系仍保留。 |
+| `workbench/tests/test_t146_ended_projection.mjs:65` | 在 `flow.unassigned` 找 terminal，状态为 `ended` | 在 `flow.lanes[0].agents` 找同一 terminal，状态仍为 `ended` | 裁定 A：已结束主控仍按其派发 worker 归属泳道，只改查找位置，状态期望不变。 |
+
+其他断言、检查名、期望值全部保留，产品代码没有新增修改。修改后的两份测试使用相同的新断言分别加载起点源码与候选源码：`contract-local-76cfr4j2/SUMMARY.json` 记录命令、源码路径、退出码及错误。起点 `6af6e3028cbca2d1868e32eda85eeb932b91ef17` 两项均退出 1，分别命中第 36、65 行；候选两项均 PASS、退出 0。T-111 在起点的首个失败是第 36 行，第 41 行未执行；候选上两行均执行并通过。起点源码副本保留在 `/private/tmp/t144-contract-baseline-ydrtkp71/source`，没有回退或改写工作区。
 
 ## 沙箱外复跑
 
@@ -41,4 +55,16 @@
 
 新 e2e 使用真实后台、角色申请、门禁、Claude Code `claude-haiku-5-5` 与本地脚本化 Messages 接口、真实 Electron/CDP。随机任务名防止写死标题；两个项目各有任务与派发主控，第三个主控无任务，其中第一个项目带额外目录。DOM 检查标题、悬停 UUID、逐条泳道成员、未归属原因及路径，并把截图写到摘要旁。
 
-当前未验证：真实 Electron 展示与截图、完整业务红/绿、两个变异是否实际被拒绝、T-146 与 T-137 的 e2e 回归、独立审查。旧合同冲突未裁定，整体保持 INCOMPLETE。`RUN-OUTSIDE-01 请主控运行`。
+## 首轮沙箱外结果与第二轮交接
+
+主控提供并已核对 `outside-20261023T141754Z-U3kdek/`（候选 `52af15174c25f5fbdeb3f74b470e5fa66335d77d`，Node/Claude 版本、各命令日志和退出码在同目录）：
+
+- `green.json`：PASS，11 条检查通过；截图 `green.png`。真实标题、两条泳道归属、无关联主控原因、主目录与额外目录全部通过。
+- `red.json`：退出 1，命中标题、派发归属、路径及未归属原因等具体业务断言；截图 `red.png`。
+- `uuid-title.json`：退出 1，命中两条任务泳道的 worker/主控标题及 UUID 可见性断言；截图 `uuid-title.png`。
+- `terminal-task.json`：退出 1，命中两条泳道的成员、主控标题与未归属断言；截图 `terminal-task.png`。
+- `projection.json`、`t146.json`（47 条检查）、`t137.json`（10 条检查）：PASS。只有两份旧合同因上述已获授权修正的断言退出 1，首轮汇总的 INCOMPLETE 原样保留。
+
+第二轮命令：`zsh evidence/2026-10-23-batch23/T-144/RUN-OUTSIDE-02.sh`。每次新建证据目录，使用改后的两份测试分别加载起点与候选源码，要求旧源码在指定归属断言失败、候选通过，并重跑真实 Electron green。源码副本与真实夹具均保留供主控按 T-088 归档。
+
+合同对照目前为 PASS；第二轮真实 Electron 绿态及新候选独立审查未运行，整体保持 INCOMPLETE。`RUN-OUTSIDE-02 请主控运行`。

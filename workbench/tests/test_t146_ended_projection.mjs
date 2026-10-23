@@ -62,7 +62,7 @@ try {
   report.checks.push('closed_controller_identity_state_and_authority', 'unconfirmed_stays_ordinary');
   const flow = projectFlow([{ task_id: worker.task, project_id: 'demo', current_attempt: { attempt_id: 'a1' } }], after.agents, []);
   assert.equal(flow.lanes[0].agents.find(row => row.id === worker.id)?.state, 'ended');
-  assert.equal(flow.unassigned.find(row => row.id === terminal.id)?.state, 'ended');
+  assert.equal(flow.lanes[0].agents.find(row => row.id === terminal.id)?.state, 'ended');
   const reflect = reflectTree(store.db, roles.all(), 'demo', new Map(after.agents.map(row => [row.id, row.state])));
   for (const id of [terminal.id, worker.id]) {
     assert.equal(reflect.find(row => row.launch === id)?.state, 'ended');
