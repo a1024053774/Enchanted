@@ -22,6 +22,8 @@ python3 workbench/tests/test_t146_session_state_e2e.py --revision ebbae7bd0 --su
 
 `RUN-OUTSIDE-01.sh` 为沙箱外复跑准备，输出目录包含时间与 PID，保留既有证据；也列入两项要求的回归。未申请越权、未绕过 CLI 沙箱。
 
+提交诊断候选后执行既有流程基线：`node workbench/tests/test_t111_flow.mjs /private/tmp/t146-t111-baseline-c49e7749a.json .`，退出 0，摘要 `{"status":"PASS","task":"T-111","model_calls":0}`。该结果只证明未改产品时的既有流程契约成立，也实证当前 oracle 排除 ended；不替代 T-146 修复后的回归。fixture 清理后 `control.sock`、`daemon.pid` 均不存在。收尾 project-map status 仍为 Problems 0、Stale living docs 0。
+
 ## 等待裁定
 
 1. 状态同源最小修复需要改 `daemon.ts:409` 的 Reflect 调用入口，此文件不在允许清单。`renderer.tsx` 与 `main.ts` 未动。
@@ -29,4 +31,6 @@ python3 workbench/tests/test_t146_session_state_e2e.py --revision ebbae7bd0 --su
 3. 代码显示关闭终端已会使角色申请 ended，尚未复现所述关闭后仍运行中。确定的代码差异是 Reflect 的生命周期与侧栏的完整状态不同；需真实 DOM 证据确定具体触发条件。
 4. CLI 自然退出场景尚未写入测试，需在边界裁定与真实红态后补齐；不能用门禁回收替代此项证据。
 
-修复、真实 Electron 红态/绿态、变异、T-137 与 T-111 回归、独立行为验收均未完成。当前测试是诊断候选，不以其未执行的断言宣称覆盖成立。无 submit 或验收通过结论。
+修复、真实 Electron 红态/绿态、变异、T-137 与修复后的 T-111 回归、独立行为验收均未完成。当前测试是诊断候选，不以其未执行的断言宣称覆盖成立。无 submit 或验收通过结论。
+
+独立只读诊断审查：针对冻结候选 `c49e7749a88356f55e4368aca7e85de10d0d660b`，审查员返回 `STATUS: INCOMPLETE`、FINDINGS 无，确认报告如实记录未修复、未取得 Electron 红绿态、未验证变异与 CLI 自然退出。该审查发生在上述 T-111 基线证据补记之前，不是产品验收通过。
