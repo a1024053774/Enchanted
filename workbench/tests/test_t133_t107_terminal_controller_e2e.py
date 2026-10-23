@@ -126,7 +126,7 @@ def main():
     def approve(card):
         # The approve button is disabled while the sidebar settles; click it once it is enabled.
         electron.until('批准', f"(()=>{{const b=[...document.querySelectorAll('[data-role-request=\"{card}\"] button')].find(b=>b.textContent==='批准');"
-                       "if(!b||b.disabled)return false;b.click();return true}})()", 20)
+                       "if(!b||b.disabled)return false;b.click();return true})()", 20)
 
     def agent(launch):
         return electron.evaluate(f"(()=>{{const r=document.querySelector('.agent-row[data-agent-launch=\"{launch}\"]');"
