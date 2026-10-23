@@ -8,8 +8,9 @@
 6. 真实 Claude 的 a2a request 没有经过界面批准，或其调用并未执行。
 7. Claude Code 2.1.309 默认进入 auto mode，计费说明挡住 Bash；设 defaultMode="default" 后又会弹
    “Make auto mode your default permission mode?” 并吃掉任务输入。夹具须同时设置 default 权限模式和
-   .claude.json 的 hasSeenAutoDefaultNudge=true。Bash allow 规则不放行项目外的 out/ 重定向写入，
-   permissions.additionalDirectories 只能加入 fixture.out 的真实路径；不发 Enter/Esc 关闭这些对话框。
+   .claude.json 的 hasSeenAutoDefaultNudge=true。PROBE-01 证实即使 out/ 在 additionalDirectories 中，
+   Bash 输出重定向仍需批准；模型只运行裸 a2a call，测试读取绑定该命令的原始工具回执与后台状态。
+   不发 Enter/Esc 关闭这些对话框。
 --backend-only 是沙箱内的真实后台/PTY/CLI 契约探针，不替代默认 Electron + Claude 验收。
 """
 import argparse
@@ -69,6 +70,23 @@ def main():
         fixture.wait('CLI 回执', lambda: path.exists() and path.stat().st_size, 30)
         return result(path)
 
+    def model_return(command):
+        # The real CLI sends a Bash tool_result back to the scripted endpoint.
+        # Bind it by tool_use_id and command, rather than the model's final prose or receipt order.
+        with fixture.api.lock:
+            bodies = list(fixture.api.bodies)
+        for body in reversed(bodies):
+            calls = {}
+            for message in body['messages']:
+                if not isinstance(message['content'], list):
+                    continue
+                for part in message['content']:
+                    if part.get('type') == 'tool_use' and part.get('name') == 'Bash':
+                        calls[part['id']] = part['input']['command']
+                    elif part.get('type') == 'tool_result' and calls.get(part['tool_use_id']) == command:
+                        return part
+        return None
+
     try:
         fixture = Fixture('t142-', plan, revision=args.revision, patches=patches)
         report['fixture'] = str(fixture.dir)
@@ -83,11 +101,12 @@ def main():
         controller = open_input(fixture.terminal_launch)
         destinations = [('main', fixture.repo), ('extra', extra), ('child', child)]
         paths = {name: fixture.out / f'{name}.json' for name, _ in destinations}
-        commands.extend(f'a2a call {quote(json.dumps(dict(command="terminal_open", cwd=str(cwd))))} > {quote(str(paths[name]))}' if name == 'main' else
-                        f'a2a call terminal_open --cwd {quote(str(cwd))} > {quote(str(paths[name]))}' for name, cwd in destinations)
+        commands.extend('a2a call ' + quote(json.dumps(dict(command='terminal_open', cwd=str(cwd)))) if name == 'main' else
+                        f'a2a call terminal_open --cwd {quote(str(cwd))}' for name, cwd in destinations)
         if args.backend_only:
-            for line in commands:
-                type_in(controller, line + '\r')
+            for (name, _), line in zip(destinations, commands):
+                # Only the fixture's own zsh writes captures; Claude never receives a redirection.
+                type_in(controller, line + ' > ' + quote(str(paths[name])) + '\r')
         else:
             assert fixture.request('role_release', fixture.terminal)['ok']
             config = fixture.home / '.claude.json'
@@ -115,15 +134,26 @@ def main():
             electron.until('批准', f'(()=>{{const b=[...document.querySelectorAll(\'[data-role-request="{card}"] button\')].find(b=>b.textContent==="批准");if(!b||b.disabled)return false;b.click();return true}})()', 30)
             fixture.wait('主控已批准', lambda: fixture.request('terminal_whoami', fixture.terminal).get('role') == 'executor', 30)
             check('real_claude_requested_and_ui_approved', True)
-        for name, cwd in destinations:
-            path = paths[name]
-            fixture.wait(name + ' 开终端回执', lambda: path.exists() and path.stat().st_size, 120)
-            value = result(path)
+        for (name, cwd), command in zip(destinations, commands):
+            if args.backend_only:
+                path = paths[name]
+                fixture.wait(name + ' 开终端回执', lambda: path.exists() and path.stat().st_size, 120)
+                value = result(path)
+            else:
+                returned = fixture.wait(name + ' 原始工具回执', lambda: model_return(command), 120)
+                content = returned['content']
+                text = content if isinstance(content, str) else '\n'.join(part.get('text', '') for part in content)
+                report['observed'].setdefault('tool_returns', {})[name] = dict(command=command, **returned)
+                start = text.find('{')
+                check(name + '_return_is_json', start >= 0, text)
+                value, _ = json.JSONDecoder().raw_decode(text[start:])
             report['observed'][name] = value
             check(name + '_opened', value.get('ok') is True, value)
             launch = value['launch']
             check(name + '_ordinary_project_terminal', launch['project'] == 'demo' and launch['role'] == 'shell' and
                   all(launch[key] is None for key in ('task', 'attempt', 'session', 'fence')) and launch['worktree'] == str(cwd), launch)
+            snapshot = fixture.request('workbench_snapshot', project='demo', launch=launch['id'])
+            check(name + '_receipt_matches_backend', snapshot.get('ok') is True and snapshot.get('launch') == launch, snapshot)
             shell = open_input(launch['id'])
             pwd = fixture.out / f'{name}-pwd.txt'
             type_in(shell, f'pwd > {quote(str(pwd))}\r')

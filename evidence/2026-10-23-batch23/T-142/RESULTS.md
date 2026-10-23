@@ -1,6 +1,6 @@
 # T-142-1 / a1：INCOMPLETE
 
-实现已完成；后台契约 PASS。执行主控已运行 RUN-OUTSIDE-01：T-124、T-139/T-143 通过，T-091 与起点一致；完整链路的 green/red/mutant 均被 Claude auto mode 计费说明对话框挡住而超时。测试夹具已固定 default 权限模式、补上 Claude 2.1.309 的 hasSeenAutoDefaultNudge 标志，并仅授权向夹具 out/ 写入，待 RUN-OUTSIDE-04 复验；整体仍为 INCOMPLETE。T-121 由执行主控本轮裁定交 T-147，不计入 T-142。
+实现已完成；后台契约 PASS。真实 Claude Code 2.1.309 的成对探针已证实：相同隔离 home/settings 下，裸 a2a call 成功；增加输出重定向后出现结构化权限拒绝，即使 out/ 已在 additionalDirectories 内。完整测试现改为让 Claude 执行裸命令，读取绑定 tool_use_id 的原始工具回执并与后台 launch 交叉核对。RUN-OUTSIDE-05 的完整 UI 绿态、起点红态、变异仍待主控沙箱外确认，整体 INCOMPLETE。已通过的 T-124、T-139/T-143 与 T-091 不更差结论保留，T-121 按主控裁定交 T-147，不计入 T-142。
 
 ## 改动
 
@@ -37,10 +37,10 @@ T-091 命令：`node --experimental-vm-modules workbench/tests/test_t091_pane_ip
 ## 待沙箱外运行
 
 ```sh
-zsh evidence/2026-10-23-batch23/T-142/RUN-OUTSIDE-04.sh
+zsh evidence/2026-10-23-batch23/T-142/RUN-OUTSIDE-05.sh
 ```
 
-每次创建新的 outside-04-* 目录，保存完整命令、退出码和 JSON，不覆盖旧证据。新脚本只重跑 green/red/mutant；产品代码未改，已通过的回归不重复跑。默认新 e2e 使用 claude-haiku-5-5 的真实交互 CLI，经真实 a2a request、界面批准、调用 terminal_open；点入项目层普通终端，核对 launch.id 并经界面输入 pwd。
+每次创建新的 outside-05-* 目录，保存完整命令、退出码和 JSON，不覆盖旧证据。新脚本只重跑 green/red/mutant；产品代码未改，已通过的回归不重复跑。默认新 e2e 使用 claude-haiku-5-5 的真实交互 CLI，经真实 a2a request、界面批准、调用 terminal_open；点入项目层普通终端，核对 launch.id 并经界面输入 pwd。
 
 ## RUN-OUTSIDE-01 回传与夹具修正（2026-10-23）
 
@@ -64,6 +64,27 @@ zsh evidence/2026-10-23-batch23/T-142/RUN-OUTSIDE-04.sh
 - 本轮仅在隔离 settings.json 的 permissions 中加入 `additionalDirectories: [str(fixture.out.resolve())]`，数组只含该夹具专用 out/ 的真实路径；defaultMode、两条 allow、hasSeenAutoDefaultNudge 及交互逻辑保留。注释第 7 条补充了此失败方式。未发送确认按键，未修改产品或全局配置。
 - RUN-OUTSIDE-04 创建新的 outside-04-* 目录，仅重跑 green/red/mutant。汇总器按每个独立 fixture 的 out/ 路径核对完整 permissions，拒绝缺少该目录或扩展到其他目录的配置；原有具体红态、变异、退出码与界面 pwd 检查保留。
 - 本轮 `zsh -n evidence/2026-10-23-batch23/T-142/RUN-OUTSIDE-04.sh`、`PYTHONPYCACHEPREFIX=/private/tmp/t142-pycache python3 -m py_compile workbench/tests/test_t142_terminal_open_e2e.py`、`git diff --check` 通过。`run04-checker-negative.json` 记录新汇总器对 RUN-OUTSIDE-03 缺少 additionalDirectories 且超时的三个旧结果均拒绝；这不是新 UI 链路的通过证据。
-- RUN-OUTSIDE-04 尚未执行，完整 UI 绿态、起点红态、变异与独立验收仍为 INCOMPLETE，交执行主控继续确认；既有证据均保留。
+- RUN-OUTSIDE-04 已执行，结果未通过；实测归因和后续改动见下节，既有证据均保留。
+
+## RUN-OUTSIDE-04 回传、最小探针与事实门禁（2026-10-23）
+
+REALITY GATE: PASS（仅指选择“模型不重定向、测试读取原始回执”的方向；完整 UI 验收 INCOMPLETE）
+
+- GOAL / NON-GOALS：区分相同 a2a call 加输出重定向是否改变 Claude 权限判定；不继续放宽权限，不发按键关确认框，不改产品实现。
+- OBSERVED：`outside-04-20261023T163652Z-Yzeocp` 三项仍在 main 开终端回执超时。主控核对 `/private/tmp/t142-cc9t4odw` 的设置已含 out/，但重定向命令仍弹确认。此前“加 additionalDirectories 就能解决”未经实测支持，RUN-OUTSIDE-04 已否定其有效性。
+- PROBE：`workbench/tests/probe_t142_bash_redirect.py`，复用真实后台、项目终端、已批准角色和同一隔离 home/settings，真实 Claude `-p --model claude-haiku-5-5 --output-format json` 配本地脚本化接口。两次模型 Bash 命令完全相同，B 仅增加 `> '<fixture.out>/main.json'`。外层 zsh 捕获 CLI 报告，不属于被测模型工具命令。`PROBE-01.sh` 可在新目录复放。
+- MEASURED：`probe-local-02.json`（CLI 2.1.309；fixture `/private/tmp/t142-probe-ttsfzrga`）。A：permission_denials=[]，后台新终端 1 个，工具返回 ok=true 与 launch；B：permission_denials 明确指向带重定向的 Bash，后台新终端 0 个，目标文件不存在。两次 CLI 退出均为 0，因此退出码不能代替权限证据。
+- 根因证据：B 的真实 tool_result 写明 `Output redirection ... needs approval`，并明确该路径已在 session working directories 中。这证实本场景是 Bash 输出重定向的写入审批，不是 a2a 返回被门禁拒绝，也不是 additionalDirectories 未加载。print 模式记录的是结构化拒绝；交互确认框由主控前一轮 PTY 提供独立佐证。不推断所有版本或其他重定向形式的规则。
+- UNKNOWN / STOP：原始交互 UI 尚未验证新收集路径，交 RUN-OUTSIDE-05；如不是预期业务断言失败，保留现场，不改权限碰运气。
+- 首轮探针 `probe-local-01.json` 因 Claude 在用户 prompt 前附 system-reminder，脚本化计划的标签定位失败；修正为只匹配 prompt 末尾的探针标签后取得第二轮结果。首轮不是权限证据，保留原始失败。
+
+## 依据探针的最小修正与 RUN-OUTSIDE-05
+
+- 模型的三个 terminal_open 命令均移除重定向。测试从真实 CLI 发往脚本化接口的 tool_result 中，按 tool_use_id 和完整命令绑定原始回执；summary.observed.tool_returns 保留命令、原文与 is_error。JSON 前可能有 Bash 的非零退出码提示，只解码其中原始 JSON，不让模型转述结果。
+- 回执仍须 ok=true、项目/cwd/普通终端身份正确；新增完整 launch 与后台 workbench_snapshot.launch 一致的断言。保留实际 zsh pwd、界面 launch.id 与 pwd、项目普通终端目录、任务隔离和全部拒绝反例。backend-only 由测试自己的 zsh 捕获 stdout，不让 Claude 写回执文件。
+- 权限和启动配置保持 RUN-OUTSIDE-04 的同一套，不新增批准规则。主目录 JSON 形式、额外目录与子目录的命名参数形式仍通过真实 CLI。
+- `green-backend-05.json` PASS（23 项，含三个回执与后台一致检查）；`red-revision-backend-05.json` 退出 1、main_opened 收到 role_command_not_scoped；`mutant-backend-05.json` 退出 1、sibling_refused 捕获放行。这些是后台证据，不代表交互 UI 通过。
+- `RUN-OUTSIDE-05.sh` 仅重跑完整 green/red/mutant，另核对绑定命令的原始工具回执、命令不带重定向、回执与后台一致。原有角色申请/界面批准、具体红态、变异、界面 pwd 和退出码检查保留。`run05-checker-negative.json` 证明新汇总拒绝 RUN-OUTSIDE-04 的超时及缺失回执，避免把环境失败当业务反例。
+- 静态检查：新 Python 探针和 e2e 的 py_compile、PROBE-01.sh 与 RUN-OUTSIDE-05.sh 的 zsh -n、git diff --check 通过。复放探针：`zsh evidence/2026-10-23-batch23/T-142/PROBE-01.sh`；本地实测命令见 probe-local-02.json.argv。完整 UI、红态、变异及独立验收仍交主控，INCOMPLETE。
 
 所有新探针的原始现场保留在 summary.fixture 指向的 /private/tmp/t142-*；包括 run、sqlite、PTY 与未来截图。按派发要求截图不提交，原始现场由执行主控按 T-088 归档；本提交只包含小文本摘要和重放脚本。初始已有的 card.md 派发修订保留原样，未由 worker 修改或纳入 worker 提交。收件箱上报条目由 scripts/inbox 生成，留在 worktree 供主控读取，不纳入本 ticket 代码提交。
