@@ -142,3 +142,10 @@ RUN-OUTSIDE-03 在每个用例边界记录命令、退出码、业务错误及 `
 证据为 `runner-self-test-03.log` 与 `outside-03-20261023-064133-694294/run.json`（scope 仅为执行器故障隔离，self_test_status 为 PASS，不是原生验收）。
 驱动路由检查 `driver-green-03.json`、Python/Node/zsh 语法、`git diff --check` 均通过。
 RUN-OUTSIDE-03 的原生运行与快速双击实际结果尚未取得，整体验收仍为 INCOMPLETE。
+
+固定候选 `67d04d1387ec897a0c45edba4715679107434e94` 的新只读审查为 INCOMPLETE：未发现确定的新设置失败或必然误通过，
+原生证据仍缺；完整记录见 `ACCEPTANCE-REVIEW-03.md`。
+审查指出首次本地自检的 candidate_revision 仍为父提交，因此在固定候选上重新运行了一次相同自检：
+`runner-self-test-03-candidate.log`、`outside-03-20261023-064658-774372/run.json`。
+该次 self_test_status 也是 PASS，四项异常仍 INCOMPLETE 且 sentinel PASS；记录绑定 67d04d138，没有重新运行原生服务。
+此后的提交只保存审查与本地自检证据，不改变 runner、驱动或产品代码。
