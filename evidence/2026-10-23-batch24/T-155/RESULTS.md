@@ -112,7 +112,7 @@ bash evidence/2026-10-23-batch24/T-155/START-APP.sh /private/tmp/t155-dogfood-oh
 | 33-reviewer-focus-error.png | 只读 reviewer 查看触发输入错误，终端重叠显示 |
 | 34-second-reviewer-readonly-error.png | 第二 reviewer 同样错误，显示变异测试发现 |
 | 35-records-human-interventions.png | 真实根提示、键入/回车、面板答复的记录 |
-| 36-review-problems-and-duplicate-numbers.png | 审查问题与 system 协议阻断，原文留存 |
+| 36-review-problems-and-duplicate-numbers.png | T-101 的 worker 审查问题与 T-102 的 system 协议阻断，原文留存；两卡分属不同任务，不是同任务编号冲突。T-102 分组问题见图 30，未在本图并列 |
 | 37-worker-c-busy-before-input.png | T-103 输入前确处于 Stop 忙碌阶段 |
 | 38-controller-review-stops.png | 主控报告两票弱验收及等待修订授权 |
 | 39-input-during-stop-unknown.png | T-103 回复 done 后交付仍未落地，状态未知/忙 |
