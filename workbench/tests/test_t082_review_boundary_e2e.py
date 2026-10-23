@@ -2,19 +2,67 @@
 
 The host supplies only PTY/process observations. The gate remains responsible
 for the review request, candidate-copy lifecycle, launch policy, and refusal.
+
+Failure modes (T-152, current T-082/T-141 contract): wrong reviewer cwd or
+sandbox/tmp boundary; network forced off; missing completion/mutation request;
+copy not created/removed; changed shared refs or request workspace accepted;
+integration before end checks (held-socket dirty/clean controls); dirty review
+end accepted; complete report lost in the native Stop/relay/gate path.
 """
 import argparse
 import datetime
 import json
+import os
 from pathlib import Path
 import socket
+import subprocess
+import time
 import uuid
 
+import test_quality_chain_e2e as chain
 from test_quality_chain_e2e import HarnessFailure, run_cases, save
 from test_quality_tracer_e2e import Tracer
 
 
 class ReviewBoundary(Tracer):
+    def start_host(self):
+        # Dedicated native-ready fixture; shared historical hosts remain intact.
+        if self.host is not None and self.host.poll() is None:
+            raise HarnessFailure('The fixture already owns a live host.')
+        self.host_generation += 1
+        prefix = 'host-%02d' % self.host_generation
+        credential = self.root / ('operator-%02d.credential.json' % self.host_generation)
+        if credential.exists() or credential.is_symlink():
+            raise HarnessFailure('Owned host credential path is already occupied.')
+        self.env['A2A_OPERATOR_CREDENTIAL'] = str(credential)
+        self.operator_credentials.append(credential)
+        ready = self.root / (prefix + '.ready.json')
+        stdout = (self.evidence / (prefix + '.stdout.bin')).open('xb')
+        stderr = (self.evidence / (prefix + '.stderr.bin')).open('xb')
+        self.streams.extend([stdout, stderr])
+        argv = ['node', Path(__file__).with_name('t152_review_host.ts'),
+                chain.SOURCE, self.state, self.control, ready]
+        save(self.evidence / (prefix + '.start.json'), {'argv': list(map(str, argv)),
+             'cwd': str(self.root), 'start_new_session': True, 'real_codex_turns': 0})
+        self.host = subprocess.Popen(list(map(str, argv)), cwd=self.root, env=self.env,
+                                     stdout=stdout, stderr=stderr, start_new_session=True)
+        deadline = time.monotonic() + 10
+        while not ready.exists():
+            if self.host.poll() is not None or time.monotonic() >= deadline:
+                raise HarnessFailure('Controlled host startup failed; stderr=' + str(self.evidence / (prefix + '.stderr.bin')))
+            time.sleep(0.02)
+        self.ready = json.loads(ready.read_text(encoding='utf-8'))
+        if self.ready['pid'] != self.host.pid or self.ready['root'] != str(self.state):
+            raise HarnessFailure('Host readiness identity mismatch.')
+        if self.gate('daemon_status', task=False).get('pid') != self.host.pid:
+            raise HarnessFailure('CLI and owned host PID disagree.')
+        observed = self.process(['/bin/ps', '-p', str(self.host.pid), '-o', 'pid=,ppid=,pgid=,command='])
+        group = {'pid': self.host.pid, 'pgid': os.getpgid(self.host.pid), 'sid': os.getsid(self.host.pid),
+                 'caller_pgid': os.getpgrp(), 'ps_exit': observed.returncode, 'ps_stdout': observed.stdout}
+        save(self.evidence / (prefix + '.process.json'), group)
+        if observed.returncode or not (group['pid'] == group['pgid'] == group['sid']) or group['caller_pgid'] == group['pgid']:
+            raise HarnessFailure('Owned daemon is not detached from the invoking process group.')
+
     def start_review(self, candidate):
         reply = self.gate('verify', '--attempt', self.a['attempt_id'])
         self.check('T082-REVIEW-START', reply['ok'] and reply['task']['state'] == 'reviewing'
@@ -29,11 +77,13 @@ class ReviewBoundary(Tracer):
                    and details['argv'][details['argv'].index('--sandbox') + 1] == 'workspace-write'
                    and details['argv'][details['argv'].index('-C') + 1] == review['candidate_workspace']
                    and details['worktree'] == review['candidate_workspace']
-                   and 'sandbox_workspace_write.network_access=false' in details['argv']
-                   and 'features.network_proxy=false' in details['argv']
+                   and 'sandbox_workspace_write.network_access=true' in details['argv']
+                   and 'features.network_proxy=false' not in details['argv']
+                   and details['argv'][details['argv'].index('-a') + 1] == 'never'
+                   and f'projects={{{json.dumps(str(Path(review["candidate_workspace"]).resolve()))}={{trust_level="untrusted"}}}}' in details['argv']
                    and 'sandbox_workspace_write.exclude_slash_tmp=true' in details['argv']
                    and 'sandbox_workspace_write.exclude_tmpdir_env_var=true' in details['argv'],
-                   'reviewer starts in the writable candidate copy with the required network/tmp boundary', details)
+                   'T-141 reviewer: candidate-copy writes, open network, inherited proxy, never approval, untrusted copy and excluded shared tmp', details)
         self.gate('pane_release', '--thread', review['thread_id'], '--reason',
                   'controlled fresh reviewer release', task=False)
         self.wait_for(lambda: self.gate('pane_status', '--thread', review['thread_id'], task=False),
@@ -169,14 +219,15 @@ class ReviewBoundary(Tracer):
                      'main_head': self.oid(), 'base': self.base, 'dirty': dirty,
                      'outside_change_exists': outside.exists(), 'events': self.events()}
             save(self.evidence / 'integration-before-end-check.json', proof)
+            self.check('REVIEW-END-BEFORE-INTEGRATE', not result.get('ok')
+                       and result.get('error') == 'review_end_check_required' and proof['main_head'] == self.base,
+                       'integration before the review end check must refuse and leave main unchanged', proof)
         finally:
             held.close()
         events = self.wait_for(self.events, lambda rows: any(
             e['type'] in ('review_reclaimed', 'review_lifecycle_failed') for e in rows))
         task = self.cli('status')['task']
         save(self.evidence / 'after-release.json', {'task': task, 'events': events, 'main_head': self.oid()})
-        self.check('REVIEW-END-BEFORE-INTEGRATE', not result.get('ok') and proof['main_head'] == self.base,
-                   'integration before the review end check must refuse and leave main unchanged', proof)
         if dirty:
             self.check('T082-DIRTY-END-INVALIDATE', task['state'] == 'paused'
                        and task['review']['state'] == 'unknown' and self.oid() == self.base
@@ -191,7 +242,7 @@ class ReviewBoundary(Tracer):
     def real_payload_report_roundtrip(self):
         _, candidate = self.good_submission()
         review, record = self.start_review(candidate)
-        captured = Path(__file__).resolve().parents[2] / 'evidence/2026-10-15-batch15/T-082/protocol-red-green-01/real-review-submit.json'
+        captured = Path(__file__).with_name('t152_real_review_submit.json')
         actual = json.loads(captured.read_text(encoding='utf-8'))
         packet = self.review_packet(review, candidate)
         packet['report'] = actual['report']
@@ -228,7 +279,9 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--case', choices=CASES, action='append')
     args = parser.parse_args()
-    return run_cases(args.source, args.output, args.case or CASES, ReviewBoundary,
+    # Launch refusal needs an explicitly mutated source; it is not a green case.
+    names = args.case or [name for name in CASES if name != 'launch_boundary_refused']
+    return run_cases(args.source, args.output, names, ReviewBoundary,
                      dialect='current', stop_on_failure=True)
 
 
