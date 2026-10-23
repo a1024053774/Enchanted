@@ -142,3 +142,9 @@ C10（图 49）：主控核对旧 attempt revoked（原因 spec revised）、命
 - count_native_turns.py 在沙箱内只读专属 native JSONL，12 会话共 37 根回合：旧主控3、新主控10、workers19、reviewers4、Reflect1。包含中断原提示，排除技能展开/工具结果/中断占位符。managed 实际23，看板22漏 T-103 人工输入后的回合。全部原生 assistant model 为 Haiku，未新增模型调用。
 - 复制门禁读取的小卡和验收脚本 10 件到 fixture-inputs，共9912字节，原样逐字节核对；不是可信 oracle，也没有执行这些弱验收。完整原生 scratchpad（含变异样本与诊断）另加入外置归档脚本，避免临时目录失效后只剩引用。
 - 文档更新时一条过长 Python stdin 编辑命令被解释器以 Non-UTF-8 SyntaxError 拒绝，未执行正文；随后改用 apply_patch 分块落盘，最终 UTF-8/引用检查另记结果。这是文档处理过程，不是产品发现。
+
+## 主控 #23 后：归档已完成
+
+- 主控读过 archive_runs.py 后在沙箱外执行 rc=0，18 目录 / 574 文件 / 28558091 字节，runs.archive.json 已落盘。worker 提权请求被主控拒绝、中断，不等于归档失败。以后沙箱外命令先写脚本交接，不再发起提权。
+- 测试者只读逐项核对源/目标相对文件大小表、文件数与字节数，18 项均一致；原件全部保留；停止后没有 socket，本次无特殊文件跳过。
+- 最终只报告，不修产品；应用内模型截止仍为 C13。原始证据成功归档不改变完整旅程 INCOMPLETE。
