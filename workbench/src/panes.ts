@@ -1686,8 +1686,8 @@ export class Panes implements GateRuntime {
   };
   stopThread = async (thread: string) => {
     const pane = this.get(thread);
-    // A pane already stopped (its process gone, or confirmed gone across a restart) has nothing to stop.
-    check(pane.stopped || pane.state === "idle", "worker_not_idle");
+    // A confirmed CLI exit can leave activity busy (/exit has no Stop hook), with only its shell to reclaim.
+    check(pane.stopped || pane.nativeEnded || pane.state === "idle", "worker_not_idle");
     await this.terminate(pane, "gate_reclaim");
   };
   archiveThread = async (thread: string) => {
