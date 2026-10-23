@@ -2,7 +2,7 @@
 id: T-140
 title: 项目额外目录：项目设置里添加其他目录，worker 可写，像 Codex 的 add-dir
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -26,9 +26,9 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 真实 Electron + 真实 worker：项目加一个外部目录（夹具），worker 在其中创建文件成功；未添加的外部目录写入失败。Claude 与 Codex 各一次。
-- [ ] 移除目录后新启动的 worker 写不进去。
-- [ ] 红态：修前 worker 写外部目录被沙箱拒绝。
+- [x] 真实 Electron + 真实 worker：项目加一个外部目录（夹具），worker 在其中创建文件成功；未添加的外部目录写入失败。Claude 与 Codex 各一次。
+- [x] 移除目录后新启动的 worker 写不进去。
+- [x] 红态：修前 worker 写外部目录被沙箱拒绝。
 
 ## 不做
 
@@ -36,3 +36,10 @@ ready_rev: 1
 
 ## Resolution
 
+2026-10-23 关闭，PASS。
+
+- 代码：`708f30e08`（项目设置“额外目录”、`project_settings_saved` 事件、启动记录 `extra_directories`、Claude `--add-dir`/沙箱 allowWrite/Edit 权限、Codex 可写目录、门禁按启动记录核对审查员参数），合并 `82de91333`。
+- 验收（执行主控沙箱外，`evidence/2026-10-23-batch23/T-140/outside-03-20261023-064800-130165/`）：真实 Electron + 真实 Claude（claude-haiku-5-5 脚本化接口）与 Codex worker 在额外目录写入成功、未添加目录写入失败、移除后新 worker 写不进；修前红态与变异失败；T-137、T-131、T-127 回归通过。
+- 合并后回归（`merge-1/run-20261023T122101Z`、`run-20261023T125644Z`）：T-140 e2e 两次通过。
+- 独立审查：agy gemini-3.8-flash-high review-agy-01 PASS（P2 一条经核对代码不成立）。
+- 已知边界：普通 Codex worker 的 `/tmp`、`$TMPDIR` 默认可写，移除额外目录撤不掉，转 T-141 处理。

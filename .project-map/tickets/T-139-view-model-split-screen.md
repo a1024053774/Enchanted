@@ -2,7 +2,7 @@
 id: T-139
 title: 视图模型：项目视图分屏列任务，点进任务分屏列其中各 agent，单个 agent 只显示它自己
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -27,9 +27,9 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 真实 Electron：夹具项目有两个任务、各有 worker，一个项目终端主控。项目视图列出两个任务；进任务 A 只见 A 的 agent；点 worker 只见 worker；点项目终端主控只见它自己。截图入证据。
-- [ ] 红态：修前任务视图含项目普通终端。
-- [ ] 切换不重复创建窗格凭据、不泄露输入到只读窗格。
+- [x] 真实 Electron：夹具项目有两个任务、各有 worker，一个项目终端主控。项目视图列出两个任务；进任务 A 只见 A 的 agent；点 worker 只见 worker；点项目终端主控只见它自己。截图入证据。
+- [x] 红态：修前任务视图含项目普通终端。
+- [x] 切换不重复创建窗格凭据、不泄露输入到只读窗格。
 
 ## 同批验证
 
@@ -41,3 +41,9 @@ T-139 与 T-143 同一批验证（用户 2026-10-23：“T-139 和 T-143同一�
 
 ## Resolution
 
+2026-10-23 关闭，PASS（与 T-143 同一批、同一夹具、同一次真实 Electron 运行验证）。
+
+- 代码：`7c60d0d67`（项目/任务/agent 三层视图、分屏列任务与 agent、视图选择与布局存储、终端目录），合并 `cb24b5fc9`。
+- 验收：`evidence/2026-10-23-batch23/T-139-T-143/outside-05-uAcv4xAj/`：候选全部检查通过；起点 ebbae7bd0 基线与变异失败；T-107、T-133/T-107 回归通过；`test_t091_pane_ipc.mjs` 起点已失败，候选同样失败、不更差。
+- 合并后回归两次通过。
+- 独立审查：agy review-agy-01 PASS，3 条 P3（renderer.tsx 渲染期改 ref、滚动帧率封顶 60 如实报告、t091 旧失败）。

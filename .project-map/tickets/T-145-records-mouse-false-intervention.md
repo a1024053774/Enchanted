@@ -2,7 +2,7 @@
 id: T-145
 title: 记录页：鼠标与焦点上报被记成“人工介入”
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -23,9 +23,9 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 真实 Electron：在受管 worker 窗格里只移动鼠标、滚动，记录页不新增人工介入；真正打字一次则新增一条。
-- [ ] 红态：修前鼠标移动产生记录。
-- [ ] 开着鼠标模式的 CLI 仍收到鼠标事件（不被一并吞掉）。
+- [x] 真实 Electron：在受管 worker 窗格里只移动鼠标、滚动，记录页不新增人工介入；真正打字一次则新增一条。
+- [x] 红态：修前鼠标移动产生记录。
+- [x] 开着鼠标模式的 CLI 仍收到鼠标事件（不被一并吞掉）。
 
 ## 不做
 
@@ -33,3 +33,9 @@ ready_rev: 1
 
 ## Resolution
 
+2026-10-23 关闭，PASS。
+
+- 代码：`7494d167c`（`panes.ts` 输入转发：完整终端协议上报——SGR 鼠标、焦点、设备状态回复——原样写入 PTY，不记用户输入、不派生人工介入、不占用户草稿；真实键入照旧；已有误记录保留）与测试 `32d4f0f40`，合并 `153c27570`；README `51c8de7ec`。
+- attempt 2（合并回归）：合入后因 T-143 默认关闭读屏模式，e2e 仍等读屏 DOM 而超时；`df88753ae` 只改测试等待条件，合并 `045e8cfb1`。
+- 验收（执行主控沙箱外）：attempt 1 `run02-0InMi4`，attempt 2 `outside01-EeOpPV`：真实 Electron 绿态通过，修前红态与协议、Electron 各两个变异（吞上报、仍记录）失败，T-133/T-134、T-139/T-143 回归通过；t091 起点与候选同样失败。
+- 独立审查：attempt 1 PASS（1 条 P3：证据被稀疏检出跳过，已补），attempt 2 PASS。
