@@ -35,7 +35,11 @@ try {
   ({ request } = await import(pathToFileURL(join(tree, 'src/transport.ts'))));
   process.env.A2A_OPERATOR_CREDENTIAL = join(root, 'operator.json');
   credentials.createOperatorCredential(state); operator = credentials.readOperatorCredential(state);
-  const home = join(state, 'native-home'), logs = join(home, 'sessions');
+  // Since T-127 the collector reads only sessions/YYYY/MM/DD directories from the launch's (local) day on, and only
+  // files written since the launch (README "用户的 Codex home"); the seeded launch starts a minute before its logs.
+  const launchedAt = new Date(Date.now() - 60_000), day = new Date();
+  const home = join(state, 'native-home'), logs = join(home, 'sessions', String(day.getFullYear()),
+    String(day.getMonth() + 1).padStart(2, '0'), String(day.getDate()).padStart(2, '0'));
   fs.mkdirSync(logs, { recursive: true }); fs.mkdirSync(join(state, 'traces/launch'), { recursive: true });
   fs.writeFileSync(join(state, 'traces/launch/pty.raw'), 'independent trace sentinel\n');
   const meta = (id, source = 'cli') => ({ type: 'session_meta', payload: { id, source, cwd: repo } });
@@ -49,7 +53,7 @@ try {
     constructor(...args) {
       super(...args); host = this;
       const record = { id: 'launch', thread: 'thread', role: 'worker', project: 'p', task: 't', attempt: 'a', worktree: repo,
-        execution_state: 'prepared', cli_version: 'codex-cli 0.163.0', env: { CODEX_HOME: home } };
+        execution_state: 'prepared', cli_version: 'codex-cli 0.163.0', env: { CODEX_HOME: home }, created_at: launchedAt.toISOString() };
       this.store.launch(record);
       pane = { record, attempt: { workspace: repo }, pty: { pid: 123 }, state: 'busy', stopped: false, archived: false,
         failed: null, native: 'root-session', turn: 'root-turn', active: { id: 'submission', nativeTurn: 'root-turn' },
@@ -114,9 +118,9 @@ try {
     // Missing file/session attribution must not release it either.
     host.store.event('native_record', { record: start('root-turn') }, pane.record);
     assert.equal(await read(), 'unknown', 'Unknown native origin must not release the root question');
-    // The old "another CLI session in the same directory is refused" case is gone: since T-127 the user's own sessions
-    // share the sessions directory and the collector reads only this launch's dated day directories (README "用户的
-    // Codex home"), so a file written here never reaches it. test_t127_codex_home_e2e.py covers other sessions.
+    fs.writeFileSync(join(logs, 'other-session.jsonl'), [meta('other-session'), start('other-turn')].map(JSON.stringify).join('\n') + '\n');
+    assert.throws(() => host.scan(pane), error => error.code === 'ambiguous_native_session',
+      'Conflicting CLI session must retain the collector refusal');
     assert.equal(pane.native, 'root-session'); assert.equal(pane.turn, 'root-turn');
   } else {
     // Fresh native bytes remain unconsumed. Any scan or direct store.event in
