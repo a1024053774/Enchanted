@@ -2,7 +2,7 @@
 id: T-144
 title: 流程页：worker 显示名、执行主控归属、跨任务分开、一个任务多路径
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -24,9 +24,9 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 真实 Electron：夹具两个任务、各一个执行主控与 worker，另有一个真无关的主控。流程页标题无 UUID；两个主控各在自己任务泳道，无关者在未归属。截图入证据。
-- [ ] 红态：修前标题为 UUID、主控全在未归属。
-- [ ] 一个任务带额外目录时泳道显示多个路径。
+- [x] 真实 Electron：夹具两个任务、各一个执行主控与 worker，另有一个真无关的主控。流程页标题无 UUID；两个主控各在自己任务泳道，无关者在未归属。截图入证据。
+- [x] 红态：修前标题为 UUID、主控全在未归属。
+- [x] 一个任务带额外目录时泳道显示多个路径。
 
 ## 不做
 
@@ -34,3 +34,10 @@ ready_rev: 1
 
 ## Resolution
 
+2026-10-23 关闭，PASS。
+
+- 代码：`52af15174`（`flow.ts`、`FlowPage.tsx`：卡片标题为角色与任务名，UUID 只在悬停提示；执行主控按它派发过的任务挂到对应泳道，确无关联的才进“未归属”并写明原因；每个任务一条独立泳道；任务的额外目录在泳道上逐条列出）与测试 `9eb9a4c5f`，合并 `8e400a601`。
+- 受保护验收文件：用户裁定 A（20261023T141657Z needs-decision，构思主控答复 20261023T142024Z）授权改两处断言：`test_t111_flow.mjs` 的 lane0 agents 为 `['controller','w1','w2','ended']`、unassigned 为 `['old','orphan']`；`test_t146_ended_projection.mjs:65` 改为在 lane0 里找已结束终端。没有改其他断言或超时。
+- 验收（执行主控沙箱外）：`outside-20261023T141754Z-U3kdek` 与 `outside-02-20261023T142626Z-bmaYji`：真实 Electron 两任务各一个执行主控与 worker，加一个无关主控，标题无 UUID、主控各在本任务泳道、无关者在未归属、额外目录多路径显示；修前红态（标题是 UUID、主控全在未归属）与变异失败。截图归档在外置盘 `a2a-evidence/2026-10-23-batch23/T-144/`。
+- 独立审查：agy gemini-3.8-flash-high，PASS（1 条 P3：审查副本受稀疏检出影响读不到候选内证据，此后审查副本展开本批目录）。
+- 合并后回归 04（fd4d9ac13）：T-144 两项通过。
