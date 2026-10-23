@@ -15,7 +15,7 @@
 | 修复对象 | 终端输入框的 composition 处理 |
 | 复杂度 | S |
 | 执行器 | Codex `gpt-6.1-sol`，`model_reasoning_effort="high"`，`service_tier="default"` |
-| 起点 | 见派发消息 |
+| 起点 | 本卡提交所在的 main（产品代码同 edd8a7cada32b81fc5dd117dff76bb3f4a0cbd60，已含 T-139/T-143、T-140、T-141、T-142、T-144～T-147） |
 | 唯一写入者 | Herdr agent `b23-t138`，worktree `/Users/luckye/Documents/Code/a2a-wt-t138`，分支 `exec/t138` |
 
 ## 完成条件与交付
@@ -24,5 +24,5 @@
 2. 修：每次提交后清空隐藏输入框，使下一次 compositionstart 的起点为 0、光标在末尾。不改 xterm 源码。
 3. 新 e2e（如 `workbench/tests/test_t138_ime_e2e.py`）：中间插入“打出”收到“打出”；连续三次中间插入；回车后再中间插入；全部正确。
 4. 红态 `--revision <起点>` 失败；已知坏实现（还原修复）被抓住。
-5. 回归：`test_t091_pane_ipc.mjs` 与 T-139/T-143 的 e2e 绿态。
+5. 回归：T-139/T-143 与 T-145 的 e2e 绿态（T-145 也经 renderer 的终端输入）；`test_t091_pane_ipc.mjs` 在起点上已知失败（IPC 名单过时，另有缺陷 ticket），只要求与起点同样、不更差。真实 Claude 不涉及。
 6. RESULTS.md 与 RUN-OUTSIDE 脚本按公共约定。
