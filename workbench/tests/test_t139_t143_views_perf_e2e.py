@@ -8,6 +8,7 @@
 5. 性能测量绕过真实 PTY，或基线与候选的负载、测量命令不同。
 6. 隐藏窗格仍能输入，或唤回时重建 xterm/输入凭据、丢失待追平输出。
 7. CDP 观察表达式意外返回 DOM/xterm 对象，导致按值序列化失败、指标缺失。
+8. 输出耗时只等缓冲区文本、不等可见行渲染，或无完整输出仍报告改善。
 
 只在夹具副本插入 xterm 观察引用（不改变输出或计时路径）。
 每次保留夹具和截图；--summary 不覆盖旧证据。
@@ -32,11 +33,11 @@ def main():
     parser.add_argument('--claude', default=shutil.which('claude') or str(Path.home() / '.local/bin/claude'))
     parser.add_argument('--revision')
     parser.add_argument('--mutant', choices=['task-includes-project-terminal', 'duplicate-replay', 'inactive-input'])
-    parser.add_argument('--experiment', choices=['screen-reader-off', 'poll-16ms', 'webgl', 'destroy-on-switch'])
+    parser.add_argument('--experiment', choices=['screen-reader-off', 'poll-16ms', 'destroy-on-switch'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留旧证据，请换新路径'
     args.summary.parent.mkdir(parents=True, exist_ok=True)
-    report = dict(status='INCOMPLETE', argv=sys.argv, measurement_version=2, harness_version=4, checks=[], failures=[], metrics={}, observed={})
+    report = dict(status='INCOMPLETE', argv=sys.argv, measurement_version=3, harness_version=5, checks=[], failures=[], metrics={}, observed={})
     report['code_version'] = subprocess.check_output(['git', 'rev-parse', args.revision or 'HEAD'], text=True).strip()
     patches = [('app/renderer.tsx', 'term.open(mount.current!);',
                 'term.open(mount.current!); (mount.current as any).__testTerminal = term;')]
@@ -44,12 +45,6 @@ def main():
         patches.append(('app/renderer.tsx', 'screenReaderMode: true', 'screenReaderMode: false'))
     if args.experiment == 'poll-16ms':
         patches.append(('app/renderer.tsx', 'setTimeout(resolve, 100)', 'setTimeout(resolve, 16)'))
-    if args.experiment == 'webgl':
-        patches.extend([
-            ('app/renderer.tsx', "import { FitAddon } from '@xterm/addon-fit';",
-             "import { FitAddon } from '@xterm/addon-fit'; import { WebglAddon } from '@xterm/addon-webgl';"),
-            ('app/renderer.tsx', 'term.open(mount.current!);',
-             "term.open(mount.current!); const probeMount = mount.current!; const webgl = new WebglAddon(); term.loadAddon(webgl); webgl.onContextLoss(() => { probeMount.dataset.testContextLost = 'true'; (window as any).__testWebglLosses = ((window as any).__testWebglLosses ?? 0) + 1; });")])
     if args.experiment == 'destroy-on-switch':
         patches.append(('app/main.ts', 'const retainedPaneLimit = 4;', 'const retainedPaneLimit = 0;'))
     if args.mutant == 'inactive-input':
@@ -125,16 +120,34 @@ def main():
 
         # Real shell PTY supplies a stable, numbered, 5000-line backlog for every measurement.
         command = "python3 -c 'for i in range(5000): print(\"BENCH_%05d\" % i)'\r"
-        electron.evaluate(f'window.a2a.input({json.dumps(shell_key)}, {json.dumps(command)})')
         mount = f"document.querySelector('.pane[data-launch-id=\"{fixture.terminal_launch}\"] .terminal-mount')"
         buffer = f"(()=>{{const t={mount}?.__testTerminal;return t&&Array.from({{length:t.buffer.active.length}},(_,i)=>t.buffer.active.getLine(i).translateToString(true)).join('\\n')}})()"
-        electron.until('真实 PTY 的完整编号输出', f'{buffer}?.includes("BENCH_04999")', 60)
+        # Time the real input -> PTY -> poll/decode -> rendered final row path.
+        # rAF cadence alone is capped by display refresh; this elapsed duration is not.
+        output_visible = json.loads(electron.evaluate(f"""new Promise((resolve,reject)=>{{
+          const node={mount},t=node.__testTerminal,start=performance.now();let rendered=false,finished=false,admitted=false;
+          const subscription=t.onRender(({{start:first,end:last}})=>{{const b=t.buffer.active;
+            for(let row=first;row<=last;row++)if(b.getLine(b.viewportY+row)?.translateToString(true)==='BENCH_04999')rendered=true;
+          }});
+          const fail=error=>{{if(finished)return;finished=true;subscription.dispose();reject(error)}};
+          const tick=()=>{{if(finished)return;
+            if(performance.now()-start>12000)return fail(new Error('output visible timeout'));
+            const visible=node.getClientRects().length>0&&getComputedStyle(node).visibility==='visible'&&
+              node.closest('[data-restoring]')?.dataset.restoring==='false';
+            if(admitted&&rendered&&visible){{finished=true;subscription.dispose();return requestAnimationFrame(()=>requestAnimationFrame(()=>
+              resolve(JSON.stringify({{elapsed_ms:performance.now()-start,lines:5000,last_line:'BENCH_04999',rendered:true,visible:true}}))))}}
+            requestAnimationFrame(tick)
+          }};
+          requestAnimationFrame(tick);
+          window.a2a.input({json.dumps(shell_key)},{json.dumps(command)}).then(()=>{{admitted=true}},fail);
+        }})""",timeout=20))
+        report['metrics']['output_to_visible'] = output_visible
+        report['metrics']['output_to_visible_ms'] = output_visible['elapsed_ms']
+        check('output_final_row_rendered_visible', output_visible['rendered'] and output_visible['visible'] and output_visible['lines'] == 5000)
         before = electron.evaluate(buffer)
         initial_shell_key = shell_key
         initial_window = electron.evaluate(f'window.a2a.snapshot({json.dumps(shell_key)})')['window_id']
         electron.evaluate(f'void (window.__initialShellTerminal = {mount}.__testTerminal)')
-        if args.experiment == 'webgl':
-            check('webgl2_renderer_active', electron.evaluate(f'!!{mount}.querySelector(".xterm-screen canvas")?.getContext("webgl2")'))
         # Numbered complete lines, not shell echo of the command.
         expected = [f'BENCH_{i:05d}' for i in range(5000)]
         check('numbered_output_once_before_switch', re.findall(r'^BENCH_\d{5}$', before, re.M) == expected)
@@ -173,8 +186,6 @@ def main():
             current_window = electron.evaluate(f'window.a2a.snapshot({json.dumps(shell_key)})')['window_id']
             check('switch_retains_xterm_and_input_credential', shell_key == initial_shell_key and initial_window == current_window and
                   electron.evaluate(f'{mount}.__testTerminal===window.__initialShellTerminal'))
-        if args.experiment == 'webgl':
-            check('webgl_context_survives_scroll_and_switch', electron.evaluate(f'({mount}.dataset.testContextLost!=="true"&&!window.__testWebglLosses&&!{mount}.querySelector(".xterm-screen canvas").getContext("webgl2").isContextLost())'))
         after = electron.evaluate(buffer)
         check('numbered_output_once_after_switch', re.findall(r'^BENCH_\d{5}$', after, re.M) == expected)
         check('controller_focus_after_switch', electron.evaluate(f'{mount}.__testTerminal.textarea===document.activeElement'))

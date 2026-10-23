@@ -1,131 +1,78 @@
 # T-139 / T-143 同批验证（attempt a1）
 
-状态：**INCOMPLETE**。RUN-OUTSIDE-01 已取得 T-139 真实入口红态、候选通过及两个变异的业务拒绝；
-RUN-OUTSIDE-02 的 selection、layout-store、terminal-catalog、T-107、T-133/T-107 均通过，T-091 与起点同样失败。
-但九项联合 Electron 运行全部在 CDP 返回对象时中止，没有性能数字。RUN-OUTSIDE-03 已产出滚动数字，但切换因焦点条件超时；候选焦点修复及 RUN-OUTSIDE-04 仍待真实验证，不能最终验收或集成。
+状态：**INCOMPLETE**。RUN-OUTSIDE-04 的联合候选与全部指定回归已通过；本次撤掉未经验证的 WebGL，
+新增大量输出到可见的耗时测量，最终源码须经 RUN-OUTSIDE-05 重新联合验证。**滚动改善尚未证明。**
 
 ## T-139
 
-项目视图每个任务一格；任务视图只含该任务 agent；单 agent 只显示自己。项目普通终端有单独入口。
-单 agent 重命名和关闭保留兄弟的树与名称；项目终端保存只包含 task=null 的终端。
-项目行菜单、三份受保护 oracle、地图与 ticket 未改。
+项目视图每任务一格；任务视图仅含该任务 agent；单 agent 视图仅显示自己；项目普通终端有单独入口。
+单 agent 重命名/关闭保留兄弟布局与名称；项目终端布局保存只包含 task=null 的终端。
+普通终端在 sidebar_snapshot.terminals，经批准角色在 agents，放弃角色后仍可从普通终端入口访问。
+项目行菜单、三份受保护 oracle、地图和 ticket 未修改。
 
-第一批沙箱外结果在 `outside-cZpQfO1X/`（主控运行 RUN-OUTSIDE-01，代码为 feea09ebc）：
+最新真实证据：`outside-04-kDtDFKqW/`，测量 v2、工具 v4，代码 `117045d00e74bc317c95e4f2bd14a7426e5b9bc3`。
+每次夹具含两个任务各一位真实 Claude CLI worker（请求 claude-haiku-5-5，本地脚本化 Messages 接口），
+另有经角色申请批准的项目主控终端；同一 Electron 运行覆盖视图和性能。它不证明供应商模型推理能力。
 
-| 检查 | 结果与证据 |
+| 验收项 | 结果与证据 |
 | --- | --- |
-| 修前 ebbae7bd0 | NO_GO，baseline.json 的五项业务失败：任务混项目终端、worker 混其他窗格、项目无两格任务、项目混终端、普通终端不可达 |
-| T-139 候选 | PASS，t139-candidate.json；项目、任务、worker、主控、普通终端五步 PNG 同目录。已查看项目截图，两任务同屏两格 |
-| 任务重新混入项目终端变异 | NO_GO，mutant-task-includes-project-terminal.json，task_A_only_its_agents、worker_only_itself 失败 |
-| 重复回放变异 | NO_GO，mutant-duplicate-replay.json，编号输出切换前/后以及隐藏输出的唯一性检查失败 |
-| selection、真实 store/原布局校验 | PASS，selection.json、layout-store.json |
-| T-107 | PASS，t107.json |
-| T-133/T-107 | INCOMPLETE，t133-t107.json，在“身份已放弃”处超时；原投影会把放弃角色的终端继续放进 agents，足以导致此等待不满足。已修复，待原 oracle 重跑 |
-| T-091 | INCOMPLETE，t091.json，旧 IPC handler 枚举失败。用户消息“主控 #7”已把验收改为与起点同样失败、不更差；未修改 oracle。RUN-OUTSIDE-02 用同一 oracle 比较修前和候选 |
+| 修前红态 ebbae7bd0 | NO_GO，baseline-v2.json 准确落在五项：task_A_only_its_agents、worker_only_itself、project_two_task_tiles、project_does_not_mix_terminals、ordinary_terminal_reachable |
+| 候选真实联合入口 | PASS，candidate.json；输出完整、焦点/输入正确、凭据复用、隐藏/ended 输入拒绝、名称持久化均通过 |
+| 五步截图 | candidate-01-project.png、02-task-A.png、03-worker.png、04-controller.png、05-ordinary-terminal.png；已查看项目截图，T-A/T-B 同屏两格 |
+| 任务混项目终端变异 | NO_GO，mutant-task-includes-project-terminal.json，任务/单 worker 隔离检查失败 |
+| 重复回放变异 | NO_GO，mutant-duplicate-replay.json，切换前/后编号唯一性与隐藏输出唯一性失败 |
+| 隐藏输入放行变异 | NO_GO，mutant-inactive-input.json，inactive_input_rejected 失败 |
+| 选择/布局/普通终端投影/焦点回调 | PASS，selection.json、layout-store.json、terminal-catalog.json、retained-focus.json |
+| 原真实 T-107 与 T-133/T-107 | PASS，t107.json、t133-t107.json；普通终端投影造成的旧回归已解除 |
+| T-091 修订合同 | PASS（仅指与起点同样失败），t091-baseline.json、t091-candidate.json：同一 handler 枚举错误、同一 checks。按用户“主控 #7”，不改原 oracle、不把它写成原测试绿态 |
 
-投影修复将未认领/已放弃角色的普通终端放到 `sidebar_snapshot.terminals`，经批准的角色继续进入 agents；
-侧栏单独显示普通终端。因此放弃角色后它从 agents 消失，普通终端入口仍在。真实 SQLite 的 catalog-red-01.json
-准确复现旧投影违反该合同；catalog-shape-red-01.json 还检出了终端行缺少下属摘要的投影字段遗漏；catalog-green-02.json 通过对应检查。
-当前源码的 T-107 投影检查 sidebar-projection-02.json 通过；RUN-OUTSIDE-02 的原真实 T-133/T-107 也为 PASS（outside-02-fXauAYx2/t133-t107.json）。
-
-此前布局缺陷及修复记录保留：selection-red-03.json、layout-red-01.json、store-layout-red-02.json 逐步检出任务混终端、
-单 agent 编辑覆盖兄弟布局、项目终端保存包含任务 agent；后续对应绿态均保留。独立检查报告 REVIEW-01.md 为 INCOMPLETE，
-REVIEW-02.md 对旧候选为 FAIL；修复后的真实 store/原布局校验 store-layout-retention-01.json 有 10 项通过，不将旧审查改称通过。
+旧红态、审查失败与测试工具故障全部保留：outside-cZpQfO1X/、outside-02-fXauAYx2/、outside-03-qCZMwEld/，
+以及 REVIEW-01/02、T143-REVIEW-01/02、T143-SERIALIZATION-REVIEW-01、T143-FOCUS-REVIEW-01.md。
+其中前者揭示并修复兄弟布局/项目布局集合问题；工具修复分别处理 CDP 返回循环对象和保留窗格聚焦竞态。
+历史 timeout 缺逐项状态，不能完全归因焦点；后续 RUN-OUTSIDE-04 已真实通过切换及输入。
 
 ## T-143
 
-RUN-OUTSIDE-01 的同一夹具：两个真实 Claude CLI worker，模型请求 claude-haiku-5-5，使用本地脚本化 Messages 接口；
-经角色申请批准的项目主控终端；真实 PTY 输出 5000 行编号，三次滚动、八次交替切换。
-它证明 CLI/后台/界面调用及偏移、输出、焦点与输入合同，不证明供应商模型推理能力或长期性能。
+已定保留项：默认关闭屏幕阅读器支持（可在本窗口设置手动开启）、切换保留最多四个未显示终端。
+隐藏期间暂停读取；回来时追平输出并完成本次显示后聚焦；隐藏 key 不可输入，超限/关窗撤销凭据。
+生产轮询仍为 100 ms。WebGL 从生产候选和当前测试实验中移除，package.json / package-lock.json 的相关变更已全部撤回，
+两份依赖文件与起点一致；不改 node_modules。没有新依赖、输出推送并行路径或降级渲染分支。
 
-| 项目 | 对照 → 单项实验（RUN-OUTSIDE-01） | 处置 |
+| 项目 | 前 → 后数字 | 判定 |
 | --- | --- | --- |
-| screenReaderMode 关闭 | 切换中位数 78.05 → 64.30 ms；滚动 121.37 → 121.22 FPS，p95 9.0 → 8.9 ms | 观察到切换约 17.6% 缩短，候选默认关闭；设置可手动开启，作用于本窗口所有终端。RUN-OUTSIDE-04 在 T-139 控制版本再测 |
-| 100 → 16 ms 轮询 | 切换中位数 78.05 → 81.70 ms；滚动 121.37 → 121.25 FPS，p95 均 9.0 ms | 无改善，不保留；生产仍用 100 ms，未增加输出推送路径 |
-| WebGL | 未测。主控已安装 MIT 的 @xterm/addon-webgl 0.19.0，授权本 worker 提交 package.json/lock 改动 | 仅用于测试副本；模块导入与标准构建通过，未启用到生产终端。RUN-OUTSIDE-04 与同一 T-139 控制版本只差 WebGL；不改善则移除依赖 |
-| 切换保留连接 | 未测。当前加入候选，未宣布保留 | RUN-OUTSIDE-04 对比当前代码 retainedPaneLimit=0 与 =4，其他代码/读屏设置相同；不改善则撤掉 |
+| 读屏关闭（RUN-OUTSIDE-04，T-139 控制版本单变量） | 切换中位数 99.45 → 89.30 ms（本次约缩短 10.2%）；滚动 60.005 → 60.003 FPS，p95 17.5 → 17.2 ms | 保留默认关闭及手动开关。FPS 无可辨别改善 |
+| 保留连接（RUN-OUTSIDE-04，当前源码仅 retainedPaneLimit=0/4 不同） | 切换中位数 83.90 → 75.00 ms（本次约缩短 10.6%）；滚动 60.002 → 60.024 FPS，p95 17.1 → 17.5 ms | 保留；没有因此宣称滚动改善 |
+| 100 → 16 ms 轮询（RUN-OUTSIDE-01） | 切换中位数 78.05 → 81.70 ms；旧滚动 121.37 → 121.25 FPS，p95 均 9.0 ms | 切换无改善，未保留；旧采帧方法首间隔有缺陷，FPS 不作收益依据。该轮切换完成条件也早于 v2，不与新数字混算 |
+| WebGL（RUN-OUTSIDE-04） | 控制切换 99.45 ms；实验有 105.25 ms 部分采样，但 webgl2_renderer_active 失败，后续 isContextLost 调用遇 null，整体 INCOMPLETE | 配置未获有效启用证明，部分数字不构成 WebGL 对照；不推断有效 WebGL 的优劣，直接撤掉及依赖 |
+| 起点 → 联合候选（RUN-OUTSIDE-04） | 切换中位数 108.40 → 75.00 ms；滚动 60.002 → 60.024 FPS，p95 17.6 → 17.5 ms | 本轮切换约缩短 30.8%，含视图和两个保留项的整体差异；不全归因任一项。滚动未证明改善 |
 
-旧 FPS 采样的首个时间差来自 performance.now() 到首个 rAF，原始数据中出现负值，不能据此声称超过屏幕刷新率或滚动改善。
-原始数据未改写。测量版本 2 先用首个 rAF 建立基点，再采 120 个正帧间隔；RUN-OUTSIDE-04 所有对照、实验与候选均用它，
-并重新运行 ebbae7bd0 与 T-139 控制版本。切换计时现在还要求目标窗格 input_enabled=true 才算完成。
+以上是单批探索对照，不证明长期可靠性或稳定收益。原始八次切换样本、三组各 120 帧间隔及版本/显示参数均在各 json 中。
+所有当前配置约 60 FPS，p95 约 17 ms，被显示刷新率封顶，不能用于区分滚动性能。
 
-保留窗格的待测实现：每个窗口最多保留四个未显示终端，保留 xterm、UTF-8 解码器与字节偏移；隐藏期间暂停轮询，
-恢复时立即唤醒并追平输出后显示和聚焦。主进程把保留集与当前选择分开，隐藏 key 仅可读，输入/缩放等写命令拒绝；
-身份变为历史或只读时旧绑定不复用；超出上限撤销凭据并销毁 renderer，后台完整输出仍可回放；关窗撤销两集合的凭据。
+新增测量 v3（工具 v5）：在同一真实主控 PTY 执行相同的 5000 行编号命令，计时起点在页面调用输入之前，
+终点要求输入已确认、xterm onRender 覆盖最后一行 BENCH_04999、终端可见且恢复完成，再经过两次 rAF。
+记录 `output_to_visible_ms` 和完成条件，随后仍核对全部 5000 行顺序/唯一性、输出偏移和真实输入。
+它测的是输入→PTY→轮询/解码→最后一行绘制的端到端耗时，含传输和 Python 启动成本，不是纯滚动渲染耗时。
+不使用平均 FPS 代替它，也不预设候选必须更快；无改善就报告“未证明改善”。基线/候选数字目前均待 RUN-OUTSIDE-05。
 
-| 本地当前候选检查 | 证据 |
+| 新测量检查 | 证据与局限 |
 | --- | --- |
-| 缺少连接复用的红态 | retention-red-01.json，切回得到不同 pane key |
-| 选择与权限检查 | retention-boundaries-01.json，25 项：复用绑定/输入凭据、隐藏快照绑定原任务且不可输入、跨窗口拒绝读取保留 key、上限前/上限处保留、超限淘汰并撤销凭据、关窗撤销全部凭据等 |
-| 真实 SQLite / 后台原布局校验 | store-layout-retention-01.json，10 项通过 |
-| 普通终端投影 | catalog-green-02.json，两项合同及行结构检查通过 |
-| 构建 | t143-build-candidate-01.json、t143-build-webgl-control-01.json 均通过，临时构建目录已清理；不代表 GPU 实际渲染已验证 |
-| 测试脚本语法 | Python py_compile、zsh -n RUN-OUTSIDE-02.sh 通过 |
+| 原报告缺新指标 | output-metric-contract-red-01.json，基线/候选均无 output_to_visible_ms；不把旧 PASS 当成新测量通过 |
+| 实际计时表达式的完成边界 | output-meter-boundaries-01.json，七项 PASS：缓冲区有文本但没渲染、仍隐藏、输入未确认/失败、无关行渲染均不能成功；有效可见渲染等绘制帧后才完成；监听器被清理 |
+| 脚本语法 | 实际 JS 表达式 node --check、Python 编译、zsh -n RUN-OUTSIDE-05.sh 通过 |
+| 撤依赖后的标准构建 | final-without-webgl-build-01.json PASS；临时构建目录已清理 |
 
-新 e2e 在原联合夹具中额外核对：真实 xterm 对象与输入凭据在切换后相同、隐藏窗格不能输入、设置可手动开读屏、
-WebGL2 canvas 确实启用且未报告 context loss。增加 inactive-input 变异，不能用只读快照代替输入拒绝。
-retention-harness-failure-01.txt 保留了关闭窗口检查初次遇到的测试边界缺方法错误；它不是业务红态。
-
-独立只读审查 T143-REVIEW-01.md 对冻结候选 8faf2a646 为 INCOMPLETE：检出读屏开关选择器指向标题、无法匹配复选框。已改为选择整个设置 section 下的 input；原报告保留。另补上保留集上限边界检查，并把 WebGL context loss 计数保存在窗口上，避免切换销毁节点后遗漏已发生的丢失。独立有界复核 T143-REVIEW-02.md 确认选择器唯一匹配 checkbox，25 项 selection 再跑通过，P1 已解除。真实 Electron/GPU 检查仍待 RUN-OUTSIDE-04。
-
-## 测试工具修正（主控 #10）
-
-RUN-OUTSIDE-02 的 70 个小文件/截图保留在 outside-02-fXauAYx2/。九项联合运行均为 INCOMPLETE，
-共同错误为 `Object reference chain is too long`，指标为空；这不能用于判定 WebGL 或保留窗格的性能。
-定位到 `window.__initialShellTerminal = mount.__testTerminal`：赋值表达式返回整个 xterm 对象，
-CDP 的 returnByValue 会尝试序列化其循环/深引用。修正为 `void (...)`，只在页面保留引用而不返回对象。
-滚动采样显式 JSON.stringify 数字/帧间隔数组，Python 再 json.loads。测量方法仍为 v2，另记 harness_version=3。
-
-隔离 CDP 序列化检查为 PASS：serialization-inspector-01.json。CHECK-CDP-SERIALIZATION.mjs 读取实际 e2e 的捕获表达式，
-通过 Node V8 inspector 的 Runtime.evaluate 复现旧表达式对循环对象报同错，新表达式返回 undefined 且保留引用身份。
-这只证明序列化边界，不是 Electron/GPU 或性能指标。
-独立只读审查 T143-SERIALIZATION-REVIEW-01.md 为 INCOMPLETE：复核上述边界、实际滚动 JS 语法与空指标停止哨兵均通过；真实指标仍缺失。
-
-修正后尝试单项真实命令：
+隔离边界检查使用可控 DOM/xterm/input/rAF，未产生或冒充真实性能数据；真实新指标仍为 INCOMPLETE。
+沙箱 Electron CDP 的 ECONNREFUSED 限制未变，按公共约定由主控运行：
 
 ```sh
-python3 workbench/tests/test_t139_t143_views_perf_e2e.py --summary evidence/2026-10-23-batch23/T-139-T-143/serialization-selftest-01.json
+zsh evidence/2026-10-23-batch23/T-139-T-143/RUN-OUTSIDE-05.sh
 ```
 
-结果 INCOMPLETE：沙箱内 Electron CDP 连接 ECONNREFUSED（127.0.0.1:59328），未取得指标，现场保留在 summary 的 fixture 路径。
-按公共约定不申请越权；RUN-OUTSIDE-03 先只跑一次候选，核对 PASS、harness_version=3、三项有效正数指标、
-3×120 正帧间隔与 8 次切换，再写 PREFLIGHT.json。该单项未满足时立即停止，不批量重跑；
-通过后复用这份候选结果继续对照/变异/回归。真实非空指标自测尚待主控沙箱外执行。
+脚本写新的 outside-05 目录，先校验计时表达式，再跑单项候选。仅当候选 PASS 且新旧指标完整有效才继续：
+同一夹具/同一命令的 ebbae7bd0 基线、三个变异、原指定回归及 T-091 起点比较。
+不重跑已撤掉的 WebGL；各单变量试验的数字以 RUN-OUTSIDE-04 及前述旧轮询证据为准。
+回传 PREFLIGHT.json、COMPARISON.json 后，worker 将补上新的基线/候选耗时与最终判定，不能提前宣称最终 PASS。
 
-## 保留窗格焦点修复（主控 #11）
-
-outside-03-qCZMwEld/ 完整保留。候选滚动中位数为 59.998980 FPS、p95 17.600000 ms；切换中位数缺失，
-单项为 INCOMPLETE，前置检查正确停止批量。没有基线对照，不能据此评价优化收益。
-
-已查看 candidate-failure.png：第一轮目标 T-A 已显示完整终端，未显示“只读”或“正在恢复”，
-但窗格没有“正在输入”焦点标记。实际 renderer 的 data-input-enabled、data-restoring 与测试选择器相符。
-原始 Electron 日志另有一条 a2a:output 的 Task view is changing，不能单凭该条认定为超时原因（关闭阶段也会拒绝输出）。
-
-代码中发现保留窗格重新激活时的焦点竞态：旧显示周期留下 restoring=false；active 变化时 layout effect 先请求隐藏回放，
-同次提交的焦点 effect 仍可读到旧 false 并把 focusRequest 标为已服务。隐藏/重新显示后，它不再执行聚焦。
-这是可复现的候选焦点处理缺陷；但旧报告缺逐项条件，不能完整证明历史 timeout 就由它触发。已把聚焦条件绑定到本次 visibility version 完成回放，且只有 document.activeElement
-确实成为 terminal.textarea 才记录请求已服务。未放宽目标可见、可输入、恢复完成、textarea 聚焦这四项条件，也未延长 12 秒期限。
-
-新隔离检查 test_t143_retained_focus.mjs 执行实际 focus effect 回调：
-旧版本 6c44695ff 在 activation_does_not_consume_focus_before_its_replay 失败（retained-focus-red-02.json）；
-修正后四项通过（retained-focus-green-01.json），包括恢复后聚焦和后续快照不抢回用户焦点。
-该检查提供回调边界证据，未证明真实 React 调度或 Electron 焦点；真正超时是否解除必须由 RUN-OUTSIDE-04 再证。
-标准构建 focus-build-01.json 通过，临时构建目录已清理；25 项选择/权限检查 retention-after-focus-01.json 通过。
-独立只读审查 T143-FOCUS-REVIEW-01.md 为 INCOMPLETE：新跑父版本红态/候选绿态、1/37/126 请求边界、实际切换 JS 语法及缺指标停止门禁均通过；保留真实焦点/历史超时归因的局限。
-
-联合 e2e 现在保存已完成的切换样本；若超时，记录目标是否存在/可见、输入标记、恢复标记、焦点与告警字符串，
-不返回 DOM 对象。测量方法仍 v2，harness_version=4。RUN-OUTSIDE-04 仍先跑单项候选，指标完整且通过后才继续其余批次。
-沙箱运行 Electron 的限制未变，本轮没有重复运行已知会 ECONNREFUSED 的本地真实夹具。
-
-下一步：主控在沙箱外运行，回传新目录、PREFLIGHT.json 与 COMPARISON.json。
-
-```sh
-zsh evidence/2026-10-23-batch23/T-139-T-143/RUN-OUTSIDE-04.sh
-```
-
-脚本逐项跑新基线、T-139 控制、读屏关闭、WebGL、无保留/有保留候选，三个变异和指定回归。
-worker 读取数字后决定 WebGL 与保留窗格的最终处置，再更新本报告；本次是供测量的候选，不是最终 PASS。
-新依赖来自主控“主控 #7”的明确授权；没有改 node_modules，没有写用户全局 CLI 配置，没有 push 或合并。
-
-原始临时夹具继续保留：RUN-OUTSIDE-01 的各 summary 中有 fixture 路径，本地新 SQLite 夹具也在各 summary 中记录。
-大块原始目录未入 Git，归档交主控按 T-088 处理。最初 Electron 无 CDP 的 baseline-01/02.json 等探索失败全部保留。
+大块原始夹具路径保留在各 json，未入 Git，归档仍交主控按 T-088 处理；所有失败现场与截图保留。
+无 push、合并、用户全局 CLI 配置改动。交付绑定 T-139-1 / T-143-1、attempt a1；真实夹具 session/fence 与代码版本见各 summary。
