@@ -1,0 +1,6 @@
+# T-146 本地检查发现的既有测试失败（不阻塞本任务实现）
+
+1. `workbench/tests/test_t078_claude_signals.ts` 在当前候选与 ebbae7bd0 运行时代码上均因未创建 `native-session.jsonl` 而失败，位置为 real_hook_shape_matches_one_registered_submission。记录见 `t078-session-end-01.json`、`t078-baseline-comparison-01.json`。未修改该旧测试。
+2. `workbench/tests/test_t108_questions.mjs` 当前与 ebbae7bd0 基线均在 Codex hook 矩阵期望 waiting_controller_answer、实际 running 时失败。全部 429 项的名称与 PASS/INCOMPLETE 状态逐项一致，见 `t108-case-comparison-01.json`；原始摘要见同目录的 current/baseline JSON。未修改这些旧测试或 Codex 行为，不能把该回归记为 PASS。
+
+建议另行核对旧夹具与当前原生 Codex 工具名/协议，按各自 ticket 处理。T-146 继续完成 SessionEnd、T-137 夹具与沙箱外复跑准备，不扩大到这些测试的修复。

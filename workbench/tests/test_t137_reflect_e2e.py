@@ -120,9 +120,11 @@ def main():
 
     def ask(identity, role, parent=None):
         """A role request from a terminal, decided by the operator (with an executor's parent) and confirmed."""
+        native = str(uuid.uuid4())
         asker = socket.socket(socket.AF_UNIX)
         asker.connect(str(fixture.state / 'control.sock'))
-        asker.sendall((json.dumps(dict(id=str(uuid.uuid4()), input=dict(command='role_request', role=role, wait_seconds=60),
+        asker.sendall((json.dumps(dict(id=str(uuid.uuid4()), input=dict(command='role_request', role=role, wait_seconds=60,
+                                       cli='claude', native_session=native, native_home=str(fixture.home / '.claude')),
                                        identity=identity)) + '\n').encode())
         pending = fixture.wait('角色申请出现', lambda: [r for r in fixture.request('sidebar_snapshot').get('role_requests', []) if r['launch'] == identity['launch']], 20)
         decided = fixture.request('role_request_decide', fixture.operator, role_request=pending[0]['id'], approved=True,
@@ -134,6 +136,13 @@ def main():
         asker.close()
         granted = json.loads(response.split(b'\n', 1)[0])
         assert fixture.request('role_request_confirm', identity, role_request=granted['role_request']['id'])['ok']
+        # Scripted controller input follows the same report/hook channel as the terminal CLI shim.
+        # A live shell alone supplies no CLI turn evidence; this request belongs to the reported native session.
+        payload = dict(hook_event_name='UserPromptSubmit', session_id=native, prompt_id=str(uuid.uuid4()),
+                       prompt='T-137 scripted controller turn')
+        hooked = fixture.request('terminal_hook', identity, raw_stdin=json.dumps(payload))
+        assert hooked.get('ok') and hooked.get('kept'), hooked
+        report['observed'].setdefault('terminal_fixture_hooks', []).append(dict(role=role, launch=identity['launch'], payload=payload))
         return granted['role_request']['id']
 
     def terminal_identity():

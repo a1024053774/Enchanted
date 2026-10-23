@@ -1,16 +1,18 @@
 # T-146-1 / a1
 
-状态：INCOMPLETE。Reflect 同源修复已实现；CLI 自然退出观察层与 T-137 期望冲突仍待裁定，当前不是整票验收通过。
+状态：INCOMPLETE，等待主控在沙箱外验收。Reflect 同源、Claude SessionEnd 结束事实和 T-137 夹具输入已按主控 #5 补齐；本地针对性检查通过，尚无新候选的完整 Electron 绿态与变异结果。
 
 已读取任务卡、公共约定、ticket、项目地图、术语和 intent，以及 Reflect、侧栏、流程、角色申请与后台入口的相关代码。项目地图初检 Problems 0、Stale living docs 0。
 
 ## 已完成
 
-- `daemon.ts` 仅改获准的 Reflect 入口：取得一次 `sidebarSnapshot`，将其完整 AgentState 按 launch 传给 Reflect。`reflect.ts` 不再把非 ended 主控或 lifecycle 为 running 的空闲会话推定为运行中；历史已结束角色按角色申请的结束事实保留 ended。`ReflectPage.tsx` 使用后台同一标签表给出的 `state_label`。未改 renderer.tsx、main.ts、流程展示、受保护 oracle 或其它 daemon.ts 区域。
+- `daemon.ts` 仅改获准的 Reflect 入口：取得一次 `sidebarSnapshot`，将其完整 AgentState 按 launch 传给 Reflect。`reflect.ts` 不再把非 ended 主控或 lifecycle 为 running 的空闲会话推定为运行中；历史已结束角色按角色申请的结束事实保留 ended。`ReflectPage.tsx` 使用后台同一标签表给出的 `state_label`。未改 renderer.tsx、main.ts、流程展示、验收断言或其它 daemon.ts 区域。
 - e2e 经真实后台与角色申请主控派两个真实 Claude Code worker（`claude-haiku-5-5`、本地脚本化 Messages 接口）：一个提交后空闲，另一个保持运行；先验证未知/空闲/运行中，再经真实 `/exit` 关闭前者的 CLI，以 ps/pgrep 独立核对 zsh 仍存活，最后门禁回收与关闭主控终端。每阶段保存三处 DOM 与后台快照；读取前等页面轮询追上 API，解决第一轮结束后侧栏 DOM 尚未刷新的测试竞态。
 - 展示断言采用主控 #4 的暂行规则：Reflect 必须保留 ended；侧栏/流程可以 MISSING 或 ended，不能再显示 running/idle。未把缺失值改写成 ended。
 - 定向变异 `reflect-lifecycle` 恢复旧的“非 ended 主控为 running、未归档会话为 running”算法，保留新接口，避免接口不匹配造成无关失败。期望红态与变异都在 `reflect_idle` 断言失败。
 - 新增自然退出最小探针 `test_t146_cli_exit_probe.py`：真实 Claude 只返回一句话，不调用 Bash；完成真实回合后输入 `/exit`，用于隔离观察层与嵌套 Bash 沙箱失败。此探针不替代 Electron e2e。
+- `panes.ts`：Claude 已有钩子列表只新增 SessionEnd 一项；在回合级校验之前按会话级字段核对它，保存既有 `native_session_ended` 事件并设置已有 `nativeEnded`；`status()` 消费该事实返回 ended。没有修改其它启动参数、恢复或权限逻辑。Codex 已有 `native_session_ended/nativeEnded` 事实沿用同一 status 判断；本次真实 CLI 验收范围为 Claude，未新增 Codex 真实退出证据。
+- `test_t137_reflect_e2e.py` 仅改 `ask()` 的夹具输入：第 123 行产生本轮脚本化原生会话号，第 126～127 行经角色申请上报 `cli='claude'`、native_session、native_home；第 139～145 行经现有 terminal_hook 通道提交关联的 UserPromptSubmit 并保存输入证据。原夹具只有存活 shell，没有 CLI 回合证据；现在 E2 的 running 预期有同一原生会话关联的脚本化输入支撑。没有直接写数据库/状态，没有改 `:243`（原 `:234`）的 E2 running 断言、检查名或期望值。共享 `scripted_claude.py` 未修改。
 
 ## 运行证据
 
@@ -34,19 +36,31 @@ python3 workbench/tests/test_t146_session_state_e2e.py --revision ebbae7bd0 --su
 
 `RUN-OUTSIDE-02.sh` 在新目录分别跑修前、修后、变异、自然退出红绿探针、T-111、T-137；`run-results.json` 只在红态/变异确因 `reflect_idle` 被拒、自然退出修前确因真实 CLI 退出断言被拒、四项绿态均 PASS 时才输出 PASS。环境失败或当前待裁定项导致失败时输出 INCOMPLETE。
 
+主控 #5 之后新增的本地证据：
+
+- `node workbench/tests/test_t146_session_end.mjs .../session-end-contract-red-03.json .`：退出 1，前五项通过后准确失败于 `claude_prompt_id_required`。这是会话级钩子契约红态，不冒称真实 CLI 退出红态。更早 red-01 缺 attempt、red-02 缺 turn_limit 是测试夹具错误，均保留但不算产品红态。
+- 同一测试修后 `session-end-contract-green-02.json`：PASS，八项检查覆盖外来 session/cwd/transcript、子 agent、畸形 agent、缺 reason 的拒绝，以及 Stop 仍为空闲、无 prompt_id 的 SessionEnd 使状态 ended 而终端未关闭。
+- `session-end-contract-counterfactual-01.json`：对保留的 ebbae7bd0 运行时代码再次执行，退出 1，同样因 `claude_prompt_id_required` 拒绝正确 SessionEnd。
+- `python3 evidence/2026-10-23-batch23/T-146/CHECK-T137-FIXTURE.py evidence/2026-10-23-batch23/T-146/t137-fixture-channel-01.json`：PASS。直接从修改后的测试提取并执行同一个 ask()，经过真实后台角色申请/确认/钩子入口，侧栏与 Reflect 同为 running。控制角色输入是脚本化的，不宣称该局部检查启动了真实主控 CLI 或经过 Electron。
+- `t137-oracle-preservation-01.json`：原有 10 个 check() 调用（含检查名、断言表达式与期望值）与 ebbae7bd0 完全一致；只新增夹具通道成功校验。
+- `t111-session-end-01.json`：既有 T-111 PASS。
+- 额外已有检查未全部通过：T-078 夹具缺 transcript 文件；T-108 的 Codex 矩阵有 171/429 项失败。对 ebbae7bd0 运行时代码的基线复跑重现同样问题，T-108 全部 429 项名称/状态逐项一致。不是本变更的通过证据，也未顺手改旧测试或 Codex 行为。已上报 `20261023T102949Z-worker:b23-t146-issue-001`，详见 `existing-regression-issue.md` 和相应 JSON。
+
+请运行新的 `RUN-OUTSIDE-03.sh`：除 02 的真实 Electron 红绿态、reflect-lifecycle 变异、真实 Claude 退出红绿态与 T-111/T-137 外，增加会话级 SessionEnd 校验。每次输出写入全新 outside03-时间-PID 目录；只有两种具体缺陷红态被拒、其余五项均 PASS 才输出 PASS。02 保留作日期记录，不覆盖其脚本或既有运行结果。
+
 提交诊断候选后执行既有流程基线：`node workbench/tests/test_t111_flow.mjs /private/tmp/t146-t111-baseline-c49e7749a.json .`，退出 0，摘要 `{"status":"PASS","task":"T-111","model_calls":0}`。该结果只证明未改产品时的既有流程契约成立，也实证当前 oracle 排除 ended；不替代 T-146 修复后的回归。fixture 清理后 `control.sock`、`daemon.pid` 均不存在。收尾 project-map status 仍为 Problems 0、Stale living docs 0。
 
 ## 主控已裁定与后续待裁定
 
 主控 #4 已授权 daemon.ts Reflect 入口最小改动，并采用当前隐藏规则；初次问题 `20261023T100141Z-worker:b23-t146-issue-001` 的这两项已落实。
 
-后续问题 `20261023T101234Z-worker:b23-t146-issue-001`（正文 `followup-issue.md`）：
+后续问题 `20261023T101234Z-worker:b23-t146-issue-001`（正文 `followup-issue.md`）已收到主控 #5 的明确处置：
 
-1. Claude worker 退出退回 zsh 时没有结束事实：`panes.ts` 未注册/处理 SessionEnd，processInfo 还明确排除 Claude 的正常退出判断，status 只看 PTY/归档。建议授权该观察层最小修复；当前未越界改 panes.ts，不能在 Reflect 或侧栏中猜测/制造退出事实。
-2. 受保护 T-137 对无 cli/native_session 证据的 E2 写死 running，而侧栏真实为 unknown。需要主控调整该 oracle 的期望或补真实 hook 证据；worker 未改 oracle。
+1. 主控原话：“允许改 workbench/src/panes.ts 中“CLI 结束事实”这一处——Claude 的 SessionEnd 钩子注册、signal() 接收它、status() 据此返回 ended”。已在这一范围实施；恢复、权限与其它启动参数未动。
+2. 主控原话：“不改 test_t137_reflect_e2e.py:234 的断言”，“允许改 T-137 测试的夹具部分”。已按上述行号补脚本化 CLI 与关联钩子输入，原验收断言未改；该例外由主控修订任务卡，worker 未自行更改任务卡或 oracle_paths。
 3. 改源代码后 project-map status 为 Problems 0、Stale living docs 1（workbench/README.md）。README 和地图不在允许范围；交由主控在收口/集成时核验与同步，当前不标完成。
 
-更新版 e2e 的修前失败断言、真实 Electron 绿态、变异失败、自然退出红绿态、修后 T-137 与独立行为验收均未完成。未声明 CLI 退出已修好，也不以旧 T-137 的通过替新实现背书。原始 fixture 保留供主控按 T-088 归档，未将数据库/trace 加入 Git。
+更新版 e2e 的修前失败断言、真实 Electron 绿态、变异失败、真实 CLI 退出红绿态、完整 T-137 回归与新候选独立行为验收仍待外部执行。不会将局部 signal/夹具检查或旧 T-137 的通过升级为整票通过。官方 SessionEnd 字段依据为 [Claude 官方钩子文档](https://code.claude.com/docs/en/hooks#sessionend)；会话级事件没有必填 prompt_id。原始 fixture 保留供主控按 T-088 归档，未将数据库/trace 加入 Git。
 
 旧诊断候选 `c49e7749a88356f55e4368aca7e85de10d0d660b` 的只读审查为 INCOMPLETE；该结论不为本次代码变更背书。
 

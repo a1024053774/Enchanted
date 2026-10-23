@@ -1,5 +1,5 @@
 import { accessSync, appendFileSync, closeSync, constants, existsSync, fstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, realpathSync, statSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { execFile } from "node:child_process";
@@ -133,7 +133,7 @@ async function claudeArgv(executable: string, signal: string, session: string,
     sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false,
       ...(gitDenied.length ? { excludedCommands: ["git add *", "git commit *"] } : {}),
       filesystem: { allowWrite: shellWritable, ...(gitDenied.length ? { denyWrite: gitDenied } : {}) } },
-    hooks: Object.fromEntries(["SessionStart", "UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse"].map(event => [event, hook])),
+    hooks: Object.fromEntries(["SessionStart", "SessionEnd", "UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse"].map(event => [event, hook])),
     fastMode: selection.fast,
   };
   // dontAsk denies AskUserQuestion anyway; without the tool the model asks through `issue` (T-124 ruling 1a).
@@ -1350,7 +1350,7 @@ export class Panes implements GateRuntime {
     const pane = this.panes.get(thread);
     if (pane) {
       return { thread, launch: pane.record.id, state: pane.failed || pane.stopped ? "unknown" : pane.state,
-        lifecycle: pane.archived || pane.record.role === "shell" && pane.stopped ? "ended" : pane.stopped ? "interrupted" : "running", shell_pid: pane.pty.pid,
+        lifecycle: pane.archived || pane.nativeEnded || pane.record.role === "shell" && pane.stopped ? "ended" : pane.stopped ? "interrupted" : "running", shell_pid: pane.pty.pid,
         state_source: pane.failed ? "runtime_failure" : "host_events", active: pane.active, native_session: pane.native,
         turn: pane.turn, writing: pane.writing, user_draft: pane.userDraft, interrupted: pane.interrupted,
         input_generation: pane.inputGeneration, interruption: pane.interruption,
@@ -1396,6 +1396,17 @@ export class Panes implements GateRuntime {
         throw new Refusal('hook_origin_or_turn_mismatch');
       }
       check(Number.isFinite(Date.parse(received_at)), 'hook_received_at_required');
+      // SessionEnd is session-scoped: the CLI can exit at its prompt, after the last turn has been cleared.
+      if (pane.record.cli === "Claude Code" && value.hook_event_name === "SessionEnd") {
+        check(typeof value.session_id === "string" && value.session_id.length > 0 && value.session_id === pane.native &&
+          !value.agent_id && value.cwd === pane.record.worktree &&
+          typeof value.transcript_path === "string" && basename(value.transcript_path) === `${pane.native}.jsonl` &&
+          typeof value.reason === "string" && value.reason.length > 0, "session_end_mismatch");
+        this.store.event("native_session_ended", { native_session: pane.native, shell_pid: pane.pty.pid,
+          leader_pid: pane.leader, hook_event_name: value.hook_event_name, reason: value.reason }, pane.record);
+        pane.nativeEnded = true;
+        return;
+      }
       // A Claude worker's session start is its ready signal: release the first task to it.
       if (pane.record.cli === "Claude Code" && pane.record.role !== "controller" && value.hook_event_name === "SessionStart") {
         // A monitor resumed after a restart (T-124) starts its session again with source "resume".
