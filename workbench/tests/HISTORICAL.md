@@ -37,7 +37,7 @@
 | --- | --- | --- |
 | [test_t091_pane_ipc.mjs](test_t091_pane_ipc.mjs) | [T-150](../../.project-map/tickets/T-150-migrate-t091-pane-ipc.md)，已合入。 | 跨窗 key、iframe、未知窗口拒收；错误凭据签发拒绝；关窗竞争的迟到凭据撤销；空布局持久化。 |
 | [test_t078_claude_signals.ts](test_t078_claude_signals.ts) | [T-151](../../.project-map/tickets/T-151-migrate-t078-claude-signals.md)，已合入。 | 已登记 active submission 的 UserPromptSubmit/Stop 关联、重复 Stop 不重复产生 `pane_idle`、异会话拒收。 |
-| [test_t082_review_boundary_e2e.py](test_t082_review_boundary_e2e.py) | [T-152](../../.project-map/tickets/T-152-migrate-t082-review-boundary.md)，**迁移中，以合入为准**。 | 审查副本生命周期、共享 refs 改动作废、`review_requirements.workspace` 绑定、结束核对前拒绝集成及 held socket 竞争。 |
-| [run_worker_delivery.py](run_worker_delivery.py) | [T-153](../../.project-map/tickets/T-153-migrate-worker-delivery.md)，**迁移中，以合入为准**。 | 原生 Stop 批次与重复请求只处理一次、门禁回执只注入一次且收据回合无工具、实际 turn_context→delivery→尾注。 |
+| [test_t082_review_boundary_e2e.py](test_t082_review_boundary_e2e.py) | [T-152](../../.project-map/tickets/T-152-migrate-t082-review-boundary.md)，已合入。 | 审查副本生命周期、共享 refs 改动作废、`review_requirements.workspace` 绑定、结束核对前拒绝集成及 held socket 竞争。 |
+| [run_worker_delivery.py](run_worker_delivery.py) | [T-153](../../.project-map/tickets/T-153-migrate-worker-delivery.md)，已合入。 | 原生 Stop 批次与重复请求只处理一次、门禁回执只注入一次且收据回合无工具、实际 turn_context→delivery→尾注。 |
 
-迁移的红态、绿态和独立验收以各票绑定候选的证据为准；本索引不代替验收。T-152、T-153 的最终合入状态由执行主控集成时核对。
+迁移的红态、绿态和独立验收以各票绑定候选的证据为准；本索引不代替验收。T-152、T-153 的合入状态已由执行主控在集成时核对（2026-10-23）。
