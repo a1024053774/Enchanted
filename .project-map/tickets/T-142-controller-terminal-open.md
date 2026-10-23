@@ -2,7 +2,7 @@
 id: T-142
 title: 主控命令 terminal_open：让经批准的主控在项目内直接开界面里的普通终端
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -23,8 +23,8 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 真实：已批准的主控 `a2a call terminal_open` 后界面出现新终端，cwd 正确。
-- [ ] 越界目录、未批准会话、其他项目的主控均被拒（各一条反例）。
+- [x] 真实：已批准的主控 `a2a call terminal_open` 后界面出现新终端，cwd 正确。
+- [x] 越界目录、未批准会话、其他项目的主控均被拒（各一条反例）。
 
 ## 不做
 
@@ -32,3 +32,10 @@ ready_rev: 1
 
 ## Resolution
 
+2026-10-23 关闭，PASS。
+
+- 代码：`aeda66327`（`daemon.ts`、`terminalCli.ts`、a2a SKILL 与 README：已批准的主控 `a2a call terminal_open --cwd <项目主目录、子目录或额外目录>` 开一个项目层普通终端，返回 launch；未批准、cwd 越界、他项目主控都拒绝），测试夹具 `f8a185996`、`ff8d7d50e`、`6c47ed883`、`cd8c31b76`，合并 `edd8a7cad`。
+- 夹具迭代的原因是 Claude Code 2.1.309 的新对话框：默认 auto 模式会弹计费说明；设 `defaultMode=default` 后又弹“设为默认 auto”选择框（需 `.claude.json` 写 `hasSeenAutoDefaultNudge`）；带输出重定向的 Bash 命令另要确认，探针 PROBE-01 证实 allow 规则与 additionalDirectories 都不覆盖。最终 Claude 只执行不带重定向的命令，测试按 tool_use_id 读取原始工具回执并核对后台 launch。全程没有用按键关对话框。
+- 验收（执行主控沙箱外）：第 1 轮 T-124、T-139/T-143 通过，T-091 与起点同样；第 5 轮 `outside-05-20261023T165125Z-GjZtsr`：真实 Claude Code（claude-haiku-5-5）在界面申请执行主控并获批，三处目录开出终端且 cwd 正确；未批准（`approved_role_required`）、他项目（`role_project_mismatch`）、兄弟目录被拒；起点红态 `role_command_not_scoped`；cwd 不检查的变异被 `sibling_refused` 抓住。截图归档在外置盘 `a2a-evidence/2026-10-23-batch23/T-142/`。
+- 独立审查：agy gemini-3.8-flash-high，PASS，无发现项。
+- 合并后回归 05、06：T-142 绿态通过。
