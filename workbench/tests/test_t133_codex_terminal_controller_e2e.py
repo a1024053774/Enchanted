@@ -78,7 +78,7 @@ def main():
     parser.add_argument('--claude', default=shutil.which('claude') or str(Path.home() / '.local/bin/claude'))
     target = parser.add_mutually_exclusive_group()
     target.add_argument('--revision')
-    target.add_argument('--mutant', choices=['hooks-not-passed', 'post-hook-passed', 'reply-as-message'])
+    target.add_argument('--mutant', choices=['hooks-not-passed', 'post-hook-passed', 'reply-as-message', 'project-needs-hidden'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
     report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant, checks=[], observed={})
@@ -90,6 +90,8 @@ def main():
         'post-hook-passed': [('terminal/bin/codex', '-c "hooks.PreToolUse=', '-c "hooks.PostToolUse=[{matcher=\\"request_user_input_async\\",hooks=[$hook]}]" -c "hooks.PreToolUse=')],
         # The user's reply kept as an ordinary message.
         'reply-as-message': [('src/daemon.ts', 'const reply = codex ? codexQuestionReply(payload.prompt) : null;', 'const reply = null as any;')],
+        # The project row no longer says how many of its sessions wait for the user.
+        'project-needs-hidden': [('app/renderer.tsx', '{waiting > 0 && <span className="project-needs">', '{false && <span className="project-needs">')],
     }.get(args.mutant, [])
 
     api = dict(bodies=[], error=None, turns={})
@@ -273,6 +275,10 @@ def main():
         held = agent(ideation['launch'])
         electron.screenshot(fixture.out / '01-waiting-user-answer.png')
         check('still_waiting_after_accepted', held['state'] == 'waiting_user_answer', held)
+        # T-107 acceptance: the project row of a session waiting for the user stands out, and goes back once answered.
+        needs = "[...document.querySelectorAll('[data-project-id=\"demo\"] .project-needs:not([data-project-issues])')].map(n => n.textContent)"
+        report['observed']['project_needs_waiting'] = electron.evaluate(needs)
+        check('project_row_needs_user', report['observed']['project_needs_waiting'] == ['1 个等你'], report['observed']['project_needs_waiting'])
         wait('问题显示在终端', lambda: QUESTION.replace(' ', '') in screen(ideation), 30)
         type_in(ideation, '\x1b[1;2D')
         time.sleep(2)
@@ -285,6 +291,8 @@ def main():
         check('ideation_running_after_answer', True)
         electron.until('回合结束：空闲', state_is(ideation['launch'], 'idle'), 60)
         check('ideation_idle_after_turn', True)
+        report['observed']['project_needs_answered'] = electron.evaluate(needs)
+        check('project_row_back_after_answer', report['observed']['project_needs_answered'] == [], report['observed']['project_needs_answered'])
 
         executor = terminal('X')
         type_in(executor, 'codex --sandbox danger-full-access -a never\r')
