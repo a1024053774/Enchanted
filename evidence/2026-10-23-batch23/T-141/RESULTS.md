@@ -1,8 +1,8 @@
 # T-141-1 / a1 交付记录
 
-状态：**INCOMPLETE**。上一候选 `369d2053980ae5f2460cd2a16c557ac97571e214` 的 RUN-OUTSIDE-03 共 13 场全部符合预期，证据已由执行主控纳入 `8cf7caf70e5306a82f834b68812cedb494840632`。本轮按用户“选 A”恢复仅 Codex reviewer 的审查副本 untrusted，只改获准的 T-127 demo 信任夹具；三个本地契约 PASS，RUN-OUTSIDE-04 尚待沙箱外运行。T-127 的受保护 worker 断言与新裁定冲突，已上报，不能宣称整票通过。
+状态：**INCOMPLETE**。RUN-OUTSIDE-04 的 T-141 全套与 T-140/T-131/T-132 共 13 场均符合预期；T-127 在旧的 worker restricted 启动断言失败。本轮按用户“改这四条 worker 断言 (Recommended)”更新 T-127 的四处 worker 期望，修复四个失效的变异定位；本地断言反例与全部变异定位/语法检查 PASS。RUN-OUTSIDE-05 的真实 T-127 与审查隔离反例尚待外部运行，不把上轮或本地结果当本轮全票通过。
 
-工作目录 `/Users/luckye/Documents/Code/a2a-wt-t141`，分支 `exec/t141`，起点 `3f8813b0e`。任务来源为 T-141 ready_rev 1；交付提交号以 `DELIVERED` 消息为准，真实运行脚本另保存当时的完整 Git 版本和工作区状态。未 push、未合并 main。受保护 oracle 中仅按本会话明确裁定修改 T-140、T-127 的隔离夹具配置，详见下文；T-131、T-132 原样。未改地图、ticket、AGENTS.md、CONTEXT.md 或其他 worker 的源码。
+工作目录 `/Users/luckye/Documents/Code/a2a-wt-t141`，分支 `exec/t141`，起点 `3f8813b0e`。任务来源为 T-141 ready_rev 1；交付提交号以 `DELIVERED` 消息为准，真实运行脚本另保存当时的完整 Git 版本和工作区状态。未 push、未合并 main。受保护 oracle 中，T-140 仅改获准的隔离信任配置；T-127 另按本轮用户裁定修改四处 worker 期望及四个变异定位，其余检查与超时不变，详见下文；T-131、T-132 原样。未改地图、ticket、AGENTS.md、CONTEXT.md 或其他 worker 的源码。
 
 ## 候选行为
 
@@ -13,7 +13,28 @@
 - worker 角色卡说明原生审批拒绝后用 `issue` 上报、必要时结束回合等主控答复。沿用原有 `answer_issue` 与会话队列，没有新增通信接口或放宽门禁检查串。
 - reviewer 门禁只同步启动参数契约；会话/attempt 绑定、候选目录、原生身份、不同于 worker、禁止 resume/fork、写入范围与其余质量串保持原检查。
 
-## 第四轮：仅审查副本保留 untrusted
+## 第五轮：对齐获准的四处 worker 期望
+
+执行主控在本会话转述用户 2026-10-23 的逐字选择“改这四条 worker 断言 (Recommended)”，记录为 `20261023T153252Z-executor-report-001`。授权仅把按“worker 强制 untrusted”写的四处改为 worker 沿用用户配置；reviewer 的副本 untrusted、精确目录门禁、候选配置/hooks/exec policy 不影响审查的规则保持。允许旧变异定位到当前源码形状，不改变其坏行为与审查断言，不改其他检查名或超时。本轮没有改生产源码。
+
+| 位置（改前名称） | 改前 | 改后及保留条件 |
+| --- | --- | --- |
+| `worker_folder_untrusted_in_argv` | 要求 worker argv 含主仓库 `projects=...untrusted` | `worker_trust_not_overridden`：不得有 `projects=` 或 `projects.` 覆盖；worker 使用隔离 home 里预先写好的 demo trusted |
+| `user_home_not_rewritten` | 禁止整个 config_after 含 `[projects` | 只禁止新增部分 added 含 `[projects`；原配置必须仍是字节前缀，其他 home 文件逐字节比较、仅允许追加 `[tui]` 等原比对全部保留。因此夹具预先写入的 demo trusted 保留，a2a 不能追加或改写 trust |
+| `restricted_answered_before_first_task` | worker 启动事件前三条须为 restricted intent/opened/turn_submitted | `trusted_worker_starts_directly`：事件恰为 `['turn_submitted']`，不经过 restricted；前面的真实 API 首请求等待和 worker_started 检查保留 |
+| `project_codex_hooks_not_run` | worker/reviewer 的 project hook 标记一律不得出现 | `reviewer_project_codex_hooks_not_run`：仅放开 worker 部分，任何以 project 开头、以 -reviewer 结束的配置钩子/文件钩子标记仍拒绝；两类 home hooks 仍须实际运行。worker 的项目钩子是否运行如实保留在 markers，不据此要求 reviewer 放行 |
+
+四个旧变异定位：`untrusted-config-missing` 现在删除仅 reviewer 的那条 projects spread；`project-trusted` 将同一 reviewer 覆盖改成 trusted；`session-folder-differs` 的实际命令仍移到审查 Git worktree，并将该命令的 untrusted 根设为主仓库（使用现有 `realpathSync(task.repo)`，原来的 repositoryRoot 已不存在）；`resume-worker-in-argv` 定位到当前带 extraDirectories/mcpConfig 的构造器后，仍只给 reviewer 加 resume worker 会话。其他变异定义原样保留。
+
+`outside-04-summary.json` 与 `t127-red-04-summary.json` 保存真实修前失败：`36fc4491422d9ae3792da4d7a78e5d3014ecd585` 上 T-127 实际 startup 为 `['turn_submitted']`，旧断言拒绝它；同一轮其他 13 场符合预期。原目录 `outside04-SqmEfaks/` 不覆盖，归档归执行主控。
+
+新增 `test_t141_t127_oracle.py` 只测试验收谓词与源码变异入口，不当作原生 CLI 证明。修前 `t127-oracle-red-05.json` 在上述真实 startup 输入上红；改后 `t127-oracle-green-05.json`、扩展的 `t127-oracle-green-05b.json` 在 14 个独立好/坏输入上通过：拒绝 restricted/未送达、两种 projects 覆盖、home 文件改动/非前缀/新 trust、两种 reviewer project 标记，同时允许 worker project 标记。后者另逐一应用全部 9 个 `--mutant` 与 4 个 `--reviewer-case` 的补丁，定位均唯一，Node 语法检查均通过；没有据此声称这些变异已被真实运行抓住。
+
+`t127-authorized-delta-05.json` 用 AST 比较确认：除这四个授权谓词/名称、相关说明和四个变异字符串入口外，其余 Python 节点保持不变，包括审查身份/目录/新会话/untrusted、副本变异执行、写入边界、home hooks、交付集成检查与所有超时。
+
+`RUN-OUTSIDE-05.sh` 创建新 `outside05-*` 目录，共 29 场：原 T-141 全套及 t127/t140/t131/t132；新增本地 oracle 检查、worker 旧版强制 untrusted 的真实红态、全部 T-127 变异入口与四种 reviewer 隔离场景。组合反例覆盖删除 trust 门禁、删除原生目录门禁、丢失 unbound 记录。失效定位、无关前置失败和未到达目标断言均记 INCOMPLETE。restricted-unanswered 还须同时有原生 Open restricted 屏幕与 native_ready_signal_missing，单纯超时不算抓住。`scan-whole-home` 只记录功能与时间，不计入负例或性能收益证明；其余每场按独立预期分类。真实结果待回传，截图不提交。
+
+## 第四轮：仅审查副本保留 untrusted（历史）
 
 执行主控在本会话转述用户 2026-10-23 的逐字裁定“选 A”，来源为 `20261023T141957Z-executor-needs-decision-001` 的 executor report 回复：Codex reviewer 的一次性审查副本保持 untrusted，worker 与 monitor 沿用用户配置。这个例外保住独立审查：副本里由 worker 写入的 `.codex` 配置、hooks、exec policy 不生效。它不把用户 home 改为 untrusted，也不改变 worker/monitor 信任。
 
@@ -25,7 +46,7 @@ T-127 夹具唯一改动：`workbench/tests/test_t127_codex_home_e2e.py:212-215`
 
 执行主控已有原生失败原样留在 `t127-check-01/`，小摘要 `t127-check-01-summary.json`：CLI 0.163.0，worker 处于 Folder access，记录 `codex_folder_trust_requested`。这证明此前未设置信任的前置失败，不能证明本轮 reviewer 行为。
 
-T-127 当前无法仅凭获准配置修改变为全绿：它仍要求 worker 经过 restricted 启动事件、worker argv 强制 untrusted，并要求 config.toml 完全没有 `[projects]`；另有 worker 与 reviewer 项目 hooks 一律不运行的断言。前面三项与本轮授权直接冲突，hooks 实际影响尚待原生运行。旧变异的部分源码定位也不再匹配 reviewer-only 的参数形状。我没有改这些断言、检查名、期望、变异或超时，也没有为满足旧断言改回 worker 的信任覆盖。问题已上报 `20261023T151346Z-worker:b23-t141-issue-001`，更早的 startup 断言补充为 `20261023T151642Z-worker:b23-t141-issue-001`；原文分别保存在 `issue-t127-protected-contract.md`、`issue-t127-startup-expectation.md`。须由主控处理独立 oracle 与当前裁定的一致性。
+第四轮当时无法仅凭获准配置修改 T-127 变为全绿：它仍要求 worker 经过 restricted 启动事件、worker argv 强制 untrusted，并要求 config.toml 完全没有 `[projects]`；另有 worker 与 reviewer 项目 hooks 一律不运行的断言。前面三项与本轮授权直接冲突，hooks 实际影响尚待原生运行。旧变异的部分源码定位也不再匹配 reviewer-only 的参数形状。我没有改这些断言、检查名、期望、变异或超时，也没有为满足旧断言改回 worker 的信任覆盖。问题已上报 `20261023T151346Z-worker:b23-t141-issue-001`，更早的 startup 断言补充为 `20261023T151642Z-worker:b23-t141-issue-001`；原文分别保存在 `issue-t127-protected-contract.md`、`issue-t127-startup-expectation.md`。本轮用户已授权上述四处对齐，见第五轮；历史问题与失败证据保留。
 
 `RUN-OUTSIDE-04.sh` 创建新 `outside04-*` 目录，跑 T-141 三契约、无模型 MCP 加载探针、真实 e2e 红/绿、四个变异，以及 t127/t140/t131/t132，共 14 场。t127 仍按普通回归要求 PASS，不把前述冲突失败登记为预期成功。脚本只记录完整候选版本与实际结果，不提交截图；大日志/夹具归执行主控按 T-088 归档。
 
@@ -102,11 +123,12 @@ MCP hook 使用[Claude 官方 hook 文档](https://code.claude.com/docs/en/hooks
 node workbench/tests/test_t141_launch_contract.mjs <新摘要>
 node workbench/tests/test_t141_reviewer_contract.mjs <新摘要>
 node workbench/tests/test_t141_startup_signal.mjs <新摘要> [源码根目录]
+python3 -B workbench/tests/test_t141_t127_oracle.py --summary <新摘要>
 python3 -B workbench/tests/t141_probe_codex_start.py --trust untrusted --open-restricted --summary <新摘要>
 python3 -B workbench/tests/t141_probe_claude_mcp.py --summary <新摘要>
 PYTHONPYCACHEPREFIX=/tmp/t141-pycache python3 -m py_compile workbench/tests/test_t141_loosened_limits_e2e.py workbench/tests/t141_probe_codex_start.py
 zsh -n evidence/2026-10-23-batch23/T-141/RUN-OUTSIDE-01.sh
-zsh -n evidence/2026-10-23-batch23/T-141/RUN-OUTSIDE-04.sh
+zsh -n evidence/2026-10-23-batch23/T-141/RUN-OUTSIDE-05.sh
 git diff --check
 ```
 
@@ -114,7 +136,7 @@ git diff --check
 
 ## 待运行的真实入口与局限
 
-下一轮运行 `zsh evidence/2026-10-23-batch23/T-141/RUN-OUTSIDE-04.sh`，创建新的 `outside04-*` 证据目录。先跑三个本地启动契约和无模型原生 MCP 加载探针，再跑修前版本、新候选、四个变异，以及 T-127 / T-140 / T-131 / T-132 回归（T-127/T-140 仅上述获准配置改动）。脚本核对红态/变异必须失败在对应断言，环境失败不算抓住已知坏实现；矩阵输出保留实际状态与错误。RUN-OUTSIDE-01 与其结果不覆盖。
+下一轮运行 `zsh evidence/2026-10-23-batch23/T-141/RUN-OUTSIDE-05.sh`，创建新的 `outside05-*` 证据目录。先跑三个本地启动契约和无模型原生 MCP 加载探针，再跑修前版本、新候选、四个变异，以及 T-127 / T-140 / T-131 / T-132 回归和上述 T-127 隔离反例；T-127 四处授权期望及变异定位的范围如第五轮所列。脚本核对红态/变异必须失败在对应断言，环境失败不算抓住已知坏实现；矩阵输出保留实际状态与错误。RUN-OUTSIDE-01 与其结果不覆盖。
 
 新 e2e 使用真实后台、真实门禁、真实 Electron 和已安装的交互 Claude/Codex CLI；Messages/Responses 由本地脚本接口驱动，**不证明模型会自发理解或选择 issue 工作流**。它实际驱动原生审批拒绝，再驱动 issue，并核对问题面板、主控接口答复和 worker 继续交付；不以 answer_registered 事件替代送达。
 
@@ -130,7 +152,7 @@ MCP 放在测试专用 `$HOME/.claude.json` 的顶层 `mcpServers`，属于用�
 | 原生文件与 shell 越界拒绝、额外目录可写 | outside-03 green 与 T-140 PASS，放宽变异均被抓住；本轮新候选待复跑 |
 | 完整 argv、reviewer 不因新参数被拒 | outside-03 完整审查 PASS；本轮 reviewer-only untrusted 本地 builder/门禁 PASS，真实审查待复跑 |
 | 原始版本红态、至少两个变异 | outside-03 red 与四个变异全部按各自行为断言失败；本轮新候选待复跑 |
-| T-127 / T-140 / T-131 / T-132 回归 | outside-03 的 T-140/T-131/T-132 PASS；T-127 因信任前置失败，本轮保护断言冲突已上报；新候选全套待外部复跑 |
+| T-127 / T-140 / T-131 / T-132 回归 | outside-04 的 T-140/T-131/T-132 PASS，T-127 真实失败在旧 startup 断言；本轮按用户裁定对齐，真实全套与隔离反例待 outside-05 |
 
 临时目录：outside-02 的 Codex 原生共享临时根拒绝和 tempfile 可用符合要求，`shared-temp-writable` 被实际 `/tmp` 写入抓住。Claude 保留 CLI 原生的每用户临时目录：[官方沙箱文档](https://code.claude.com/docs/en/sandboxing#temporary-directories)说明其用于 sandbox shell 临时文件，T-122 既有探针也记录强行禁止会破坏 shell；本票不在没有独立原生证据时改写该机制。影响是原生 CLI 必需的临时区仍属例外，不能宣称只可写 worktree/请求目录/额外目录这三类路径。新测试分别记录 `/tmp`、原 `$TMPDIR`、实际 shell TMPDIR 与 tempfile 的结果；outside-02 green 中 Claude 的 `/tmp` 与原 `$TMPDIR` 写入均 false、实际 shell TMPDIR 为 `/tmp/claude-501`、tempfile true；新候选仍待复跑，不把历史探针当新候选通过。
 
