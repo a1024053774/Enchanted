@@ -168,14 +168,16 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
   const current = roleRequests.all();
   const turns = store.db.prepare("SELECT json_extract(data,'$.role_request') AS role_request, json_extract(data,'$.state') AS state FROM orchestration_events WHERE type='terminal_turn' ORDER BY seq").all();
   // Keep the last role that actually took effect on each terminal, including
-  // ended roles. A closed controller retains its identity and children instead
-  // of reappearing as an ordinary terminal. Historical display grants no role.
+  // ended roles only when the pane ended. Giving a role back in a live terminal
+  // makes it ordinary again. Historical display grants no role.
   const held = current.filter(row => row.confirmed_at);
   for (const roleRequest of held.filter((row, index) => !held.slice(index + 1).some(later => later.launch === row.launch))) {
     const record = store.launchRecord(roleRequest.launch);
     if (!record) continue;
+    const pane = panes.status(record.thread);
+    if (roleRequest.state !== 'approved' && pane?.lifecycle !== 'ended') continue;
     const last = turns.findLast(row => row.role_request === roleRequest.id)?.state as AgentState | undefined;
-    const state: AgentState = roleRequest.state === 'ended' ? 'ended'
+    const state: AgentState = pane?.lifecycle === 'ended' ? 'ended'
       : last ?? (roleRequest.cli === 'claude' && roleRequest.native_session ? 'running' : 'unknown');
     agents.push({ id: roleRequest.launch, project: roleRequest.project, task: null, task_name: null, attempt: null, thread: record.thread,
       role: 'controller', preset: roleRequest.role, role_label: roleLabel({ role: 'controller', preset: roleRequest.role }), cli: roleRequest.cli ?? '未知',
