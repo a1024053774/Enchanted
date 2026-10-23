@@ -28,7 +28,7 @@ try {
   fs.chmodSync(join(tree, 'node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper'), 0o755);
   fs.mkdirSync(state); fs.mkdirSync(repo);
   execFileSync('git', ['-c', 'core.hooksPath=/dev/null', 'init', '-b', 'main', repo], { env: { ...process.env, LC_ALL: 'C' } });
-  const { Panes, spawnHelper } = await import(pathToFileURL(join(tree, 'src/panes.ts')));
+  const panesModule = await import(pathToFileURL(join(tree, 'src/panes.ts'))), { Panes } = panesModule;
   const { nativeSessionFile } = await import(pathToFileURL(join(tree, 'src/paneRecovery.ts')));
   const { A2AGates } = await import(pathToFileURL(join(tree, 'src/gates/core.ts')));
   const credentials = await import(pathToFileURL(join(tree, 'src/credentials.ts')));
@@ -61,7 +61,8 @@ try {
   const module = new vm.SourceTextModule(stripTypeScriptTypes(fs.readFileSync(daemonFile, 'utf8')), {
     context, initializeImportMeta: meta => { meta.url = pathToFileURL(daemonFile).href; meta.main = false; } });
   await module.link(async spec => {
-    const exports = spec === './panes.ts' ? { Panes: SeededPanes, spawnHelper }
+    // Everything panes.ts exports, with the seeded Panes in place of the real one.
+    const exports = spec === './panes.ts' ? { ...panesModule, Panes: SeededPanes }
       : await import(spec.startsWith('.') ? new URL(spec, pathToFileURL(daemonFile)).href : spec);
     return new vm.SyntheticModule(Object.keys(exports), function () { for (const [key, value] of Object.entries(exports)) this.setExport(key, value); }, { context });
   });
