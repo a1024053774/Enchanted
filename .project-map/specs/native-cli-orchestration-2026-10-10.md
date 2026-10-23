@@ -115,7 +115,7 @@
 - **权限四层**（T-071）：角色卡；任务卡路径加门禁检查；每会话启动参数（例如 reviewer 的 Codex 只读沙箱、Claude 的权限模式与工具白名单）；收件箱命令行按角色限定能写的条目。设置页"角色权限"编辑启动参数与路径规则。
 - **环境变量**：项目、任务、attempt、会话、角色、启动记录号，加上为本会话 git 指定钩子目录的 `GIT_CONFIG_*` 三项。
 - **Claude Code**：启动时用 `--session-id` 指定原生会话号，带 `--model`、`--effort`、`--settings`（hooks 只经这里传入）。**Codex**：带 `-m`、`-c` 指定思考强度与 `notify`，按角色给沙箱与审批参数。
-- **worker 连后台**（2026-10-11 用户决定，依据 T-075 实测：Codex workspace-write 沙箱拒绝连 Unix socket）：受管 worker 的每会话启动参数只放行编排后台那一个 socket（Codex `network.allow_unix_sockets=[<后台 socket 路径>]`），网络保持关闭；worker 与主控、界面经同一个命令行入口交付。前提是实测确认只放行这一个 socket，否则停下报告。
+- **worker 连后台**（2026-10-11 用户决定放行 socket，后被取代）：T-075 最终采用“请求文件加 Stop hook”通道，worker 不直连后台 socket。2026-10-23 用户定网络全开（T-141："网络全开,去掉--strict-mcp-config,codex 和用户自己的一致,文件写入范围当硬边界"），worker 不再有 socket 或网络白名单；硬边界是文件写入范围，worker 与主控、界面仍经同一个命令行入口交付。
 - 不写 `~/.claude`、`~/.codex` 等全局配置。
 - 会话在窗格的 zsh 里启动；CLI 退出后 shell 还在。
 
