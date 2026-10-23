@@ -51,3 +51,11 @@
 按夹具卡“每项含 name 与非负整数 minutes（bool 不算整数）”补上缺失 minutes，False、浮点 0.5/1.0、字符串数字/空串、null、数组与对象 minutes；按“name 是字符串、去空白后不得为空”补上缺失 name、空串、全角空白及 null/bool/数字/数组/对象 name。所有非法输入同时检查 normalize 的 ValueError 消息和实际 report.py 的退出码 2、错误 JSON。成功及错误 stdout 都必须恰为一行；JSON 内容比较仍保留。两份 oracle 均从同一个 ORACLE 字符串生成，新增用例合计后为 24 组。
 
 没有扩展到合同未说明的非法顶层容器或无法解析的 stdin，也没有改 reviewer 提示词、mutation_checks 或交付断言。零模型反事实命令与结果见 RESULTS 的 oracle 补强一节。
+
+## 主控 #15 后的系统检查
+
+03 reviewer 发现“只校验第一行”的变异仍通过 24 项。第四轮按 [MUTATION-PLAN-04.md](MUTATION-PLAN-04.md) 一次列出合同类别：minutes 的 19 类非法输入、name 的 14 类非法输入，分别在三行输入的首/中/末，共 99 个矩阵检查点。原五组输入保留；正常路径补上内部空白、非相邻合并、大小写排序、制表/换行去空白，以及 0/59/60/61/119/120/125/6001 分钟的手写预期，合计 116 组。
+
+normalize 的异常类型与消息、CLI 的退出码、stdout 的 UTF-8/单行/单个 JSON/精确结构与数值类型都显式检查；stderr 只作诊断，不作结果，也不要求为空。函数和 CLI 各接收从同一原始 wire input 独立生成的参数，避免函数修改参数影响 CLI 的输入。
+
+全类别变异、实际补丁、逐格非法输入、完整命令及两份 oracle 的杀死结果见 [MUTATION-SWEEP-04.json](MUTATION-SWEEP-04.json)。原始输出保留在 MUTATION-SWEEP-04-raw.json；最终 JSON 只额外附上从实际被测副本读取的 diff，所有检查结果保持不变。机械验证的边界见 RESULTS，不能把有限变异全过写成所有错误实现都已排除。

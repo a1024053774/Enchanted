@@ -54,7 +54,7 @@ for name in ('registration', 'repeat-feedback', 'green'):
 report = {'status': 'PASS', 'run': str(a.run), 'runs': runs,
           'real_turns_used': sum(r['real_turns'] for r in runs), 'reserved_maximum': 8,
           'arithmetic_unused': 8 - sum(r['real_turns'] for r in runs),
-          'authorization_note': 'Authorization 02 was for one run; unused reservations do not authorize another run.'}
+          'authorization_note': 'Each authorization covers one run; unused reservations do not authorize another run.'}
 with a.summary.open('x', encoding='utf-8') as stream:
     json.dump(report, stream, ensure_ascii=False, indent=2); stream.write('\n')
 print(json.dumps({'status': report['status'], 'real_turns_used': report['real_turns_used'],

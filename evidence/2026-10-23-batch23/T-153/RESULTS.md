@@ -1,6 +1,6 @@
 # T-153-1 / a1：交付测试迁移
 
-状态：**INCOMPLETE**。02 已取得有效通知变异红态；绿态经真实 worker 交付与 verify 后被独立 reviewer 拒收，原因是夹具 oracle 不足。现已补强两份 oracle 并完成零模型反事实验证，完整绿态与新候选的独立审查仍待 03 复验。
+状态：**INCOMPLETE**。02、03 均取得有效通知变异红态，但绿态分别被独立 reviewer 指出 oracle 缺口。第四轮已完成全合同本地扫查，两份 oracle 均拒绝 151 个变异、接受两个正对照；完整绿态及新候选独立审查仍待 04。若第四轮仍发现新的 oracle 缺口，按主控 #15 停下交构思主控，不继续循环。
 
 分支 `exec/t153`，起点 `b058e3a7585ccc85df190e90c01b52756c9d076e`。唯一修改的测试为 `workbench/tests/run_worker_delivery.py`；没有新增辅助模块，没有修改产品代码、共享基类或其他测试。
 
@@ -37,13 +37,15 @@
 
 02 的 [summary.json](outside-02-18rhLiEc/summary.json) 已有 retained_check_red=true；绿态在 reviewer 报“需修复”后结束，未集成。原始拒收保持原样，提取的报告见 [review-findings-02.json](review-findings-02.json)。该判断有效，不是产品或流程缺陷。
 
-运行新的 [RUN-OUTSIDE-03.sh](RUN-OUTSIDE-03.sh)，显式传入主控对新一轮真实回合和启动 hook 的授权文件；不复用已经执行过的授权 01 或 02：
+03 的 [summary.json](outside-03-Ad2MYLoU/summary.json) 同样 retained_check_red=true；绿态 reviewer 发现“只校验第一行”仍通过 24 项，报告见 [review-findings-03.json](review-findings-03.json)，原拒收保留。
+
+运行新的 [RUN-OUTSIDE-04.sh](RUN-OUTSIDE-04.sh)，显式传入主控对新一轮真实回合和启动 hook 的授权文件；不复用已执行的授权：
 
 ```zsh
-zsh evidence/2026-10-23-batch23/T-153/RUN-OUTSIDE-03.sh /绝对路径/本轮授权.md
+zsh evidence/2026-10-23-batch23/T-153/RUN-OUTSIDE-04.sh /绝对路径/本轮授权.md
 ```
 
-03 不再重复已经在 02 完成的遗留 home 清理。先用同一个入口 --setup-only 做零模型注册检查；不通过就停止。通过后在新 oracle 下重跑 repeat-feedback、绿态及上表三个相关回归，不拿旧候选结果代替新候选验收。每次建新的 `outside-03-XXXXXXXX/`，保存各场 JSON、stdout/stderr、命令、实际回合核对及总 summary。脚本两场真实运行的最大预留仍为 8 回合（每场 worker ≤2、reviewer ≤2），按 02 轨迹预计需 5 回合，实际以新现场为准，失败不自动重跑。是否批准新预算由主控另写授权，本 worker 未启动 03。隔离规则保持原样。
+04 先核对 MUTATION-SWEEP-04.json 的逐类通过结果，并直接比对当前 ORACLE 与实际被测快照 MUTATION-ORACLE-04.py 的完整文本；本地扫查或文本核对不通过时不启动模型。随后做零模型注册检查，重跑通知变异、绿态及三个相关回归，不复用旧候选结论。每次建新的 `outside-04-XXXXXXXX/`，保存各场 JSON、命令、输出、实际回合核对和总 summary。两场最大预留仍为 8 回合（每场 worker ≤2、reviewer ≤2），按 02/03 轨迹预计需 5 回合，实际以新现场为准；失败不重跑，不进入第五轮。新预算与启动 hook 由主控另写授权，本 worker 未启动 04。隔离规则保持原样。
 
 变异只在 /tmp 源码副本移除“回放不再次反馈”的条件。有效红态必须同时满足：exit 1、NO_GO、contract_failure、failure_id=STOP-BATCH-ONE-NOTICE、两个真实 worker 回合已完成、隔离 home 已删除。启动、CLI 用法、超时、未分类断言或清理失败均不计红态。02 已满足此判据，但不能把它上调为新候选完整通过。
 
@@ -87,6 +89,46 @@ python3 -B evidence/2026-10-23-batch23/T-153/COUNT-OUTSIDE-02.py --run evidence/
 ```zsh
 python3 -B evidence/2026-10-23-batch23/T-153/CHECK-ORACLE-03.py --candidate /private/tmp/a2a-B-zoe_ikff/state/worktrees/B-fixture/T-153-1-a1 --summary /tmp/t153-oracle-new.json
 ```
+
+## 第四轮：全合同本地变异扫查
+
+先写 [MUTATION-PLAN-04.md](MUTATION-PLAN-04.md)，再用同一个 sweep 对旧 24 项 oracle 取得 [MUTATION-BASELINE-04.json](MUTATION-BASELINE-04.json)（NO_GO），然后改 ORACLE。新结果为 [MUTATION-SWEEP-04.json](MUTATION-SWEEP-04.json)（PASS）；原始报告保留在 MUTATION-SWEEP-04-raw.json，最终报告只附加实际副本 diff，不改检查结果。输入、命令、变异补丁、每个字段/非法值/行位置及两份 oracle 的结果均在 JSON 中；被测 oracle 原文固定为 MUTATION-ORACLE-04.py。
+
+| 合同类别 | 变异数 | 新 oracle 杀死结果（每个分别跑外部 oracle 与 acceptance.py） |
+| --- | --- | --- |
+| minutes 19 类、name 14 类非法输入 × 首/中/末 | 99 | 99/99；每格还先运行 CLI 证明该变异确实接受了本应拒绝的输入。 |
+| 两字段分别仅检查首行/中间行/末行 | 6 | 6/6，覆盖 03 发现的结构性缺口。 |
+| 去空白、合并、排序 | 8 | 8/8；含单侧 trim、内部空格被删除、合并覆盖、遗漏/倒序/忽略大小写排序。 |
+| total、空数组、JSON 数值类型 | 6 | 6/6；包括 False==0、0.0==0 不能再蒙混通过。 |
+| duration 格式与进位 | 5 | 5/5；分钟无补零、小时多补零、错误除数、无进位、分钟不取余。 |
+| 0/59/60/61/119/120/125/6001 各边界 | 8 | 8/8。 |
+| normalize 异常类型、精确消息、返回错误对象 | 6 | 6/6。 |
+| CLI 退出码、错误 JSON、多行/额外 stdout、只向 stderr 输出 | 13 | 13/13，成功与错误分别覆盖。 |
+| 合计 | **151** | **两份 oracle 各运行 151 次，共 302 次拒绝**。 |
+
+另有两个正对照：03 原候选不改动、CLI 仅在 stderr 写诊断；两份 oracle 均通过，分别报告 116 cases passed，共四次成功。stderr 控制例避免把“结果不读 stderr”误写成“stderr 必须为空”。所有变异源码先编译并独立导入；只有 oracle 明确 AssertionError、exit 1 才计杀死，导入失败和超时不计。所有副本只改变 src/normalize.py 或 src/report.py；生产源码、审查提示词、mutation_checks 与原有交付断言未修改。
+
+旧 oracle 的基线中，99 个逐格绕过与六个单行校验变异全部存活；还漏掉内部空白、大小写排序、数值类型和部分 duration 边界。基线报告保留了未分类异常，不把非断言失败误计为成功杀死。新 oracle 仍保留原五组输入，补成 116 组；每个非法值都在首/中/末，成功与错误都跑实际 CLI，校验 ValueError 类型/消息、退出 0/2、精确 JSON、单行 stdout 且无附加输出。
+
+复现命令（零模型回合，summary 使用新路径；重做旧基线时加 --oracle-revision 6d9bca18cf99b2c88acd8cabc9c120f503c6d337）：
+
+```zsh
+python3 -B evidence/2026-10-23-batch23/T-153/MUTATION-SWEEP-04.py --candidate /private/tmp/a2a-B-m884crxt/state/worktrees/B-fixture/T-153-1-a1 --summary /tmp/t153-sweep-new.json
+```
+
+### 机械验证边界
+
+| 合同项 | 能证明什么、不能证明什么 |
+| --- | --- |
+| 字段合法性、聚合、排序、total、duration、异常、CLI 协议 | 本地已证明列出的有限 JSON 等价类和 151 个已知错误实现被区分。不能证明所有字符串、任意大小整数、任意长度列表或任意错误程序都已穷尽；也不替独立 reviewer 判断完成条件充分性。 |
+| 双字段同时非法、非法顶层/行容器、坏 JSON stdin | 卡片没有规定这类输入的错误优先级或完整行为，本轮不新增期望。NaN/Infinity 不属于标准 JSON 输入。 |
+| 只改两个文件、验收文件不改 | [SCOPE-03.json](SCOPE-03.json) 已独立核对 03 候选 Git diff 恰为两个允许文件。04 仍由真实 verify 的路径/oracle 门禁机械检查；reviewer 的无 Git 副本与函数 oracle 不能独立证明历史或瞬时文件写入。 |
+| 不访问网络、不启动子 agent、不做范围外活动 | 角色卡、运行参数和已采集事件能提供约束及观察，函数/CLI oracle 不能证明整个宿主机上从未发生这些活动；本次不新增监控或把未知报通过。 |
+| 模型判断与审查通过 | 本地扫查不等于真实 reviewer 已通过。第四轮若仍以新 oracle 缺口拒收，停止并交构思主控裁定绿态判据，不能继续补到模型同意。 |
+
+### 真实回合累计
+
+[turn-count-03.json](turn-count-03.json) 用停止后的数据库与停机前捕获交叉复核：03 注册 0、变异 worker 2、绿态 worker 2 + reviewer 1，合计 5；与 02 的 5 累计 **10 个真实原生回合**。01 与本轮本地扫查均为 0。旧授权只限各自那一次运行，算术余量不自行复用。
 
 ## 范围外上报
 

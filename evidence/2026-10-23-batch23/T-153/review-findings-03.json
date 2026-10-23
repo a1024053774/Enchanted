@@ -1,0 +1,78 @@
+{
+  "source": "outside-03-Ad2MYLoU/green.json:error.review_not_accepted.review",
+  "review_id": "beef0e3d-7d03-4ac4-ba58-d80da8a02113",
+  "state": "needs_fix",
+  "candidate_commit": "b759fcf7dedbdf9a545492dec1bb2ec9ce946189",
+  "result": {
+    "verdict": "需修复",
+    "findings": [
+      {
+        "location": {
+          "path": "acceptance.py",
+          "line": 4
+        },
+        "failure_scenario": "所有非法字段用例都是单行输入。将 minutes 校验改为仅检查第一行后，完成条件仍退出0、24项全通过；但输入 [{\"name\":\"A\",\"minutes\":1},{\"name\":\"B\",\"minutes\":-1}] 会被错误接受，CLI退出0并输出负数 minutes，违反每项必须校验的要求。",
+        "suggestion": "在 acceptance.py 和实际执行的外部 oracle 中增加合法行后接非法行的用例，覆盖后续行的非法 minutes 和 name；分别断言 normalize 抛出消息严格匹配的 ValueError，以及 CLI 退出2并只输出对应错误JSON。确认仅校验第一行的变异会失败。"
+      }
+    ],
+    "review_requirements": {
+      "completion_conditions_sufficiency": true,
+      "mutation_checks": {
+        "min": 2,
+        "max": 5,
+        "workspace": "/private/tmp/a2a-B-m884crxt/state/review-copies/beef0e3d-7d03-4ac4-ba58-d80da8a02113",
+        "report_section": "完成条件与变异检查"
+      }
+    },
+    "report": {
+      "源码审查": "候选实现的字段校验、去空白合并、排序、时长格式和CLI错误转换符合已检查的任务要求，未发现候选源码缺陷。本次需修复的原因是完成条件不能拒绝已验证的明显错误实现。",
+      "独立验证": {
+        "基线": "指定完成条件退出0，输出 independent normalization oracle: 24 cases passed；acceptance.py 与外部 oracle 内容完全一致。",
+        "补充检查": "还原后的候选通过4组独立输入，均同时检查 normalize 和CLI：第二行负数 minutes、第二行 bool minutes、第二行全角空白 name，以及乱序名称、去空白合并和60分钟边界。前三组均正确拒绝，第四组正确输出。",
+        "边界": "未提交代码、未写请求文件，变异只发生在指定一次性副本。"
+      },
+      "完成条件与变异检查": {
+        "充分性结论": "不足。5个独立变异中4个被拒绝，1个存活；缺少合法行与非法后续行混合输入的验收。",
+        "命令定义": {
+          "C1": "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9 -I -B /private/tmp/a2a-B-m884crxt/oracle.py /private/tmp/a2a-B-m884crxt/state/review-copies/beef0e3d-7d03-4ac4-ba58-d80da8a02113",
+          "C2": "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9 -B /private/tmp/a2a-B-m884crxt/state/review-copies/beef0e3d-7d03-4ac4-ba58-d80da8a02113/src/report.py"
+        },
+        "变异": [
+          {
+            "编号": "M1",
+            "改动": "src/normalize.py:5 删除对 bool 的显式拒绝。",
+            "运行命令": "C1",
+            "结果": "退出1；触发 invalid input must raise ValueError，成功拒绝变异。"
+          },
+          {
+            "编号": "M2",
+            "改动": "src/normalize.py:12 将重复名称的累加改为 totals[name] = minutes。",
+            "运行命令": "C1",
+            "结果": "退出1；normalize正常结果与预期不符，成功拒绝变异。"
+          },
+          {
+            "编号": "M3",
+            "改动": "src/normalize.py:20 将 sorted(totals) 改为 totals，按插入顺序输出。",
+            "运行命令": "C1",
+            "结果": "退出1；normalize正常结果与预期不符，成功拒绝变异。"
+          },
+          {
+            "编号": "M4",
+            "改动": "src/report.py:13 将错误分支 return 2 改为 return 0。",
+            "运行命令": "C1",
+            "结果": "退出1；负数 minutes 用例的CLI实际退出0，预期退出2，成功拒绝变异。"
+          },
+          {
+            "编号": "M5",
+            "改动": "src/normalize.py:5 为 minutes 校验添加 row is rows[0] 条件，仅校验第一行。",
+            "运行命令": "C1；随后运行C2，stdin为 [{\"name\":\"A\",\"minutes\":1},{\"name\":\"B\",\"minutes\":-1}]。",
+            "结果": "C1退出0，24项全通过，变异存活。C2错误退出0，输出B的minutes为-1、duration为-1:59、total_minutes为0；按任务应退出2并输出 {\"error\":\"invalid_minutes\"}。"
+          }
+        ],
+        "还原检查": "每个变异运行后均还原两个源码文件，并逐字节确认与原候选一致；全部变异结束后再次运行C1，退出0、24项全通过。"
+      }
+    },
+    "turn_id": "01a16a5c-497f-7651-a248-b198b7a8f57c",
+    "received_at": "2026-10-23T20:05:16.375Z"
+  }
+}
