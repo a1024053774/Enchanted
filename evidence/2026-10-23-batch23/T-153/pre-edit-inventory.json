@@ -1,0 +1,147 @@
+{
+  "status": "INCOMPLETE",
+  "kind": "pre-edit static baseline; not business red",
+  "revision": "b058e3a7585ccc85df190e90c01b52756c9d076e",
+  "encoding": {
+    "utf8": true,
+    "bom": false,
+    "crlf": false
+  },
+  "called_commands": [
+    "card_save",
+    "create",
+    "daemon_start",
+    "daemon_stop",
+    "dispatch",
+    "events",
+    "integrate",
+    "launch_show",
+    "orchestration_events",
+    "pane_process_info",
+    "pane_release",
+    "pane_status",
+    "status",
+    "verify"
+  ],
+  "deleted_or_renamed": [
+    "pane_release"
+  ],
+  "assertions": [
+    {
+      "line": 118,
+      "source": "assert process_ids['daemon_pid'] == process_ids['daemon_pgid'] == process_ids['daemon_sid']"
+    },
+    {
+      "line": 119,
+      "source": "assert process_ids['daemon_pgid'] != process_ids['caller_pgid'] and process_ids['daemon_sid'] != process_ids['caller_sid']"
+    },
+    {
+      "line": 195,
+      "source": "assert status['candidate_commit'] == C"
+    },
+    {
+      "line": 196,
+      "source": "assert git('rev-parse', 'refs/heads/main') == G"
+    },
+    {
+      "line": 200,
+      "source": "assert verification['G'] == G and verification['M'] == M and G != M"
+    },
+    {
+      "line": 201,
+      "source": "assert git('rev-list', '--parents', '-n', '1', M).split() == [M, G, C]"
+    },
+    {
+      "line": 202,
+      "source": "assert (repo / 'host.txt').read_text() == 'independent G\\n'"
+    },
+    {
+      "line": 203,
+      "source": "assert oracle.read_text(encoding='utf-8') == ORACLE"
+    },
+    {
+      "line": 212,
+      "source": "assert turn_contexts, delivered['turn_id']"
+    },
+    {
+      "line": 216,
+      "source": "assert model != 'unknown' and effort != 'unknown'"
+    },
+    {
+      "line": 217,
+      "source": "assert delivered['model'] == model and delivered['effort'] == effort"
+    },
+    {
+      "line": 221,
+      "source": "assert sorted(lines) == sorted('A2A-' + key + ': ' + value for key, value in expected.items())"
+    },
+    {
+      "line": 225,
+      "source": "assert len(integrations) == 1"
+    },
+    {
+      "line": 226,
+      "source": "assert integrations[0]['intent']['G'] == G and integrations[0]['intent']['M'] == M"
+    },
+    {
+      "line": 227,
+      "source": "assert integrations[0]['readback'] == M"
+    },
+    {
+      "line": 228,
+      "source": "assert len([event for event in gate_events if event['type'] == 'submitted']) == 1"
+    },
+    {
+      "line": 233,
+      "source": "assert all(metric[key] == value for key, value in measured.items())"
+    },
+    {
+      "line": 237,
+      "source": "assert any(event['type'] == 'relay_replayed' and event['data']['key'] == 'id:delivery' for event in events)"
+    },
+    {
+      "line": 238,
+      "source": "assert len([event for event in events if event['type'] == 'relay_processed' and event['data'].get('request_id') == 'delivery']) == 1"
+    },
+    {
+      "line": 242,
+      "source": "assert status_receipt['task']['current_attempt']['attempt_id'] == attempt['attempt_id']"
+    },
+    {
+      "line": 246,
+      "source": "assert len(turns) == limit"
+    },
+    {
+      "line": 248,
+      "source": "assert contexts and all(context['model'] == 'gpt-6.1-sol' and context['approval_policy'] == 'never'\n                                and context['sandbox_policy'].get('network_access') is False for context in contexts)"
+    },
+    {
+      "line": 251,
+      "source": "assert len(notices) == 1, 'one Stop batch must produce one gate notice'"
+    },
+    {
+      "line": 262,
+      "source": "assert not any(event['type'] == 'permission_wait' for event in events)"
+    },
+    {
+      "line": 263,
+      "source": "assert not pane['queued']"
+    },
+    {
+      "line": 236,
+      "source": "assert any(event['type'] == 'relay_rejected' and event['data'].get('request_id') == request_id and event['data']['result']['error'] == error for event in events)"
+    },
+    {
+      "line": 240,
+      "source": "assert any(event['type'] == 'relay_processed' and event['data'].get('request_id') == request_id for event in events)"
+    },
+    {
+      "line": 256,
+      "source": "assert len(messages) == 1, 'native user input must equal the registered gate notice'"
+    },
+    {
+      "line": 261,
+      "source": "assert not tools_in_receipt, 'receipt turn must not execute a new task'"
+    }
+  ]
+}
