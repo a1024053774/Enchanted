@@ -1,70 +1,79 @@
 # T-139 / T-143 同批验证（attempt a1）
 
-状态：**INCOMPLETE**。T-139 已有候选实现与隔离红绿证据；真实 Electron 未取得，T-143 尚未修改生产路径。不能验收或集成。
+状态：**INCOMPLETE**。RUN-OUTSIDE-01 已取得 T-139 真实入口红态、候选通过及两个变异的业务拒绝；
+后续 T-143 候选和普通终端投影修复必须由 RUN-OUTSIDE-02 再次联合验证。WebGL 与保留窗格尚未取得性能数字，不能最终验收或集成。
 
 ## T-139
 
-项目视图为每个任务显示一格，点击任务读取任务自己的窗格布局；点击 agent 选择单个 launch。
-项目普通终端不再混入任务视图，侧栏保留普通终端与已批准主控终端各自的入口。
-任务与单个 worker 之间切换时复用仍被选择的 PaneBinding，保留输入凭据与序号；历史或 ended agent 只读。
-新建项目终端从任务视图转入项目终端视图。项目行菜单未改。
+项目视图每个任务一格；任务视图只含该任务 agent；单 agent 只显示自己。项目普通终端有单独入口。
+单 agent 重命名和关闭保留兄弟的树与名称；项目终端保存只包含 task=null 的终端。
+项目行菜单、三份受保护 oracle、地图与 ticket 未改。
+
+第一批沙箱外结果在 `outside-cZpQfO1X/`（主控运行 RUN-OUTSIDE-01，代码为 feea09ebc）：
 
 | 检查 | 结果与证据 |
 | --- | --- |
-| 实际 main.ts 的修前合同检查 | NO_GO，`selection-red-03.json`：任务选择含 `project-shell`，正中缺陷。`-01`、`-02` 为夹具字段不完整的探索失败，不算红态 |
-| 相同入口的改后检查 | PASS，`selection-final-01.json`，10 项：原 8 项加单 agent 重命名/关闭保留兄弟窗格布局与名称 |
-| 真实 SQLite store 与后台原布局校验 | PASS，`store-layout-green-01.json`，10 项：任务及项目终端的单会话编辑、兄弟布局/名称、明确重开登记与范围隔离；仍不是 Electron 证据 |
-| Git/SQLite 侧栏投影回归 | PASS，`sidebar-projection-01.json`。受控状态信号，不代表真实 CLI/UI |
-| 标准构建 | PASS，`build-check-03.json`，命令 `node workbench/app/build.mjs --slot t139-view-check-03`；构建目录已清理 |
-| Python 与 zsh 脚本语法 | PASS，`PYTHONPYCACHEPREFIX=/private/tmp/a2a-t139-pycache python3 -m py_compile workbench/tests/test_t139_t143_views_perf_e2e.py`；`zsh -n evidence/2026-10-23-batch23/T-139-T-143/RUN-OUTSIDE-01.sh` |
-| 联合真实 Electron 修前运行 | INCOMPLETE，`baseline-02.json`：真实后台和两个 CLI 已启动，但 Electron 未开放 CDP 端口，ECONNREFUSED；无截图、无性能基线。`baseline-01.json` 是测试使用了错误夹具字段的探索失败 |
-| 两个真实 Electron 变异 | 未运行；联合 e2e 提供 `task-includes-project-terminal` 和 `duplicate-replay` |
-| T-091 指定回归 | INCOMPLETE，`pane-ipc-01.json` 与 `pane-ipc-baseline-01.json`：当前和起点 ebbae7bd0 都因既有 IPC handler 枚举过旧而失败，详见 `t091-issue.md`；未改受保护 oracle |
-| T-107、T-133/T-107 真实回归 | 未运行；已列入 RUN-OUTSIDE-01 |
+| 修前 ebbae7bd0 | NO_GO，baseline.json 的五项业务失败：任务混项目终端、worker 混其他窗格、项目无两格任务、项目混终端、普通终端不可达 |
+| T-139 候选 | PASS，t139-candidate.json；项目、任务、worker、主控、普通终端五步 PNG 同目录。已查看项目截图，两任务同屏两格 |
+| 任务重新混入项目终端变异 | NO_GO，mutant-task-includes-project-terminal.json，task_A_only_its_agents、worker_only_itself 失败 |
+| 重复回放变异 | NO_GO，mutant-duplicate-replay.json，编号输出切换前/后以及隐藏输出的唯一性检查失败 |
+| selection、真实 store/原布局校验 | PASS，selection.json、layout-store.json |
+| T-107 | PASS，t107.json |
+| T-133/T-107 | INCOMPLETE，t133-t107.json，在“身份已放弃”处超时；原投影会把放弃角色的终端继续放进 agents，足以导致此等待不满足。已修复，待原 oracle 重跑 |
+| T-091 | INCOMPLETE，t091.json，旧 IPC handler 枚举失败。用户消息“主控 #7”已把验收改为与起点同样失败、不更差；未修改 oracle。RUN-OUTSIDE-02 用同一 oracle 比较修前和候选 |
 
-隔离合同复现命令：
+投影修复将未认领/已放弃角色的普通终端放到 `sidebar_snapshot.terminals`，经批准的角色继续进入 agents；
+侧栏单独显示普通终端。因此放弃角色后它从 agents 消失，普通终端入口仍在。真实 SQLite 的 catalog-red-01.json
+准确复现旧投影违反该合同；catalog-shape-red-01.json 还检出了终端行缺少下属摘要的夹具遗漏；catalog-green-02.json 通过对应检查。
+当前源码的 T-107 投影检查 sidebar-projection-02.json 通过，原真实 T-133/T-107 必须再跑。
 
-```sh
-node --experimental-vm-modules workbench/tests/test_t139_selection.mjs <新的summary路径> ebbae7bd0
-node --experimental-vm-modules workbench/tests/test_t139_selection.mjs <新的summary路径>
-node workbench/tests/test_t107_sidebar.mjs <新的summary路径>
-```
-
-联合 e2e 的期望来自任务卡与两张 ticket；只在测试副本注入 xterm 观察引用，不改终端输入/输出实现。
-同一真实运行覆盖两个任务的真实 Claude CLI（`claude-haiku-5-5`，本地脚本化模型接口）、角色申请批准的主控终端、视图截图、
-5000 行真实 PTY 输出、三次滚动帧间隔采样、八次交替切换、偏移/完整编号/隐藏输出核对、焦点输入、布局名与 ended 拒绝输入。
-这些断言尚未在真实 Electron 上验证，脚本可能仍有夹具问题。
-
-独立检查提醒单 agent 编辑的保存范围未覆盖。补充两名 agent、纵向分屏、分别命名的夹具后，`layout-red-01.json`
-在 `agent_rename_keeps_sibling_layout` 准确失败：任务树被缩成 worker 一格，兄弟名称消失。现已在原保存函数中合并保存集，
-单 agent 重命名只改其名称，关闭只移除其叶子；明确重开当前 agent 时登记其打开状态。`layout-green-02.json` 通过两项对应检查。
-`layout-green-01.json` 是补丁位置错误导致的探索失败，已保留，不算通过。
-第一次只读独立检查见 `REVIEW-01.md`：INCOMPLETE；审查期间只提交了证据，但 HEAD 改变使其按冻结规则停止。
-一次有界复核见 `REVIEW-02.md`：FAIL，真实 store 的项目查询还含任务 agent，保存项目终端前缺少过滤。
-已按其反例保留 `test_t139_layout_store.mjs`；`store-layout-red-02.json` 在 9b07f2591 上准确失败，
-筛出 `task===null` 后 `store-layout-green-01.json` 通过。复核发现均已修复并有对应运行证据；没有新独立通过结论。
-复跑：`node --experimental-vm-modules workbench/tests/test_t139_layout_store.mjs <新的summary路径> [9b07f2591]`。
+此前布局缺陷及修复记录保留：selection-red-03.json、layout-red-01.json、store-layout-red-02.json 逐步检出任务混终端、
+单 agent 编辑覆盖兄弟布局、项目终端保存包含任务 agent；后续对应绿态均保留。独立检查报告 REVIEW-01.md 为 INCOMPLETE，
+REVIEW-02.md 对旧候选为 FAIL；修复后的真实 store/原布局校验 store-layout-retention-01.json 有 10 项通过，不将旧审查改称通过。
 
 ## T-143
 
-必须先量后改。当前无有效数字，因此没有提交性能收益结论，也没有关闭读屏、改轮询或增加缓存。
+RUN-OUTSIDE-01 的同一夹具：两个真实 Claude CLI worker，模型请求 claude-haiku-5-5，使用本地脚本化 Messages 接口；
+经角色申请批准的项目主控终端；真实 PTY 输出 5000 行编号，三次滚动、八次交替切换。
+它证明 CLI/后台/界面调用及偏移、输出、焦点与输入合同，不证明供应商模型推理能力或长期性能。
 
-| 逐项试验 | 前后数字 | 当前处置 |
+| 项目 | 对照 → 单项实验（RUN-OUTSIDE-01） | 处置 |
 | --- | --- | --- |
-| screenReaderMode 默认关闭 | 未取得 | RUN-OUTSIDE-01 在基线副本只改这一项，待数据决定是否保留；若保留还需手动开启入口 |
-| WebGL 渲染 | 未取得 | 缺 `@xterm/addon-webgl`；已上报，不自行安装，详见 `webgl-issue.md` |
-| 缩短轮询（100 → 16 ms） | 未取得 | RUN-OUTSIDE-01 在基线副本只改这一项，待数据决定是否保留 |
-| 切换保留终端或限制回放 | 未取得 | 等有效基线后继续试验；本次只复用 T-139 所需的仍在选择中的输入绑定，不宣称切换性能改善 |
+| screenReaderMode 关闭 | 切换中位数 78.05 → 64.30 ms；滚动 121.37 → 121.22 FPS，p95 9.0 → 8.9 ms | 观察到切换约 17.6% 缩短，候选默认关闭；设置可手动开启，作用于本窗口所有终端。RUN-OUTSIDE-02 在 T-139 控制版本再测 |
+| 100 → 16 ms 轮询 | 切换中位数 78.05 → 81.70 ms；滚动 121.37 → 121.25 FPS，p95 均 9.0 ms | 无改善，不保留；生产仍用 100 ms，未增加输出推送路径 |
+| WebGL | 未测。主控已安装 MIT 的 @xterm/addon-webgl 0.19.0，授权本 worker 提交 package.json/lock 改动 | 仅用于测试副本；模块导入与标准构建通过，未启用到生产终端。RUN-OUTSIDE-02 与同一 T-139 控制版本只差 WebGL；不改善则移除依赖 |
+| 切换保留连接 | 未测。当前加入候选，未宣布保留 | RUN-OUTSIDE-02 对比当前代码 retainedPaneLimit=0 与 =4，其他代码/读屏设置相同；不改善则撤掉 |
 
-下一步由执行主控在沙箱外运行：
+旧 FPS 采样的首个时间差来自 performance.now() 到首个 rAF，原始数据中出现负值，不能据此声称超过屏幕刷新率或滚动改善。
+原始数据未改写。测量版本 2 先用首个 rAF 建立基点，再采 120 个正帧间隔；RUN-OUTSIDE-02 所有对照、实验与候选均用它，
+并重新运行 ebbae7bd0 与 T-139 控制版本。切换计时现在还要求目标窗格 input_enabled=true 才算完成。
+
+保留窗格的待测实现：每个窗口最多保留四个未显示终端，保留 xterm、UTF-8 解码器与字节偏移；隐藏期间暂停轮询，
+恢复时立即唤醒并追平输出后显示和聚焦。主进程把保留集与当前选择分开，隐藏 key 仅可读，输入/缩放等写命令拒绝；
+身份变为历史或只读时旧绑定不复用；超出上限撤销凭据并销毁 renderer，后台完整输出仍可回放；关窗撤销两集合的凭据。
+
+| 本地当前候选检查 | 证据 |
+| --- | --- |
+| 缺少连接复用的红态 | retention-red-01.json，切回得到不同 pane key |
+| 选择与权限检查 | retention-green-03.json，16 项：复用绑定/输入凭据、隐藏快照绑定原任务且不可输入、跨窗口拒绝读取保留 key、关窗撤销全部凭据等 |
+| 真实 SQLite / 后台原布局校验 | store-layout-retention-01.json，10 项通过 |
+| 普通终端投影 | catalog-green-02.json，两项合同及行结构检查通过 |
+| 构建 | t143-build-candidate-01.json、t143-build-webgl-control-01.json 均通过，临时构建目录已清理；不代表 GPU 实际渲染已验证 |
+| 测试脚本语法 | Python py_compile、zsh -n RUN-OUTSIDE-02.sh 通过 |
+
+新 e2e 在原联合夹具中额外核对：真实 xterm 对象与输入凭据在切换后相同、隐藏窗格不能输入、设置可手动开读屏、
+WebGL2 canvas 确实启用且未报告 context loss。增加 inactive-input 变异，不能用只读快照代替输入拒绝。
+retention-harness-failure-01.txt 保留了关闭窗口检查初次遇到的测试边界缺方法错误；它不是业务红态。
+
+下一步：主控在沙箱外运行，回传新目录与 COMPARISON.json。
 
 ```sh
-zsh evidence/2026-10-23-batch23/T-139-T-143/RUN-OUTSIDE-01.sh
+zsh evidence/2026-10-23-batch23/T-139-T-143/RUN-OUTSIDE-02.sh
 ```
 
-脚本为每次运行新建目录；先确认修前真实业务红态和数字，再运行单项试验、T-139 候选、两个变异与指定回归。
-回传新目录后，worker 才能按数字继续 T-143，并将生产性能改动放入第二组提交，最终再跑同一联合 e2e。
-T-091 oracle 处置与 WebGL 依赖仍需主控处理。两条问题已通过 `scripts/inbox` 上报，未更改地图、ticket 或 oracle。
+脚本逐项跑新基线、T-139 控制、读屏关闭、WebGL、无保留/有保留候选，三个变异和指定回归。
+worker 读取数字后决定 WebGL 与保留窗格的最终处置，再更新本报告；本次是供测量的候选，不是最终 PASS。
+新依赖来自主控“主控 #7”的明确授权；没有改 node_modules，没有写用户全局 CLI 配置，没有 push 或合并。
 
-临时夹具原始现场仍在 `/private/tmp/t139-w2dud_w4`、`/private/tmp/t139-ybsr62oh`，以及
-`regression-baseline-source.txt` 指向的修前源码副本。大块内容未入 Git，归档由主控按公共约定处理；未清除失败现场。
+原始临时夹具继续保留：RUN-OUTSIDE-01 的各 summary 中有 fixture 路径，本地新 SQLite 夹具也在各 summary 中记录。
+大块原始目录未入 Git，归档交主控按 T-088 处理。最初 Electron 无 CDP 的 baseline-01/02.json 等探索失败全部保留。

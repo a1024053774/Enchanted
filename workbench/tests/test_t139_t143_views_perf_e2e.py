@@ -6,6 +6,7 @@
 3. 切换重复创建输入凭据；ended 会话拿到输入权限；布局丢失。
 4. 回放偏移倒退、重复或丢失，切换后焦点或输入错路由。
 5. 性能测量绕过真实 PTY，或基线与候选的负载、测量命令不同。
+6. 隐藏窗格仍能输入，或唤回时重建 xterm/输入凭据、丢失待追平输出。
 
 只在夹具副本插入 xterm 观察引用（不改变输出或计时路径）。
 每次保留夹具和截图；--summary 不覆盖旧证据。
@@ -16,6 +17,7 @@ from pathlib import Path
 import re
 import shutil
 import statistics
+import subprocess
 import sys
 import time
 
@@ -28,17 +30,29 @@ def main():
     parser.add_argument('--summary', type=Path, required=True)
     parser.add_argument('--claude', default=shutil.which('claude') or str(Path.home() / '.local/bin/claude'))
     parser.add_argument('--revision')
-    parser.add_argument('--mutant', choices=['task-includes-project-terminal', 'duplicate-replay'])
-    parser.add_argument('--experiment', choices=['screen-reader-off', 'poll-16ms'])
+    parser.add_argument('--mutant', choices=['task-includes-project-terminal', 'duplicate-replay', 'inactive-input'])
+    parser.add_argument('--experiment', choices=['screen-reader-off', 'poll-16ms', 'webgl', 'destroy-on-switch'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留旧证据，请换新路径'
-    report = dict(status='INCOMPLETE', argv=sys.argv, checks=[], failures=[], metrics={}, observed={})
+    args.summary.parent.mkdir(parents=True, exist_ok=True)
+    report = dict(status='INCOMPLETE', argv=sys.argv, measurement_version=2, checks=[], failures=[], metrics={}, observed={})
+    report['code_version'] = subprocess.check_output(['git', 'rev-parse', args.revision or 'HEAD'], text=True).strip()
     patches = [('app/renderer.tsx', 'term.open(mount.current!);',
                 'term.open(mount.current!); (mount.current as any).__testTerminal = term;')]
     if args.experiment == 'screen-reader-off':
         patches.append(('app/renderer.tsx', 'screenReaderMode: true', 'screenReaderMode: false'))
     if args.experiment == 'poll-16ms':
         patches.append(('app/renderer.tsx', 'setTimeout(resolve, 100)', 'setTimeout(resolve, 16)'))
+    if args.experiment == 'webgl':
+        patches.extend([
+            ('app/renderer.tsx', "import { FitAddon } from '@xterm/addon-fit';",
+             "import { FitAddon } from '@xterm/addon-fit'; import { WebglAddon } from '@xterm/addon-webgl';"),
+            ('app/renderer.tsx', 'term.open(mount.current!);',
+             "term.open(mount.current!); const probeMount = mount.current!; const webgl = new WebglAddon(); term.loadAddon(webgl); webgl.onContextLoss(() => { probeMount.dataset.testContextLost = 'true'; });")])
+    if args.experiment == 'destroy-on-switch':
+        patches.append(('app/main.ts', 'const retainedPaneLimit = 4;', 'const retainedPaneLimit = 0;'))
+    if args.mutant == 'inactive-input':
+        patches.append(('app/main.ts', 'key: string, readOnly = false)', 'key: string, readOnly = true)'))
     if args.mutant == 'task-includes-project-terminal':
         anchor = '  return { task: snapshot.task, project: null, saved, panes, ...restoreArrangement(panes, arrangement) };'
         patches.append(('app/main.ts', anchor,
@@ -73,8 +87,11 @@ def main():
             assert result.get('ok'), result
             workers[task] = result['attempt']['runtime_identity']['launch']
         fixture.wait('两个真实 CLI 都调用模型', lambda: len(fixture.api.snapshot()['results']) >= 2, 120)
+        report['observed']['launches'] = {task: fixture.request('workbench_snapshot', task='demo+' + task, launch=launch)['launch']
+                                         for task, launch in workers.items()}
         electron = Electron(fixture, 't139-' + fixture.dir.name[5:])
         electron.until('项目', "!!document.querySelector('[data-project-id=\"demo\"]')")
+        report['observed']['display'] = electron.evaluate('({width:innerWidth,height:innerHeight,scale:devicePixelRatio,userAgent:navigator.userAgent})')
 
         def click(selector):
             electron.until('可点击 ' + selector, f"(()=>{{const b=document.querySelector({json.dumps(selector)});return b&&!b.disabled}})()", 30)
@@ -112,17 +129,23 @@ def main():
         buffer = f"(()=>{{const t={mount}?.__testTerminal;return t&&Array.from({{length:t.buffer.active.length}},(_,i)=>t.buffer.active.getLine(i).translateToString(true)).join('\\n')}})()"
         electron.until('真实 PTY 的完整编号输出', f'{buffer}?.includes("BENCH_04999")', 60)
         before = electron.evaluate(buffer)
+        initial_shell_key = shell_key
+        initial_window = electron.evaluate(f'window.a2a.snapshot({json.dumps(shell_key)})')['window_id']
+        electron.evaluate(f'window.__initialShellTerminal = {mount}.__testTerminal')
+        if args.experiment == 'webgl':
+            check('webgl2_renderer_active', electron.evaluate(f'!!{mount}.querySelector(".xterm-screen canvas")?.getContext("webgl2")'))
         # Numbered complete lines, not shell echo of the command.
         expected = [f'BENCH_{i:05d}' for i in range(5000)]
         check('numbered_output_once_before_switch', re.findall(r'^BENCH_\d{5}$', before, re.M) == expected)
         fps = []
         for _ in range(3):
             fps.append(electron.evaluate(f"""new Promise(resolve=>{{const t={mount}.__testTerminal; t.scrollToBottom();
-              const frames=[]; let last=performance.now();
-              const step=now=>{{frames.push(now-last);last=now;t.scrollLines(frames.length%40<20?-9:9);
+              const frames=[]; let last;
+              const step=now=>{{if(last!==undefined)frames.push(now-last);last=now;t.scrollLines(frames.length%40<20?-9:9);
                 if(frames.length<120)requestAnimationFrame(step);else resolve({{fps:120000/frames.reduce((a,b)=>a+b,0),
                   p95_ms:[...frames].sort((a,b)=>a-b)[113],frames}})}};requestAnimationFrame(step)}})""", timeout=25))
         report['metrics']['scroll'] = fps
+        check('raf_intervals_positive', all(delta > 0 for sample in fps for delta in sample['frames']))
         report['metrics']['scroll_fps_median'] = statistics.median(x['fps'] for x in fps)
         report['metrics']['scroll_p95_ms_median'] = statistics.median(x['p95_ms'] for x in fps)
         latencies = []
@@ -131,12 +154,19 @@ def main():
             latencies.append(electron.evaluate(f"""new Promise((resolve,reject)=>{{const start=performance.now();
               document.querySelector('[data-agent-launch="{launch}"]').click();
               const tick=()=>{{const p=document.querySelector('.pane[data-launch-id="{launch}"]');
-                if(p&&p.getClientRects().length&&p.querySelector('[data-restoring=false]')&&p.querySelector('textarea')===document.activeElement)
+                if(p&&p.getClientRects().length&&p.dataset.inputEnabled==='true'&&p.querySelector('[data-restoring=false]')&&p.querySelector('textarea')===document.activeElement)
                   return requestAnimationFrame(()=>resolve(performance.now()-start));
                 if(performance.now()-start>12000)return reject(new Error('switch timeout')); requestAnimationFrame(tick)}};tick()}})""", timeout=20))
         report['metrics']['switch_ms'] = latencies
         report['metrics']['switch_ms_median'] = statistics.median(latencies)
         shell_key = ready(fixture.terminal_launch)
+        retained = not args.revision and args.experiment != 'destroy-on-switch'
+        if retained:
+            current_window = electron.evaluate(f'window.a2a.snapshot({json.dumps(shell_key)})')['window_id']
+            check('switch_retains_xterm_and_input_credential', shell_key == initial_shell_key and initial_window == current_window and
+                  electron.evaluate(f'{mount}.__testTerminal===window.__initialShellTerminal'))
+        if args.experiment == 'webgl':
+            check('webgl_context_survives_scroll_and_switch', electron.evaluate(f'{mount}.dataset.testContextLost!=="true"&&!!{mount}.querySelector(".xterm-screen canvas")?.getContext("webgl2")'))
         after = electron.evaluate(buffer)
         check('numbered_output_once_after_switch', re.findall(r'^BENCH_\d{5}$', after, re.M) == expected)
         check('controller_focus_after_switch', electron.evaluate(f'{mount}.__testTerminal.textarea===document.activeElement'))
@@ -147,6 +177,11 @@ def main():
         # Request output while the pane is not selected, then return and verify catch-up exactly once.
         click('[data-agent-launch="' + workers['T-A'] + '"]')
         ready(workers['T-A'])
+        if retained:
+            inactive = electron.evaluate(f'window.a2a.snapshot({json.dumps(shell_key)})')
+            check('inactive_snapshot_cannot_enable_input', not inactive['input_enabled'] and not inactive.get('window_id'))
+            rejected = electron.evaluate(f'window.a2a.input({json.dumps(shell_key)}, "").then(()=>false,()=>true)')
+            check('inactive_input_rejected', rejected)
         terminal_window = fixture.request('window_open', fixture.operator, project='demo', launch=fixture.terminal_launch)
         assert terminal_window['ok'], terminal_window
         marker = fixture.out / 'input-route.txt'
@@ -164,6 +199,15 @@ def main():
         electron.evaluate(f'{mount}.__testTerminal.input({json.dumps("print focused > " + quote(str(destination)) + chr(13))}, true)')
         fixture.wait('焦点输入到主控终端', lambda: destination.exists(), 20)
         check('focused_input_routes_correctly', destination.read_text().strip() == 'focused')
+        if not args.revision:
+            check('screen_reader_default_off', electron.evaluate(f'{mount}.__testTerminal.options.screenReaderMode===false'))
+            click('[aria-label="设置"]')
+            electron.until('设置对话框打开', 'document.querySelector(".settings-dialog").open')
+            click('#settings-terminal-accessibility input')
+            electron.until('手动启用读屏支持', f'{mount}.__testTerminal.options.screenReaderMode===true')
+            check('screen_reader_can_be_enabled', True)
+            click('#settings-terminal-accessibility input')
+            click('[aria-label="关闭设置"]')
 
         click('[data-project-id="demo"]')
         tasks = electron.evaluate("[...document.querySelectorAll('[data-task-tile]')].filter(n=>n.getClientRects().length).map(n=>n.dataset.taskTile).sort()")

@@ -48,7 +48,7 @@ try {
     panes:{launchRecord:id=>store.launchRecord(id)}, Refusal:Error,
   });
   const request = async (_state, input, identity) => {
-    if(input.command==='sidebar_snapshot') return {ok:true,projects:[{project_id:'demo',repo:'/fixture/demo',tasks}],agents};
+    if(input.command==='sidebar_snapshot') return {ok:true,projects:[{project_id:'demo',repo:'/fixture/demo',tasks}],agents,terminals:[]};
     if(input.command==='pane_layout') {
       const scope=input.task?'task:'+input.task:input.project?'project:'+input.project:'free';
       return {ok:true,saved:true,panes:store.openPanes(input.task,input.project),arrangement:store.paneArrangement(scope)};

@@ -28,7 +28,7 @@ try {
   ];
   const tasks = ['A', 'B'].map(x => ({ task_id: 'demo+T-' + x, project_id: 'demo', repo: '/fixture/demo', current_attempt: { attempt_id: x === 'A' ? 'a1' : 'b1' } }));
   const request = async (_state, input, identity) => {
-    if (input.command === 'sidebar_snapshot') return { ok: true, projects: [{ project_id: 'demo', repo: '/fixture/demo', tasks }], agents };
+    if (input.command === 'sidebar_snapshot') return { ok: true, projects: [{ project_id: 'demo', repo: '/fixture/demo', tasks }], agents, terminals: [] };
     if (input.command === 'pane_layout') return { ok: true, saved: true, panes: input.project
       ? [{ launch: 'project-shell', task: null }, ...[...taskPanes].map(launch => ({ launch, task: 'demo+T-A' }))]
       : input.free ? [] : [...taskPanes].map(launch => ({ launch, task: 'demo+T-A' })), arrangement };
@@ -39,16 +39,19 @@ try {
     }
     if (input.command === 'window_open') { opened.push(input.launch); return { ok: true, identity: { kind: 'window', window: 'window-' + opened.length } }; }
     if (input.command === 'window_close') { closed.push(identity.window); return { ok: true }; }
+    if (input.command === 'pane_output') return { ok: true, launch: input.launch, start_offset: input.offset, next_offset: input.offset, total_bytes: input.offset, data_base64: '' };
     if (input.command === 'pane_layout_open') { assert.equal(identity.kind, 'operator'); taskPanes.add(input.launch); return { ok: true }; }
     if (input.command === 'pane_layout_save') { arrangement = input.arrangement; return { ok: true }; }
     if (input.command === 'pane_layout_close') { taskPanes.delete(input.launch); if (input.arrangement) arrangement = input.arrangement; return { ok: true }; }
     throw new Error('Unexpected boundary ' + input.command);
   };
   const app = Object.assign(new EventEmitter(), { whenReady: async () => {}, setPath() {}, quit() {}, dock: { setIcon() {}, setBadge() {} } });
+  let windowNumber = 0;
   class Window extends EventEmitter {
     static getFocusedWindow() { return null; }
-    constructor(options) { super(); this.options = options; this.webContents = Object.assign(new EventEmitter(), { id: 1, mainFrame: {}, setWindowOpenHandler() {} }); }
+    constructor(options) { super(); this.options = options; this.webContents = Object.assign(new EventEmitter(), { id: ++windowNumber, mainFrame: {}, setWindowOpenHandler() {} }); }
     async loadFile() {}
+    destroy() { this.destroyed = true; this.emit('closed'); }
   }
   const electron = { app, BrowserWindow: Window, ipcMain: { handle: (name, value) => handlers.set(name, value) }, dialog: {}, nativeTheme: new EventEmitter() };
   const context = vm.createContext({ console, process: { argv: [] }, setTimeout, clearTimeout, AggregateError });
@@ -60,7 +63,7 @@ try {
     if (name === 'electron') values = electron;
     else if (name === '../src/transport.ts') values = { request };
     else if (name === '../src/credentials.ts') values = { readOperatorCredential: () => ({ kind: 'operator' }) };
-    else if (name === './notificationCenter.ts') values = { NotificationCenter: class {} };
+    else if (name === './notificationCenter.ts') values = { NotificationCenter: class { badgeCount() { return 0; } } };
     else if (name === 'node:fs') values = { mkdirSync() {} };
     else values = await import(name);
     return new vm.SyntheticModule(Object.keys(values), function () { for (const [key, value] of Object.entries(values)) this.setExport(key, value); }, { context });
@@ -81,6 +84,18 @@ try {
   check('same_credential_on_reselection', selection.focusKey === again.focusKey && opened.length === 1, opened);
   selection = await invoke('select-agent', 'project-shell');
   check('project_terminal_only_itself', Object.values(selection.launches).join() === 'project-shell', selection.launches);
+  const shellKey = selection.focusKey;
+  await invoke('snapshot', shellKey);
+  const returned = await invoke('select-agent', 'worker-A');
+  check('switch_back_retains_binding', returned.focusKey === again.focusKey, { before: again.focusKey, after: returned.focusKey });
+  const resumed = await invoke('snapshot', returned.focusKey);
+  check('switch_back_retains_input_credential', resumed.window_id === snapshot.window_id, resumed);
+  await invoke('select-agent', 'project-shell');
+  const inactive = await invoke('snapshot', again.focusKey);
+  check('inactive_snapshot_bound_to_its_task_and_read_only', inactive.task.task_id === 'demo+T-A' && !inactive.input_enabled && !inactive.window_id, inactive);
+  let inactiveDenied = false;
+  try { await invoke('input', again.focusKey, 'must not reach hidden pane'); } catch { inactiveDenied = true; }
+  check('inactive_input_rejected', inactiveDenied);
   selection = await invoke('select-agent', 'ended-A');
   const ended = await invoke('snapshot', selection.focusKey);
   check('ended_read_only_no_credential', !ended.input_enabled && !ended.window_id && !opened.includes('ended-A'), ended);
@@ -97,6 +112,16 @@ try {
   selection = await invoke('select-task', 'demo+T-A');
   check('agent_close_keeps_sibling_layout', Object.values(selection.launches).join() === 'reviewer-A' &&
     Object.values(selection.names).join() === 'A review', selection);
+  await invoke('snapshot', shellKey);
+  const foreignWindow = await module.namespace.run({ state: '/fixture/state', task: 'demo+T-A', userData: '/fixture/ui' });
+  let foreignDenied = false;
+  try { await handlers.get('a2a:snapshot')({ sender: foreignWindow.webContents, senderFrame: foreignWindow.webContents.mainFrame }, shellKey); }
+  catch { foreignDenied = true; }
+  check('foreign_window_cannot_read_parked_key', foreignDenied);
+  window.emit('close', { preventDefault() {} });
+  for (let n = 0; !window.destroyed && n < 50; n++) await new Promise(resolve => setTimeout(resolve, 0));
+  check('window_close_revokes_active_and_parked_credentials', window.destroyed && opened.length === closed.length && new Set(closed).size === closed.length,
+    { opened, closed });
   report.status = 'PASS';
 } catch (error) { report.error = String(error); report.status = 'NO_GO'; }
 writeFileSync(out, JSON.stringify(report, null, 2) + '\n', { flag: 'wx' });

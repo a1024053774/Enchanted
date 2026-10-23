@@ -1,0 +1,8 @@
+命令：node --experimental-vm-modules workbench/tests/test_t139_selection.mjs evidence/2026-10-23-batch23/T-139-T-143/retention-green-02.json
+exit: 1
+新增窗口关闭检查触发了 updateDockBadge；测试的 NotificationCenter 替身缺少 badgeCount()，异步回调中退出，未写出 summary。
+TypeError: notificationCenter(...).badgeCount is not a function
+    at updateDockBadge (vm:module(0):42:82)
+    at Window.<anonymous> (vm:module(0):746:57)
+    at Window.destroy (workbench/tests/test_t139_selection.mjs:54:45)
+处置：补齐该外部边界的 badgeCount()，没有修改生产代码；后续改用 retention-green-03.json，不将此次失败计作业务红态。
