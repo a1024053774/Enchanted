@@ -123,6 +123,11 @@ def main():
         time.sleep(1)
         type_in(term, '\r')
 
+    def approve(card):
+        # The approve button is disabled while the sidebar settles; click it once it is enabled.
+        electron.until('批准', f"(()=>{{const b=[...document.querySelectorAll('[data-role-request=\"{card}\"] button')].find(b=>b.textContent==='批准');"
+                       "if(!b||b.disabled)return false;b.click();return true}})()", 20)
+
     def agent(launch):
         return electron.evaluate(f"(()=>{{const r=document.querySelector('.agent-row[data-agent-launch=\"{launch}\"]');"
                                  "return r&&{state:r.dataset.agentState,parent:r.dataset.agentParent,level:r.dataset.agentLevel,role:r.querySelector('.agent-role').textContent}})()")
@@ -157,7 +162,7 @@ def main():
         fixture.wait('终端 I 的 Claude 启动', lambda: ready(ideation), 60)
         submit(ideation, REQUEST_IDEATION)
         request_card = electron.until('构思主控申请出现', "document.querySelector('[data-role-request]')?.dataset.roleRequest ?? null", 60)
-        electron.evaluate(f"[...document.querySelectorAll('[data-role-request=\"{request_card}\"] button')].find(b=>b.textContent==='批准').click()")
+        approve(request_card)
         electron.until('构思主控出现', f"!!document.querySelector('.agent-row[data-agent-launch=\"{ideation['launch']}\"]')", 40)
         electron.until('构思主控回合结束：空闲', state_is(ideation['launch'], 'idle'), 60)
         check('ideation_idle_after_first_turn', True)
@@ -186,7 +191,7 @@ def main():
         check('approval_offers_ideation_as_parent', offered and offered['value'] == ideation['launch'] and
               [o['value'] for o in offered['options']] == [ideation['launch'], ''], offered)
         electron.screenshot(fixture.out / '03-executor-request.png')
-        electron.evaluate(f"[...document.querySelectorAll('[data-role-request=\"{request_card}\"] button')].find(b=>b.textContent==='批准').click()")
+        approve(request_card)
         electron.until('执行主控出现', f"!!document.querySelector('.agent-row[data-agent-launch=\"{executor['launch']}\"]')", 40)
         electron.until('执行主控回合结束', state_is(executor['launch'], 'idle'), 60)
         rows = {launch: agent(launch) for launch in (ideation['launch'], executor['launch'])}
