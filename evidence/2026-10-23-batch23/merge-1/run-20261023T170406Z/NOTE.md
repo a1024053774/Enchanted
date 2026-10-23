@@ -7,3 +7,7 @@
 - `t146-reviewer-hooks` exit=1（单独重跑同样）：`review_launch_boundary`。根因：该测试手写的 Claude 审查员 argv 仍是 T-141 前的形状（`--strict-mcp-config`、沙箱无 network、PreToolUse 无 MCP 权限钩子）；T-141 按用户裁定有意改了审查员启动契约，门禁正确拒绝旧形状。测试夹具过时，产品无误。
 - `t145-green` exit=1（单独重跑同样）：超时“受管 receiver 就绪并收到派发”。根因：夹具的原生 receiver（`workbench/tests/t145_mouse_receiver.c`）模拟 Codex 启动时打印“Open restricted”信任选择屏；T-141 起 a2a 不再替 worker 选（用户裁定“不自动选”），记 `codex_folder_trust_requested` 并停在启动屏。夹具过时，产品行为符合裁定。
 - 后两项交缺陷 ticket T-148（ready_by executor）：只改夹具到 T-141 后的契约，断言、检查名与超时不变；并清点其他仍按旧启动契约写的夹具。
+
+## 更正（T-148 worker 上报 20261023T172046Z）
+
+上面 `t145-green` 的根因写错了。`src/panes.ts` 仍允许选择不持久化的“Open restricted”，T-141 只是把任务释放改成等 Codex 发出 native idle 就绪包。旧 receiver 只打印“Open restricted”、从不发就绪包，所以任务一直不放行。T-148 改的是让 receiver 按真实新契约发就绪包；产品无误这一结论不变。原文保留，不改写。
