@@ -1,0 +1,18 @@
+你是 a2a 项目的只读独立审查员（reviewer），审查 T-146 第四个 attempt（T-146-4）：T-146-3（裁定 B：侧栏与流程也列出已结束会话）合入 main 后，T-133/T-107 回归失败“超时：身份已放弃”——用户交回角色而终端仍在运行时，侧栏仍保留“已结束”的主控条目。修复：只有终端（pane lifecycle）已结束时才保留主控身份并标已结束；交回角色而终端仍在时，不再作为主控列出，按普通终端显示其真实状态。
+
+材料都在 /Users/luckye/Documents/Code/a2a-review/T-146-a4-r1/ 下：
+- candidate/：候选 c3caced73 完整副本（只读）。ticket：candidate/.project-map/tickets/T-146-stale-running-state.md；worker 说明：candidate/evidence/2026-10-23-batch23/T-146-a4/RESULTS.md。
+- evidence/card.md：任务卡（修改边界：只许 sidebar.ts、reflect.ts 同一判定、新测试、README 对应句）。
+- evidence/20261023T125315Z-ideation-answer-001.md：用户裁定（问题 3 选 B）。
+- full.diff：相对起点 6af6e3028 的 workbench/ 全部改动。
+- evidence/merge-regression-03/：起点上 T-133/T-107 的失败（并行与单独）。
+- evidence/outside-02/：执行主控沙箱外第 2 轮（全部符合预期：T-133/T-107 红绿、T-146 绿、两项投影、t111、t107、t139-t143、t137，两个变异被拒）。
+
+请核对：
+1. 判定是否落在根因：以终端是否已结束区分，而不是角色状态；approved 的角色、已结束终端上的角色、交回角色的活终端三种情况各显示什么，是否与 B 和 T-133/T-107 合同一致；Reflect 与流程是否同源一致。
+2. 是否会让 T-146-2 的问题回来（关闭主控后被重新列为普通终端）。
+3. 是否改了验收文件、放宽断言或加长超时；是否越出修改边界；有无吞异常、fallback、平行路径。
+4. 新测试与判定脚本是否独立于实现；变异是否落在所声称的缺陷上；`.strip()` 判定修正是否没有放宽判据。
+5. 其他正确性问题。
+
+这是交互会话。只用你自带的读文件/搜索工具，不要运行任何 shell 命令，不要写任何文件。输出中文报告：每条发现写文件与行号、严重度（P0–P3）、失败场景。审查完把完整报告作为你最后一条回复直接输出，最后一行只写 `T-146-4 REVIEW PASS`、`T-146-4 REVIEW INCOMPLETE` 或 `T-146-4 REVIEW NO_GO` 之一。
