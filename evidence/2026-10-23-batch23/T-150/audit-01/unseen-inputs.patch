@@ -1,0 +1,172 @@
+--- test_t091_pane_ipc.mjs
++++ unseen-inputs.mjs
+@@ -32,24 +32,24 @@
+ // Explicit contract inventory, from the tickets listed in T-150/ASSERTIONS.md.
+ // Each entry supplies VALID arguments so sender rejection cannot pass on a bad payload.
+ const windowInterfaces = [
+-  ['projects', 'projects', []], ['tasks', 'tasks', ['catalog-project-sentinel']],
+-  ['selection', 'selection', []], ['select-task', 'selectTask', ['task-one']],
++  ['projects', 'projects', []], ['tasks', 'tasks', ['catalog-project-sentinel-8615ceeeae']],
++  ['selection', 'selection', []], ['select-task', 'selectTask', ['task-one-8615ceeeae']],
+   ['new-terminal', 'newTerminal', []], ['open-project', 'openProject', []],
+-  ['remove-project', 'removeProject', ['catalog-project-sentinel']], ['select-project', 'selectProject', [null]],
++  ['remove-project', 'removeProject', ['catalog-project-sentinel-8615ceeeae']], ['select-project', 'selectProject', [null]],
+   ['theme', 'theme', ['light']], ['sidebar', 'sidebar', []], ['select-agent', 'selectAgent', ['worker']],
+   ['notification-setting', 'notificationSetting', [false]], ['flow', 'flow', []],
+   ['execution-settings', 'executionSettings', []],
+   ['decide-role-request', 'decideRoleRequest', ['request-sentinel', true, null]], // T-119
+-  ['issues', 'issues', ['catalog-project-sentinel']], ['issue-answer', 'answerIssue', ['task-one', 'issue-one', '答复']],
+-  ['issue-dispose', 'disposeIssue', ['task-one', 'issue-one', 'close', '原因', '依据']], // T-132
+-  ['records', 'records', ['catalog-project-sentinel']], ['metrics', 'metrics', ['catalog-project-sentinel', null, null]], // T-134
++  ['issues', 'issues', ['catalog-project-sentinel-8615ceeeae']], ['issue-answer', 'answerIssue', ['task-one-8615ceeeae', 'issue-one', '答复']],
++  ['issue-dispose', 'disposeIssue', ['task-one-8615ceeeae', 'issue-one', 'close', '原因', '依据']], // T-132
++  ['records', 'records', ['catalog-project-sentinel-8615ceeeae']], ['metrics', 'metrics', ['catalog-project-sentinel-8615ceeeae', null, null]], // T-134
+   ['archive-usage', 'archiveUsage', []], // T-135
+-  ['retrospectives', 'retrospectives', ['catalog-project-sentinel']],
+-  ['retrospective-start', 'startRetrospective', ['catalog-project-sentinel', { cli: 'claude', model: 'fixture', effort: 'low' }]],
+-  ['retrospective-schedule', 'saveRetrospectiveSchedule', [{ project: 'catalog-project-sentinel', enabled: false }]],
++  ['retrospectives', 'retrospectives', ['catalog-project-sentinel-8615ceeeae']],
++  ['retrospective-start', 'startRetrospective', ['catalog-project-sentinel-8615ceeeae', { cli: 'claude', model: 'fixture', effort: 'low' }]],
++  ['retrospective-schedule', 'saveRetrospectiveSchedule', [{ project: 'catalog-project-sentinel-8615ceeeae', enabled: false }]],
+   ['retrospective-decide', 'decideRetrospectiveSuggestion', ['suggestion-one', false]], // T-136
+-  ['reflect', 'reflect', ['catalog-project-sentinel']], // T-137
+-  ['project-settings', 'projectSettings', ['catalog-project-sentinel', ['/fixture/extra']]],
++  ['reflect', 'reflect', ['catalog-project-sentinel-8615ceeeae']], // T-137
++  ['project-settings', 'projectSettings', ['catalog-project-sentinel-8615ceeeae', ['/fixture/extra']]],
+   ['pick-extra-directory', 'pickExtraDirectory', []], // T-140
+ ];
+ const paneInterfaces = [
+@@ -67,11 +67,11 @@
+   const keyedHandlers = paneInterfaces.map(([channel]) => 'a2a:' + channel);
+   const expectedHandlers = [...paneInterfaces, ...windowInterfaces].map(([channel]) => 'a2a:' + channel);
+   const expectedBridge = ['paneKeys', 'home', ...[...paneInterfaces, ...windowInterfaces].map(([, method]) => method)];
+-  const fixtureProject = 'catalog-project-sentinel';
+-  const fixtureSummary = { task_id: 'task-one', project_id: fixtureProject, title: '独立任务标题', state: 'claimed' };
+-  const fixtureTask = { ...fixtureSummary, repo: '/fixture/project-repo', current_attempt: { attempt_id: 'attempt-one' } };
++  const fixtureProject = 'catalog-project-sentinel-8615ceeeae';
++  const fixtureSummary = { task_id: 'task-one-8615ceeeae', project_id: fixtureProject, title: '独立任务标题-8615ceeeae', state: 'claimed' };
++  const fixtureTask = { ...fixtureSummary, repo: '/fixture/project-repo', current_attempt: { attempt_id: 'attempt-one-8615ceeeae' } };
+   const notificationCalls = [], badgeCalls = [], settingsFiles = new Map(), sidebarStates = new Map();
+-  let questionId = 'question-one', focusedWindow = null, sidebarFailure = null;
++  let questionId = 'question-one-8615ceeeae', focusedWindow = null, sidebarFailure = null;
+   const disconnectedError = new Error('t110-socket-unavailable');
+   const layout = new Map(), restorations = new Map([['ended-controller', { lifecycle: 'ended', historical: true, failed: null }]]);
+   const shellLayout = new Map();
+@@ -99,14 +99,14 @@
+     registrations.push(name); handlers.set(name, handler);
+   }, removeHandler(name) { handlers.delete(name); } };
+   const records = {
+-    reviewer: { id: 'reviewer', thread: 'thread-reviewer', role: 'reviewer', preset: null, attempt: 'attempt-one' },
+-    worker: { id: 'worker', thread: 'thread-worker', role: 'worker', preset: null, attempt: 'attempt-one' },
++    reviewer: { id: 'reviewer', thread: 'thread-reviewer', role: 'reviewer', preset: null, attempt: 'attempt-one-8615ceeeae' },
++    worker: { id: 'worker', thread: 'thread-worker', role: 'worker', preset: null, attempt: 'attempt-one-8615ceeeae' },
+     controller: { id: 'controller', thread: 'thread-controller', role: 'controller', preset: 'executor', attempt: null },
+     'ended-controller': { id: 'ended-controller', thread: 'thread-ended', role: 'controller', preset: 'ideation', attempt: null },
+     ideation: { id: 'ideation', thread: 'thread-ideation', role: 'controller', preset: 'ideation', attempt: null },
+-    foreign: { id: 'foreign', task: 'task-other', thread: 'thread-foreign', role: 'worker', attempt: 'attempt-one' },
++    foreign: { id: 'foreign', task: 'task-other', thread: 'thread-foreign', role: 'worker', attempt: 'attempt-one-8615ceeeae' },
+     historical: { id: 'historical', thread: 'thread-old', role: 'worker', preset: null, attempt: 'attempt-old' },
+-    opening: { id: 'opening', thread: 'thread-opening', role: 'worker', preset: null, attempt: 'attempt-one' },
++    opening: { id: 'opening', thread: 'thread-opening', role: 'worker', preset: null, attempt: 'attempt-one-8615ceeeae' },
+   };
+   async function request(state, input, identity, nextSequence) {
+     if (nextSequence) input = { ...input, sequence: nextSequence() };
+@@ -122,7 +122,7 @@
+     if (input.command === 'sidebar_snapshot' && sidebarFailure === 'refused') return { ok: false, error: 't110-sidebar-unavailable' };
+     if (input.command === 'sidebar_snapshot') return { ok: true, projects: [{project_id: fixtureProject, repo: '/fixture/project-repo', opened: true, tasks: [fixtureSummary]}],
+       terminals: Object.values(records).filter(row => row.role === 'shell').map(row => ({ ...row, terminal: true })),
+-      agents: Object.values(records).filter(row => row.role !== 'shell').map(row => ({ ...row, project: fixtureProject, task: 'task-one',
++      agents: Object.values(records).filter(row => row.role !== 'shell').map(row => ({ ...row, project: fixtureProject, task: 'task-one-8615ceeeae',
+         parent: row.id === 'controller' ? 'ideation' : row.id === 'worker' ? 'controller' : null,
+         descendants: { count: row.id === 'ideation' ? 2 : row.id === 'controller' ? 1 : 0, state: 'waiting_user_answer',
+           state_label: '等待用户回答', counts: [{ state: 'waiting_user_answer', label: '等待用户回答', count: 1 }] },
+@@ -159,7 +159,7 @@
+     if (input.command === 'workbench_snapshot' && (input.project || records[input.launch]?.role === 'shell')) return {
+       ok: true, task: null, launch: records[input.launch], pane: { lifecycle: 'running', failed: null } };
+     if (input.command === 'workbench_snapshot') return input.task !== fixtureTask.task_id ? { ok: false, error: 'unknown_task' }
+-      : { ok: true, task: fixtureTask, launch: { task: 'task-one', ...records[input.launch ?? 'worker'] },
++      : { ok: true, task: fixtureTask, launch: { task: 'task-one-8615ceeeae', ...records[input.launch ?? 'worker'] },
+           pane: restorations.get(input.launch) ?? { lifecycle: 'running', failed: null } };
+     if (input.command === 'window_open') {
+       assert.equal(identity.kind, 'operator');
+@@ -221,7 +221,7 @@
+     return module.namespace;
+   }
+   const { run } = await load(source, mainURL);
+-  const options = { state: '/fixture/state', task: 'task-one', userData: '/fixture/ui' };
++  const options = { state: '/fixture/state', task: 'task-one-8615ceeeae', userData: '/fixture/ui' };
+   {
+     const unselected = await run({ state: options.state, userData: options.userData });
+     assert.equal(JSON.parse(unselected.options.webPreferences.additionalArguments[0].slice('--a2a-pane-keys='.length)).length, 0, 'Unselected startup must not select a task worker');
+@@ -308,11 +308,11 @@
+       await assert.rejects(() => bridge.executionSettings(change));
+     assert.equal(requests.length, before, 'Invalid execution settings must not reach transport');
+     assert.equal((await bridge.executionSettings()).worker.effort, 'high');
+-    const saved = await bridge.executionSettings({role:'reviewer', model:'custom-model-sentinel', effort:'ultra-sentinel', fast:true});
+-    assert.equal(saved.reviewer.model, 'custom-model-sentinel', 'Model selection must reach backend unchanged');
+-    assert.equal(saved.reviewer.effort, 'ultra-sentinel', 'Effort selection must reach backend unchanged');
++    const saved = await bridge.executionSettings({role:'reviewer', model:'custom-model-sentinel-8615ceeeae', effort:'ultra-sentinel-8615ceeeae', fast:true});
++    assert.equal(saved.reviewer.model, 'custom-model-sentinel-8615ceeeae', 'Model selection must reach backend unchanged');
++    assert.equal(saved.reviewer.effort, 'ultra-sentinel-8615ceeeae', 'Effort selection must reach backend unchanged');
+     assert.equal(saved.reviewer.fast, true, 'Fast selection must reach backend unchanged');
+-    assert.deepEqual(requests.at(-1).input, {command:'execution_settings_save', role:'reviewer', model:'custom-model-sentinel', effort:'ultra-sentinel', fast:true});
++    assert.deepEqual(requests.at(-1).input, {command:'execution_settings_save', role:'reviewer', model:'custom-model-sentinel-8615ceeeae', effort:'ultra-sentinel-8615ceeeae', fast:true});
+   }
+   {
+     {
+@@ -356,7 +356,7 @@
+     sidebarStates.set('worker', 'waiting_user_answer');
+     const notice = await bridge.sidebar();
+     assert.equal(notice.notices?.length, 1, 'Only entering waiting-user emits one notification');
+-    assert.equal(notice.notices[0].id, 'question-one');
++    assert.equal(notice.notices[0].id, 'question-one-8615ceeeae');
+     assert.equal(notice.notices[0].launch, 'worker');
+     assert.equal((await bridge.sidebar()).notices.length, 1, 'Repeated reads keep a single notification');
+     assert.equal(notificationCalls.length, 0, 'System notification API must never be called');
+@@ -376,7 +376,7 @@
+     }
+     sidebarStates.set('worker', 'waiting_user_answer');
+     assert.equal((await bridge.sidebar()).notices.length, 0, 'The same question never notifies twice');
+-    questionId = 'question-two';
++    questionId = 'question-two-8615ceeeae';
+     assert.equal((await bridge.sidebar()).notices.length, 1, 'A different question while waiting notifies once');
+     assert.equal(await bridge.notificationSetting(false), false);
+     assert.equal((await bridge.sidebar()).notices.length, 0, 'Disabled notifications stay silent');
+@@ -511,8 +511,8 @@
+       assert.ok(reopened.destroyed, 'Empty window can close normally');
+     }
+     assert.deepEqual(requests.slice(beforeReopen).map(row => row.input), [
+-      { command: 'workbench_snapshot', task: 'task-one' }, { command: 'pane_layout', task: 'task-one' },
+-      { command: 'workbench_snapshot', task: 'task-one' }, { command: 'pane_layout', task: 'task-one' },
++      { command: 'workbench_snapshot', task: 'task-one-8615ceeeae' }, { command: 'pane_layout', task: 'task-one-8615ceeeae' },
++      { command: 'workbench_snapshot', task: 'task-one-8615ceeeae' }, { command: 'pane_layout', task: 'task-one-8615ceeeae' },
+     ], 'Empty reopen reads only the task and its saved layout, without selecting a launch or issuing credentials');
+     await assert.rejects(() => run({ ...options, launch: [] }), /Distinct nonempty pane launches/);
+     const explicit = await run({ ...options, launch: 'worker' });
+@@ -543,7 +543,7 @@
+     const cleared = await bridge.selectTask(null);
+     assert.equal(cleared.task, null); assert.equal(cleared.paneKeys.length, 0);
+     assert.equal((await bridge.selection()).task, null);
+-    const restored = await bridge.selectTask('task-one');
++    const restored = await bridge.selectTask('task-one-8615ceeeae');
+     assert.deepEqual(JSON.parse(JSON.stringify(restored.task)), fixtureTask);
+     assert.equal(restored.paneKeys.length, 1);
+     await assert.rejects(() => bridge.selectTask('absent-task'), /unknown_task/);
+@@ -557,7 +557,7 @@
+       const freeKey = free.paneKeys[0];
+       assert.equal((await bridge.snapshot(freeKey)).launch.project, null);
+       await bridge.closePane(freeKey);
+-      const selectedAgain = await bridge.selectTask('task-one');
++      const selectedAgain = await bridge.selectTask('task-one-8615ceeeae');
+       const pending = bridge.newTerminal();
+       await assert.rejects(() => bridge.newTerminal(), /Task view is changing/);
+       const created = await pending;
+@@ -581,7 +581,7 @@
+       const projectOverview = await bridge.selectProject(fixtureProject);
+       assert.equal(projectOverview.task, null);
+       assert.equal(projectOverview.paneKeys.length, 0, 'Project overview must not open its terminal');
+-      const taskView = await bridge.selectTask('task-one');
++      const taskView = await bridge.selectTask('task-one-8615ceeeae');
+       assert.equal(taskView.paneKeys.length, 1, 'Task view must contain only its saved agent');
+       assert.ok(!taskView.paneKeys.includes(shellKey), 'Task view must not contain a project terminal');
+       await assert.rejects(() => bridge.input(shellKey, 'parked-shell'), /Unknown pane key/);

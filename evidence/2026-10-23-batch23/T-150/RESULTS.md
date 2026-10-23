@@ -57,3 +57,5 @@ zsh evidence/2026-10-23-batch23/T-150/RUN-LOCAL-01.sh
 此证据为 L1：真实 TS main/preload/notificationCenter 在 VM 中执行，Electron、传输、文件系统由夹具提供。它证明本票测试迁移及纯逻辑边界，不证明真实 Electron sender 身份、socket、原生 CLI 或模型行为。本次模型/API 回合为 0，无后台进程，无用户配置写入，无产品代码改动，无新依赖。
 
 沙箱内完整运行成功，无需 RUN-OUTSIDE。交付后执行主控仍须按公共约定复跑、独立审查、走门禁集成；本报告不关闭 T-150，也不改地图或 HISTORICAL.md。项目状态检查与最终提交见后续交付记录。
+
+补充：测试候选已提交为 `4aefa2b3a884fde62c6bb72d074165111496f016`，钩子自动写入完整 task/attempt/session/launch 与 Codex `gpt-6.1-sol` high 身份。冻结提交复跑 PASS；有界独立只读核对 PASS、无发现，并使用新的哨兵标识通过，见 [AUDIT-01.md](AUDIT-01.md)。该核对未审交付文档，不替代执行主控安排的正式审查。之后只提交本段与审查文本证据，测试候选不变。
