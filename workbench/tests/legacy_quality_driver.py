@@ -78,7 +78,8 @@ class QualityDriver:
             raise RuntimeError('Expected a running independent reviewer: ' + json.dumps(current))
         record = json.loads((self.control / (review['launch_id'] + '.json')).read_text(encoding='utf-8'))
         if record['env']['A2A_ROLE'] != 'reviewer': raise RuntimeError('Reviewer role is not independent.')
-        # The daemon answers the controlled "Open restricted" screen and releases the review prompt itself (T-127).
+        # T-141: the reviewer may open its untrusted copy restricted; prompt release
+        # then requires the native Codex ready packet, not the trust choice alone.
         deadline = time.monotonic() + 15
         while True:
             pane = self.command('pane_status', '--thread', review['thread_id'])

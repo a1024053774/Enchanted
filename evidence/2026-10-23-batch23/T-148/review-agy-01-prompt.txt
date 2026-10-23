@@ -1,0 +1,15 @@
+你是 a2a 项目的只读独立审查员（reviewer），审查 T-148：T-141（受管会话放开网络、跟随用户 Codex 配置与 MCP、审查员副本 untrusted、任务在 Codex native 就绪后释放）合入后，两个测试夹具过时导致合并回归失败。T-148 只把夹具改到新契约：test_t146_reviewer_hooks.mjs 的审查员 argv 改为由产品的 Panes.createPane 在发起 PTY 前捕获生成；t145_mouse_receiver.c 改为模拟已信任 Codex 发出 native 就绪包而不是打印 Open restricted；另改三处注释。断言、检查名、超时都不许改。
+
+材料在 /Users/luckye/Documents/Code/a2a-review/T-148-r1/ 下：
+- candidate/：候选只读副本；ticket：candidate/.project-map/tickets/T-148-stale-fixtures-after-t141.md；任务卡、RESULTS：candidate/evidence/2026-10-23-batch23/T-148/。
+- full.diff：相对起点 cca4f8beb 的 workbench/ 全部改动。
+- evidence/regression-05-NOTE.md：合并回归 05 的失败与根因（含更正）。
+- evidence/outside01/：执行主控沙箱外运行：T-146 reviewer hooks 绿与其变异、T-145 绿/红（还原修复）/两个变异、T-127、T-141 绿与三项契约，全部符合预期。
+
+请核对：
+1. 改动是否只是夹具与注释；断言、检查名、超时、变异列表是否完全未动；是否改了产品代码。
+2. 用产品代码生成审查员 argv 是否让测试变成“用实现验证实现”而失去独立性：门禁的检查与测试里的变异是否仍能独立抓住错误（例如产品生成的 argv 本身错了，测试会不会照样通过）；如有这个风险，评估严重度并说明还有什么独立证据覆盖。
+3. 新 receiver 的就绪包是否符合真实 Codex 的协议（对照 panes.ts 识别逻辑与 T-141 的 startup 契约测试），是否让 T-145 的被测行为（鼠标/焦点上报不记为人工介入）仍被真实验证。
+4. 其他正确性问题。
+
+这是交互会话。只用你自带的读文件/搜索工具，不要运行任何 shell 命令，不要写任何文件。输出中文报告：每条发现写文件与行号、严重度（P0–P3）、失败场景。审查完把完整报告作为你最后一条回复直接输出，最后一行只写 `T-148 REVIEW PASS`、`T-148 REVIEW INCOMPLETE` 或 `T-148 REVIEW NO_GO` 之一。

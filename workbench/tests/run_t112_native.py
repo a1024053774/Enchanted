@@ -207,7 +207,9 @@ def main():
             before = len(requests)
             case_result['pre_release'] = dict(process_info=foreground, api_requests=before,
                 isolated_config=(Path(record['env']['CODEX_HOME']) / 'config.toml').read_text(encoding='utf-8'))
-            # Since T-127 the daemon releases the first input itself after Codex's "Open restricted" screen.
+            # Historical T-127 observer below expects a restricted-open event. T-141
+            # workers inherit user trust and release on native readiness instead;
+            # updating this observer needs a separate assertion change.
             released = until(events, lambda rows: any(row['type'] == 'codex_restricted_opened' for row in rows), 'restricted folder opened by the daemon')
             case_result['release'] = [row for row in released if row['type'].startswith('codex_restricted')]
             until(lambda: len(requests), lambda count: count > before, 'first user request received by local fake API')

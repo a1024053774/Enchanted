@@ -48,8 +48,9 @@ int main(int argc, char **argv) {
   struct termios mode; if (tcgetattr(0, &mode)) fail("tcgetattr");
   cfmakeraw(&mode); if (tcsetattr(0, TCSANOW, &mode)) fail("tcsetattr");
   FILE *received = create("received.bin");
-  /* Exercise the existing startup path, without changing production readiness. */
-  printf("› 1. Open restricted\r\n\x1b[?2004h"); fflush(stdout);
+  /* An already-trusted Codex signals native readiness (T-141); no trust choice
+   * precedes the first task. Keep bracketed paste enabled for dispatch. */
+  printf("\x1b[?2004h\x1b]7501;state=idle:app=codex\x1b\\"); fflush(stdout);
   int enabled = 0;
   for (;;) {
     fd_set set; FD_ZERO(&set); FD_SET(0, &set); struct timeval delay = {0, 25000};

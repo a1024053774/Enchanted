@@ -55,7 +55,7 @@ try {
   await panes.createReview(task, review, '执行本地固定 shell 探针，不提交或验收。');
   writeFileSync(join(root, 'launch.json'), JSON.stringify(panes.get('review').record, null, 2) + '\n', { flag: 'wx' });
   // A new rollout/session may not exist until the first input is sent. Since T-127 the daemon
-  // releases that input itself once it has answered Codex's "Open restricted" screen.
+  // releases that input on native readiness after opening the reviewer copy restricted (T-141).
   const foreground = await until(() => panes.processInfo('review'), row => row.leader && !row.failed, 'Foreground reviewer process');
   writeFileSync(join(root, 'pre-release.json'), JSON.stringify({ foreground, sessions: sessionInventory() }, null, 2) + '\n', { flag: 'wx' });
   await until(async () => panes.get('review').started, Boolean, 'Reviewer released after the restricted-folder screen');
