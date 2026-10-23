@@ -1,0 +1,22 @@
+STATUS: INCOMPLETE
+TARGET: b6963c6c8b58263c5e8ce8d5fd9cbaa4fdcf1159
+
+EVIDENCE:
+- git rev-parse、最终 git status：HEAD 始终为该提交，工作树未变化。
+- .project-map/tickets/T-155-real-user-dogfood.md:34-37 要求完整旅程、可重放归档和 current-main 红态；RESULTS.md:1-3,82,91-94 与报告 :3,114 明确标记无集成、整体 INCOMPLETE。
+- 七条发现均有对应截图：F01（37/39/40）、F02（33/34/50）、F03（41）、F04（09/35）、F05（44/48/49）、F06（45/56）、F07（24/36）。
+- F04 的两次 UI 复现来自两个不同临时 root；RecordsPage.tsx:38-39 与 README.md:1022-1024 承诺审批进入用户输入记录，而 roleRequests.ts:99 只写角色事件，产品机制与报告判断一致。
+- F02、F03、F06 的可见行为分别得到 main.ts:493-496、main.ts:405-407,590-616、metrics.ts:16-55 支持。F05 的 path_overlap 与 revise 规则也符合 README.md:385-392；报告没有宣称它不可恢复。
+- RESULTS.md:77-87,142-161 和报告 :94-112 准确列出已覆盖范围及限制：并行 worker、问题答复、打回/重交、审查、指标、Reflect、同后台 UI 重开已观察；集成、daemon 重启、Codex/mixed provider 等未覆盖。
+- M01-M04 明确归为 Claude 模型行为；协议拒绝由产品门禁执行，qualityProtocol.ts:46-63 与截图 34/36/54 相符，未把模型失误冒称为协调机制故障。
+
+FINDINGS:
+- 无可确认的报告失实或未标注限制；最终读回和归档缺失已在冻结报告中明确写为待完成，因此只能维持 INCOMPLETE。
+
+COUNTEREXAMPLE:
+- 若报告硬编码“完整通过/已集成”，会被 RESULTS.md:82,91-94 及截图 55/58 的未集成状态拒绝；当前报告正确拒绝该结论。
+- 若产品保留角色批准事件却不写入 user_inputs，两个不同 root 的截图 09/35 能复现该用户可见缺陷；当前报告已识别为 F04。
+
+LIMITATIONS:
+- 冻结提交不包含 stopped-readback.json、native-turns.json 或 runs.archive.json；无法独立核对最终数据库状态、精确回合预算、第二实例后端复现和 T-088 归档。
+- 未读取 SESSION-NOTES.md，也未启动应用、运行模型或访问外部临时实例；上述判断限于冻结提交中的契约、RESULTS、公开源码和截图。

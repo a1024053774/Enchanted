@@ -161,3 +161,7 @@ Computer Use 已确认同一隔离 renderer；生命周期日志 `logs/electron-
 已请求主控在沙箱外 `STOP-APP.sh /private/tmp/t155-dogfood-ohzs_78v --all`；停止后归档 raw run、只读核对数据库和本次 native session。原目录不删除。缺盘或无法确认退出时保留现场，不能写归档成功。报告独立审查在证据冻结后做，当前未做。
 
 阶段文本检查：报告 UTF-8 回读与 20 个本地引用存在性检查通过；project-map status 为 Problems 0、Stale living docs 0；产品 workbench 与基线无改动。默认 `git diff --check` 在原样保存的 AX 文本中报告 14 处 UI 字段自带尾随空白（分隔符与日期占位符），记录保留、不为消除告警改写原文。仅排除此原始 AX 文件后，手写报告与脚本的 diff check 退出 0；不把默认检查写成通过。
+
+## 冻结阶段独立审查
+
+按 behavioral-acceptance-review，在干净只读上下文审查 `b6963c6c8b58263c5e8ce8d5fd9cbaa4fdcf1159`；原文保存于 `ACCEPTANCE-REVIEW.txt`。结果 INCOMPLETE：未发现报告失实或未标注限制，七条发现均有截图，模型行为与产品机制已区分；缺少最终停止读回、精确回合与归档，无法判定完整旅程通过。审查没有读取作者聊天或 SESSION-NOTES，没有启动应用、运行模型或访问外部临时实例。该审查只对冻结阶段结论有效，不为后续新增证据背书。
