@@ -34,6 +34,10 @@ pty.spawn = (...args: any[]) => {
         // The first Enter opens the isolated untrusted fixture folder. Only
         // the subsequent native packet admits task release under T-141.
         setTimeout(() => dataCallback('\x1b]7501;state=idle:app=codex\x07'), 0);
+      } else if (data === '\r') {
+        // The shared PTY has just appended task_started/turn_context. Native
+        // CLI output now wakes the real onData -> scan path for this turn.
+        setTimeout(() => dataCallback('Controlled CLI turn started.\r\n'), 0);
       }
     },
   };

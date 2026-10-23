@@ -1,6 +1,6 @@
 # T-152-1 / a1 交付记录
 
-状态：**INCOMPLETE**。01 沙箱外运行已取得真实入口失败，未到业务断言；已修正局部旧放行与证据采集前提，02 红态、绿态和回归待主控运行，不能据此验收或集成。产品代码未改。起点 `32ffb4e6dcc0472b20bbb64331a355621c9b73a9`，分支 `exec/t152`，worker `b23-t152`。
+状态：**INCOMPLETE**。01、02 沙箱外运行均在业务断言前失败；02 已确认自动放行和证据采集问题解除，本轮补专用 PTY 的提交后输出。03 红态、绿态和回归待主控运行，不能据此验收或集成。产品代码未改。起点 `32ffb4e6dcc0472b20bbb64331a355621c9b73a9`，分支 `exec/t152`，worker `b23-t152`。
 
 ## 逐条改动
 
@@ -24,9 +24,9 @@
 
 ## 主控沙箱外复跑
 
-下一轮运行：`zsh evidence/2026-10-23-batch23/T-152/RUN-OUTSIDE-02.sh`。01 脚本与证据均保留。
+下一轮运行：`zsh evidence/2026-10-23-batch23/T-152/RUN-OUTSIDE-03.sh`。01、02 脚本与证据均保留。
 
-它先运行四个有效检查变异，再运行四个非法启动变异，最后跑全部正常案例、T-090 直接继承方的 HEAD/branch/dirty 三例和既有 T-141 双 CLI reviewer 启动契约。摘要写入新的 `outside-02-XXXXXXXX/`，聚合 `SUMMARY.json`。结束核对、workspace、refs、假删除副本分别必须命中 `REVIEW-END-BEFORE-INTEGRATE`、`REVIEW-REQUIREMENTS-WORKSPACE`、`REVIEW-REFS-INVALIDATE`、`T082-COPY-REMOVED`；启动反例必须让三条拒收/暂停/上报断言全过。
+它先运行四个有效检查变异，再运行四个非法启动变异，最后跑全部正常案例、T-090 直接继承方的 HEAD/branch/dirty 三例和既有 T-141 双 CLI reviewer 启动契约。摘要写入新的 `outside-03-XXXXXXXX/`，聚合 `SUMMARY.json`。结束核对、workspace、refs、假删除副本分别必须命中 `REVIEW-END-BEFORE-INTEGRATE`、`REVIEW-REQUIREMENTS-WORKSPACE`、`REVIEW-REFS-INVALIDATE`、`T082-COPY-REMOVED`；启动反例必须让三条拒收/暂停/上报断言全过。
 
 ## 01 运行结果与第 2 轮改动
 
@@ -39,5 +39,11 @@
 本轮静态检查、目录采集反例结果写入 `local-checks-02.json`。它们不能替代 02 沙箱外端到端红绿态；最终状态继续 INCOMPLETE。
 
 独立定向复审冻结代码 `dd52f5816`，记录见 `acceptance-review-02.md`：无新增静态发现，状态 INCOMPLETE，未运行 02，不据此宣布验收通过。
+
+## 02 运行结果与第 3 轮改动
+
+主控 #9 实跑 02，绑定 `02fe808bd`。摘要 `outside-02-JpvDMYo4/SUMMARY.json`：T-141 reviewer PASS，另 10 项 INCOMPLETE、零业务断言，均在自动放行后等待原生 turn 超时；清理失败为 0。现场与时间线核对见 `REWORK-03.md`。
+
+专用 PTY 已在任务 Enter 时写 rollout，却没有发输出，因此真实后台没有及时触发 onData → scan。本轮只给非首个 Enter 后补异步普通文本输出，保留 wait_pane 与全部业务断言，不调 scan、不改门禁或共享 PTY。`node --check`、03 脚本 `zsh -n`、`git diff --check` PASS。尚无 03 端到端运行证据，状态 INCOMPLETE。
 
 局限：当前没有有效业务红态、绿态或 T-090/T-141 新回归通过证据；不声称真实原生 CLI 沙箱、网络访问或模型判断得到证明（原生 CLI/模型回合为 0）。不复用历史 PASS。最终验收、独立审查、submit/集成由执行主控门禁负责。
