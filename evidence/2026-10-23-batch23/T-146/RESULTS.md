@@ -65,3 +65,5 @@ python3 workbench/tests/test_t146_session_state_e2e.py --revision ebbae7bd0 --su
 旧诊断候选 `c49e7749a88356f55e4368aca7e85de10d0d660b` 的只读审查为 INCOMPLETE；该结论不为本次代码变更背书。
 
 本次冻结代码候选 `f5582927bde61a05ed838de20fb156f1fe2ba3f2` 已由新只读会话独立检查，结论 INCOMPLETE：确认上述观察层缺口与 T-137 期望冲突两项 P1，未发现虚报通过。中文转录见 `behavioral-review-02.md`。
+
+补齐后的冻结候选 `5792d5ae6fbfa1edf67e22f8d721d6461d1d8426` 另经新只读会话审查，结论仍为 INCOMPLETE：本地状态合约通过，真实 Claude SessionEnd→后台→三页与 zsh 存活的证据仍待 RUN-OUTSIDE-03。审查保留这一 P1 证据缺口，未宣称产品已通过；转录与被测路径/期望值的区分见 `behavioral-review-03.md`。
