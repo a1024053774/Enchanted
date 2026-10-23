@@ -35,3 +35,5 @@ ready_rev: 1
 
 ## Resolution
 
+2026-10-23 执行主控阶段记录（票保持 open，NEEDS-DECISION）：当前 main `8933ee0f4` 实跑——`run_t082_boundary.py` exit 1、INCOMPLETE（正常 tracer 七条通过，第一个旧变异锚点已不存在）；`test_t078_quality_host_bootstrap.py` exit 0、PASS。覆盖对照 `evidence/2026-10-23-batch24/T-156/COVERAGE.md`：bootstrap 第 71～100 行是 `QualityCase.start_host → quality_chain_host.ts` 隔离 operator 凭据创建、state/kind/0600 与清理的唯一直接守护者，且它导入旧 runner 的 `run_case`，两个文件都未删、HISTORICAL.md 未改（合并 `0f413d74c`，仅证据）。上报 `20261023T223604Z-worker:b24-t156-issue-001`。原始现场按 T-088 归档外置盘（`*.archive.json`）。
+
