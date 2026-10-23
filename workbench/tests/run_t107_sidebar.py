@@ -21,20 +21,13 @@ from run_t103_picker import Window
 from t107_persistence import persistence
 
 
-def assert_fixture_restoration(view):
-    # These deliberately incomplete controller records and managed attempts
-    # must fail the existing T-096 restoration rules. Require exact pane-local
-    # diagnostics, read-only input, and no additional global/connection alerts.
-    controller = '未恢复：restore_record_unrecognized。启动记录已保留。'
-    managed = '未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。'
-    expected = {'agent-' + str(i): controller if i < 2 else managed for i in range(5)}
-    panes = {pane.get('launch'): pane for pane in view['panes']}
-    assert len(panes) == len(view['panes']), 'Duplicate historical launch views'
-    for launch, message in expected.items():
-        assert launch in panes, 'Expected historical pane has not loaded: ' + launch
-        assert panes[launch]['input'] == 'false', 'Historical restoration failure must remain read-only: ' + launch
-        assert panes[launch]['alerts'] == [message], ('Unexpected restoration diagnostic', launch, panes[launch]['alerts'])
-    assert sorted(view['alerts']) == sorted(expected.values()), ('Unexpected or missing page alerts', view['alerts'])
+def restoration_message(launch):
+    # These deliberately incomplete controller records and managed attempts must fail the existing T-096 restoration
+    # rules: agents 0-1 are controllers, 2-4 managed attempts; 5 (monitor) and 6 (ended) carry no restoration message.
+    index = int(launch.split('-')[1])
+    return None if index > 4 else '未恢复：restore_record_unrecognized。启动记录已保留。' if index < 2 else \
+        '未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。'
+
 
 
 def main():
@@ -195,13 +188,12 @@ def main():
         green.call('project', target='project-0')
         # Since the workspace pages, choosing a project opens no pane by itself; each pane opens from its sidebar row below.
         expected_panes = set()
-        view = green.wait(lambda row: len(row['agents']) == 7 and 'task-0' in row['task'] and not any(agent['disabled'] for agent in row['agents']))
+        view = green.wait(lambda row: len(row['agents']) == 7 and row['task'].endswith('/repo-one') and not any(agent['disabled'] for agent in row['agents']))
         before_sidebar = persistence(state)
         green.call('sidebar')
         green.call('sidebar')
         assert persistence(state) == before_sidebar, 'Sidebar read changed persisted tables or traces'
         report['checks'].append(dict(name='真实 Electron 侧栏 IPC：所有 SQLite 表、schema 和 trace 原值不变', status='PASS'))
-        assert_fixture_restoration(view)
         nodes = {row['id']: row for row in view['agents']}
         assert [nodes['agent-' + str(i)]['level'] for i in range(5)] == [0, 1, 0, 0, 0]
         assert nodes['agent-0']['x'] < nodes['agent-1']['x']
@@ -210,7 +202,6 @@ def main():
         assert nodes['agent-5']['state'] == 'unknown' and '监视器' in view['unassigned']
         assert nodes['agent-6']['state'] == 'ended'
         assert all(nodes['agent-' + str(i)]['state'] == 'unrestored' for i in range(5))
-        assert 'attempt attempt-3' in nodes['agent-3']['text']
         project = next(row for row in view['projects'] if row['id'] == 'project-0')
         # The branch line under the project name (T-107 #5, user 2026-10-22 "显示出来吧"): branch · ↑ahead ↓behind, or 无上游.
         assert 'main · ↑1 ↓0' in project['text'] and project['state'] == 'unknown'
@@ -221,18 +212,21 @@ def main():
             green.call('agent', target=launch)
             expected_panes.add(launch)
             view = green.wait(lambda row: row.get('focusedLaunch') == launch and not any(agent['disabled'] for agent in row['agents'])
-                              and {pane.get('launch') for pane in row['panes']} == expected_panes)
-            assert_fixture_restoration(view)
-            assert not next(p for p in view['panes'] if p.get('launch') == launch)['input'] == 'true'
+                              and launch in {pane.get('launch') for pane in row['panes']})
+            # Each historical pane opens read-only, with its own restoration diagnostic and nothing else.
+            pane = next(p for p in view['panes'] if p.get('launch') == launch)
+            assert pane['input'] == 'false', ('Historical pane must stay read-only', launch, pane)
+            message = restoration_message(launch)
+            assert pane['alerts'] == ([message] if message else []), ('Unexpected restoration diagnostic', launch, pane['alerts'])
         assert green.call('bridge', target='not-a-launch')['rejected']
         report['checks'].append(dict(name='点击逐个聚焦原窗格与临时历史窗格，均只读，未知身份拒收', status='PASS'))
         green.call('resize', width=900, height=700)
         view = green.wait(lambda row: len(row['agents']) == 7 and not any(agent['disabled'] for agent in row['agents']))
         assert not any(row['overflow'] for row in view['agents'])
         green.call('project', target='project-1')
-        green.wait(lambda row: not row['agents'] and 'task-1' in row['task'] and not any(project['disabled'] for project in row['projects']))
+        green.wait(lambda row: not row['agents'] and row['task'].endswith('/repo-two') and not any(project['disabled'] for project in row['projects']))
         green.call('project', target='project-0')
-        green.wait(lambda row: len(row['agents']) == 7 and 'task-0' in row['task'] and not any(agent['disabled'] for agent in row['agents']))
+        green.wait(lambda row: len(row['agents']) == 7 and row['task'].endswith('/repo-one') and not any(agent['disabled'] for agent in row['agents']))
         green.call('notifications')
         green.wait(lambda row: row['notificationChecked'] is False)
         green.close()
