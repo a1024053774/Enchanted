@@ -49,3 +49,5 @@ python3 workbench/tests/test_t146_session_state_e2e.py --revision ebbae7bd0 --su
 更新版 e2e 的修前失败断言、真实 Electron 绿态、变异失败、自然退出红绿态、修后 T-137 与独立行为验收均未完成。未声明 CLI 退出已修好，也不以旧 T-137 的通过替新实现背书。原始 fixture 保留供主控按 T-088 归档，未将数据库/trace 加入 Git。
 
 旧诊断候选 `c49e7749a88356f55e4368aca7e85de10d0d660b` 的只读审查为 INCOMPLETE；该结论不为本次代码变更背书。
+
+本次冻结代码候选 `f5582927bde61a05ed838de20fb156f1fe2ba3f2` 已由新只读会话独立检查，结论 INCOMPLETE：确认上述观察层缺口与 T-137 期望冲突两项 P1，未发现虚报通过。中文转录见 `behavioral-review-02.md`。
