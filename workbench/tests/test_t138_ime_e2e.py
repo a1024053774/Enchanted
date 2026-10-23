@@ -8,6 +8,7 @@
 5. Electron/后台未启动、没有可信 composition 事件，却误称已复现。
 6. 只修了固定的两字词；普通键入后第一次中间 IME 提交仍然错位。
 7. 只在 onData 发送前清空，导致 xterm 读不到提交文字；或组合中途被清空。
+8. ASCII 只发 char，遗漏 keydown 后被读屏模式的上一轮按键状态忽略。
 
 原始输入仅由 CDP imeSetComposition/insertText/dispatchKeyEvent 注入。
 DOM 只用于导航、聚焦和观察，不赋值 textarea，不改 xterm 私有对象。
@@ -55,7 +56,7 @@ def main():
     args = parser.parse_args()
     assert not args.summary.exists(), '保留旧证据，必须换新路径'
     args.summary.parent.mkdir(parents=True, exist_ok=True)
-    report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant, harness_version=2,
+    report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant, harness_version=3,
                   code_version=subprocess.check_output(['git', 'rev-parse', args.revision or 'HEAD'], cwd=ROOT, text=True).strip(),
                   runtime='real Electron/daemon/node-pty, native raw receiver; zero model calls',
                   checks=[], cases=[], defect_reproduced=False)
@@ -90,9 +91,11 @@ def main():
         electron.until('终端可输入', f'''(()=>{{const p=document.querySelector({json.dumps(selector)});
           return !!p?.getClientRects().length && p.dataset.inputEnabled==='true' && !!p.querySelector('[data-restoring=false]');}})()''')
         electron.evaluate(f'''(()=>{{const el=document.querySelector({textarea}); el.focus(); window.__t138Events=[];
-          for(const type of ['compositionstart','compositionupdate','compositionend','input','keydown','keyup'])
+          for(const type of ['compositionstart','compositionupdate','compositionend','beforeinput','input','keydown','keypress','keyup'])
             el.addEventListener(type,e=>window.__t138Events.push({{type:e.type,trusted:e.isTrusted,
-              data:e.data??null,key:e.key??null,value:el.value,start:el.selectionStart,end:el.selectionEnd}}));
+              data:e.data??null,key:e.key??null,code:e.code??null,keyCode:e.keyCode??null,charCode:e.charCode??null,
+              defaultPrevented:e.defaultPrevented,isComposing:e.isComposing??null,
+              value:el.value,start:el.selectionStart,end:el.selectionEnd}}),true);
         }})()''')
 
         def cdp(method, **params):
@@ -118,7 +121,16 @@ def main():
 
         def type_ascii(text):
             for letter in text:
-                cdp('Input.dispatchKeyEvent', type='char', key=letter, text=letter, unmodifiedText=letter)
+                assert letter in 'abcdefghijklmnopqrstuvwxyz-', '此场景仅输入小写英文及连字符'
+                code = 'Minus' if letter == '-' else 'Key' + letter.upper()
+                virtual_key = 189 if letter == '-' else ord(letter.upper())
+                # keyDown(text) lets Chromium suppress its own char/input when
+                # xterm cancels keydown. An unconditional extra char can duplicate
+                # input, while char alone skips xterm's per-keystroke reset.
+                cdp('Input.dispatchKeyEvent', type='keyDown', key=letter, code=code,
+                    windowsVirtualKeyCode=virtual_key, text=letter, unmodifiedText=letter)
+                cdp('Input.dispatchKeyEvent', type='keyUp', key=letter, code=code,
+                    windowsVirtualKeyCode=virtual_key)
             time.sleep(.5)
 
         def sample(name, action, expected, mode):
@@ -134,6 +146,10 @@ def main():
                         expected_hex=expected.encode().hex(), actual_hex=actual.hex(), events=events,
                         passed=actual == expected.encode())
             report['cases'].append(case)
+            if not case['passed']:
+                shot = args.summary.with_name(args.summary.stem + f'-{name}-screen-reader-{mode}-failure.png')
+                case['failure_screenshot'] = str(shot)
+                electron.screenshot(shot)
             if name.startswith('middle') and actual == '怪了'.encode() and expected == '打出':
                 report['defect_reproduced'] = True
             return case
@@ -166,6 +182,9 @@ def main():
             key('Enter', 13)
             ascii_seed = sample('ascii-seed', lambda: type_ascii('prefix-tail'), 'prefix-tail', mode)
             assert ascii_seed['passed'], ascii_seed
+            report['checks'].append(dict(name='ascii_native_key_sequence', mode=mode, passed=all(
+                [e['key'] for e in ascii_seed['events'] if e['type'] == kind and e['trusted']] == list('prefix-tail')
+                for kind in ('keydown', 'keyup'))))
             key('ArrowLeft', 37)
             key('ArrowLeft', 37)
             sentinel = '新词' + uuid.uuid4().hex[:4]
