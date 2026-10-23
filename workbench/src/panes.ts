@@ -117,7 +117,8 @@ export type EmptyInputDeclaration = {
 // Claude Code worker and reviewer launch (T-122, evidence/2026-10-21-batch19/T-122/probe-01..05):
 // never asks for approval, file tools write only where `writable` allows, shell commands run in
 // Claude's sandbox, and no settings file is loaded (`--setting-sources ""`: with `local`, a linked
-// worktree also loads the main checkout's .claude/settings.local.json, probe-04), nor MCP servers.
+// worktree also loads the main checkout's .claude/settings.local.json, probe-04). User MCP
+// servers remain available (T-141); their own permissions run outside the Bash sandbox.
 // A worker writes its worktree and the request directory. In a linked worktree Claude's sandbox
 // itself makes the repository's whole .git writable (probe-04); `gitDenied` takes back the whole
 // Git common dir, and only a standalone `git add` or `git commit`
@@ -130,16 +131,17 @@ async function claudeArgv(executable: string, signal: string, session: string,
   selection: { model: string; effort: string; fast: boolean }, writable: string[], shellWritable: string[], gitDenied: string[] = [], extraDirectories: string[] = []) {
   const hook = [{ hooks: [{ type: "command", command: signal, timeout: 10 }] }];
   const settings = {
-    permissions: { allow: ["Bash", "Read", "Glob", "Grep", ...writable.map(path => `Edit(/${path}/**)`)] },
+    permissions: { allow: ["Bash", "Read", "Glob", "Grep", "mcp__*", ...writable.map(path => `Edit(/${path}/**)`)] },
     sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false,
       ...(gitDenied.length ? { excludedCommands: ["git add *", "git commit *"] } : {}),
+      network: { allowedDomains: ["*"], allowAllUnixSockets: true, allowLocalBinding: true },
       filesystem: { allowWrite: shellWritable, ...(gitDenied.length ? { denyWrite: gitDenied } : {}) } },
     hooks: Object.fromEntries(["SessionStart", "SessionEnd", "UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse"].map(event => [event, hook])),
     fastMode: selection.fast,
   };
   // dontAsk denies AskUserQuestion anyway; without the tool the model asks through `issue` (T-124 ruling 1a).
   return [executable, "--session-id", session, "--model", selection.model, "--effort", selection.effort, "--permission-mode", "dontAsk",
-    "--setting-sources", "", "--strict-mcp-config", "--disallowedTools", "AskUserQuestion", "--settings", JSON.stringify(settings),
+    "--setting-sources", "", "--disallowedTools", "AskUserQuestion", "--settings", JSON.stringify(settings),
     ...extraDirectories.flatMap(path => ["--add-dir", path])];
 }
 const STARTUP_DEADLINE_MS = 120_000;
@@ -170,12 +172,6 @@ async function workerGitDenied(worktree: string) {
   // mutant runs 07), so only the common dir is listed.
   const common = (await exec("git", ["-C", worktree, "rev-parse", "--path-format=absolute", "--git-common-dir"])).stdout.trim();
   return [realpathSync(common)];
-}
-// The folder Codex resolves a linked worktree's trust against: its repository root
-// ("Trusting will apply to the repository root", T-127 probe-01 run 2).
-async function repositoryRoot(worktree: string) {
-  const common = (await exec("git", ["-C", worktree, "rev-parse", "--path-format=absolute", "--git-common-dir"])).stdout.trim();
-  return realpathSync(dirname(common));
 }
 type Pane = {
   record: Record<string, any> & { id: string; task: string | null; attempt: string | null };
@@ -711,26 +707,20 @@ export class Panes implements GateRuntime {
     const extraDirectories = (this.store.openedProjects().find(project => project.project_id === task.project_id)?.extra_directories ?? [])
       .map(path => realpathSync(path));
     const sandboxMode = monitor && !extraDirectories.length ? "read-only" : "workspace-write";
-    const networkAccess = "false";
-    const networkProxy = "false";
-    const excludeSlashTmp = review ? "true" : "false";
-    const excludeTmpdir = review ? "true" : "false";
-    // Codex opens the session's folder untrusted: the folder's own .codex config, hooks and exec
-    // policies stay off, since the worker can edit them and its reviewer starts in a copy of its
-    // work; the home's rules, hooks and skills still apply (T-127 probe-01 runs 4 and 5). Codex
-    // then asks "Open restricted" once, which saves nothing; openCodexRestricted answers it.
-    const trustRoot = claude ? null : review || monitor ? realpathSync(launchWorkspace) : await repositoryRoot(launchWorkspace);
+    // T-141: inherit the user's trust, tools and proxy configuration. Only the write
+    // roots, open network, per-session instrumentation and execution selection are supplied.
+    const writeRoots = [...(review || monitor ? [] : [requestDirectory]), ...extraDirectories];
     const argv = claude ? await claudeArgv(executable, signalCommand, nativeSession!, { model, effort, fast },
       [...(monitor ? [] : review ? [realpathSync(launchWorkspace)] : [realpathSync(launchWorkspace), requestDirectory]), ...extraDirectories],
       [...(review || monitor ? [] : [requestDirectory]), ...extraDirectories], review || monitor ? [] : await workerGitDenied(launchWorkspace), extraDirectories) : [executable, "--no-daemon", "--no-alt-screen", "-C", launchWorkspace,
       "-a", "never", "--sandbox", sandboxMode, "-m", model,
       "-c", `model_reasoning_effort=${JSON.stringify(effort)}`, "-c", `service_tier=${JSON.stringify(fast ? 'fast' : 'default')}`,
-      "-c", "check_for_update_on_startup=false", "-c", "tui.notifications=false",
-      "-c", `sandbox_workspace_write.network_access=${networkAccess}`, "-c", `features.network_proxy=${networkProxy}`,
-      "-c", `projects={${JSON.stringify(trustRoot)}={trust_level="untrusted"}}`,
+      "-c", "check_for_update_on_startup=false",
+      "-c", "sandbox_workspace_write.network_access=true",
+      "-c", `sandbox_workspace_write.writable_roots=${JSON.stringify(writeRoots)}`,
       ...extraDirectories.flatMap(path => ["--add-dir", path]),
-      ...(review ? ["-c", `sandbox_workspace_write.exclude_slash_tmp=${excludeSlashTmp}`,
-        "-c", `sandbox_workspace_write.exclude_tmpdir_env_var=${excludeTmpdir}`] : [])];
+      "-c", "sandbox_workspace_write.exclude_slash_tmp=true",
+      "-c", "sandbox_workspace_write.exclude_tmpdir_env_var=true"];
     if (!claude) {
       for (const event of ["UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse"]) argv.push("-c", `hooks.${event}=${hook}`);
       argv.push("--dangerously-bypass-hook-trust");
@@ -746,11 +736,10 @@ export class Panes implements GateRuntime {
       ...(claude ? { A2A_NATIVE_SESSION: nativeSession! } : {}),
     });
     if (review) environment.A2A_REVIEW = review.review_id;
-    if (review && !claude) {
-      // The reviewer's sandbox excludes /tmp and $TMPDIR, yet its shell needs temporary files (a zsh
-      // here-document, Python's tempfile); a real reviewer could not run its mutations (T-127 GUI round 01).
-      // They go inside its one-time candidate copy, which it may already write, so no write root is added.
-      const temporary = join(realpathSync(launchWorkspace), ".a2a-tmp");
+    if (!claude) {
+      // Exclude the shared temporary roots, but retain shell here-documents and tempfile.
+      // Workers use their request directory; reviewers/monitors use their one-time copy.
+      const temporary = join(review || monitor ? realpathSync(launchWorkspace) : requestDirectory, ".a2a-tmp");
       mkdirSync(temporary, { mode: 0o700 });
       Object.assign(environment, { TMPDIR: temporary + "/", TMPPREFIX: join(temporary, "zsh") });
     }
@@ -788,7 +777,7 @@ export class Panes implements GateRuntime {
     // is a failure to show, not a pane that waits forever with its task queued.
     setTimeout(() => {
       if (!pane.started && !pane.stopped && !pane.failed)
-        this.recordFailure(pane, "worker_startup_unrecognised", new Error(claude ? "session_start_missing" : "restricted_folder_screen_missing"), { screen: pane.startupScreen });
+        this.recordFailure(pane, "worker_startup_unrecognised", new Error(claude ? "session_start_missing" : "native_ready_signal_missing"), { screen: pane.startupScreen });
     }, STARTUP_DEADLINE_MS).unref();
     terminal.onData((data: string) => {
       try {
@@ -856,15 +845,13 @@ export class Panes implements GateRuntime {
       this.store.event("worker_trust_confirmed", { worktree: pane.record.worktree }, pane.record);
     })().catch(error => this.recordFailure(pane, "worker_trust_failed", error, { screen: pane.startupScreen }));
   }
-  // A Codex session opens its folder untrusted (see createPane), so Codex first asks once whether to
-  // "Open restricted"; that choice saves nothing. Answer it, then release the first task: the
-  // session start hook only fires with the first prompt (T-127 probe-01 run 6), so the answered
-  // screen is the ready signal. Any other start-up screen, "Trust and continue" above all (that
-  // choice would be saved to the user's home), gets no key and fails the start-up.
+  // Inherit the user's trust (T-141). If Codex offers "Open restricted", that choice saves
+  // nothing and may be answered once. "Trust and continue" would save a new trust decision,
+  // so it gets no key. Initial task release waits for the native ready packet below.
   openCodexRestricted(pane: Pane, data: string) {
     if (pane.started || pane.active || pane.state !== "unknown" || pane.failed) return;
     pane.startupOutputAt = Date.now();
-    pane.startupScreen = (pane.startupScreen! + data.replace(/\x1b\[[0-?]*[ -\/]*[@-~]|\x1b\][^\x07]*(?:\x07|\x1b\\)/g, "").replace(/\s+/g, "")).slice(-4096);
+    pane.startupScreen = (pane.startupScreen! + data.replace(/\x1b\[[0-?]*[ -\/]*[@-~]|\x1b\][^\x07]*?(?:\x07|\x1b\\)/g, "").replace(/\s+/g, "")).slice(-4096);
     if (pane.startupScreen.includes("Trustandcontinue")) {
       this.recordFailure(pane, "codex_folder_trust_requested", new Error("trust_choice_not_answered"), { screen: pane.startupScreen });
       return;
@@ -880,13 +867,6 @@ export class Panes implements GateRuntime {
       await quiet();
       await this.serializeWrite(pane, async () => { pane.pty.write("\r"); });
       this.store.event("codex_restricted_opened", { worktree: pane.record.worktree }, pane.record);
-      await quiet();
-      const info = await this.processInfo(pane.record.thread);
-      check(info.leader && !info.failed, "foreground_codex_required", info);
-      if (pane.state !== "unknown" || pane.active || pane.failed || pane.stopped) return;
-      pane.started = true;
-      pane.state = "idle";
-      await this.drain(pane);
     })().catch(error => this.recordFailure(pane, "codex_restricted_open_failed", error, { screen: pane.startupScreen }));
   }
   // A Claude turn's observed facts: the effort its Stop hook reports, and the model of the
@@ -931,6 +911,21 @@ export class Panes implements GateRuntime {
       }
       const match = /^(?:\x1b\[([0-?]*[ -/]*[@-~])|\x1b\]([^\x07]*?)(?:\x07|\x1b\\))/.exec(pane.terminalBuffer);
       if (!match) { if (pane.terminalBuffer.length > 4096) pane.terminalBuffer = ""; return; }
+      // T-141 native startup probes: a trusted folder sends this packet without a trust
+      // dialog; a restricted folder sends it only after "Open restricted". It admits the
+      // first task only. Later turns still require the matching Stop hook, never OSC idle.
+      if (match[2] === "7501;state=idle:app=codex" && pane.record.cli === "Codex" &&
+          !pane.started && !pane.active && pane.state === "unknown" && !pane.failed && !pane.stopped) {
+        pane.started = true;
+        void (async () => {
+          const info = await this.processInfo(pane.record.thread);
+          check(info.leader && !info.failed, "foreground_codex_required", info);
+          if (pane.active || pane.failed || pane.stopped) return;
+          this.store.event("codex_startup_ready", { source: "native_terminal_protocol", packet: match[2] }, pane.record);
+          pane.state = "idle";
+          await this.drain(pane);
+        })().catch(error => this.recordFailure(pane, "codex_startup_failed", error));
+      }
       const reply: Record<string, string> = { "6n": "\x1b[1;1R", "c": "\x1b[?1;2c", "0c": "\x1b[?1;2c", ">c": "\x1b[>0;0;0c", ">0c": "\x1b[>0;0;0c", "?u": "\x1b[?0u", "11;?": "\x1b]11;rgb:0000/0000/0000\x1b\\" };
       const response = reply[match[1] ?? match[2]!];
       if (response) {

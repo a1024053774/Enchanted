@@ -1,0 +1,50 @@
+#!/bin/zsh
+# Run from this worker checkout. All model traffic uses local scripted endpoints.
+# Raw fixtures remain under /tmp; the controller archives them under T-088.
+set -u
+set -o pipefail
+cd "${0:A:h}/../../../.."
+OUT="$(mktemp -d "$PWD/evidence/2026-10-23-batch23/T-141/outside-XXXXXXXX")"
+print -r -- "Evidence: $OUT"
+git rev-parse HEAD > "$OUT/candidate.txt"
+git status --short > "$OUT/worktree.txt"
+run() {
+  local name="$1"
+  shift
+  print -r -- "RUN $name: $*"
+  "$@" > "$OUT/$name.log" 2>&1
+  local result=$?
+  print -r -- "$result" > "$OUT/$name.exit"
+  print -r -- "$name exit=$result"
+  return 0
+}
+run red python3 -B workbench/tests/test_t141_loosened_limits_e2e.py --revision 3f8813b0e --summary "$OUT/red.json"
+run green python3 -B workbench/tests/test_t141_loosened_limits_e2e.py --summary "$OUT/green.json"
+run network-closed python3 -B workbench/tests/test_t141_loosened_limits_e2e.py --mutant network-closed --summary "$OUT/network-closed.json"
+run answer-dropped python3 -B workbench/tests/test_t141_loosened_limits_e2e.py --mutant answer-dropped --summary "$OUT/answer-dropped.json"
+run shared-temp-writable python3 -B workbench/tests/test_t141_loosened_limits_e2e.py --mutant shared-temp-writable --summary "$OUT/shared-temp-writable.json"
+# T-140's fixture has a fresh, untrusted HOME. Run it as-is to preserve its oracle;
+# T-141 now inherits trust, so a Trust and continue startup refusal needs fixture-owner review.
+run t140 python3 -B workbench/tests/test_t140_extra_dirs_e2e.py --summary "$OUT/t140.json"
+run t131 python3 -B workbench/tests/test_t131_parallel_workers_e2e.py --summary "$OUT/t131.json"
+run t132 python3 -B workbench/tests/test_t132_issues_panel_e2e.py --summary "$OUT/t132.json"
+python3 - "$OUT" <<'PY'
+import json, pathlib, sys
+root = pathlib.Path(sys.argv[1])
+rows = []
+expected = {'red': 'codex_no_network_denial_in_argv', 'network-closed': 'codex_no_network_denial_in_argv',
+            'answer-dropped': 'worker continues after controller reply', 'shared-temp-writable': 'codex_shared_temp_roots_denied'}
+for name in ['red', 'green', 'network-closed', 'answer-dropped', 'shared-temp-writable', 't140', 't131', 't132']:
+    path = root / (name + '.json')
+    result = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
+    code = int((root / (name + '.exit')).read_text())
+    ok = (code != 0 and expected[name] in result.get('error', '')) if name in expected else code == 0 and result.get('status') == 'PASS'
+    rows.append(dict(case=name, status='PASS' if ok else 'INCOMPLETE', exit_code=code,
+                     observed_status=result.get('status'), error=result.get('error'), fixture=result.get('fixture'),
+                     external_fixture=result.get('external_fixture')))
+report = dict(status='PASS' if all(row['status']=='PASS' for row in rows) else 'INCOMPLETE', cases=rows,
+              raw_evidence=str(root), archive_owner='executor; archive raw fixtures/logs under T-088 before cleanup')
+(root/'matrix.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+print(json.dumps(report,ensure_ascii=False,indent=2))
+sys.exit(0 if report['status']=='PASS' else 1)
+PY

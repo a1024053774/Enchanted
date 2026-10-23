@@ -2336,11 +2336,11 @@ export class A2AGates {
     const cwd = Array.isArray(argv) ? argv.indexOf("-C") : -1;
     const config = (key: string) => Array.isArray(argv) && argv.includes(key);
     const claude = this.boundCard(review.attempt).executor.cli === "Claude Code";
-    // A Claude reviewer (D24: same CLI as the worker) never asks, loads no settings files or MCP
-    // servers, and writes only its candidate copy, the shell sandbox writing nowhere else. The argv
+    // A Claude reviewer (D24: same CLI as the worker) never asks, loads user MCP but no settings
+    // files, and writes only its candidate copy and registered extra directories. The argv
     // is checked as a whole: fixed flags in fixed places, and settings with exactly these fields.
     let settings: any = null;
-    try { settings = claude ? JSON.parse(String(argv?.[15])) : null; } catch { settings = null; }
+    try { settings = claude ? JSON.parse(String(argv?.[14])) : null; } catch { settings = null; }
     const hookEvents = ["SessionStart", "SessionEnd", "UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse"];
     const signal = settings?.hooks?.Stop?.[0]?.hooks?.[0]?.command;
     // D24: same model, effort and Fast as the worker launch, and the worker's signal command with
@@ -2348,39 +2348,40 @@ export class A2AGates {
     // the Claude version, which may update between the two launches (T-118, review 03).
     const worker = claude ? this.launchRecord(review.attempt.runtime_identity?.launch) : null;
     let workerSettings: any = null;
-    try { workerSettings = worker ? JSON.parse(String(worker.argv?.[15])) : null; } catch { workerSettings = null; }
+    try { workerSettings = worker ? JSON.parse(String(worker.argv?.[14])) : null; } catch { workerSettings = null; }
     const workerSignal = workerSettings?.hooks?.Stop?.[0]?.hooks?.[0]?.command;
     const extraDirectories: string[] = launch?.extra_directories ?? [];
     requireGate(Array.isArray(extraDirectories) && extraDirectories.every(path => typeof path === 'string' && isAbsolute(path)),
       "review_extra_directories", { extraDirectories });
     const boundary = claude
-      ? launch?.cli === "Claude Code" && Array.isArray(argv) && argv.length === 16 + 2 * extraDirectories.length &&
-        JSON.stringify(argv.slice(16)) === JSON.stringify(extraDirectories.flatMap(path => ['--add-dir', path])) &&
+      ? launch?.cli === "Claude Code" && Array.isArray(argv) && argv.length === 15 + 2 * extraDirectories.length &&
+        JSON.stringify(argv.slice(15)) === JSON.stringify(extraDirectories.flatMap(path => ['--add-dir', path])) &&
         worker?.cli === "Claude Code" && worker.role === "worker" && Array.isArray(worker.argv) &&
         argv[4] === worker.argv[4] && argv[6] === worker.argv[6] &&
         typeof workerSignal === "string" && workerSignal.endsWith(` '--launch' '${worker.id}'`) &&
         signal === workerSignal.slice(0, -`'${worker.id}'`.length) + `'${launch.id}'` &&
         settings?.fastMode === workerSettings.fastMode &&
         // Without AskUserQuestion: a managed session asks through `issue` (T-124 ruling 1a).
-        JSON.stringify([argv[1], argv[3], argv[5], argv[7], argv[8], argv[9], argv[10], argv[11], argv[12], argv[13], argv[14]]) ===
-          JSON.stringify(["--session-id", "--model", "--effort", "--permission-mode", "dontAsk", "--setting-sources", "", "--strict-mcp-config",
+        JSON.stringify([argv[1], argv[3], argv[5], argv[7], argv[8], argv[9], argv[10], argv[11], argv[12], argv[13]]) ===
+          JSON.stringify(["--session-id", "--model", "--effort", "--permission-mode", "dontAsk", "--setting-sources", "",
             "--disallowedTools", "AskUserQuestion", "--settings"]) &&
         argv[2] === launch.native_session && settings !== null && typeof settings === "object" &&
         JSON.stringify(Object.keys(settings).sort()) === JSON.stringify(["fastMode", "hooks", "permissions", "sandbox"]) &&
         typeof settings.fastMode === "boolean" &&
-        JSON.stringify(settings.permissions) === JSON.stringify({ allow: ["Bash", "Read", "Glob", "Grep", `Edit(/${realpathSync(review.candidate_workspace)}/**)`, ...extraDirectories.map(path => `Edit(/${path}/**)`)] }) &&
-        JSON.stringify(settings.sandbox) === JSON.stringify({ enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, filesystem: { allowWrite: extraDirectories } }) &&
+        JSON.stringify(settings.permissions) === JSON.stringify({ allow: ["Bash", "Read", "Glob", "Grep", "mcp__*", `Edit(/${realpathSync(review.candidate_workspace)}/**)`, ...extraDirectories.map(path => `Edit(/${path}/**)`)] }) &&
+        JSON.stringify(settings.sandbox) === JSON.stringify({ enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false,
+          network: { allowedDomains: ["*"], allowAllUnixSockets: true, allowLocalBinding: true }, filesystem: { allowWrite: extraDirectories } }) &&
         JSON.stringify(Object.keys(settings.hooks)) === JSON.stringify(hookEvents) &&
         hookEvents.every(event => JSON.stringify(settings.hooks[event]) === JSON.stringify([{ hooks: [{ type: "command", command: signal, timeout: 10 }] }])) &&
         live.workspace === review.candidate_workspace
       : launch?.cli !== "Claude Code" && live.workspace === review.candidate_workspace && cwd >= 0 && argv[cwd + 1] === review.candidate_workspace &&
         JSON.stringify(argv.flatMap((arg, index) => arg === '--add-dir' ? [argv[index + 1]] : [])) === JSON.stringify(extraDirectories) &&
         sandbox >= 0 && argv[sandbox + 1] === "workspace-write" &&
-        config("sandbox_workspace_write.network_access=false") && config("features.network_proxy=false") &&
+        config("-a") && argv[argv.indexOf("-a") + 1] === "never" &&
+        config("sandbox_workspace_write.network_access=true") &&
+        config(`sandbox_workspace_write.writable_roots=${JSON.stringify(extraDirectories)}`) &&
         config("sandbox_workspace_write.exclude_slash_tmp=true") &&
         config("sandbox_workspace_write.exclude_tmpdir_env_var=true") &&
-        // The candidate copy opens untrusted: its .codex files, which the worker could write, stay off (T-127).
-        config(`projects={${JSON.stringify(realpathSync(review.candidate_workspace))}={trust_level="untrusted"}}`) &&
         !argv.some((arg) => ["resume", "fork", "--resume", "--fork"].includes(String(arg)));
     requireGate(launch && launch.role === "reviewer" && launch.review_id === review.review_id &&
       launch.review_verification_id === review.verification_id && launch.session === review.session_id &&
