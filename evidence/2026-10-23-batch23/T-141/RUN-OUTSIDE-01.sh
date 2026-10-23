@@ -3,7 +3,8 @@
 # Raw fixtures remain under /tmp; the controller archives them under T-088.
 set -u
 set -o pipefail
-cd "${0:A:h}/../../../.."
+cd "${0:A:h}/../../.." || exit 1
+[[ -f workbench/tests/test_t141_loosened_limits_e2e.py ]] || { print -u2 'T-141 repository entry is missing'; exit 1; }
 OUT="$(mktemp -d "$PWD/evidence/2026-10-23-batch23/T-141/outside-XXXXXXXX")"
 print -r -- "Evidence: $OUT"
 git rev-parse HEAD > "$OUT/candidate.txt"
@@ -23,6 +24,7 @@ run green python3 -B workbench/tests/test_t141_loosened_limits_e2e.py --summary 
 run network-closed python3 -B workbench/tests/test_t141_loosened_limits_e2e.py --mutant network-closed --summary "$OUT/network-closed.json"
 run answer-dropped python3 -B workbench/tests/test_t141_loosened_limits_e2e.py --mutant answer-dropped --summary "$OUT/answer-dropped.json"
 run shared-temp-writable python3 -B workbench/tests/test_t141_loosened_limits_e2e.py --mutant shared-temp-writable --summary "$OUT/shared-temp-writable.json"
+run native-tools-unrestricted python3 -B workbench/tests/test_t141_loosened_limits_e2e.py --mutant native-tools-unrestricted --summary "$OUT/native-tools-unrestricted.json"
 # T-140's fixture has a fresh, untrusted HOME. Run it as-is to preserve its oracle;
 # T-141 now inherits trust, so a Trust and continue startup refusal needs fixture-owner review.
 run t140 python3 -B workbench/tests/test_t140_extra_dirs_e2e.py --summary "$OUT/t140.json"
@@ -33,8 +35,9 @@ import json, pathlib, sys
 root = pathlib.Path(sys.argv[1])
 rows = []
 expected = {'red': 'codex_no_network_denial_in_argv', 'network-closed': 'codex_no_network_denial_in_argv',
-            'answer-dropped': 'worker continues after controller reply', 'shared-temp-writable': 'codex_shared_temp_roots_denied'}
-for name in ['red', 'green', 'network-closed', 'answer-dropped', 'shared-temp-writable', 't140', 't131', 't132']:
+            'answer-dropped': 'worker continues after controller reply', 'shared-temp-writable': 'codex_shared_temp_roots_denied',
+            'native-tools-unrestricted': 'claude_native_file_tool_boundary'}
+for name in ['red', 'green', 'network-closed', 'answer-dropped', 'shared-temp-writable', 'native-tools-unrestricted', 't140', 't131', 't132']:
     path = root / (name + '.json')
     result = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
     code = int((root / (name + '.exit')).read_text())

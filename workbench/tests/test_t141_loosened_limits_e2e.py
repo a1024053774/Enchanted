@@ -2,7 +2,8 @@
 
 Independent observations: public curl response, actual external files, MCP server receipt,
 native escalation rejection, the issue panel, controller answer and worker continuation.
-Known-bad runs: --revision; network-closed, answer-dropped, shared-temp-writable mutants.
+Known-bad runs: --revision; network-closed, answer-dropped, shared-temp-writable,
+native-tools-unrestricted mutants.
 No vendor model calls or user config writes. The fixture HOME contains its own user-scope
 MCP configuration; CODEX_HOME contains only fixture config and two git prefix rules.
 
@@ -41,7 +42,7 @@ def main():
     parser.add_argument('--codex', default=shutil.which('codex'))
     target = parser.add_mutually_exclusive_group()
     target.add_argument('--revision')
-    target.add_argument('--mutant', choices=['network-closed', 'answer-dropped', 'shared-temp-writable'])
+    target.add_argument('--mutant', choices=['network-closed', 'answer-dropped', 'shared-temp-writable', 'native-tools-unrestricted'])
     args = parser.parse_args()
     assert not args.summary.exists(), 'Preserve previous evidence: choose a fresh summary path'
     report = dict(status='INCOMPLETE', argv=sys.argv, checks=[], observed={}, model_calls=0,
@@ -114,7 +115,11 @@ def main():
         key, commands, final = plan(cwd, text)
         steps = [('Bash', dict(command=command, description='T-141 network/write boundary')) for command in commands]
         if key == 'T-C':
-            steps.insert(2, ('mcp__t141_user__ping', {}))
+            steps[2:2] = [
+                ('Write', dict(file_path=str(x / 'T-C-native-file.txt'), content='T141_NATIVE_FILE_OK\n')),
+                ('Write', dict(file_path=str(y / 'T-C-native-file.txt'), content='T141_NATIVE_FILE_FORBIDDEN\n')),
+                ('mcp__t141_user__ping', {}),
+            ]
         return key, steps, final
 
     class CodexApi(BaseHTTPRequestHandler):
@@ -167,6 +172,8 @@ def main():
                                 'const item = { id: "t141-dropped-answer" };')],
             'shared-temp-writable': [('src/panes.ts', '"sandbox_workspace_write.exclude_slash_tmp=true"',
                                      '"sandbox_workspace_write.exclude_slash_tmp=false"')],
+            'native-tools-unrestricted': [('src/panes.ts', '"Bash", "Read", "Glob", "Grep", "mcp__*", ...writable.map',
+                                          '"Bash", "Read", "Glob", "Grep", "Write", "mcp__*", ...writable.map')],
         }.get(args.mutant, [])
         fixture = Fixture('t141-', claude_plan, revision=args.revision, patches=patches)
         report['fixture'] = str(fixture.dir)
@@ -272,6 +279,24 @@ for line in sys.stdin:
                 check('answer_received_and_worker_continued', api['answers_seen'] > 0)
             result = json.loads(file.read_text(encoding='utf-8'))
             report['observed'][task]['result'] = result
+            if task == 'T-C':
+                # The oracle runs in the test process, outside the CLI sandbox. Actual file
+                # effects and the native Write results must agree; shell booleans cannot prove this.
+                fixture.wait('native file tools have returned', lambda: len(fixture.api.snapshot()['results'].get('T-C', [])) >= 5, 120)
+                rows = fixture.api.snapshot()['results']['T-C']
+                allowed_file, denied_file = x / 'T-C-native-file.txt', y / 'T-C-native-file.txt'
+                check('claude_native_file_tool_boundary', allowed_file.is_file() and
+                      allowed_file.read_text(encoding='utf-8') == 'T141_NATIVE_FILE_OK\n' and not denied_file.exists() and
+                      rows[2]['is_error'] is False and rows[3]['is_error'] is True, rows[2:4])
+                check('claude_mcp_result_reaches_worker', rows[4]['is_error'] is False and 'T141_USER_MCP_OK' in rows[4]['text'], rows[4])
+            host_files = dict(extra=x / (task + '.txt'), outside=y / (task + '.txt'),
+                              slash_tmp=Path('/tmp') / (fixture.dir.name + '-' + task),
+                              original_tmpdir=Path(os.environ.get('TMPDIR', '/tmp')) / (fixture.dir.name + '-' + task))
+            host_writes = {key: path.is_file() for key, path in host_files.items()}
+            report['observed'][task]['host_writes'] = host_writes
+            check(task + '_host_readback_matches_shell_results', host_writes['extra'] and not host_writes['outside'] and
+                  all(result[key] is value for key, value in host_writes.items()) and
+                  host_files['extra'].read_text(encoding='utf-8') == 'T141', host_writes)
             check(task + '_write_boundary_and_shell_temp', result['extra'] is True and result['outside'] is False and result['temporary_file'] is True, result)
             if task == 'T-D':
                 check('codex_shared_temp_roots_denied', not result['slash_tmp'] and not result['original_tmpdir'], result)

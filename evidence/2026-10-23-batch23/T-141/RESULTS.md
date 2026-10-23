@@ -29,6 +29,7 @@
 | 主控沙箱外三种目录信任探针 | 已观察 trusted 有 ready 包；untrusted/unset 停在各自对话框，没有首回合前 SessionStart；零模型调用。原始摘要的 INCOMPLETE 状态保留 | `probe-codex-start-01/*.json`、`outside-startup-facts.json` |
 | 原生 untrusted 选项后续探针 | PASS（仅启动信号）：等屏幕安静再选 Open restricted 后收到 ready 包；零模型调用 | `restricted-startup-facts-02.json` |
 | IPC 与起点比较 | PASS 仅指“不更差”：起点与候选同样在过期的 handler 名单断言失败；两者都不是 IPC 绿态 | `ipc-comparison.json` |
+| RUN-OUTSIDE 工作目录修复 | 修前从仓库父目录运行，修后正确进入本 worktree，且先核对测试入口存在；只执行脚本前缀 | `runner-root-red.json`、`runner-root-green.json` |
 | Python / zsh 语法、diff 空白检查 | PASS；不代替真实运行 | 下方重现命令 |
 
 第一轮 reviewer 契约夹具因继承 a2a Git hook 而初始化失败，保留 `reviewer-contract-01.json`；夹具改为初始化时禁用该夹具 Git hooks 后重跑通过。首轮 untrusted 探针过早按 Enter，没有取得 ready 包，保留 `restricted-startup-facts.json`；按生产入口已有的安静等待规则修正探针后取得后续观察。它们均不算业务红态。
@@ -49,9 +50,11 @@ git diff --check
 
 ## 待运行的真实入口与局限
 
-`zsh evidence/2026-10-23-batch23/T-141/RUN-OUTSIDE-01.sh` 为每次运行创建新证据目录，依次跑：修前版本、新候选、网络关闭变异、丢答复变异、共享 tmp 可写变异，以及 T-140 / T-131 / T-132 原始回归。脚本核对红态/变异必须失败在对应断言，环境失败不算抓住已知坏实现；矩阵输出保留实际状态与错误。
+`zsh evidence/2026-10-23-batch23/T-141/RUN-OUTSIDE-01.sh` 为每次运行创建新证据目录，依次跑：修前版本、新候选、网络关闭变异、丢答复变异、共享 tmp 可写变异、原生 Write 不受限变异，以及 T-140 / T-131 / T-132 原始回归。脚本核对红态/变异必须失败在对应断言，环境失败不算抓住已知坏实现；矩阵输出保留实际状态与错误。
 
 新 e2e 使用真实后台、真实门禁、真实 Electron 和已安装的交互 Claude/Codex CLI；Messages/Responses 由本地脚本接口驱动，**不证明模型会自发理解或选择 issue 工作流**。它实际驱动原生审批拒绝，再驱动 issue，并核对问题面板、主控接口答复和 worker 继续交付；不以 answer_registered 事件替代送达。
+
+只读 behavioral-acceptance-review 针对冻结候选 `bf3d00a82` 给出 FAIL：外部脚本多退一级目录、e2e 缺原生文件工具调用。原报告保留在 `acceptance-review-01.md`。后续修复脚本路径，补 Claude 原生 Write 的额外目录成功与范围外拒绝、CLI 工具结果和测试进程实际文件读回；shell 探针的结果也由测试进程读回文件核对。新增 `native-tools-unrestricted` 反例。脚本目录已取得独立红绿，原生 Write 用例与反例仍未运行；没有把这些修复当作新候选独立审查通过。
 
 MCP 放在测试专用 `$HOME/.claude.json` 的顶层 `mcpServers`，属于用户作用域配置；服务的 tools/call 收据与 CLI 工具结果共同证明调用。Codex 使用 `/tmp` 下的隔离 home，仅有夹具 provider、已核对夹具根的 trust 和两条 git allow 规则；使用无凭据的本地接口，故没有复制 auth.json，结束会删除整个隔离 Codex home。未写真实 `~/.claude`、`~/.codex`。
 
@@ -62,7 +65,7 @@ MCP 放在测试专用 `$HOME/.claude.json` 的顶层 `mcpServers`，属于用�
 | 原生审批拒绝 → issue 面板 → 主控答复 → 原 worker 继续 | INCOMPLETE，待真实 e2e |
 | 原生文件与 shell 越界拒绝、额外目录可写 | INCOMPLETE，待真实 e2e 与 T-140 |
 | 完整 argv、reviewer 不因新参数被拒 | 本地生产 builder/真实参数门禁 PASS；真实会话审查仍 INCOMPLETE |
-| 原始版本红态、至少两个变异 | 本地契约红态已取得；真实 e2e 红态与三个变异均 INCOMPLETE |
+| 原始版本红态、至少两个变异 | 本地契约红态已取得；真实 e2e 红态与四个变异均 INCOMPLETE |
 | T-140 / T-131 / T-132 回归 | INCOMPLETE，尚未运行 |
 
 临时目录：Codex 已收紧共享临时根，原生红绿证据仍待 `shared-temp-writable` 与候选运行。Claude 保留 CLI 原生的每用户临时目录：[官方沙箱文档](https://code.claude.com/docs/en/sandboxing#temporary-directories)说明其用于 sandbox shell 临时文件，T-122 既有探针也记录强行禁止会破坏 shell；本票不在没有独立原生证据时改写该机制。影响是原生 CLI 必需的临时区仍属例外，不能宣称只可写 worktree/请求目录/额外目录这三类路径。新测试分别记录 `/tmp`、原 `$TMPDIR`、实际 shell TMPDIR 与 tempfile 的结果；当前尚未实测，不把历史探针当新候选通过。

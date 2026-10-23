@@ -739,7 +739,7 @@ Codex worker 与 reviewer 的 `CODEX_HOME` 就是 launch config 的 `codex_home`
 
 当前验证入口：`python3 -B workbench/tests/test_t141_loosened_limits_e2e.py --summary <新路径>`。
 它在隔离 HOME 的用户 MCP 配置与 Codex home 中运行真实 CLI、后台和 Electron，模型为本地脚本化接口；
-`--revision` 与三个 `--mutant` 见文件头。当前验收状态见 [T-141 RESULTS](../evidence/2026-10-23-batch23/T-141/RESULTS.md)。
+`--revision` 与四个 `--mutant` 见文件头。当前验收状态见 [T-141 RESULTS](../evidence/2026-10-23-batch23/T-141/RESULTS.md)。
 `test_t127_codex_home_e2e.py` 保留 T-127 的旧契约，其中强制 untrusted 的断言不适用于 T-141。
 
 `daemon.ts` 导出 `serve(root, config, createGates?)`。第三个参数只供测试在代码里注入门禁对象（受控线程运行时或变异体），默认是 `new A2AGates(root, panes)`。产品的 `daemon_start` 不传这个参数，CLI 和环境变量也都没有对应的开关。交付 8、恢复 9、编排 18 这三套旧场景，经 `workbench/tests/run_daemon_acceptance.py` 在本后台入口上运行（T-075-5）。这个运行器为每个测试在短路径上显式启动并停止一个隔离后台，不改 `acceptance/` 中的任何断言。
