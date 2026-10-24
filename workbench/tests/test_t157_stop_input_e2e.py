@@ -7,10 +7,11 @@
 4. 复跑覆盖旧证据，或把本地脚本化 API 回合冒称为真实供应商模型回合。
 5. 输入被吞、改写或延后到 Stop 结果之后，门禁通过却没有原样进入 CLI。
 6. 接受了别的 attempt/turn/提交，或用重复 submit / 自动重试取得表面成功。
+7. 将说明与 CR 合为未框定粘贴，CLI 要求复核，测试却把 PTY 写入当作已提交。
 
 期望来自 T-157 Acceptance：原因与可操作恢复须在真实界面可见，绑定原 attempt。
 主控 #61 裁定：输入原样直达 CLI，Enter 不替换原生 turn；原 Stop 的 submit 应通过。
-本探针覆盖此正例；新原生 turn 的拒绝由 test_t157_turn_identity 覆盖，界面反例仍待 renderer 写入窗口。
+本探针覆盖此正例；新原生 turn 的拒绝与界面恢复由 test_t157_stale_turn_e2e 覆盖。
 --revision 只选择产品源码；--mutant submit-never-active 是始终拒绝 worker 的已知坏实现。
 不修补时序、不暂停进程、不修改产品状态；只读观察 relay journal 后经 Electron 输入桥提交说明。
 --revision 的修前运行应因 submit 未通过而失败；启动/时序未命中不冒称红态，不自动重试。
@@ -59,10 +60,16 @@ while (!(row=query.get(launch))) {
   await new Promise(resolve=>setTimeout(resolve,1));
 }
 const sentAt=new Date().toISOString();
-const result=await send('Runtime.evaluate',{expression:`window.a2a.input(${JSON.stringify(paneKey)},${JSON.stringify(note+'\r')})`,awaitPromise:true,returnByValue:true});
-writeFileSync(output,JSON.stringify({relay:row,sent_at:sentAt,result},null,2)+'\n',{flag:'wx'});
+// Match xterm's bracketed paste, then a separate Enter key. An unframed bulk
+// note+'\r' is paste-detected by Claude and its embedded CR requires manual review.
+const writes=[];
+for(const data of ['\x1b[200~'+note+'\x1b[201~','\r']) {
+  const result=await send('Runtime.evaluate',{expression:`window.a2a.input(${JSON.stringify(paneKey)},${JSON.stringify(data)})`,awaitPromise:true,returnByValue:true});
+  writes.push({data,result});
+  if(result.exceptionDetails || result.result?.value?.ok!==true)throw new Error(JSON.stringify(result));
+}
+writeFileSync(output,JSON.stringify({relay:row,sent_at:sentAt,writes},null,2)+'\n',{flag:'wx'});
 db.close();ws.close();
-if(result.exceptionDetails)throw new Error(JSON.stringify(result.exceptionDetails));
 """
 
 
@@ -82,8 +89,10 @@ def main():
                   red_reproduced=False, checks=[], observed={}, errors=[])
     note = args.note if args.note is not None else NOTE + ' sentinel-' + uuid.uuid4().hex
     assert note.strip(), '输入 sentinel 不能为空'
-    report['input'] = note + '\r'
-    report['scope'] = 'real Electron/daemon/CLI Stop overlap positive; stale-turn state is separate; rejection UI pending'
+    input_packets = ['\x1b[200~' + note + '\x1b[201~', '\r']
+    report['input'] = note
+    report['input_packets'] = input_packets
+    report['scope'] = 'real Electron/daemon/CLI Stop overlap positive; stale-turn recovery is separate'
     fixture = electron = watcher = watcher_log = None
     finish_ready, allow_finish = threading.Event(), threading.Event()
 
@@ -153,6 +162,7 @@ def main():
         rejected = [event for event in results if event['type'] == 'relay_rejected' and
                     event['data'].get('result', {}).get('error') == 'worker_not_active']
         accepted = [event for event in results if event['type'] == 'relay_processed' and event['data'].get('result', {}).get('ok')]
+        record('original_stop_submit_accepted', bool(accepted), results)
         if accepted:
             fixture.wait('原样输入进入真实 CLI 的下一次模型请求',
                          lambda: any(note in json.dumps(body, ensure_ascii=False) for body in fixture.api.bodies), 30)
@@ -164,7 +174,6 @@ def main():
             'turn_end_signal', 'relay_received', 'relay_processed', 'relay_rejected', 'stop_not_matched',
             'turn_submit_intent', 'turn_start_signal', 'terminal_input_write_intent', 'terminal_input_written', 'pane_idle', 'stop_transfer_failed')]
         report['observed']['gate_events'] = fixture.request('events', fixture.operator, task='demo+' + task)['events']
-        record('original_stop_submit_accepted', bool(accepted), results)
         # Let the renderer consume its normal snapshot/side-bar refresh once. This is observation, not a retry.
         time.sleep(2)
         report['observed']['pane'] = fixture.request('pane_status', thread=attempt['thread_id'])
@@ -191,10 +200,10 @@ def main():
         result_event = next(event for event in results if event['data'].get('key') == received['data']['key'])
         input_written = [event for event in trace if event['launch'] == launch and event['type'] == 'terminal_input_written' and
                          received['seq'] < event['seq'] < result_event['seq']]
-        record('input_intersects_original_stop_batch', bool(input_written))
+        record('input_intersects_original_stop_batch', len(input_written) == len(input_packets))
         request_ids = {event['data']['request_id'] for event in input_written}
-        record('input_bytes_unchanged', any(event['type'] == 'terminal_input_write_intent' and
-               event['data'].get('request_id') in request_ids and event['data'].get('data') == note + '\r' for event in trace))
+        record('input_bytes_unchanged', [event['data'].get('data') for event in trace
+               if event['type'] == 'terminal_input_write_intent' and event['data'].get('request_id') in request_ids] == input_packets)
         record('native_cli_received_original_input', any(note in json.dumps(body, ensure_ascii=False) for body in fixture.api.bodies))
         task_state = report['observed']['task']
         record('submit_bound_original_attempt_and_commit', task_state['current_attempt']['attempt_id'] == attempt['attempt_id'] and
@@ -218,6 +227,25 @@ def main():
             watcher.wait(10)
         if watcher_log:
             watcher_log.close()
+        # Preserve boundary evidence even when a wait fails. Never turn a setup
+        # error into a product verdict, and never lose the accepted submit fact.
+        if fixture:
+            report['observed']['api'] = fixture.api.snapshot()
+            report['observed']['api_messages'] = fixture.api.bodies
+            report['observed']['native_cli_received_original_input'] = any(
+                note in json.dumps(body, ensure_ascii=False) for body in fixture.api.bodies)
+            if 'attempt' in report['observed']:
+                try:
+                    report['observed']['final_pane'] = fixture.request('pane_status', thread=attempt['thread_id'])
+                    report['observed']['final_timeline'] = events()
+                    report['observed']['final_task'] = fixture.request('status', fixture.operator, task='demo+' + task)['task']
+                    if electron:
+                        shot = args.summary.with_name(args.summary.stem + '-final.png')
+                        assert not shot.exists(), '保留既有失败诊断截图'
+                        electron.screenshot(shot)
+                        report['final_screenshot'] = str(shot)
+                except Exception as error:
+                    report['errors'].append(dict(diagnostics=str(error)))
         for name, resource in [('electron', electron), ('fixture', fixture)]:
             if resource:
                 try:
