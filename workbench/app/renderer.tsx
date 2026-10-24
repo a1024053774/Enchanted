@@ -95,6 +95,7 @@ declare global { interface Window { a2a: { readonly paneKeys: readonly string[];
   flow(): Promise<FlowSnapshot>; sidebar(): Promise<Sidebar>; selectAgent(launch: string): Promise<Selection & { focusKey: string }>; decideRoleRequest(roleRequest: string, approved: boolean, parentLaunch?: string | null): Promise<unknown>; notificationSetting(enabled?: boolean, preference?: 'notifications' | 'dockBadges'): Promise<boolean>;
   projects(): Promise<ProjectItem[]>; tasks(project: string): Promise<TaskItem[]>;
   issues(project: string): Promise<TaskIssues[]>; answerIssue(task: string, issue: string, answer: string): Promise<void>;
+  restartReview(task: string, attempt: string, reviewId: string): Promise<void>;
   disposeIssue(task: string, issue: string, action: 'close' | 'snooze', reason?: string, basis?: string): Promise<void>;
   archiveUsage(): Promise<{ sessions: number; bytes: number }>;
   reflect(project: string): Promise<any>; retrospectives(project: string): Promise<any>; startRetrospective(project: string, selection: { cli: string; model: string; effort: string }): Promise<unknown>;

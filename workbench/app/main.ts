@@ -251,10 +251,26 @@ function registerHandlers() {
     const listed = await request(context.options.state, { command: 'tasks_list', project });
     if (!listed.ok) throw new Error(listed.error);
     return await Promise.all(listed.tasks.map(async (task: any) => {
-      const result = await request(context.options.state, { command: 'issues', task: task.task_id }, context.operator);
+      const result = await request(context.options.state, { command: 'status', task: task.task_id }, context.operator);
       if (!result.ok) throw new Error(result.error);
-      return { task: task.task_id, name: String(task.task_id).slice(String(task.task_id).indexOf('+') + 1), title: task.title, issues: result.issues };
+      const current = result.task;
+      return { task: task.task_id, name: String(task.task_id).slice(String(task.task_id).indexOf('+') + 1), title: task.title, issues: result.issues,
+        reviewRecovery: current.state === 'paused' && current.review?.state === 'unknown'
+          ? { attempt: current.current_attempt?.attempt_id, review_id: current.review.review_id, thread_id: current.review.thread_id } : null };
     }));
+  });
+  ipcMain.handle('a2a:review-restart', async (event, task: unknown, attempt: unknown, reviewId: unknown) => {
+    const context = windowTarget(event);
+    if (![task, attempt, reviewId].every(value => typeof value === 'string' && value.trim())) throw new Error('Invalid review identity');
+    const result = await request(context.options.state, { command: 'verify', task, attempt, review_id: reviewId }, context.operator);
+    if (!result.ok) {
+      const reasons: Record<string, string> = {
+        reviewer_not_idle: '旧审查尚未确认空闲，请由执行主控核对会话状态。',
+        review_recovery_unknown: '上一次恢复的回收结果尚未确认，已停止。请由执行主控核对，勿重复回收。',
+        stale_review: '这条审查记录已经过期，请查看当前任务。', stale_attempt: '这次执行已经过期，请查看当前任务。',
+      };
+      throw new Error(reasons[result.error] ?? '门禁拒绝新开审查，请由执行主控核对：' + result.error);
+    }
   });
   ipcMain.handle('a2a:issue-answer', async (event, task: unknown, issue: unknown, answer: unknown) => {
     const context = windowTarget(event);
