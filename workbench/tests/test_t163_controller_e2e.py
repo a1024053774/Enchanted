@@ -7,6 +7,7 @@
 4. 把正确但排版不同的中文文档误拒；原始数据变化后仍接受旧答案。
 5. 沙箱、登录、权限或启动失败被算成产品红态；未读原生日志却声称真实模型/回合数。
 6. 重用用户配置或向其全局目录写入；重复运行覆盖旧证据；诊断或凭据进入报告。
+7. 夹具的有限 Bash 前缀阻断正常多行派发，导致未实际派发却被误判为模型遗漏。
 
 期望来源：T-163、T-155 C5 与用户答复“保持平铺列表，不按类别分组”。
 C5 卡的语义须由主控独立阅读 cards/native-transcript.json；脚本不以字串推断语义通过。
@@ -170,9 +171,14 @@ def main():
         secret = credentials(Path.home(), credential)
         write(config / '.claude.json', dict(hasCompletedOnboarding=True, hasSeenAutoDefaultNudge=True,
               theme='dark', projects={str(fixture.repo): dict(hasTrustDialogAccepted=True)}))
-        write(config / 'settings.json', {'permissions': {'defaultMode': 'dontAsk',
-              'allow': ['Read', 'Write', 'Edit', 'Bash(a2a:*)', 'Bash(python3:*)', 'Bash(mkdir:*)'],
-              'deny': ['Task', 'Agent', 'AskUserQuestion'], 'additionalDirectories': [str(fixture.out)]}})
+        # RUN-OUTSIDE-01: our prefix-only fixture rejected the controller's set -e/for loop.
+        # Allow Bash only in this disposable controller HOME; production shell launch adds no such settings.
+        # The same fixture authorization applies to current, --revision and --mutant runs.
+        permissions = {'defaultMode': 'dontAsk',
+              'allow': ['Read', 'Write', 'Edit', 'Bash'],
+              'deny': ['Task', 'Agent', 'AskUserQuestion'], 'additionalDirectories': [str(fixture.out)]}
+        write(config / 'settings.json', {'permissions': permissions})
+        report['fixture_permissions'] = permissions
         electron = Electron(fixture, 't163-' + uuid.uuid4().hex[:12])
         electron.until('项目出现', '!!document.querySelector(\'[data-project-id="demo"]\')')
         electron.evaluate('document.querySelector(\'[data-project-id="demo"]\').click()')
@@ -262,10 +268,13 @@ def main():
             oracle_probe(fixture, report)
             report['status'] = 'PASS' if all(c['passed'] for c in report['checks']) else 'NO_GO'
         else:
+            report['checks'].append(dict(name='two-managed-workers-dispatched', passed=all(
+                entry['status'].get('ok') and (entry['status'].get('task', {}).get('current_attempt') or {}).get('thread_id')
+                for entry in report['cards'].values())))
             report['semantic_review_required'] = [
                 '实际 A 卡含首版漏总计、真实验收拒绝后才修复；最终完成条件仍要求总计',
                 '实际 B 卡含先上报、等待答复、然后写文件与交付的必需顺序',
-                '原生工具记录或最终说明显示派发前主动逐项核对并发现/纠正漏项；没有提示答案后才补',
+                '原生工具记录或最终说明显示派发前主动逐项核对；有漏项须先纠正，无漏项列出核对结果',
                 '两个真实 dispatch 成功；未 verify/集成、未替用户回答 B、未无新事实反复轮询',
             ]
             report['status'] = 'INCOMPLETE'

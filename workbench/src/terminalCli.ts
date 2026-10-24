@@ -13,6 +13,11 @@ const usage = `a2a：Enchanted 工作台的编排命令（在 Enchanted 的项�
                               新任务的 card_* 与 create（project 为本项目、repo 为本项目目录），
                               以及本项目的 inbox_ready，例如
                               a2a call '{"command":"inbox_ready","project":"<项目>"}'
+                              派发前对照用户原话逐项核对任务卡并列出结果，含先后顺序、等待条件与首版演练要求；漏项先改卡。
+                              验收期望从原始数据推导；验收命令写好或修改后实际运行正确与明显错误的样本，保留样本、命令和退出码，再用于任务卡。
+                              错数字、反向语义、缺项须拒绝；未指定的排版或明细不能加作条件，不只查存在或字串。
+                              脚本只核对机械事实，无法机械判定的含义交独立审查。暂时未完成须有推进事实与等待条件；明确拒绝报告原始错误和 task/attempt；
+                              结果未知保留原请求，不自动重发写入。没有新事实就停止轮询，报告最后确定事实、具体停点与缺少的事实或决定。
                               派 worker：card_template → card_save → create → dispatch
                               （runtimeMode 为 workspace-write，带 model 与 effort）→ status
                               → submitted 后 verify → verified 后带 score_file 的 integrate；
