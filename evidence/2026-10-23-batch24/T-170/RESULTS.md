@@ -47,3 +47,11 @@ B a2 的 Codex CLI 在启动时因账号路由超时退出 1，没有原生会�
 | 探查过程中的中间运行 | fast-red-1～5、fast-green-*：测试逐步改正（读回 attempt、再派发判据）时的运行，保留不删 |
 
 全量回归 `RUN-MERGE-REGRESSION-12`（55 项，加 t170-fast）在候选 c822751c8 上的结果见 merge-wave README。
+
+## 后续二：回归检出缺少现场记录（2026-10-24 更正）
+
+`RUN-MERGE-REGRESSION-12` 在 c822751c8 上 54/55：t170-hang 超时，时间线却是 launch_failed、pane_exit。原因：回归在稀疏检出的 `a2a-merge-check` 里跑，那里没有 `evidence/2026-10-23-batch24/`，测试读的 `b-a2-pty.raw` 不存在，C 替身 `fopen` 失败后立即崩溃退出。因此**更正 merge-wave 11 的说法**：那次两项失败不是“满负载下启动更快”，而是替身因缺文件立即退出。它暴露的产品缺陷是真的（CLI 立即退出时 dispatch 不保存身份、attempt 不可回收），已由 `--scenario fast` 在有记录的检出里确定性复现（红态 2/2），修复不变。
+
+修改（只动测试）：现场记录复制到 `workbench/tests/t170_b_a2_pty.raw`（来源即本目录 `b-a2-pty.raw`），测试开头检查记录存在且含原始报错，缺失即报夹具错误，不再静默变成另一种场景。这是测试自列失败方式第 5 条（把夹具问题算成产品结果）的漏防。
+
+agy 审查（`review-agy-02.md`）PASS，P3 一条（blocked 分支与正常分支的 claimed 保存字面重复）；其“55 项全通”一句不实，已在报告头注明。

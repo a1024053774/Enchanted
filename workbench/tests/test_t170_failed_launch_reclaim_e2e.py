@@ -30,7 +30,9 @@ from scripted_claude import Fixture
 
 
 ROOT = Path(__file__).resolve().parents[2]
-RAW = ROOT / 'evidence/2026-10-23-batch24/T-170/b-a2-pty.raw'
+# Copied from evidence/2026-10-23-batch24/T-170/b-a2-pty.raw; kept beside the test so a sparse checkout without
+# that evidence directory still has it (a missing file made the stand-in crash at once, merge-wave 11/12).
+RAW = Path(__file__).resolve().parent / 't170_b_a2_pty.raw'
 # A compiled stand-in: the pane's leader is the process whose command path is the
 # launched executable, as with the real codex binary (an interpreted script would not match).
 FAKE = r'''#include <stdio.h>
@@ -57,6 +59,7 @@ def main():
     parser.add_argument('--scenario', choices=['failed', 'fast', 'hang'], default='failed')
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
+    assert b'Error: account/read failed' in RAW.read_bytes(), f'夹具缺少现场终端记录：{RAW}'
     report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, scenario=args.scenario,
                   product_head=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
                   vendor_model_turns=0, red_reproduced=False, checks=[], observed={}, errors=[])
