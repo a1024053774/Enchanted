@@ -728,6 +728,8 @@ monitor 的设置已保存，真实 monitor 启动入口仍未实现，不能据
 [Codex 配置文档](https://learn.chatgpt.com/docs/config-file/config-reference)、
 [Claude 模型配置文档](https://code.claude.com/docs/en/model-config)为准；不支持的值原样交给 CLI 报错。
 原生 CLI 在会话建立前非零退出会记录 `launch_failed`，原始错误留在该 launch 的终端记录中，不替换成默认值。
+这种 attempt 没有原生会话：窗格已停止、没有回合、provider 已不在时，门禁 `reclaim` 照常停止、归档并清理工作区，
+任务可修订后再派发；原生会话为空但 CLI 仍在运行时照旧拒绝（T-170）。
 完整 argv 和请求模型/强度/tier 继续入库；这些请求值不证明供应商实际执行层级。
 reviewer 与 worker 同一 home、只写候选副本与项目额外目录，原审查 worktree 只读；权限边界不因模型设置改变。
 
