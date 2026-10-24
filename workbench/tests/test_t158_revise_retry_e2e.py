@@ -7,6 +7,7 @@ Failure modes (written before the test):
 4. a reclaimed attempt still blocks dispatch, including when its dirty worktree must be preserved.
 5. help or either role instruction omits the ordered save/revise/old-attempt reclaim/dispatch procedure.
 6. the fixture mistakes an in-flight paste (state=idle, empty queue, writing=true) for quiescence.
+7. the fixture expects task selection to create a terminal pane despite the task's saved empty layout.
 
 Oracle: controller #36 / user ruling relayed in 20261024T005556Z-ideation-answer-001:
 save v2 -> revise -> reclaim the old attempt -> one dispatch without overlap parameters.
@@ -192,9 +193,23 @@ def main():
             require('old_attempt_reclaimed_event_preserved', any(e['type'] == 'reclaimed' and
                     e['attempt'] == old['attempt_id'] for e in events))
             selector = '[data-task-option="demo+' + task + '"]'
-            electron.until('revised task visible', f'!!document.querySelector({json.dumps(selector)})')
+            electron.until('revised task selectable', f'document.querySelector({json.dumps(selector)})?.disabled === false')
             electron.evaluate(f'document.querySelector({json.dumps(selector)}).click()')
-            electron.until('revised task selected', f'!!document.querySelector(\'[data-task-id="demo+{task}"]\')')
+            # Task selection and opening a session are separate UI operations. Reclaim saved an empty layout.
+            electron.until('revised task selected', f'document.querySelector({json.dumps(selector)})?.getAttribute("aria-current") === "page"')
+            selection = electron.evaluate('window.a2a.selection().then(s=>({task:s.task?.task_id,paneKeys:s.paneKeys,launches:s.launches}))')
+            report['observed']['task_selection'] = selection
+            report['observed']['task_pane_layout_before_inspection'] = fixture.request('pane_layout', fixture.operator, task='demo+' + task)
+            require('electron_selected_revised_task', selection.get('task') == 'demo+' + task, selection)
+            launch = new['runtime_identity']['launch']
+            agent_selector = '[data-agent-launch="' + launch + '"]'
+            electron.until('new worker selectable', f'document.querySelector({json.dumps(agent_selector)})?.disabled === false')
+            electron.evaluate(f'document.querySelector({json.dumps(agent_selector)}).click()')
+            pane_selector = f'[data-task-id="demo+{task}"][data-attempt-id="{new["attempt_id"]}"][data-launch-id="{launch}"]'
+            electron.until('new worker pane opened', f'document.querySelector({json.dumps(pane_selector)})?.closest(".pane-slot").hidden === false')
+            pane = electron.evaluate(f'(()=>{{const p=document.querySelector({json.dumps(pane_selector)});return {{task:p.dataset.taskId,attempt:p.dataset.attemptId,launch:p.dataset.launchId,hidden:p.closest(".pane-slot").hidden}}}})()')
+            require('electron_shows_new_attempt_identity', pane == dict(task='demo+' + task,
+                    attempt=new['attempt_id'], launch=launch, hidden=False), pane)
             screenshot = args.summary.with_name(args.summary.stem + '-retry.png')
             electron.screenshot(screenshot)
             report['observed']['screenshot'] = str(screenshot)
@@ -206,6 +221,17 @@ def main():
     except Exception:
         report['errors'].append(traceback.format_exc())
     finally:
+        if electron and report['errors']:
+            try:
+                screenshot = args.summary.with_name(args.summary.stem + '-failure.png')
+                electron.screenshot(screenshot)
+                report['observed']['failure_screenshot'] = str(screenshot)
+                report['observed']['failure_ui'] = electron.evaluate('''(async()=>({selection:await window.a2a.selection(),
+                    tasks:[...document.querySelectorAll('[data-task-option]')].map(n=>({task:n.dataset.taskOption,current:n.getAttribute('aria-current'),disabled:n.disabled})),
+                    panes:[...document.querySelectorAll('[data-launch-id]')].map(n=>({task:n.dataset.taskId,launch:n.dataset.launchId,attempt:n.dataset.attemptId})),
+                    alerts:[...document.querySelectorAll('[role="alert"]')].map(n=>n.textContent)}))()''')
+            except Exception:
+                report['errors'].append('failure diagnostics: ' + traceback.format_exc())
         try:
             if electron:
                 electron.stop()
