@@ -775,6 +775,8 @@ Codex worker 与 reviewer 的 `CODEX_HOME` 就是 launch config 的 `codex_home`
 - home 里的 rules、hooks.json、skills、provider 与登录都生效。用户的 allow 规则里有什么就放行什么，
   例如 `git push origin HEAD`、`ssh win`；这些不经门禁，门禁只管认领、交付、验收、集成与回收（用户知情后选择“完全照用 ~/.codex”）。
 - a2a 不写 home 的 config.toml、rules、hooks.json；a2a 的钩子只经每会话的 `-c hooks.*` 传入，与 home 的钩子叠加。
+- 受管会话启动参数带 `-c notice.hide_rate_limit_model_nudge=true`（T-167）：额度接近上限时 Codex 在回合结束后问是否换小模型，a2a 随后粘贴的消息与回车会答掉这个提示，把 worker 换成别的模型且不开始回合（T-164 实测）。只经启动参数，不写 home。
+- 写入消息并按提交键只算“已写入终端”；回合以原生开始信号为准。20 秒内没开始时记 `turn_start_missing`，侧栏与窗格显示“回合未开始”并说明要查看终端；不重发、不替用户按键。
   Codex 自己会往 config.toml 写 `[tui]` 状态键，那不是 a2a 写的。
 - T-141 的 worker 与 monitor 不传 `projects=...` 覆盖信任：项目 `.codex` 的加载由用户自己的配置和原生 CLI 决定。
   reviewer 只对本次一次性候选副本保留 `-c projects={<candidate_workspace>={trust_level="untrusted"}}`；

@@ -35,7 +35,7 @@ type Snapshot = {
   launch: { id: string; project: string; worktree?: string; thread: string; attempt: string | null; role: string;
     preset: string | null; cli_version: string; model_requested: string } | null;
   pane: { launch: string; state: string; lifecycle: string; state_source: string; historical?: boolean; failed: string | null;
-    delivery?: WorkerDeliveryStatus | null;
+    delivery?: WorkerDeliveryStatus | null; start_missing?: boolean;
     writing?: boolean; user_draft?: boolean; queued?: string[];
     restoration?: { status: string; error: string | null; details: string | null } | null;
     size?: { cols: number; rows: number }; interrupted?: boolean; interruption?: number | null; input_generation?: number; active?: { dispatch: string } | null } | null;
@@ -47,7 +47,7 @@ type ProjectItem = { project_id: string; repo: string | null; opened?: boolean; 
   git: { branch: string | null; upstream: string | null; ahead: number | null; behind: number | null; error: string | null } };
 type AgentItem = { id: string; project: string; task: string | null; task_name: string | null; attempt: string | null; parent: string | null;
   role: string; preset: string | null; role_label: string; cli: string; state: string; state_label: string; created_at?: string | null; terminal?: boolean;
-  delivery?: WorkerDeliveryStatus | null;
+  delivery?: WorkerDeliveryStatus | null; start_missing?: boolean;
   descendants: { count: number; state: string; state_label: string; counts: { state: string; label: string; count: number }[] } };
 type RoleRequest = { id: string; launch: string; project: string; role: string; role_label: string; cli: string | null; requested_at: string;
   terminal_cwd: string | null; terminal_opened_at: string | null };
@@ -447,6 +447,7 @@ function SessionPane({ paneKey, active, screenReader, name, confirmedRole, home,
             <span className="pane-state" data-state={error ? 'unknown' : pane?.state ?? 'unknown'}>{error ? '未知' : shell
               ? lifecycleNames[pane?.lifecycle ?? 'unknown'] ?? '未知' : activityNames[pane?.state ?? 'unknown'] ?? '未知'}</span>
             {turnRejection && <span className="pane-state" data-delivery-refusal>旧回合交付被拒</span>}
+            {pane?.start_missing && <span className="pane-state" data-start-missing>回合未开始</span>}
           </span>
           {!shell && snapshot?.launch?.role !== 'reviewer' && pane?.interrupted && <button className="release-queue" disabled={!snapshot?.input_enabled || !declarationReady || releasing || Boolean(inputError || error)}
             onClick={() => releaseQueue.current()}>输入框已空，放行</button>}
@@ -458,6 +459,9 @@ function SessionPane({ paneKey, active, screenReader, name, confirmedRole, home,
               <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg></button>
           </span>
         </div>
+        {pane?.start_missing && <div className="connection-error" role="status" data-start-missing>
+          <p>消息已写入终端并按了提交键，但 CLI 没有开始新回合。终端里可能有等待回答的提示，请查看终端并自行处理；后台不会重发，也不会替你按键。</p>
+        </div>}
         {turnRejection && <div className="connection-error" role="status" data-delivery-refusal={turnRejection.reason}>
           <div>
             <p>原生 CLI 已开始新回合，旧回合的交付请求被门禁拒绝。</p>
@@ -791,6 +795,7 @@ function Workbench() {
             <span className="agent-meta">{agent.terminal ? '项目终端' : agent.task_name ?? '任务未知'} · {agent.cli}</span>
             <span className={agent.state === 'ended' ? 'agent-state' : 'sr-only agent-state'}>{agent.state_label}</span>
             {isTurnRejection(agent.delivery) && <span className="agent-state" data-delivery-refusal title={agent.delivery.reason ?? ''}>旧回合交付被拒</span>}
+            {agent.start_missing && <span className="agent-state" data-start-missing>回合未开始</span>}
           </span>
           <span className="row-time">{since(agent.created_at, now)}</span>
           <StatusIcon state={agent.state} />
