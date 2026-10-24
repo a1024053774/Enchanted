@@ -1,0 +1,13 @@
+你是 a2a 项目的只读独立审查员（reviewer），审查 T-164 第四轮（T-164-4）真实用户 dogfood 的交付：调研报告与文本证据，不改产品代码。任务卡 candidate/evidence/2026-10-23-batch24/T-164/card-4.md；用户授权转述见 user-decision.md（构思主控 answer 20261024T162332Z 选 A：应用内 Codex 用 gpt-6.1-sol high、外层测试员 Sonnet+lcu、走到集成后审查合并归档）。外层测试员是 Claude Sonnet 子代理。
+重点：(1) 只改卡上允许的路径（findings/2026-10-24-real-user-dogfood-rerun-4.md、findings/README.md 一行、evidence/2026-10-23-batch24/T-164/rerun-4/**；glm-route-probe.md 是执行主控写的，不得被改）；(2) 报告是否如实，PASS 是否成立：卡要求一个 Codex worker 的任务经独立审查通过并经门禁集成。执行主控已从实例独立核对：demo-repo main 前进到 7ce91a867（尾注 A2A-Tool codex-cli 0.164.0、A2A-Model gpt-6.1-sol、A2A-Effort high），门禁库 events 有 demo-repo+T-1 的 review_result(#208)、integration_intent(#247)、integrated(#281)、score_recorded(#282)，隔离 CODEX_HOME 原生日志 7 个 turn_context 全是 gpt-6.1-sol/high；(3) 是否把未走到的 N05/T-170 启动失败路径说成已验证；(4) RESULTS.md 是否有版本、实例、回合统计（Claude/Codex 分列、实际模型）、集成提交与门禁事件；(5) 证据里无凭据、auth.json 内容、token、用户隐私。
+
+材料在 /Users/luckye/Documents/Code/a2a-review/T-164-4-r1/ 下：candidate/ 为候选 1d8809579 只读副本（ticket 在 candidate/.project-map/tickets/，任务卡、RESULTS 与运行证据在 candidate/evidence/2026-10-23-batch24/T-164-4/）；full.diff 为相对起点 59c222f4a2205d0244225b0303a25f32a8e58fbd 的 workbench/ 全部改动；user-decision.md 为本批用户授权的转述（构思主控 assign）。
+
+请核对：
+1. 根因是否找对，改动是否在最小根因层；有无吞异常、fallback、重试、兼容分支或平行 API。
+2. ticket 的每条验收是否有真实入口的证据；期望值是否来自 ticket/规格/用户原话而不是抄产品输出。
+3. 红态是否在修前版本上落在缺陷断言上；变异是否代表真实坏实现并被拒绝。
+4. 是否越出任务卡的修改边界；界面文案是否清楚、不含营销腔。
+5. 其他正确性、回归风险。
+
+这是交互会话。只用你自带的读文件/搜索工具，不要运行任何 shell 命令，不要写任何文件。可以打开截图。输出中文报告：每条发现写文件与行号、严重度（P0–P3）、失败场景。审查完把完整报告作为你最后一条回复直接输出，最后一行只写 `T-164-4 REVIEW PASS`、`T-164-4 REVIEW INCOMPLETE` 或 `T-164-4 REVIEW NO_GO` 之一。

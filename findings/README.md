@@ -19,6 +19,7 @@ T-012 已缩小为[研究阶段产物与移交证据](../.project-map/tickets/T-
 ## 相关资料
 
 - [Enchanted 多 agent 真实使用第三轮重跑](2026-10-24-real-user-dogfood-rerun-3.md)：T-164-3应用内Codex改用GLM/max；A有效独审后门禁集成，B启动前失败及回收缺陷N05/T-170保留，原混合流程INCOMPLETE。
+- [Enchanted 多 agent 真实使用第四轮重跑](2026-10-24-real-user-dogfood-rerun-4.md)：T-164-4应用内Codex worker与审查员用gpt-6.1-sol high；一次verify拒绝后revise、reclaim、重派，独审通过并门禁集成，PASS。
 - [Enchanted 多 agent 真实使用第二轮重跑](2026-10-24-real-user-dogfood-rerun-2.md)：T-164-2额度停线INCOMPLETE；T-167共17次回执/答复/打回自动唤醒，B五次独审未通过，含回收重派、REOPEN、Reflect及采集错误恢复记录。
 - [Enchanted 多 agent 真实使用重跑](2026-10-24-real-user-dogfood-rerun.md)：T-164 的隔离 Computer Use 重跑；额度停点 INCOMPLETE，已覆盖混合CLI并行与真实独审打回，尚未集成，含F/M逐条复验及现场交接。
 - [Enchanted 多 agent 真实使用记录](2026-10-23-real-user-dogfood.md)：T-155 的隔离 Computer Use 实测、同后台 UI 重开、37 回合终核与 Herdr 对照；证据已归档，完整流程 INCOMPLETE（审查协议暂停与交付未知）。
