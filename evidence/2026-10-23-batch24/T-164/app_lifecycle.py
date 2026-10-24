@@ -12,7 +12,7 @@ import uuid
 
 
 SOURCE = Path(__file__).resolve().parents[3]
-BASELINE = "7d7cb8342b8642defda827f26a44c018e981948e"
+BASELINE = "5380ebb28ad53f0efec5447f7b0fcda8cc3bf727"  # T-164-2: main after T-166..T-168 (T-164-1 used 7d7cb8342)
 
 
 def write_json(path, value):
