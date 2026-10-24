@@ -2,7 +2,7 @@
 id: T-169
 title: T-166 残余：工作中输入被 CLI 并入当前回合后，后台仍等它成为单独回合，worker 停在等待、回执不送、回收被拒
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -21,10 +21,15 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 红态：当前 main 上，用真实 daemon/PTY/Claude CLI/Electron（脚本化 Messages）在模型还有工具调用时输入，复现 Stop 后 `pane_waiting_native_queue`、不回空闲、门禁回执不写入。
-- [ ] 绿态：同一序列下原回合交付受理，输入原样进入 CLI 的下一次模型请求并记人工介入，worker 回到空闲，回执写入一次。
-- [ ] 反例：T-166 的单独排队回合场景、无 Enter 的复用拒绝、T-157、T-165 场景不变；去掉“并入”判定的坏实现在新场景失败。
+- [x] 红态：当前 main 上，用真实 daemon/PTY/Claude CLI/Electron（脚本化 Messages）在模型还有工具调用时输入，复现 Stop 后 `pane_waiting_native_queue`、不回空闲、门禁回执不写入。
+- [x] 绿态：同一序列下原回合交付受理，输入原样进入 CLI 的下一次模型请求并记人工介入，worker 回到空闲，回执写入一次。
+- [x] 反例：T-166 的单独排队回合场景、无 Enter 的复用拒绝、T-157、T-165 场景不变；去掉“并入”判定的坏实现在新场景失败。
 
 ## 不做
 
 不按超时清队列；不改 CLI 的并入行为；范围外的问题经问题上报。
+
+## Resolution
+
+2026-10-24 关闭，PASS。写入者为执行主控本人（T-166 残余，按 T-004 自建；用户授权转述见构思主控 answer 20261024T070244Z-ideation-answer-001）。根因：模型还有工具调用时的用户输入被 Claude Code 2.1.310 并入当前回合（原生转录 `queue-operation` remove、`absorbed_mid_turn`），T-166 仍等它成为单独回合，Stop 后停在 `pane_waiting_native_queue`。修复：`workbench/src/panes.ts` 在原回合 Stop 转交后，按同会话、同正文、不早于收到时间、只用一次的并入记录移出等待并记 `claude_prompt_absorbed`；没有并入记录的照旧。不按超时清队列。README 同步。
+证据（真实 Electron/后台/PTY/Claude CLI，脚本化 Messages，厂商模型回合 0）：修前红态 2/2 与 T-164 第二轮一致；绿态 2/2；T-166 原场景 PASS；Stop 时清空队列的坏实现在原场景失败；T-157、T-165、T-166 主机级回归 PASS。独立审查 agy PASS（一条 P3：混合序列未单独构造）。合并 e3b14d27b；合并后整批回归 52/52（`evidence/2026-10-23-batch24/merge-wave/README.md`）。未用真实模型复验，留待下一轮 T-164。证据 `evidence/2026-10-23-batch24/T-169/RESULTS.md`。

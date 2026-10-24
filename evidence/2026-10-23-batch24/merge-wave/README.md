@@ -26,3 +26,13 @@
 | run-20261024T075759Z | 5380ebb28（T-167 合并后的 main） | 51/51 通过 |
 
 退出码见 `exits-5380ebb28.txt`。
+
+## T-169 合并后（RUN-MERGE-REGRESSION-10）
+
+脚本 `RUN-MERGE-REGRESSION-10.sh <rev>`：09 的 51 项加 T-169（T-166 端到端 `--scenario absorbed`），共 52 项；0 个厂商模型回合。
+
+| 运行 | 版本 | 结果 |
+| --- | --- | --- |
+| run-20261024T093446Z | e3b14d27b（T-169 合并后的 main） | 52/52 通过 |
+
+退出码见 `exits-e3b14d27b.txt`。
