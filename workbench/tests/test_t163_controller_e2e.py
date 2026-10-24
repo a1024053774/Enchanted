@@ -125,7 +125,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--summary', required=True, type=Path)
     parser.add_argument('--scenario', required=True, choices=['c5', 'oracle'])
-    parser.add_argument('--budget', required=True, type=Path, help='本票共享的追加式 16 回合预算账本；每次预留 2 回合，不自动释放失败预留')
+    parser.add_argument('--budget', required=True, type=Path, help='本票共享的追加式预算账本；每次预留 2 回合，不自动释放失败预留')
+    parser.add_argument('--budget-limit', type=int, choices=[16, 20], default=16,
+                        help='默认累计 16；主控 #55 转述用户追加授权后，第五、六轮显式使用 20')
     parser.add_argument('--claude', default=shutil.which('claude'))
     target = parser.add_mutually_exclusive_group()
     target.add_argument('--revision')
@@ -134,7 +136,7 @@ def main():
     assert not args.summary.exists(), '保留旧证据，选择新 --summary'
     report = dict(status='INCOMPLETE', argv=sys.argv, scenario=args.scenario, revision=args.revision,
                   mutant=args.mutant, product_head=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
-                  real_model_turns=None, submitted_prompts=0, checks=[])
+                  real_model_turns=None, submitted_prompts=0, budget_limit=args.budget_limit, checks=[])
     report['product_revision'] = subprocess.check_output(['git', 'rev-parse', args.revision or 'HEAD'], cwd=ROOT, text=True).strip()
     fixture = electron = credential = controller_home = None
     secret = None
@@ -146,10 +148,10 @@ def main():
             fcntl.flock(budget, fcntl.LOCK_EX)
             budget.seek(0)
             reserved = sum(json.loads(line)['reserved_turns'] for line in budget if line.strip())
-            if reserved + 2 > 16:
-                raise RuntimeError('真实模型总预算预留将超出 16；停止，不重试')
+            if reserved + 2 > args.budget_limit:
+                raise RuntimeError(f'真实模型总预算预留将超出 {args.budget_limit}；停止，不重试')
             budget.write(json.dumps(dict(summary=str(args.summary.resolve()), scenario=args.scenario,
-                                        reserved_turns=2, reserved_before=reserved)) + '\n')
+                                        reserved_turns=2, reserved_before=reserved, budget_limit=args.budget_limit)) + '\n')
             budget.flush()
         # The helper's local endpoint is exclusively for managed workers. A real controller gets its own HOME and login.
         fixture = Fixture('t163-', lambda body: ('worker', [], '本次派发观察已结束；未生成候选，等待主控。'), revision=args.revision)
