@@ -143,7 +143,7 @@ const canRequestDeliveryCheck = (value: Snapshot, delivery: WorkerDeliveryStatus
     value.pane.delivery.request_id === delivery.request_id;
 };
 
-function SessionPane({ paneKey, active, screenReader, name, home, focusRequest, zoomed, onZoom, onAction, onStatus, onClose }: { paneKey: string; active: boolean; screenReader: boolean; name?: string; home: string | null; focusRequest: number; zoomed: boolean; onZoom: () => void; onAction: (key: string, action: { type: string; direction?: string; name?: string }) => Promise<void>; onStatus: (key: string, status: PaneStatus) => void; onClose: (key: string, value: Selection) => void }) {
+function SessionPane({ paneKey, active, screenReader, name, confirmedRole, home, focusRequest, zoomed, onZoom, onAction, onStatus, onClose }: { paneKey: string; active: boolean; screenReader: boolean; name?: string; confirmedRole?: string; home: string | null; focusRequest: number; zoomed: boolean; onZoom: () => void; onAction: (key: string, action: { type: string; direction?: string; name?: string }) => Promise<void>; onStatus: (key: string, status: PaneStatus) => void; onClose: (key: string, value: Selection) => void }) {
   const mount = useRef<HTMLDivElement>(null);
   const reconnect = useRef<() => void>(() => {});
   const releaseQueue = useRef<() => void>(() => {});
@@ -164,10 +164,10 @@ function SessionPane({ paneKey, active, screenReader, name, home, focusRequest, 
   // Each successful request is served once, so a later reconnect does not take focus back.
   const servedFocus = useRef(0);
   useEffect(() => {
-    if (!active || !focusRequest || !terminal || restoring || restoredVisibility !== visibility.current.version || servedFocus.current === focusRequest) return;
+    if (!active || !snapshot?.input_enabled || !focusRequest || !terminal || restoring || restoredVisibility !== visibility.current.version || servedFocus.current === focusRequest) return;
     terminal.focus();
     if (document.activeElement === terminal.textarea) servedFocus.current = focusRequest;
-  }, [active, focusRequest, terminal, restoring, restoredVisibility]);
+  }, [active, snapshot?.input_enabled, focusRequest, terminal, restoring, restoredVisibility]);
   const [offset, setOffset] = useState(0);
   const [inputError, setInputError] = useState<string | null>(null);
   const [releasing, setReleasing] = useState(false);
@@ -256,7 +256,7 @@ function SessionPane({ paneKey, active, screenReader, name, home, focusRequest, 
       });
     };
     const writeOutput = createFocusSafeWriter(term, (type: string, detail: { raw_sequence: string }) => {
-      if (type === 'focus-mode-intercept') void window.a2a.observeFocus(paneKey, detail.raw_sequence).catch(failInput);
+      if (type === 'focus-mode-intercept' && writable) void window.a2a.observeFocus(paneKey, detail.raw_sequence).catch(failInput);
     });
     ownTerminalQueries(term, () => {});
     const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
@@ -398,6 +398,7 @@ function SessionPane({ paneKey, active, screenReader, name, home, focusRequest, 
   const role = snapshot?.launch?.role === 'controller'
     ? snapshot.launch.preset === 'ideation' ? '构思主控' : snapshot.launch.preset === 'executor' ? '执行主控' : '主控 · 角色未确认'
     : shell ? '普通终端' : snapshot?.launch?.role === 'worker' ? '受管 worker' : snapshot?.launch?.role === 'reviewer' ? '独立审查' : snapshot?.launch?.role ?? '窗格';
+  const paneLabel = shell && confirmedRole ? '普通终端 · ' + confirmedRole : role;
   const inputEnabled = Boolean(snapshot?.input_enabled && !inputError && !error);
   const inputTarget = keyboardFocused && inputEnabled;
   const closePane = () => {
@@ -412,7 +413,7 @@ function SessionPane({ paneKey, active, screenReader, name, home, focusRequest, 
         event.preventDefault(); event.stopPropagation(); openMenu(event.clientX, event.clientY);
       }} onMouseDownCapture={event => {
         if (event.button === 2 && !forwardRightClick && (event.target as HTMLElement).closest('.terminal-mount')) event.stopPropagation();
-      }} className={'pane' + (inputTarget ? ' pane-focused' : '')} aria-label={role + '交互终端'}
+      }} className={'pane' + (inputTarget ? ' pane-focused' : '')} aria-label={paneLabel + '交互终端'}
         data-pane-key={paneKey} data-task-id={task?.task_id} data-window-id={snapshot?.window_id}
         data-role={snapshot?.launch?.role} data-preset={snapshot?.launch?.preset ?? ''}
         data-attempt-id={snapshot?.launch?.attempt ?? ''} data-keyboard-focused={keyboardFocused}
@@ -426,8 +427,8 @@ function SessionPane({ paneKey, active, screenReader, name, home, focusRequest, 
         {closeError && <div className="connection-error" role="alert">{closeError}</div>}
         {pane?.restoration?.status === 'pending' && <div className="connection-error" role="status">正在恢复原生会话…</div>}
         <div className="pane-header">
-          <strong title={name ?? role}>{name ?? role}</strong>
-          {name && <span className="pane-role">{role}</span>}
+          <strong title={name ?? paneLabel}>{name ?? paneLabel}</strong>
+          {name && <span className="pane-role">{paneLabel}</span>}
           <span className="pane-identity" title={snapshot?.launch ? shell ? snapshot.launch.worktree ?? '' :
             `${snapshot.launch.role}${snapshot.launch.preset ? '/' + snapshot.launch.preset : ''} · task ${task?.task_id} · launch ${snapshot.launch.id}${snapshot.launch.attempt ? ' · attempt ' + snapshot.launch.attempt : ''}` : undefined}>{snapshot?.launch ?
             shell ? tilde(snapshot.launch.worktree, home) :
@@ -979,6 +980,7 @@ function Workbench() {
             {roleRequests.map((roleRequest, index) => roleRequest.launch === launches[key] &&
               <span className="role-request-tag" key={roleRequest.id}>申请 {index + 1} · {roleRequest.role_label}</span>)}
             <SessionPane paneKey={key} active={active} screenReader={screenReader} name={names[key]} home={home} focusRequest={focusRequest.key === key ? focusRequest.version : 0} zoomed={zoom === key} onZoom={() => setZoom(value => value === key ? null : key)}
+              confirmedRole={agents.find(agent => agent.id === launches[key] && agent.terminal && agent.role === 'controller')?.role_label}
               onAction={async (key, action) => { const value = await window.a2a.paneAction(key, action); setPaneKeys(value.paneKeys); setConnectedPaneKeys(value.connectedPaneKeys); setLayout(value.layout); setNames(value.names); setLaunches(value.launches ?? {}); setZoom(null); }} onStatus={onStatus} onClose={onClose} />
           </div>;
         })}

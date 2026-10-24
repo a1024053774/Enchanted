@@ -68,7 +68,7 @@ def main():
     parser.add_argument('--summary', type=Path, required=True)
     target = parser.add_mutually_exclusive_group()
     target.add_argument('--revision')
-    target.add_argument('--mutant', choices=['readonly-observation', 'missing-role', 'suppress-input-errors'])
+    target.add_argument('--mutant', choices=['readonly-observation', 'readonly-focus', 'missing-role', 'suppress-input-errors'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留旧证据，请换新路径'
     args.summary.parent.mkdir(parents=True, exist_ok=True)
@@ -86,6 +86,8 @@ def main():
                     'term.open(mount.current!); (mount.current as any).__t161Terminal = term;')]
         if args.mutant == 'readonly-observation':
             patches.append(('app/renderer.tsx', "type === 'focus-mode-intercept' && writable", "type === 'focus-mode-intercept'"))
+        elif args.mutant == 'readonly-focus':
+            patches.append(('app/renderer.tsx', '!snapshot?.input_enabled || !focusRequest', '!focusRequest'))
         elif args.mutant == 'missing-role':
             patches.append(('app/renderer.tsx', "shell && confirmedRole ? '普通终端 · ' + confirmedRole : role", 'role'))
         elif args.mutant == 'suppress-input-errors':
@@ -184,6 +186,8 @@ def main():
         controller_key = ready(controller)
         click('[aria-label="隐藏侧栏"]')
         initial = facts(controller)
+        check('writable_controller_receives_input_focus', electron.evaluate(f'''document.activeElement===
+            document.querySelector('.pane[data-launch-id="{controller}"] textarea')'''))
         check('confirmed_executor_header_with_sidebar_hidden', '普通终端' in initial['header'] and '执行主控' in initial['header'], initial)
         shot('controller-sidebar-hidden')
         # Renaming is a real pane operation; it must leave both identity labels visible.
@@ -208,6 +212,10 @@ def main():
         click('[data-agent-launch="' + launch + '"]')
         key = ready(launch)
         electron.until('可写输入已启用', f'document.querySelector(\'.pane[data-launch-id="{launch}"]\')?.dataset.inputEnabled==="true"')
+        electron.until('可写 worker 收到焦点', f'''document.activeElement===
+            document.querySelector('.pane[data-launch-id="{launch}"] textarea')''')
+        check('writable_worker_receives_input_focus', electron.evaluate(f'''document.activeElement===
+            document.querySelector('.pane[data-launch-id="{launch}"] textarea')'''))
         outcome = electron.evaluate(f'(async()=>(await window.a2a.snapshot({json.dumps(key)})).input_enabled)()')
         assert outcome, '输入失败正例必须先可写'
         electron.evaluate(f'''(()=>{{const t=document.querySelector('.pane[data-launch-id="{launch}"] .terminal-mount').__t161Terminal;
