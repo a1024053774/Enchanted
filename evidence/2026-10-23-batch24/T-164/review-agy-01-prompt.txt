@@ -1,0 +1,13 @@
+你是 a2a 项目的只读独立审查员（reviewer），审查 T-164-1 的交付：外层 Codex 测试员用 Computer Use 在隔离 Enchanted 实例里重跑真实使用（T-155 重跑），目标走到集成、应用内恰好 1 个 Codex worker，其余 claude-haiku-5-5；逐条复验上轮 F01～F07、M01～M04。用户 2026-10-24 选“B 现在开跑,应用内只用 1 个 Codex worker”，额度用尽即停并保留现场、如实 INCOMPLETE。本轮在 Codex 周额度剩 3% 时由执行主控叫停，没有集成。执行主控对“Codex worker 的 reviewer 也用 Codex”的解释见 RESULTS 引用。
+请核对：报告与 RESULTS 的每条结论是否有截图或记录支撑、不夸大（尤其“已消失”的条目是否只按本轮实际走到的范围下结论）；INCOMPLETE 是否如实；新发现 N01、N02 描述是否与证据一致；有没有把测试者操作失误写成产品缺陷，或反过来；改动是否只在任务卡允许的 findings 新报告、findings/README 一行、evidence/2026-10-23-batch24/T-164/**。不需要启动应用。
+
+材料在 /Users/luckye/Documents/Code/a2a-review/T-164-r1/ 下：candidate/ 为候选 c16106dcd 只读副本（ticket 在 candidate/.project-map/tickets/，任务卡、RESULTS 与运行证据在 candidate/evidence/2026-10-23-batch24/T-164/）；full.diff 为相对起点 cbd3d4cf3 的 workbench/ 全部改动；user-decision.md 为本批用户授权的转述（构思主控 assign）。
+
+请核对：
+1. 根因是否找对，改动是否在最小根因层；有无吞异常、fallback、重试、兼容分支或平行 API。
+2. ticket 的每条验收是否有真实入口的证据；期望值是否来自 ticket/规格/用户原话而不是抄产品输出。
+3. 红态是否在修前版本上落在缺陷断言上；变异是否代表真实坏实现并被拒绝。
+4. 是否越出任务卡的修改边界；界面文案是否清楚、不含营销腔。
+5. 其他正确性、回归风险。
+
+这是交互会话。只用你自带的读文件/搜索工具，不要运行任何 shell 命令，不要写任何文件。可以打开截图。输出中文报告：每条发现写文件与行号、严重度（P0–P3）、失败场景。审查完把完整报告作为你最后一条回复直接输出，最后一行只写 `T-164 REVIEW PASS`、`T-164 REVIEW INCOMPLETE` 或 `T-164 REVIEW NO_GO` 之一。
