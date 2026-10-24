@@ -22,7 +22,7 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 真实流程：打回→保存 v2→revise→正常 dispatch 一次成功，无需交叠参数。
+- [ ] 真实流程：打回→保存 v2→revise→对旧 attempt reclaim→正常 dispatch 一次成功，无需交叠参数（用户 2026-10-24 裁定显式 reclaim）。
 - [ ] 反例：旧 attempt 仍活跃时路径检查继续拒绝。
 - [ ] 角色卡/`a2a help` 写明步骤。
 
