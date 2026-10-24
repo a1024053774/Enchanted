@@ -1,6 +1,7 @@
 """T-164 isolated application lifecycle (from T-155, plus one isolated Codex home); no business-flow automation."""
 import argparse
 import json
+import re
 import os
 from pathlib import Path
 import shutil
@@ -12,7 +13,7 @@ import uuid
 
 
 SOURCE = Path(__file__).resolve().parents[3]
-BASELINE = "5380ebb28ad53f0efec5447f7b0fcda8cc3bf727"  # T-164-2: main after T-166..T-168 (T-164-1 used 7d7cb8342)
+BASELINE = "e3b14d27b5f0f94ee65d1e15a69d6c90c1eafc5d"  # T-164-3: main after T-169 (T-164-2 used 5380ebb28, T-164-1 7d7cb8342)
 
 
 def write_json(path, value):
@@ -81,7 +82,13 @@ def prepare():
     (home / "rules").mkdir(parents=True, mode=0o700)
     shutil.copyfile(Path.home() / ".codex/auth.json", home / "auth.json")
     (home / "auth.json").chmod(0o600)
-    (home / "config.toml").write_text("[projects." + json.dumps(str(repo)) + "]\ntrust_level=\"trusted\"\n", encoding="utf-8")
+    # T-164-3: Codex workers use the user's zcode/GLM route. Copy only the
+    # openai_base_url line from the user's config (read, never written), so the
+    # isolated home reaches the same local proxy; refuse to guess it.
+    route = re.findall(r'^openai_base_url\s*=\s*"[^"\n]+"$', (Path.home() / ".codex/config.toml").read_text(encoding="utf-8"), re.M)
+    if len(route) != 1:
+        raise RuntimeError("Expected one openai_base_url in ~/.codex/config.toml")
+    (home / "config.toml").write_text(route[0] + "\n[projects." + json.dumps(str(repo)) + "]\ntrust_level=\"trusted\"\n", encoding="utf-8")
     (home / "rules/default.rules").write_text('prefix_rule(pattern=["git", "add"], decision="allow")\n'
                                              'prefix_rule(pattern=["git", "commit"], decision="allow")\n', encoding="utf-8")
     # Same launch fields as desktop.mjs; Codex points at the isolated home above.
@@ -95,9 +102,9 @@ def prepare():
         "monitor_role_card": str(SOURCE / "workbench/roles/monitor.md"),
         "monitor_role_card_revision": BASELINE,
         "code_revision": BASELINE, "source_snapshot": str(SOURCE), "turn_limit": 6,
-        "hook_authorization": str(Path(__file__).parent / "card.md") +
+        "hook_authorization": str(Path(__file__).parent / "card-3.md") +
                               " — T-164 real managed workers; per-session Claude hooks and Codex worker hooks (isolated CODEX_HOME) approved by executor",
-        "turn_authorization": str(Path(__file__).parent / "card.md") + " — real-turn budget: Claude 60 in app; one Codex worker; stop when Codex weekly quota nears exhaustion",
+        "turn_authorization": str(Path(__file__).parent / "card-3.md") + " — real-turn budget: Claude 60 in app; Codex workers zcode/GLM-5.3-Flash max, at most 2 in-app Codex sessions at once; stop when usage nears its limit",
     }
     write_json(root / "launch-config.json", launch_config)
     print("INSTANCE=" + str(root), flush=True)
