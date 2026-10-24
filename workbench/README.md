@@ -443,6 +443,12 @@ reviewer 的最终消息必须是完整 `review_submit` JSON；身份和候选�
 失败场景、建议。结论绑定 C、合同和独立启动/原生身份。有效结果存库、reviewer idle 后回收，
 不另开纯 ACK 回合。审查目录按下述 S3 规则命名和清理。
 
+协议解析失败后，问题页说明 JSON 格式或字段错误，并保留可展开的原文；仍在当前交付上的错误提供“为同一次交付新开审查”。
+该按钮经同一个 `verify` 门禁，绑定原 attempt 和失败的 review id；核对候选、规格、机械验收、进程身份与目录边界，
+确认旧审查 idle、停止并归档后才新开审查，不剥围栏、不追认旧结论，也不自动重试。
+旧错误事件和原文保留；关闭问题不会恢复任务。
+审查身份、运行或边界错误不走此恢复；回收中断后保留未知状态，不重复外部动作，交执行主控核对。
+
 ```sh
 node workbench/src/gates/cli.ts --state /绝对路径/state integrate --task T-080-1 --attempt ATTEMPT --score-file /绝对路径/score.json
 ```

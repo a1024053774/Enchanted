@@ -1,27 +1,52 @@
-# T-160-1 / a1：红态准备
+# T-160-1 / a1：reviewer 协议错误与同一次交付恢复
 
-状态：INCOMPLETE。产品代码尚未修改，正在等待修前真实入口红态。
+状态：INCOMPLETE。修复与 RUN-OUTSIDE-02 已准备；修后真实 Electron 绿态、端到端变异、现行回归和真实 haiku 3 次仍待主控运行。当前真实模型使用 **0 回合**，不能据状态级检查宣称整票通过。
 
-范围：reviewer 的裸 JSON 输出约束、协议错误保留与拒绝、同一次交付的新审查恢复路径。不增加自动重试，不剥围栏，不改任务卡或他人测试。
+## 范围与实现
 
-已新增 `workbench/tests/test_t160_review_recovery_e2e.py`：真实后台、门禁、原生 Claude CLI 与 Electron；模型回复来自本地脚本化 Messages 接口，不消耗供应商模型回合。失败方式先列在文件头，期望来自 T-160。支持 `--summary` 新文件、`--revision` 修前源码，以及 `--mutant accept-fenced` 反例。
+- `workbench/roles/reviewer.md` 与门禁生成的启动提示都要求：最终消息为裸 JSON，不带任何代码围栏或说明；输出前自检 JSON.parse、首尾字符、身份与必需报告字段。
+- 严格解析器 `qualityProtocol.ts` 保持原样。围栏、自然语言和非法字段仍拒绝；原始错误事件、原文与现有问题正文格式不变。
+- 问题页显示格式/字段原因，可展开原文；当前 attempt、当前 review 与问题所属 thread 相符时，显示“为同一次交付新开审查”。旧记录也使用同一存储格式显示，无额外兼容分支。关闭问题不恢复任务；只要交付仍停在这一次审查上，关闭后也保留恢复按钮。
+- 按钮经 IPC 调用现有 `verify` 门禁，绑定原 attempt 和失败的 review id。在同一操作锁下验证原协议失败事件、候选、规格、机械验收、启动身份、worker 与审查目录边界；确认原审查空闲、停止、归档后清理临时副本/审查 worktree，再为同一次交付新开独立会话。旧错误与原文事件保留，不追认旧输出，不加自动重试。任何带旧 review id 的恢复都不能落入普通 verify 去验收更新的交付。
+- 回收操作写入 intent；若停止或清理中断，后续恢复拒绝 `review_recovery_unknown`，保留未知结果交执行主控核对，不重复外部动作。候选、attempt、机械验收版本不因成功恢复而改变。
 
-本地命令：
+## 已取得的证据
+
+| 检查 | 结果与边界 |
+| --- | --- |
+| 修前真实 Electron 红态 | PASS（红态成立）。主控 #46 返回 RUN-OUTSIDE-01 rc=0；`red-20261024T013902Z-t160-red-outside-cp6P1m.json` 中 `fenced_output_rejected`、`raw_preserved`、`failed_review_cannot_integrate` 成立，`recovery_guidance_visible` 是指定失败；同名 PNG 为截图。现场 `/private/tmp/t160-y3qa2us6` 保留。 |
+| 本地初次真实入口 | 环境阻断，不能算缺陷红态。`sandbox-preflight-01.json`：真实 worker 交付命令返回 `Exit code 71` / `sandbox-exec: sandbox_apply: Operation not permitted`，最终交付等待超时；现场 `/private/tmp/t160-e305nd6b` 保留，后台已停止。初次夹具含换行，后将夹具收窄为无换行文本，未覆盖旧证据。 |
+| Codex Stop 状态级修前反例 | PASS（红态成立，仅状态级）。`idle-red-parent-01.json` 在明确修前版本 `3aea74368a020109027c6113a161f32db8614102` 失败于匹配协议错误不能回收、旧 Stop 清除了替换后的提交；`idle-red-01.json` 是本地首次定位运行。 |
+| Codex Stop 状态级绿态 | PASS（仅状态级）。`idle-green-01.json` 的 7 案全通过：对应提交已匹配完成的解析失败可停止；未匹配 Stop、替换提交、其他 unknown、其他审查错误、其他角色、转交抛错均不可停止。 |
+| 已知坏实现：允许任意 unknown 回收 | PASS（坏实现被拒）。`idle-mutant-any-unknown-01.json`：未匹配 Stop、替换提交及其他 unknown 等案以“缺少预期拒绝”业务断言失败，且记录错误停止次数。 |
+| 已知坏实现：忽略提交替换 | PASS（坏实现被拒）。`idle-mutant-ignore-submission-01.json` 在 `different_submission_not_reclaimable` 失败，证明测试不是只查一个失败标记。 |
+| 构建与语法 | PASS。标准 `node app/build.mjs --slot …` 的 `build-03.json` 是当前界面/运行时代码构建；临时构建输出已清理。`build-01.json`、`build-02.json` 是较早候选，不替后续改动背书。三次均有现有的大 chunk 提示，无构建错误。Python 编译、Node TS 语法、zsh 语法、UTF-8 回读与 diff 空白检查通过。 |
+| 旧协议回放诊断 | INCOMPLETE。`protocol-regression-01.json` 保留 `test_t082_review_protocol.ts` 使用 `t152_real_review_submit.json` 的失败：旧输入 task=`t082-real-03` 不符合当前项目限定 task id，报 `Error: task`。未修改他人测试或输入，也不将这次运行计入当前回归通过。 |
+
+状态级夹具只替换外部进程/原生记录收集，实际运行 `Panes.signal`、信任/身份信封检查、`readThread` 与 `stopThread`；假 PTY 只提供退出事件。它不能证明真实 Codex CLI、进程退出或沙箱行为。真实进程与界面恢复仍由 RUN-OUTSIDE-02 的 Claude 端到端路径验证。
+
+## 授权扩展与最小改动
+
+原卡未列 `workbench/src/panes.ts`。静态诊断发现 Codex 的匹配 Stop 在 reviewer 解析失败后仍将运行状态置为 unknown，导致 readThread 判为 running、stopThread 拒绝回收。已通过角色规定的 inbox 上报 `20261024T014902Z-worker:b24-t160-issue-001`，正文副本为 `runtime-scope-issue.md`。
+
+用户在当前会话选择“允许这一处最小运行时修改”；执行主控 #48 进一步限定：“只在‘该 reviewer 的审查提交协议解析失败，且该次提交对应的 Stop 已匹配完成’时补 idle/可回收事实；其他 unknown 一律照旧拒绝。”
+
+实际仅改 `panes.ts:1549–1556` 附近的局部 Stop 完成分支：检查 reviewer + invalid_review_result，核对仍是原 active 对象、原 native turn、原 session；替换提交保持 unknown，不清除新提交；完全匹配才在保留失败/阻塞标记的同时记录 idle。**未放宽 stopThread 对 unknown 的拒绝条件**。此局部补丁供主控与之后的 T-157 合并时核对。
+
+技能缺失问题 `20261024T013750Z-worker:b24-t160-issue-001` 已由主控 #46 裁定：frontend-less-ai-tone 已整合进 frontend-production。本次按 `references/look-and-copy.md` 执行，不再等待此项。两条按角色卡生成的 inbox 文件留在本 worktree，未提交 `.project-map/**`；本票正文副本均在 evidence 内。
+
+## 交回主控
 
 ```sh
-python3 workbench/tests/test_t160_review_recovery_e2e.py --summary evidence/2026-10-23-batch24/T-160/sandbox-preflight-01.json
+zsh evidence/2026-10-23-batch24/T-160/RUN-OUTSIDE-02.sh
 ```
 
-环境阻断：真实 worker 的交付命令返回 `Exit code 71`、`sandbox-exec: sandbox_apply: Operation not permitted`；测试最终退出 1（交付等待超时）。运行摘要为 `sandbox-preflight-01.json`，真实模型使用 0 回合，测试后台已按正常清理流程停止；运行现场 `/private/tmp/t160-e305nd6b` 保留。不能把这一结果当作 reviewer 缺陷红态。初次夹具的文件内容含换行，随后将夹具收窄为无换行文本，避免原生 CLI 对工具输入的转义影响本票的协议检查；未覆盖原运行证据。
+脚本逐项执行，失败即停止，不自动重试，每次写新的 summary 与日志路径：
 
-交回主控：运行 `zsh evidence/2026-10-23-batch24/T-160/RUN-OUTSIDE-01.sh`。脚本固定在修前 `3aea74368a020109027c6113a161f32db8614102` 跑同一测试，核对围栏被拒、原文保留、不能集成，并且真实问题页因缺少恢复说明而失败；只在这些条件同时成立时报告红态成立。输出写新路径，截图入本票目录，原现场保留供主控归档。
+1. 状态级修前/绿态及两个坏实现；不请求模型。
+2. 真实后台、原生 Claude CLI（本地脚本化接口）与 Electron：围栏拒绝、原文保留、不能集成、按钮恢复、绑定不变、新审查身份、旧审查停止归档与清理、旧错误留存、过期和重复恢复拒绝。
+3. 同一端到端测试的 `accept-fenced`、`unbound-review`、`reuse-failed-review` 三个坏实现，必须在指定业务断言失败，环境错误或超时不算捕获。
+4. 现行 `test_t132_issues_panel_e2e.py`（问题页）与 `test_t137_reflect_e2e.py`（正常独立审查回收、评分、集成）回归。不将历史 controlled-quality host 与当前产品混跑。
+5. `test_t160_real_reviewers.py`：真实 haiku reviewer 3 次。为了保留真实生产启动路径，使用 3 个独立真实 haiku worker，各至多 2 回合（含交付 ACK），加 3 个 reviewer 各 1 回合，总上限 9。独立 HOME 先做原生登录预检；不写用户配置；记录完整 reviewer argv、版本、身份、原生模型事实与实际回合数。输出须有有效门禁结果，或被拒后原文与恢复按钮都存在。不自动点击真实恢复按钮。复制的登录文件仅在进程停止后删除，认证不就绪则在模型回合开始前失败。
 
-静态诊断：`qualityProtocol.ts` 已严格 JSON.parse；`core.ts` 将协议失败记录为 `unknown` / `paused`，但 `verify` 只允许 `submitted` / `verifying`；`IssuesPage.tsx` 只展示原始问题正文，缺少明确恢复说明。以上是源码诊断，尚未取得修前 Electron 红态。
-
-待办：取得指定红态后才修根因；同一测试绿态、接受围栏变异反例、相关已有质量链/审查生命周期/问题页回归；真实 haiku reviewer 3 次（上限 9 回合，另写 RUN-OUTSIDE 交主控跑）；完成检查与最终提交。真实模型当前使用 0 回合。
-
-准备阶段检查：Python 编译、zsh 语法、UTF-8 回读及暂存差异空白检查通过。项目状态复核见 `project-map-before-red-handoff.txt`：Problems 0、Stale living docs 0。没有运行或通过产品绿态、变异与真实模型验收。
-
-约束提示：COMMON-FIX 要求界面文案前读 `frontend-less-ai-tone`，在 `~/.codex/skills` 与 `~/.claude/skills` 均未找到；当前可用目录只有 `frontend-production`。本轮未改界面，续作时需主控确认适用替代技能或提供原文件。
-
-已按 worker 角色卡用 `scripts/inbox send` 上报：`20261024T013750Z-worker:b24-t160-issue-001`（非 blocking）。生成的收件箱条目保留在本 worktree，未纳入本票提交的 `.project-map/**` 禁改边界；正文副本为 `skill-issue.md`。
+3 次真实 reviewer 的逐次结果、修后完整绿态、独立候选审查和最终状态待本脚本返回后填写。没有可靠性、成本或吞吐收益主张。

@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('a2a', Object.freeze({
   notificationSetting: (enabled?: boolean, preference?: 'notifications' | 'dockBadges') => ipcRenderer.invoke('a2a:notification-setting', enabled, preference),
   tasks: (project: string) => ipcRenderer.invoke('a2a:tasks', project),
   issues: (project: string) => ipcRenderer.invoke('a2a:issues', project),
+  restartReview: (task: string, attempt: string, reviewId: string) => ipcRenderer.invoke('a2a:review-restart', task, attempt, reviewId),
   answerIssue: (task: string, issue: string, answer: string) => ipcRenderer.invoke('a2a:issue-answer', task, issue, answer),
   disposeIssue: (task: string, issue: string, action: 'close' | 'snooze', reason?: string, basis?: string) =>
     ipcRenderer.invoke('a2a:issue-dispose', task, issue, action, reason, basis),

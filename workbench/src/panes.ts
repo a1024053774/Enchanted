@@ -1546,7 +1546,14 @@ export class Panes implements GateRuntime {
         if (transfer) await transfer(pane, value, matched);
         if (!matched) { this.store.event("stop_not_matched", value, pane.record); return; }
         check(currentTurnTrust(pane, this.store.read().filter(e => e.launch === launch)) === 'verified', 'current_turn_untrusted');
-        pane.active = null; pane.state = pane.failed ? "unknown" : pane.interrupted ? "busy" : "idle";
+        const protocolFailure = pane.record.role === "reviewer" && pane.failed === "invalid_review_result";
+        if (protocolFailure && (pane.active !== active || pane.active?.nativeTurn !== value.turn_id || pane.turn !== value.turn_id || pane.native !== value.session_id)) {
+          pane.state = "unknown";
+          this.store.event("stop_not_matched", { ...value, stage: "after_transfer" }, pane.record); return;
+        }
+        // A rejected protocol result still ended this matched review turn. Keep the
+        // failure/blocking marker; only the gate may stop/archive it and start afresh.
+        pane.active = null; pane.state = pane.failed && !protocolFailure ? "unknown" : pane.interrupted ? "busy" : "idle";
         this.store.event(pane.state === "idle" ? "pane_idle" : "pane_completion_held", { submission: active!.id, state: pane.state, stop: value }, pane.record);
       } catch (error) {
         if (matched) this.recordFailure(pane, "stop_transfer_failed", error);

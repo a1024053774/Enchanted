@@ -2489,7 +2489,8 @@ export class A2AGates {
           mutation_checks: { min: 2, max: 5, workspace: candidateWorkspace, report_section: "完成条件与变异检查" },
         }, report: { "完成条件与变异检查": "填写完成条件审查及各变异的改动、命令和结果" } };
       const prompt = `审查这一次交付。审查目录和候选 Git worktree 只读；门禁为你准备的一次性候选副本是唯一可写工作目录：${candidateWorkspace}。不要实现或提交代码，不要调用 worker 的 submit、不能集成、不能写请求文件。独立判断候选是否满足任务卡；不要把机械通过当作审查结论。\n\n必查完成条件：判断完成条件（含验收文件 oracle_paths）是否足以拒绝明显错误的实现；不足时结论写“需修复”并列出缺失。\n必做变异检查：针对候选关键逻辑在一次性候选副本中构造 2～5 个少量错误实现，分别运行完成条件或候选新增测试，确认每个会失败；副本改动不提交、不进入集成。报告必须单列“完成条件与变异检查”，逐项写改了什么、运行的命令、结果。\n\n任务卡：\n${JSON.stringify(this.boundCard(attempt), null, 2)}\n候选改动：\n${diff}\n机械验收：\n${JSON.stringify(v, null, 2)}\n上一轮问题清单：\n${JSON.stringify(previous)}\n最终消息必须是一个完整 JSON 对象，不能加 Markdown 或说明文字。明确发起 review_submit，Stop hook 才会转交；结束回合本身不算交付。保留模板的全部顶层字段，不添加其他字段。身份字段和 review_requirements 原样返回。report 必须是 JSON 对象，在其中填写审查报告，并单列“完成条件与变异检查”；不要把 report 写成字符串。verdict 只选“可合并”或“需修复”。可合并时 findings 为空；需修复时每项为 {"location":{"path":"仓库相对路径","line":1},"failure_scenario":"具体失败场景","suggestion":"修复建议"}，至少一项。\n${JSON.stringify(shape, null, 2)}`;
-      await this.runtime.createReview(task, review, prompt);
+      const formatCheck = '\n输出前自检：整条最终消息必须能直接被 JSON.parse 解析，第一个非空白字符为 {，最后一个为 }。不要用 ```json 或任何代码围栏，不加前言或结语。检查模板全部顶层字段、身份字段与 review_requirements 原样保留，report 是对象且含“完成条件与变异检查”。带围栏或自然语言的结论会被拒绝并暂停，不能追认为通过。';
+      await this.runtime.createReview(task, review, formatCheck + '\n' + prompt);
       const live = await this.runtime.readThread(review.thread_id);
       review.runtime_identity = { ...live.runtime_identity };
       review.launch_id = live.runtime_identity.launch;
@@ -2525,6 +2526,47 @@ export class A2AGates {
         this.db.exec("COMMIT");
       } finally { if (this.db.isTransaction) this.db.exec("ROLLBACK"); }
     } finally { lock.close(); }
+  }
+
+  /** Explicit recovery under the existing task operation lock; never reinterprets old output. */
+  private async restartProtocolReview(task: A2ATask, args: A2AGateRequest) {
+    const attempt = this.current(task), review = task.review;
+    requireGate(args.attempt === attempt.attempt_id && args.review_id === review?.review_id &&
+      review?.state === "unknown", "stale_review");
+    requireGate(this.runtime && !task.integration_intent && !task.repair && task.verification?.state === "passed",
+      "review_verification_mismatch");
+    const failed = this.db.prepare("SELECT seq,details FROM events WHERE task=? AND attempt=? AND type='review_protocol_failed' AND json_extract(details,'$.review.review_id')=? ORDER BY seq DESC LIMIT 1")
+      .get(task.task_id, attempt.attempt_id, review.review_id);
+    const original = failed && JSON.parse(String(failed.details));
+    requireGate(original && typeof original.details?.error === "string" && typeof original.details?.raw === "string" &&
+      JSON.stringify(original.review) === JSON.stringify(review), "review_protocol_failure_required");
+    this.checkVerification(task, attempt, task.verification);
+    this.checkQualityEvidence(task, attempt, task.verification);
+    requireGate(review.candidate_commit === task.candidate_commit && review.spec_rev === task.spec_rev &&
+      review.card_snapshot_id === attempt.card_snapshot_id && review.verification_id === task.verification.verification_id &&
+      review.attempt.attempt_id === attempt.attempt_id && review.attempt.session_id === attempt.session_id &&
+      review.attempt.fence === attempt.fence, "stale_review");
+    // An interrupted stop/cleanup has an unknown outcome. Do not repeat its effects.
+    requireGate(!this.db.prepare("SELECT 1 FROM events WHERE task=? AND type='review_protocol_recovery_intent' AND json_extract(details,'$.review_id')=?")
+      .get(task.task_id, review.review_id), "review_recovery_unknown");
+    const live = await this.runtime.readThread(review.thread_id);
+    this.checkThread(this.reviewAttempt(review), live);
+    this.reviewLaunch(task, review, live);
+    // The parser failure deliberately blocks this pane. It must still be idle before reclaim.
+    requireGate(!live.running, "reviewer_not_idle");
+    await this.checkReviewBoundary(task, review);
+    this.event(task.task_id, "review_protocol_recovery_intent", { review_id: review.review_id, failed_event: Number(failed!.seq) });
+    await this.runtime.stopThread(review.thread_id);
+    await this.runtime.archiveThread(review.thread_id);
+    const after = await this.runtime.readThread(review.thread_id);
+    this.checkThread(this.reviewAttempt(review), after);
+    requireGate(after.stopped && after.archived && !after.running, "review_reclaim_unconfirmed");
+    await this.cleanupReviewCandidate(task, review);
+    await this.cleanupReviewWorktree(task, review);
+    this.member(task, review.thread_id, "reviewer", new Date(this.now()).toISOString());
+    this.event(task.task_id, "review_protocol_reclaimed", { review_id: review.review_id, failed_event: Number(failed!.seq) });
+    await this.requestReview(task, attempt);
+    return { ok: true, task, verification: task.verification };
   }
 
   async reclaimReview(taskId: string, reviewId: string) {
@@ -2647,7 +2689,8 @@ export class A2AGates {
   }
 
   private async cleanupReviewWorktree(task: A2ATask, review: A2AReview) {
-    requireGate(review.result && ["passed", "needs_fix"].includes(review.state), "review_result_required");
+    // Callers establish either a stored result or an explicit protocol-failure recovery.
+    // Both have stopped and archived the bound session before removing its detached worktree.
     requireGate(review.task_id === task.task_id && review.attempt.task_id === task.task_id &&
       Number.isSafeInteger(review.ordinal) && review.ordinal > 0 &&
       review.workspace === join(this.projectWorktrees(task), `${this.attemptName(review.attempt)}-review-${review.ordinal}`),
@@ -3835,6 +3878,10 @@ export class A2AGates {
       }
       if (args.attempt && !historicalAttempt)
         requireGate(task.current_attempt?.attempt_id === args.attempt, "stale_attempt");
+      if (args.command === "verify" && (task.state === "paused" || args.review_id !== undefined)) {
+        requireGate(task.state === "paused", "stale_review");
+        return await this.restartProtocolReview(task, args);
+      }
       if (args.command === "verify" && task.state === "rework")
         throw new Refusal("conflict_rework_required", task.current_attempt?.rework);
       if (args.command === "verify")
