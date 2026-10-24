@@ -94,4 +94,4 @@
 | [AGENTS.md](../AGENTS.md) | `CONTEXT.md`, `intent.md` | f0188d77 |
 | [README.md](../README.md) | `coop.py`, `acceptance/live_muster.py`, `intent.md`, `muster/**`, `scripts/build` | 2876c9fd |
 | [findings/README.md](../findings/README.md) | `findings/*.md` | 8933ee0f4 |
-| [workbench/README.md](../workbench/README.md) | `workbench/src/**`, `workbench/hooks/**`, `workbench/app/**`, `workbench/package.json` | fddbc50d1 |
+| [workbench/README.md](../workbench/README.md) | `workbench/src/**`, `workbench/hooks/**`, `workbench/app/**`, `workbench/package.json` | 1430689e4 |
