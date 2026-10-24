@@ -9,6 +9,7 @@
 --summary 必须是新路径；夹具保留，交主控按 T-088 归档。
 """
 import argparse
+import base64
 import json
 from pathlib import Path
 import subprocess
@@ -21,10 +22,13 @@ PEER = r'''import json, os, re, subprocess, sys, uuid
 from pathlib import Path
 settings = json.loads(os.environ['T093_FIXTURE_SETTINGS'])
 prompt_id = str(uuid.uuid4())
+transcript = Path(os.environ['HOME']) / '.claude' / 'projects' / 't161-controlled-pty' / (os.environ['A2A_NATIVE_SESSION'] + '.jsonl')
+transcript.parent.mkdir(parents=True, exist_ok=True)
+transcript.touch(exist_ok=True)
 def hook(name, **extra):
     command = settings['hooks'][name][0]['hooks'][0]['command']
     payload = dict(hook_event_name=name, session_id=os.environ['A2A_NATIVE_SESSION'],
-                   cwd=os.getcwd(), prompt_id=prompt_id, **extra)
+                   cwd=os.getcwd(), transcript_path=str(transcript), prompt_id=prompt_id, **extra)
     result = subprocess.run(command, shell=True, input=json.dumps(payload), text=True, capture_output=True)
     print(result.stdout, result.stderr, flush=True)
     assert result.returncode == 0, (name, result.returncode)
@@ -33,6 +37,11 @@ if sys.argv[2] == '0':
     print('\x1b[?1004hT161_FOCUS_OUTPUT', flush=True)
 else:
     text = sys.argv[1]
+    # A controlled PTY has no model replies. Its real hook transcript contains only this input;
+    # model/effort facts remain unknown rather than inventing a provider response.
+    with transcript.open('a', encoding='utf-8') as stream:
+        stream.write(json.dumps(dict(type='user', sessionId=os.environ['A2A_NATIVE_SESSION'],
+                                    promptId=prompt_id, message=dict(role='user', content=text))) + '\n')
     hook('UserPromptSubmit', prompt=text)
     if os.environ['A2A_ROLE'] == 'worker' and os.environ['A2A_TASK'].endswith('+T-review'):
         Path('T-review.txt').write_text('candidate\n', encoding='utf-8')
@@ -41,7 +50,9 @@ else:
         submit = re.search(r'显式交付：\n(.+)\n', text).group(1)
         commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
         submit = submit.replace('FULL_COMMIT_SHA', commit)
-        subprocess.run(submit, shell=True, check=True)
+        result = subprocess.run(submit, shell=True, check=True, capture_output=True, text=True)
+        print(result.stdout, result.stderr, flush=True)
+        assert json.loads(result.stdout).get('queued') is True, 'submit must queue before Stop'
     if os.environ['A2A_ROLE'] != 'reviewer':
         hook('Stop', stop_hook_active=False)
 '''
@@ -56,7 +67,7 @@ def main():
     args = parser.parse_args()
     assert not args.summary.exists(), '保留旧证据，请换新路径'
     args.summary.parent.mkdir(parents=True, exist_ok=True)
-    report = dict(status='INCOMPLETE', argv=sys.argv, checks=[], observed={}, model_calls=0,
+    report = dict(status='INCOMPLETE', phase='setup', argv=sys.argv, checks=[], observed={}, model_calls=0,
                   code_version=subprocess.check_output(['git', 'rev-parse', args.revision or 'HEAD'], cwd=ROOT, text=True).strip())
     fixture = electron = None
 
@@ -75,18 +86,36 @@ def main():
         fixture = Fixture('t161-', lambda _: (_ for _ in ()).throw(AssertionError('禁止模型请求')),
                           revision=args.revision, patches=patches)
         report['fixture'] = str(fixture.dir)
+        report['observed']['source'] = str(fixture.source)
+        if args.revision:
+            # Direct byte comparisons verify the requested revision, without altering the exported tree.
+            revision_files = ('src/panes.ts', 'src/questions.ts', 'src/gates/cli.ts', 'app/main.ts', 'app/build.mjs')
+            matches = {name: (fixture.source / 'workbench' / name).read_bytes() == subprocess.check_output(
+                ['git', 'show', args.revision + ':workbench/' + name], cwd=ROOT) for name in revision_files}
+            report['observed']['revision_export_matches'] = matches
+            assert all(matches.values()), '指定版本源码导出不一致'
         fake = fixture.dir / 'controlled-claude'
         subprocess.run(['cc', str(ROOT / 'workbench/tests/t093_fake_claude.c'), '-o', str(fake)], check=True, capture_output=True)
         (fixture.dir / 'fake-login-peer.py').write_text(PEER, encoding='utf-8')
         fixture.start(str(fake), {'README.md': 'T161 controlled PTY\n', 'check.py': 'raise SystemExit(0)\n'})
         workers = {}
+
+        def worker_finished(task):
+            launch = workers[task]
+            snapshot = fixture.request('workbench_snapshot', task='demo+' + task, launch=launch)
+            pane = snapshot.get('pane') or {}
+            raw = fixture.request('pane_output', launch=launch, offset=0, max_bytes=65536)
+            output = base64.b64decode(raw['data_base64']).decode('utf-8', errors='replace')
+            report['observed'].setdefault('setup_workers', {})[task] = dict(launch=launch, pane=pane, output_tail=output[-4000:])
+            assert pane.get('lifecycle') != 'ended' and not pane.get('failed'), task + ' 夹具进程失败：' + output[-2000:]
+            return pane.get('lifecycle') == 'running' and pane.get('state') == 'idle' and 'fixture-turn-1-complete' in output
+
         for task in ('T-review', 'T-history', 'T-input'):
             fixture.card(task, task + '.txt', 'check.py')
             dispatched = fixture.request('dispatch', fixture.terminal, task=task, runtimeMode='workspace-write')
             assert dispatched.get('ok'), dispatched
             workers[task] = dispatched['attempt']['runtime_identity']['launch']
-            fixture.wait(task + ' 回合完成', lambda task=task: fixture.request('workbench_snapshot', task='demo+'+task,
-                         launch=workers[task]).get('pane', {}).get('state') == 'idle', 40)
+            fixture.wait(task + ' Stop 后回合完成', lambda task=task: worker_finished(task), 40)
         fixture.wait('候选完成 Stop 交付', lambda: fixture.request('status', fixture.operator, task='demo+T-review')['task']['state'] == 'submitted', 30)
         verified = fixture.request('verify', fixture.terminal, task='T-review')
         assert verified.get('ok'), verified
@@ -95,8 +124,12 @@ def main():
         revoked = fixture.request('revoke', fixture.terminal, task='T-history', reason='T161 historical-view fixture')
         assert revoked.get('ok'), revoked
         report['observed']['launches'] = dict(workers=workers, reviewer=reviewer)
+        report['phase'] = 'electron_build'
         electron = Electron(fixture, fixture.dir.name)
+        report['observed']['build'] = electron.build
+        assert Path(electron.build['source']).resolve() == (fixture.source / 'workbench/app').resolve(), 'Electron 构建来源不符'
         electron.until('项目出现', '!!document.querySelector(\'[data-project-id="demo"]\')')
+        report['phase'] = 'defect_checks'
 
         def click(selector):
             electron.until('可点击 ' + selector, f'!!document.querySelector({json.dumps(selector)})')
@@ -121,7 +154,6 @@ def main():
         # Both output histories contain a real PTY 1004 mode sequence before selecting them.
         for kind, launch in [('reviewer', reviewer), ('history', workers['T-history'])]:
             raw = fixture.request('pane_output', launch=launch, offset=0, max_bytes=65536)
-            import base64
             check(kind + '_fixture_has_focus_mode', b'\x1b[?1004h' in base64.b64decode(raw['data_base64']))
             click('[data-agent-launch="' + launch + '"]')
             key = ready(launch)
