@@ -1,0 +1,16 @@
+T-157-1 / a1 — 2026-10-24 native queued-turn checkpoint
+Defect evidence: OUTSIDE-04/stop-input-positive.json and final.png; current_turn_untrusted after reused-id UPS, then unmatched real queued-turn Stop.
+Before product edit: test_t157_turn_identity.py --summary IDENTITY-QUEUED-RED-04.json, exit 1 on claude_prompt_id_reused (new queued scenario).
+After product edit: test_t157_turn_identity.py --summary IDENTITY-QUEUED-FINAL-GREEN-05.json, exit 0, 4 scenarios PASS.
+Known-bad ignore-turn, swallow-input, delay-input: each exit 1 at intended assertions; IDENTITY-QUEUED-MUTANT-*-05.json.
+Existing test_t160_protocol_idle.py: exit 0, 7 isolated Codex Stop cases PASS.
+node app/build.mjs --slot t157-queued-20261024-05: exit 0; Vite >500 kB warning; own successful temporary slot cleaned, BUILD-QUEUED-05.json retained.
+All test_t157_*.py ast.parse: PASS.
+Extract WATCHER with ast.literal_eval; node --check /private/tmp/t157-watcher-05-*.mjs: exit 0.
+zsh -n RUN-OUTSIDE-05.sh: exit 0; inline verdict Python AST PASS; exactly 13 run_probe calls.
+git diff --check: exit 0.
+Evidence UTF-8/no BOM/no replacement character and JSON parsing: PASS.
+Project-map status: Problems 0, Stale living docs 0, frontier T-155/T-157/T-161.
+Product edit only panes.ts; README and own tests/evidence updated. No renderer/daemon/questions/gate-contract edit in this checkpoint.
+Electron/daemon/CLI not run in sandbox. Candidate real acceptance INCOMPLETE; RUN-OUTSIDE-05 requested from controller.
+Supplier model turns remain 0 / 12. Independent review remains with controller.

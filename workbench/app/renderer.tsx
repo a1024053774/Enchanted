@@ -13,7 +13,7 @@ import type { ExecutionRole, ExecutionSelection } from '../src/executionSettings
 import type { FlowSnapshot } from '../src/flow.ts';
 import { TerminalScrollToBottom } from './TerminalScrollToBottom';
 import { createFocusSafeWriter, ownTerminalQueries } from './terminalOutput.mjs';
-import type { EmptyInputDeclaration } from '../src/panes.ts';
+import type { EmptyInputDeclaration, WorkerDeliveryStatus } from '../src/panes.ts';
 import { AppNotifications, NotificationSettings } from './AppNotifications';
 import type { AppNotice } from './notificationCenter.ts';
 import { QuestionsPanel } from './QuestionsPanel';
@@ -30,11 +30,13 @@ type Snapshot = {
   input_enabled: boolean;
   window_id?: string;
   task: { task_id: string; name: string; title: string; project_id: string; repo: string; state: string;
-    current_attempt: { attempt_id: string; state: string } | null; candidate_commit: string | null;
+    spec_rev: number; current_attempt: { attempt_id: string; session_id: string; fence: number; state: string; reclaimed: boolean } | null; candidate_commit: string | null;
     verification: { state: string } | null; integration_intent: { state: string } | null } | null;
   launch: { id: string; project: string; worktree?: string; thread: string; attempt: string | null; role: string;
     preset: string | null; cli_version: string; model_requested: string } | null;
   pane: { launch: string; state: string; lifecycle: string; state_source: string; historical?: boolean; failed: string | null;
+    delivery?: WorkerDeliveryStatus | null;
+    writing?: boolean; user_draft?: boolean; queued?: string[];
     restoration?: { status: string; error: string | null; details: string | null } | null;
     interrupted?: boolean; interruption?: number | null; input_generation?: number; active?: { dispatch: string } | null } | null;
 };
@@ -45,6 +47,7 @@ type ProjectItem = { project_id: string; repo: string | null; opened?: boolean; 
   git: { branch: string | null; upstream: string | null; ahead: number | null; behind: number | null; error: string | null } };
 type AgentItem = { id: string; project: string; task: string | null; task_name: string | null; attempt: string | null; parent: string | null;
   role: string; preset: string | null; role_label: string; cli: string; state: string; state_label: string; created_at?: string | null; terminal?: boolean;
+  delivery?: WorkerDeliveryStatus | null;
   descendants: { count: number; state: string; state_label: string; counts: { state: string; label: string; count: number }[] } };
 type RoleRequest = { id: string; launch: string; project: string; role: string; role_label: string; cli: string | null; requested_at: string;
   terminal_cwd: string | null; terminal_opened_at: string | null };
@@ -126,6 +129,19 @@ const restoreErrors: Record<string, string> = {
 };
 
 type PaneStatus = { snapshot: Snapshot | null; error: string | null; connecting: boolean };
+const isTurnRejection = (delivery?: WorkerDeliveryStatus | null): delivery is WorkerDeliveryStatus => Boolean(
+  delivery?.state === 'rejected' && delivery.native_turn_changed &&
+  ['worker_not_active', 'native_identity_required', 'stale_turn', 'identity_conflict', 'relay_requires_current_stop'].includes(delivery.reason ?? ''));
+const canRequestDeliveryCheck = (value: Snapshot, delivery: WorkerDeliveryStatus) => {
+  const attempt = value.task?.current_attempt;
+  return value.input_enabled && value.launch?.role === 'worker' && value.launch.attempt === delivery.attempt &&
+    value.task?.task_id === delivery.task && value.task.spec_rev === delivery.spec_rev && !value.task.candidate_commit &&
+    attempt?.attempt_id === delivery.attempt && attempt.session_id === delivery.session && attempt.fence === delivery.fence &&
+    !attempt.reclaimed && value.pane?.lifecycle === 'running' && value.pane.state === 'idle' && !value.pane.active &&
+    !value.pane.failed && !value.pane.interrupted && !value.pane.writing && !value.pane.user_draft && !value.pane.queued?.length &&
+    isTurnRejection(value.pane.delivery) &&
+    value.pane.delivery.request_id === delivery.request_id;
+};
 
 function SessionPane({ paneKey, active, screenReader, name, home, focusRequest, zoomed, onZoom, onAction, onStatus, onClose }: { paneKey: string; active: boolean; screenReader: boolean; name?: string; home: string | null; focusRequest: number; zoomed: boolean; onZoom: () => void; onAction: (key: string, action: { type: string; direction?: string; name?: string }) => Promise<void>; onStatus: (key: string, status: PaneStatus) => void; onClose: (key: string, value: Selection) => void }) {
   const mount = useRef<HTMLDivElement>(null);
@@ -164,6 +180,11 @@ function SessionPane({ paneKey, active, screenReader, name, home, focusRequest, 
   const [renaming, setRenaming] = useState(false);
   const [draftName, setDraftName] = useState('');
   const [acting, setActing] = useState(false);
+  const recoveryWritten = useRef<string | null>(null);
+  const recoveryInFlight = useRef(false);
+  const [recoverySending, setRecoverySending] = useState(false);
+  const [recoverySent, setRecoverySent] = useState<string | null>(null);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
   const renameInput = useRef<HTMLInputElement>(null);
@@ -344,6 +365,34 @@ function SessionPane({ paneKey, active, screenReader, name, home, focusRequest, 
   }, [paneKey]);
   const task = snapshot?.task;
   const pane = snapshot?.pane;
+  const turnRejection = isTurnRejection(pane?.delivery) ? pane.delivery : null;
+  const requestDeliveryCheck = async () => {
+    if (!snapshot || !turnRejection || recoveryInFlight.current || recoveryWritten.current === turnRejection.recovery_request_id) return;
+    const original = turnRejection;
+    recoveryInFlight.current = true;
+    setRecoverySending(true); setRecoveryError(null);
+    try {
+      const current = await window.a2a.snapshot(paneKey);
+      if (current.launch?.id !== snapshot.launch?.id || current.window_id !== snapshot.window_id || !canRequestDeliveryCheck(current, original)) {
+        setRecoveryError('原 attempt 或交付记录已改变，未发送核对请求。请由执行主控核对原记录。');
+        return;
+      }
+      // A user asks the original worker to inspect the original attempt. This is
+      // ordinary recorded terminal input, never an operator submit or a replay.
+      // Repeated manual checks name the same fresh request; the CLI's exclusive
+      // request file and the relay journal retain their normal duplicate checks.
+      recoveryWritten.current = original.recovery_request_id;
+      const body = '请核对这条因原生回合变化被拒绝的交付。保持原任务范围；先核对当前合同、人工介入和 worktree HEAD，' +
+        '只有仍与下面原 attempt、版本和提交完全一致，才用派发提示里的正常 CLI 显式 submit；' +
+        `该新请求指定 --request-id ${original.recovery_request_id}。不要重放旧 request_id，不改合同，不接管新 attempt，不自动重试。` +
+        '若身份、版本或代码不符，请向执行主控上报并停止交付。\n' + JSON.stringify(original, null, 2);
+      await window.a2a.input(paneKey, '\x1b[200~' + body + '\x1b[201~');
+      await window.a2a.input(paneKey, '\r');
+      setRecoverySent(original.recovery_request_id);
+    } catch (failure) {
+      setRecoveryError('核对请求的发送结果未确认，请查看原终端；不要重复发送。' + String(failure));
+    } finally { recoveryInFlight.current = false; setRecoverySending(false); }
+  };
   const historical = Boolean(snapshot?.launch?.attempt && task?.current_attempt?.attempt_id !== snapshot.launch.attempt);
   const shell = snapshot?.launch?.role === 'shell';
   const role = snapshot?.launch?.role === 'controller'
@@ -389,6 +438,7 @@ function SessionPane({ paneKey, active, screenReader, name, home, focusRequest, 
             {!inputEnabled && <span className="readonly">只读</span>}
             <span className="pane-state" data-state={error ? 'unknown' : pane?.state ?? 'unknown'}>{error ? '未知' : shell
               ? lifecycleNames[pane?.lifecycle ?? 'unknown'] ?? '未知' : activityNames[pane?.state ?? 'unknown'] ?? '未知'}</span>
+            {turnRejection && <span className="pane-state" data-delivery-refusal>旧回合交付被拒</span>}
           </span>
           {!shell && snapshot?.launch?.role !== 'reviewer' && pane?.interrupted && <button className="release-queue" disabled={!snapshot?.input_enabled || !declarationReady || releasing || Boolean(inputError || error)}
             onClick={() => releaseQueue.current()}>输入框已空，放行</button>}
@@ -400,6 +450,27 @@ function SessionPane({ paneKey, active, screenReader, name, home, focusRequest, 
               <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg></button>
           </span>
         </div>
+        {turnRejection && <div className="connection-error" role="status" data-delivery-refusal={turnRejection.reason}>
+          <div>
+            <p>原生 CLI 已开始新回合，旧回合的交付请求被门禁拒绝。</p>
+            <p>最后确定：旧请求未获接受；{task?.candidate_commit ? `任务已有候选 ${task.candidate_commit.slice(0, 12)}` : '任务尚无候选'}。
+              原提交 {turnRejection.commit.slice(0, 12)} · attempt {turnRejection.attempt.slice(0, 8)}。</p>
+            <details><summary>查看原交付记录</summary><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{JSON.stringify(turnRejection, null, 2)}</pre></details>
+            <p>核对请求只发给原 worker；由它核对后显式交付，门禁仍逐项检查。</p>
+            {snapshot && !canRequestDeliveryCheck(snapshot, turnRejection) && <p>{historical || task?.current_attempt?.reclaimed || task?.spec_rev !== turnRejection.spec_rev
+              ? '原 attempt 或合同版本已失效，不能发送核对请求，请由执行主控处理原记录。'
+              : task?.candidate_commit ? '任务已有候选，无需重新交付，请由执行主控核对。'
+              : pane?.state === 'busy' ? '当前回合尚未结束，结束后可请求核对。终端仍可直接输入。'
+              : pane?.user_draft ? '有未确认的输入，请先自行处理原终端；核对请求不会代发草稿。'
+              : pane?.writing || pane?.queued?.length ? '正在处理原会话输入，结束后再请求核对。'
+              : '当前无法确认可写身份，请由执行主控核对原记录。'}</p>}
+            {recoveryError && <p role="alert">{recoveryError}</p>}
+            {recoverySent === turnRejection.recovery_request_id && <p role="status">核对请求已发送，尚不代表交付通过。</p>}
+          </div>
+          <button data-delivery-recovery disabled={!snapshot || !canRequestDeliveryCheck(snapshot, turnRejection) || recoverySending ||
+            recoveryWritten.current === turnRejection.recovery_request_id || Boolean(inputError || error)}
+            onClick={() => void requestDeliveryCheck()}>{recoverySending ? '正在发送核对请求…' : '请原 worker 核对交付'}</button>
+        </div>}
         {menu && <div ref={menuRef} className="pane-menu" role="menu" aria-label="窗格操作" style={{ left: menu.x, top: menu.y }} onKeyDown={event => {
           const items = [...menuRef.current!.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')];
           const index = items.indexOf(document.activeElement as HTMLButtonElement);
@@ -711,6 +782,7 @@ function Workbench() {
             <span className="agent-role">{agent.role_label}</span>
             <span className="agent-meta">{agent.terminal ? '项目终端' : agent.task_name ?? '任务未知'} · {agent.cli}</span>
             <span className={agent.state === 'ended' ? 'agent-state' : 'sr-only agent-state'}>{agent.state_label}</span>
+            {isTurnRejection(agent.delivery) && <span className="agent-state" data-delivery-refusal title={agent.delivery.reason ?? ''}>旧回合交付被拒</span>}
           </span>
           <span className="row-time">{since(agent.created_at, now)}</span>
           <StatusIcon state={agent.state} />

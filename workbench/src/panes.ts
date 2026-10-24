@@ -179,6 +179,11 @@ async function workerGitDenied(worktree: string) {
   const common = (await exec("git", ["-C", worktree, "rev-parse", "--path-format=absolute", "--git-common-dir"])).stdout.trim();
   return [realpathSync(common)];
 }
+export type WorkerDeliveryStatus = {
+  task: string; attempt: string; session: string; fence: number; spec_rev: number; commit: string; request_id: string;
+  received_at: string; result_at: string | null; state: 'processing' | 'submitted' | 'rejected' | 'unknown'; reason: string | null;
+  request_turn: string | null; current_turn: string | null; native_turn_changed: boolean; recovery_request_id: string;
+};
 type Pane = {
   record: Record<string, any> & { id: string; task: string | null; attempt: string | null };
   token: string; task: A2ATask | null; attempt: A2AAttempt | null; pty: any;
@@ -199,6 +204,7 @@ type Pane = {
   startupScreen?: string; trustAnswered?: boolean; startupOutputAt?: number; started?: boolean;
   claudePromptId?: string | null;
   claudePromptIds?: Set<string>;
+  claudeQueuedPrompts?: { prompt: string; received_at: string }[];
   permission?: { prompt_id: string; submission: string } | null;
   login?: ClaudeLogin;
   loginCleanup?: Promise<void>;
@@ -1018,7 +1024,35 @@ export class Panes implements GateRuntime {
   scan(pane: Pane, final = false) {
     if (pane.stopped) return;
     if (pane.record.role === "shell") return;
-    if (pane.record.cli === "Claude Code") return;
+    if (pane.record.cli === "Claude Code") {
+      if (!pane.claudeQueuedPrompts?.length) return;
+      // Busy-input UPS carries the still-running prompt id. Only the native
+      // queued human transcript establishes the eventual new prompt id, before
+      // any caller check or hook matching may use that turn.
+      const lines = readFileSync(pane.nativeFile!, 'utf8').split('\n');
+      lines.pop(); // A final partial line is not yet native evidence.
+      const entries = lines.filter(Boolean).map(line => JSON.parse(line));
+      while (pane.claudeQueuedPrompts.length) {
+        const queued = pane.claudeQueuedPrompts[0]!;
+        const entry = entries.find(value => value.type === 'user' && value.isSidechain === false &&
+          value.sessionId === pane.native && value.cwd === pane.record.worktree &&
+          value.promptSource === 'queued' && value.turnOrigin === 'human' && value.origin?.kind === 'human' &&
+          typeof value.promptId === 'string' && value.promptId.length > 0 && value.promptId.length <= 128 &&
+          !pane.claudePromptIds!.has(value.promptId) && typeof value.uuid === 'string' && value.uuid.length > 0 &&
+          Number.isFinite(Date.parse(value.timestamp)) && Date.parse(value.timestamp) >= Date.parse(queued.received_at) &&
+          value.message?.role === 'user' && value.message.content === queued.prompt);
+        if (!entry) break;
+        pane.claudeQueuedPrompts.shift();
+        pane.active = { id: randomUUID(), dispatch: `input:${entry.promptId}`, at: entry.timestamp, nativeTurn: null };
+        pane.claudePromptIds!.add(entry.promptId); pane.claudePromptId = entry.promptId;
+        pane.state = 'busy'; pane.permission = null;
+        this.store.event('turn_submit_intent', { ...pane.active, source: 'user', origin: 'native-transcript' }, pane.record);
+        this.store.event('turn_submitted', { ...pane.active, source: 'user', origin: 'native-transcript' }, pane.record);
+        this.store.event('turn_start_signal', { session_id: pane.native, prompt_id: entry.promptId, origin: 'native-transcript',
+          transcript_path: pane.nativeFile, transcript_uuid: entry.uuid, received_at: queued.received_at }, pane.record);
+      }
+      return;
+    }
     const home = pane.record.env.CODEX_HOME as string;
     const walk = (dir: string): string[] => !existsSync(dir) ? [] : readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
       entry.isDirectory() ? walk(join(dir, entry.name)) : entry.name.endsWith(".jsonl") ? [join(dir, entry.name)] : []);
@@ -1168,9 +1202,13 @@ export class Panes implements GateRuntime {
       if (!binary && !pasted && /[\r\n]/.test(data) && !permissionControl) {
         pane.state = "busy"; pane.userDraft = false;
         pane.permission = null;
-        if (pane.record.cli === "Claude Code") pane.claudePromptId = null;
-        pane.active = { id: randomUUID(), dispatch: `input:${receipt.request_id}`, at: new Date().toISOString(), nativeTurn: null };
-        this.store.event("turn_submit_intent", { ...pane.active, source: "user", request_id: receipt.request_id }, pane.record);
+        // Claude owns steering/queueing while it works. Enter is input evidence,
+        // not a native turn transition; a fresh UPS or verified queued transcript
+        // owns the next turn. In particular, do not invalidate an in-flight Stop.
+        if (pane.record.cli !== "Claude Code") {
+          pane.active = { id: randomUUID(), dispatch: `input:${receipt.request_id}`, at: new Date().toISOString(), nativeTurn: null };
+          this.store.event("turn_submit_intent", { ...pane.active, source: "user", request_id: receipt.request_id }, pane.record);
+        }
       }
       if (permissionControl) { pane.userDraft = false; pane.permission = null; }
       try {
@@ -1363,6 +1401,47 @@ export class Panes implements GateRuntime {
     });
     return {key,purpose,screen_id,written:true,state:pane.state};
   }
+  private deliveryStatus(record: Pane['record']): WorkerDeliveryStatus | null {
+    const row = this.store.db.prepare(`SELECT q.seq AS received_seq,q.data AS received,q.time AS received_at,
+        r.seq AS result_seq,r.data AS outcome,r.time AS result_at
+      FROM orchestration_events q LEFT JOIN orchestration_events r ON r.launch=q.launch
+        AND r.type IN ('relay_processed','relay_rejected') AND json_extract(r.data,'$.key')=json_extract(q.data,'$.key')
+      WHERE q.launch=? AND q.type='relay_received' AND json_extract(q.data,'$.input.command')='submit'
+      ORDER BY q.seq DESC,r.seq DESC LIMIT 1`).get(record.id);
+    // An unmatched old Stop is refused before execution, so it has no relay intent.
+    // Project its explicit refusal too, without treating it as an executed request.
+    const refused = this.store.db.prepare(`SELECT seq,time,data FROM orchestration_events
+      WHERE launch=? AND type='relay_rejected' AND json_extract(data,'$.result.error')='relay_requires_current_stop'
+        AND json_extract(CASE WHEN json_valid(json_extract(data,'$.file.raw')) THEN json_extract(data,'$.file.raw') ELSE '{}' END,'$.command')='submit'
+      ORDER BY seq DESC LIMIT 1`).get(record.id);
+    const late = refused && (!row || Number(refused.seq) > Number(row.received_seq)) ? refused : null;
+    if (!row && !late) return null;
+    const data = late ? JSON.parse(String(late.data)) : null;
+    const input = late ? JSON.parse(data.file.raw) : JSON.parse(String(row!.received)).input;
+    if (input.task !== record.task || input.attempt !== record.attempt || input.session !== record.session ||
+        input.fence !== record.fence || input.spec_rev !== record.spec_rev ||
+        typeof input.commit !== 'string' || !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(input.commit) ||
+        typeof input.request_id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(input.request_id)) return null;
+    const result = late ? data.result : row!.outcome ? JSON.parse(String(row!.outcome)).result : null;
+    const sequence = Number(late?.seq ?? row!.received_seq);
+    const stop = this.store.db.prepare(`SELECT data FROM orchestration_events WHERE launch=?
+      AND type=? AND seq<? ORDER BY seq DESC LIMIT 1`).get(record.id, late ? 'stop_not_matched' : 'turn_end_signal', sequence);
+    const stopped = stop ? JSON.parse(String(stop.data)) : null;
+    const started = this.store.db.prepare(`SELECT data FROM orchestration_events WHERE launch=?
+      AND type='turn_start_signal' AND seq<=? ORDER BY seq DESC LIMIT 1`)
+      .get(record.id, Number(late?.seq ?? row!.result_seq ?? sequence));
+    const current = started ? JSON.parse(String(started.data)) : null;
+    const requestTurn = stopped?.prompt_id ?? stopped?.turn_id ?? null;
+    const currentTurn = current?.prompt_id ?? current?.turn_id ?? null;
+    return { task: input.task, attempt: input.attempt, session: input.session, fence: input.fence, spec_rev: input.spec_rev,
+      request_id: input.request_id, commit: input.commit, received_at: String(late?.time ?? row!.received_at),
+      result_at: late ? String(late.time) : row!.result_at === null ? null : String(row!.result_at),
+      state: !result ? this.panes.get(record.thread)?.stopInProgress ? 'processing' : 'unknown'
+        : result.ok ? 'submitted' : result.error === 'relay_outcome_unknown' ? 'unknown' : 'rejected',
+      reason: result?.error ?? null, request_turn: requestTurn, current_turn: currentTurn,
+      native_turn_changed: Boolean(requestTurn && currentTurn && requestTurn !== currentTurn),
+      recovery_request_id: `recover-${sequence}` };
+  }
   status(thread: string) {
     const record = this.store.threadLaunch(thread);
     const restore = record && this.store.lastEvent(record.id, ["pane_restore_pending", "pane_restored", "pane_restore_failed"]);
@@ -1375,7 +1454,8 @@ export class Panes implements GateRuntime {
         state_source: pane.failed ? "runtime_failure" : "host_events", active: pane.active, native_session: pane.native,
         turn: pane.turn, writing: pane.writing, user_draft: pane.userDraft, interrupted: pane.interrupted,
         input_generation: pane.inputGeneration, interruption: pane.interruption,
-        queued: pane.queue.map((item) => item.id), failed: pane.failed, stopped: pane.stopped, restoration };
+        queued: pane.queue.map((item) => item.id), failed: pane.failed, stopped: pane.stopped, restoration,
+        delivery: pane.record.role === 'worker' ? this.deliveryStatus(pane.record) : null };
     }
     check(record, "unknown_pane");
     if (record.role === "shell") {
@@ -1390,7 +1470,8 @@ export class Panes implements GateRuntime {
     return { thread, launch: record.id, state: "unknown", lifecycle: record.execution_state === "prepared" ? "not_started" : archived ? "ended" : recovered?.data.lifecycle ?? "unknown",
       shell_pid: recovered?.data.shell_pid ?? null, state_source: record.execution_state === "prepared" ? "launch_prepared" : archived ? "pane_archived" : recovered ? "pane_recovered" : "launch_record",
       active: null, native_session: null, turn: null, writing: false, queued: [], failed: restoration?.error ?? null, restoration,
-      stopped: archived ? true : recovered?.data.exit_event ? true : null, historical: true };
+      stopped: archived ? true : recovered?.data.exit_event ? true : null, historical: true,
+      delivery: record.role === 'worker' ? this.deliveryStatus(record) : null };
   }
   async signal(launch: string, raw: string, received_at: string,
     transfer?: (pane: Pane, stop: any, matched: boolean) => Promise<void>) {
@@ -1408,12 +1489,29 @@ export class Panes implements GateRuntime {
     try {
       value = JSON.parse(raw);
       check(value && typeof value === 'object' && !Array.isArray(value), 'hook_object_required');
-      excluded = noncurrentHook(pane, value, received_at);
+      if (pane.record.cli === 'Claude Code') { this.scan(pane); binding = currentTurnBinding(pane); }
+      // A new authenticated Claude UPS is the native CLI's turn transition.
+      // Do not infer it from Enter, and do not let a reused old prompt replace it.
+      const newClaudePrompt = pane.record.cli === 'Claude Code' && value.hook_event_name === 'UserPromptSubmit' &&
+        typeof value.prompt_id === 'string' && !pane.claudePromptIds?.has(value.prompt_id);
+      excluded = noncurrentHook(newClaudePrompt ? { ...pane, claudePromptId: null } : pane, value, received_at);
       // Keep unmatched Stop semantics. All other noncurrent hooks are refused
       // before common-field validation and cannot poison the current launch.
       if (excluded) {
         check(value.session_id === pane.native || !value.session_id, 'hook_native_session_mismatch');
-        if (value.hook_event_name === 'Stop') { this.store.event('stop_not_matched', value, pane.record); return; }
+        if (value.hook_event_name === 'Stop') {
+          this.store.event('stop_not_matched', value, pane.record);
+          // Record a definite refusal for delayed requests from a known old root.
+          // matched=false prevents the relay from executing any new operation.
+          if (pane.record.cli === 'Claude Code' && pane.record.role === 'worker' &&
+              pane.claudePromptId && value.prompt_id !== pane.claudePromptId && pane.claudePromptIds?.has(value.prompt_id) &&
+              value.session_id === pane.native && !value.agent_id) {
+            validateHookEnvelope({ ...pane, claudePromptId: value.prompt_id }, value);
+            check(Number.isFinite(Date.parse(received_at)) && value.stop_hook_active === false, 'stale_stop_unverified');
+            if (transfer) await transfer(pane, value, false);
+          }
+          return;
+        }
         throw new Refusal('hook_origin_or_turn_mismatch');
       }
       check(Number.isFinite(Date.parse(received_at)), 'hook_received_at_required');
@@ -1485,8 +1583,22 @@ export class Panes implements GateRuntime {
           this.store.event("permission_wait", { ...value, ...fact() }, pane.record); pane.state = "busy"; return;
         }
         if (value.hook_event_name === "UserPromptSubmit") {
-          const item = pane.active && this.store.dispatchRecord(pane.active.dispatch);
+          const item = !pane.claudePromptId && pane.active && this.store.dispatchRecord(pane.active.dispatch);
           check(typeof value.prompt_id==="string" && value.prompt_id.length>0 && value.prompt_id.length<=128,"claude_prompt_id_required");
+          if (pane.stopInProgress && pane.active && value.prompt_id === pane.claudePromptId && typeof value.prompt === 'string') {
+            const history = this.store.read().filter(event => event.launch === launch);
+            const previous = history.findLast(event => ['turn_start_signal', 'claude_prompt_queued'].includes(event.type));
+            const enter = history.findLast(event => event.type === 'terminal_input_write_intent' && event.seq > (previous?.seq ?? 0) &&
+              event.data.encoding === 'utf8' && typeof event.data.data === 'string' &&
+              !event.data.data.startsWith('\x1b[200~') && /[\r\n]/.test(event.data.data) &&
+              history.some(written => written.type === 'terminal_input_written' && written.data.request_id === event.data.request_id));
+            check(enter, 'claude_prompt_id_reused');
+            pane.nativeFile ??= nativeSessionFile(pane.record, pane.native!);
+            check(realpathSync(value.transcript_path) === realpathSync(pane.nativeFile), 'question_origin_unverified');
+            (pane.claudeQueuedPrompts ??= []).push({ prompt: claudeSubmittedText(value.prompt), received_at });
+            this.store.event('claude_prompt_queued', { ...value, input_seq: enter.seq, received_at }, pane.record);
+            return;
+          }
           check(pane.claudePromptIds && !pane.claudePromptIds.has(value.prompt_id),"claude_prompt_id_reused");
           if (item && claudeSubmittedText(value.prompt) !== item.text) {
             const reason = "登记注入与实际提交正文不一致；已阻断，请处理草稿后再决定。";
@@ -1498,7 +1610,13 @@ export class Panes implements GateRuntime {
           }
           // Source comes from the current structured submission, never text markers.
           // Hand-typed submissions and retired injections cannot trigger this guard.
-          if (!item) { this.store.event("user_prompt_unregistered", value, pane.record); if (!pane.active) return; }
+          if (!item) {
+            this.store.event("user_prompt_unregistered", value, pane.record);
+            pane.active = { id: randomUUID(), dispatch: `input:${value.prompt_id}`, at: received_at, nativeTurn: null };
+            pane.claudePromptId = null; pane.state = 'busy';
+            this.store.event('turn_submit_intent', { ...pane.active, source: 'user', origin: 'native-hook' }, pane.record);
+            this.store.event('turn_submitted', { ...pane.active, source: 'user', origin: 'native-hook' }, pane.record);
+          }
           check(pane.state === "busy" && !pane.claudePromptId, "claude_submission_unmatched");
           pane.permission = null;
           pane.claudePromptIds.add(value.prompt_id);pane.claudePromptId=value.prompt_id;this.store.event("turn_start_signal", value, pane.record); return;
@@ -1521,8 +1639,10 @@ export class Panes implements GateRuntime {
           if (transfer) await transfer(pane, value, true);
           check(currentTurnTrust(pane, this.store.read().filter(e => e.launch === launch)) === 'verified', 'current_turn_untrusted');
           if(pane.active!==active || pane.claudePromptId!==value.prompt_id){this.store.event("stop_not_matched",{...value,stage:"after_transfer"},pane.record);return;}
-          pane.active = null; pane.claudePromptId = null; pane.permission = null; pane.state = pane.interrupted ? "busy" : "idle";
-          this.store.event(pane.state === "idle" ? "pane_idle" : "pane_completion_held", { submission: active!.id, stop: value }, pane.record);
+          pane.active = null; pane.claudePromptId = null; pane.permission = null;
+          pane.state = pane.interrupted || pane.claudeQueuedPrompts?.length ? "busy" : "idle";
+          this.store.event(pane.claudeQueuedPrompts?.length ? 'pane_waiting_native_queue' : pane.state === "idle" ? "pane_idle" : "pane_completion_held",
+            { submission: active!.id, stop: value }, pane.record);
         } catch (error) {
           this.recordFailure(pane, "stop_transfer_failed", error); throw error;
         } finally { pane.stopInProgress = false; }
