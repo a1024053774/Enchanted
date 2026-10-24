@@ -1,6 +1,6 @@
 # T-159-1 / a1：任务内分屏讨论终端
 
-状态：**INCOMPLETE**。用户已决定任务内允许分屏；新候选已实现，真实 Electron 绿态、两个新变异和 T-139/T-143 完整回归待 `RUN-OUTSIDE-04`。旧禁用方案的通过结论不替新实现背书。
+状态：**INCOMPLETE**。`RUN-OUTSIDE-04` 的两个变异均在预期业务断言被拒，T-139/T-143 回归通过；真实 Electron green 在正向对照处因测试基线变量被覆盖而中断。已按执行主控 #60 只修该基线，待 `RUN-OUTSIDE-05` 单独补跑 green。旧禁用方案的通过结论不替新实现背书。
 
 ## 当前授权与边界
 
@@ -27,7 +27,7 @@
 - **布局恢复绿态**：最终 main.ts 运行同一测试退出 0，14 项通过，见 `local-layout-store-final-04.json`；覆盖只恢复明确加入的终端、单 agent 改名保留讨论布局、关闭讨论终端保留 agent、讨论终端不进入任务打开集。前一检查点的 `local-layout-store-04.json` 同样保留。
 - `test_t139_selection.mjs`：最终代码 25 项通过，见 `local-selection-final-04.json`；前一检查点的 `local-selection-04.json` 保留。
 - `test_t139_terminal_catalog.mjs`：2 项通过，见 `local-terminal-catalog-04.json`。
-- Python 测试、脚本内两个 oracle 的语法、`zsh -n RUN-OUTSIDE-04.sh`、UTF-8 回读和差异空白检查通过。当前目录没有新真实 Electron 运行结果，不能写成已通过。
+- 前一交付的 Python 测试、脚本内两个 oracle 的语法、`zsh -n RUN-OUTSIDE-04.sh`、UTF-8 回读和差异空白检查通过；本次真实运行结果见下节。
 - 沙箱内 Electron CDP 不可达的原始失败 `sandbox-red-01.json` 保留为 INCOMPLETE，不当成产品红态；本轮不重复这一环境失败，不发起沙箱外运行提权请求。
 
 ## 本轮测试变更与理由
@@ -38,15 +38,24 @@
 - `test_t139_selection.mjs` 和 `test_t139_t143_views_perf_e2e.py`：只将旧“任务只有 agent”措辞改为“排除未选择的项目终端”。原场景未做任务内分屏，所以原排除条件继续有效，不放宽隔离断言、不改性能测量或输入权限条件。
 - 旧两个变异对应旧方向，本轮改为两种当前已知坏实现：`replace-worker` 恢复创建 shell 后切走任务的错误；`shell-input-to-worker` 在隔离 main.ts 副本中把讨论终端的输入误发给同屏 worker，必须产生并被 `task_right_no_intervention` 拒绝。后者不修改后台或测试 oracle，检查真实输入记录与事件。
 
-## 待执行主控运行
+## RUN-OUTSIDE-04 结果与正向对照修复
+
+- 执行主控 #60 返回 `outside-04-Agwb7jjs/`，候选 `5d6eb3bbb74197b274e1ed79082d8367e5cbc0b6`。原目录的小文本与截图原样提交，未覆盖失败证据。退出码为 `red=0 green=1 replace=1 intervention=1 selection=0 layout=0 catalog=0 t139_t143=0 oracle=1`。
+- green 摘要已记录的 44 项检查全部通过，包括任务右/下分屏保留 worker、普通终端类型/目录/输入隔离、布局恢复及项目主控分屏。随后在 `intervention_observer_positive_control` 求值时抛出 `KeyError: 'inputs'`，该项与最后的零模型请求断言未完成，整体为 **INCOMPLETE**，不是完整绿态。原因是同一函数中的 `before` 已被项目主控场景改为 Electron selection 结构。
+- 仅在正向对照输入前增加 `control_before = task_facts()`，比较输入与人工介入计数时使用此基线。两项各增加 1 的期望不变，其他断言及产品代码均未改动。
+- 本次静态检查通过：Python 与 05 内嵌 oracle 的语法、`zsh -n`、UTF-8 回读、证据文件边界及 `git diff --check`；产品目录差异为空。项目地图 status 为 0 Problems / 0 Stale docs，见 `project-map-status-08.txt`。这些检查不替代待运行的 green。
+- `replace-worker` 在 `task_right_keeps_worker` 被拒；`shell-input-to-worker` 在 `task_right_no_intervention` 被拒，均为预期业务失败。selection 25 项、layout-store 14 项、terminal-catalog 2 项及真实 T-139/T-143 23 项回归通过，摘要均无清理错误。本次不重跑这些已完成场景。
+- 夹具保留：green `/private/tmp/t159-qho8_pob`，替换变异 `/private/tmp/t159-sxu8ba07`，介入变异 `/private/tmp/t159-se3dptop`，T-139/T-143 `/private/tmp/t139-ub3lm9_h`；完整位置以各摘要为准。
+
+## 待执行主控运行（仅 green）
 
 ```sh
-zsh evidence/2026-10-23-batch24/T-159/RUN-OUTSIDE-04.sh
+zsh evidence/2026-10-23-batch24/T-159/RUN-OUTSIDE-05.sh
 ```
 
-每次生成新 `outside-04-*` 目录，保留完整候选号、摘要、退出码和截图；不覆盖旧证据。脚本先核对复用红态，然后运行新 T-159 真实 Electron 绿态、两个变异、T-139 selection/layout-store/terminal-catalog，以及完整 `test_t139_t143_views_perf_e2e.py`。后者使用现有隔离 HOME、真实 Claude CLI 加本地脚本化 Messages 接口，不调用供应商模型；不声称本轮性能收益。
+每次生成新 `outside-05-*` 目录，保留完整候选号、摘要、退出码和截图；只运行 T-159 真实 Electron green，不覆盖 04，也不重跑红态、变异或回归。脚本核对全部检查通过，包含实际 worker 输入的正向对照及零模型请求检查。
 
-只有候选全部行为断言通过、两个变异在预期业务断言失败、T-139/T-143 回归通过且无清理错误，脚本才返回 PASS。当前这些沙箱外运行尚未执行，不能标为通过。独立审查与最终门禁验收由执行主控安排。
+05 只有 green 退出 0、摘要为 PASS、关键断言齐全、版本匹配且无清理错误才返回 PASS。目前 05 尚未运行；独立审查与最终门禁验收由执行主控安排。
 
 ## 历史处置与证据保留
 

@@ -254,10 +254,11 @@ if sys.argv[2] == '0':
         click('[data-agent-launch="' + worker + '"]')
         worker_key = ready(worker)
         check('single_worker_excludes_discussion_terminals', [p['launch'] for p in visible()] == [worker], visible())
+        control_before = task_facts()
         electron.evaluate(f'window.a2a.input({json.dumps(worker_key)},{json.dumps("T159_OBSERVER_CONTROL" + chr(13))})')
         controlled = task_facts()
-        check('intervention_observer_positive_control', len(controlled['inputs']) == len(before['inputs'])+1 and
-              len(controlled['interventions']) == len(before['interventions'])+1, controlled)
+        check('intervention_observer_positive_control', len(controlled['inputs']) == len(control_before['inputs'])+1 and
+              len(controlled['interventions']) == len(control_before['interventions'])+1, controlled)
         check('zero_model_requests', fixture.api.snapshot()['requests'] == 0, fixture.api.snapshot())
         report['status'] = 'PASS'
     except Exception as error:
