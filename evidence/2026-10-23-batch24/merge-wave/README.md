@@ -16,3 +16,13 @@
 - `t107`：在 c29615893、fd00ec8f8、167d2c803、ab8cb0fa4 上同样失败，原因是本机 Claude Code 更新到 2.1.310 后拒绝单独一条 `sleep 45`（工具结果“Blocked: standalone sleep 45”）。修正：长命令改为 `python3 -c "import time; time.sleep(45)"`。修正后在 5c2e0df20 上通过。
 
 以上改动只涉及测试与回归脚本，执行主控自行修正，提交 93b9d515d。
+
+## T-166～T-168 合并后（RUN-MERGE-REGRESSION-09）
+
+脚本 `RUN-MERGE-REGRESSION-09.sh <rev>`：08 的 46 项加 T-166（端到端、主机级）、T-167（receipt、dialog-open；真实 Codex CLI 对本地脚本化 Responses）、T-168，共 51 项；0 个厂商模型回合。
+
+| 运行 | 版本 | 结果 |
+| --- | --- | --- |
+| run-20261024T075759Z | 5380ebb28（T-167 合并后的 main） | 51/51 通过 |
+
+退出码见 `exits-5380ebb28.txt`。
