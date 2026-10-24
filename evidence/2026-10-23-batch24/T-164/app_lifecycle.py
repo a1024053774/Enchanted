@@ -82,13 +82,9 @@ def prepare():
     (home / "rules").mkdir(parents=True, mode=0o700)
     shutil.copyfile(Path.home() / ".codex/auth.json", home / "auth.json")
     (home / "auth.json").chmod(0o600)
-    # T-164-3: Codex workers use the user's zcode/GLM route. Copy only the
-    # openai_base_url line from the user's config (read, never written), so the
-    # isolated home reaches the same local proxy; refuse to guess it.
-    route = re.findall(r'^openai_base_url\s*=\s*"[^"\n]+"$', (Path.home() / ".codex/config.toml").read_text(encoding="utf-8"), re.M)
-    if len(route) != 1:
-        raise RuntimeError("Expected one openai_base_url in ~/.codex/config.toml")
-    (home / "config.toml").write_text(route[0] + "\n[projects." + json.dumps(str(repo)) + "]\ntrust_level=\"trusted\"\n", encoding="utf-8")
+    # T-164-4: Codex workers use gpt-6.1-sol on the ChatGPT account (the GLM route was
+    # blocked upstream, rerun-4/glm-route-probe.md); the isolated home only trusts demo-repo.
+    (home / "config.toml").write_text("[projects." + json.dumps(str(repo)) + "]\ntrust_level=\"trusted\"\n", encoding="utf-8")
     (home / "rules/default.rules").write_text('prefix_rule(pattern=["git", "add"], decision="allow")\n'
                                              'prefix_rule(pattern=["git", "commit"], decision="allow")\n', encoding="utf-8")
     # Same launch fields as desktop.mjs; Codex points at the isolated home above.
@@ -104,7 +100,7 @@ def prepare():
         "code_revision": BASELINE, "source_snapshot": str(SOURCE), "turn_limit": 6,
         "hook_authorization": str(Path(__file__).parent / "card-4.md") +
                               " — T-164 real managed workers; per-session Claude hooks and Codex worker hooks (isolated CODEX_HOME) approved by executor",
-        "turn_authorization": str(Path(__file__).parent / "card-4.md") + " — real-turn budget: Claude 40 in app; one Codex worker zcode/GLM-5.3-Flash max, at most 2 in-app Codex sessions at once; stop when usage nears its limit",
+        "turn_authorization": str(Path(__file__).parent / "card-4.md") + " — real-turn budget: Claude 40 in app; one Codex worker gpt-6.1-sol high, at most 2 in-app Codex sessions at once; stop when usage nears its limit",
     }
     write_json(root / "launch-config.json", launch_config)
     print("INSTANCE=" + str(root), flush=True)
