@@ -1,6 +1,6 @@
 # T-157-1 / a1：Stop 批次与人工介入的交付语义
 
-NEEDS-DECISION / BLOCKED（仅交付语义与实现；红态探针已准备，未运行）。
+NEEDS-DECISION / BLOCKED（仅交付语义与实现；红态复现 PASS，证据见 RED-01.json 及截图）。
 
 本任务卡明确要求：“交付语义（人工介入后交付是否仍有效、恢复入口做什么）若需选择，先写 DESIGN-QUESTION.md 列证据与最小选项，停下说 NEEDS-DECISION，不自己定。”此处需要执行主控经构思主控裁定，不能把候选方案当作已授权验收条件。
 
@@ -11,7 +11,8 @@ NEEDS-DECISION / BLOCKED（仅交付语义与实现；红态探针已准备，�
 - inferred：人工 Enter 落在旧 Stop 的异步核对之间时，旧请求可能得到 `worker_not_active`。拒绝可能发生在 `daemon.ts:801` 的转交前检查，也可能发生在 `gates/core.ts:3997` 或 `4055` 的 submit 核对；不能仅凭旧摘要确定是哪一次。
 - observed（源码）：`workbench/src/relay.ts` 把请求和明确结果追加持久化；相同 request_id 只读回原结果，结果缺失才是 `relay_outcome_unknown`。因此不能把明确拒绝与结果未知混称，也不能用同 request_id 重放来恢复。
 - observed（源码）：`sidebar.ts` 派生 agent 状态，renderer 的窗格头直接显示 `pane.state`；窗格没有展示交付拒绝的结构化字段或交付恢复动作。
-- unknown：本工作树的真实 Electron 是否重现同一时序、哪个身份核对拒绝，以及最终是否仍是“未知/忙”。`RUN-OUTSIDE-01.sh` 是不改产品的单次探针；未命中也保留现场，不自动重试。还没有新红态结论。
+- measured：执行主控按 `RUN-OUTSIDE-01.sh` 在基线 `ef99842b35e17c4cd69e1e58d5afca0689bf88b1` 运行真实 Electron 探针。RED-01.json 记录 Stop seq 93、submit relay_received seq 95、人工提交 seq 99、worker_not_active seq 104、after_transfer 的 stop_not_matched seq 106。人工介入绑定原 attempt，任务仍无候选，侧栏 unknown / 窗格头“忙”；两个界面期望断言失败，red_reproduced=true，errors=[]。测试退出 1，证明修前缺陷，未证明修复。
+- unknown：拒绝调用栈未采集，尚不确定是哪一次身份核对；新证据不替代下面的语义裁定。真实供应商模型回合为 0，使用本地脚本化 Messages 接口；无真实模型理解或可靠性结论。
 
 ## 需要裁定的最小选项
 
@@ -28,4 +29,4 @@ NEEDS-DECISION / BLOCKED（仅交付语义与实现；红态探针已准备，�
 
 ## 下一步与责任
 
-执行主控先运行 `zsh evidence/2026-10-23-batch24/T-157/RUN-OUTSIDE-01.sh` 并回传 summary、截图及 fixture 路径；该探针不依赖语义选择。执行主控经构思主控给出交付顺序和恢复动作的决定，并确认 renderer 写入窗口。worker 在获得新证据与决定后继续；当前不实施任何一个方案。
+执行主控已运行 RUN-OUTSIDE-01，主控 #58 回传 summary、截图及 fixture 路径，worker 已复制核对并保留证据。该消息同时确认已转构思主控（needs-decision `20261024T025739Z`，执行主控推荐选项 2），但尚未给出裁定或 renderer 写入窗口。等待交付顺序、恢复动作的决定及写入窗口；当前不实施任何一个方案。
