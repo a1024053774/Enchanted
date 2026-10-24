@@ -45,4 +45,12 @@
 | --- | --- | --- |
 | run-20261024T142313Z | 121f604e8（T-170 合并后的 main） | 52/54：两项 T-170 在 dispatch 处得到 run_blocked |
 
-满负载下替身 Codex 在 dispatch 回执前、leader 被观察到之前就退出，dispatch 报 run_blocked 且 attempt 停在 preparing、`runtime_identity` 为空，reclaim 仍报 identity_conflict。这是 T-170 的同一缺陷在启动更快时的形态，不是测试抖动；修复与 `--scenario fast` 见 T-170 后续。退出码见 `exits-121f604e8.txt`。
+替身 Codex 在 dispatch 回执前、leader 被观察到之前就退出，dispatch 报 run_blocked 且 attempt 停在 preparing、`runtime_identity` 为空，reclaim 仍报 identity_conflict。（更正：起初写成“满负载下启动更快”，不对。实际原因是本回归的稀疏检出没有 `evidence/2026-10-23-batch24/`，替身读不到现场终端记录、立即崩溃退出。）它暴露的“CLI 立即退出则 attempt 不可回收”是真实的产品缺陷，修复与 `--scenario fast` 见 T-170 后续；测试已改为随测试携带现场记录并在缺失时报夹具错误。退出码见 `exits-121f604e8.txt`。
+
+## T-170 后续（RUN-MERGE-REGRESSION-12）
+
+脚本 `RUN-MERGE-REGRESSION-12.sh <rev>`：11 的 54 项加 t170-fast，共 55 项；0 个厂商模型回合。
+
+| 运行 | 版本 | 结果 |
+| --- | --- | --- |
+| run-20261024T144054Z | c822751c8（T-170 后续候选） | 54/55：t170-hang 超时，替身因检出缺少现场记录立即崩溃（同上更正），fast、failed 也因此并非按设计场景运行 |
