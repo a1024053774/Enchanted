@@ -1,6 +1,8 @@
-# T-158-1 / a1 阶段结果
+# T-158-1 / a1 交付结果
 
-**INCOMPLETE，待主控运行 RUN-OUTSIDE-03**。worker `b24-t158`，分支 `exec/t158`；产品基线 `c01742804961214ed025b6c9fb9924a1ea49ee2d`。
+**PASS（本票交付检查）**。worker `b24-t158`，分支 `exec/t158`；修前基线 `c01742804961214ed025b6c9fb9924a1ea49ee2d`，通过完整验证的候选 `1c34ad29cd206eda21c07d902cb5e87f39b7f467`。此后仅补交证据与本文，不改产品或测试；执行主控的独立门禁审查、集成另行进行。
+
+**产品门禁在修前已支持 reclaim 后一次派发；本票红态是 `a2a help` 与角色说明的五项可发现性检查。** 本票补齐完整步骤，没有修订门禁语义，也没有取消路径检查。
 
 目标：按任务卡证明修订后正常重试成功，同时保留旧 attempt 活跃时的路径拒绝。不扩展到其他 ticket，不更改路径安全边界。
 
@@ -12,10 +14,31 @@
 
 | 验收 | 状态与证据 |
 | --- | --- |
-| 真实 Electron：打回 → v2 → revise → 对旧 attempt reclaim → 正常 dispatch 一次成功 | RUN-OUTSIDE-02 的后端十项检查全部通过；随后夹具 UI 选择等待错误，整体 INCOMPLETE，待 RUN-OUTSIDE-03 |
-| 旧 attempt 未 reclaim 时继续拒绝 | 前两轮实际返回 path_overlap，冲突绑定原 attempt；两个路径变异待运行 |
-| 角色说明与 a2a help 写明步骤 | 本地 PASS；红态、绿态与删除 reclaim 步骤的反例均已保存 |
-| 完整真实流程、两个路径变异与既有 T-121 回归 | INCOMPLETE；RUN-OUTSIDE-03 待主控运行 |
+| 真实 Electron：打回 → v2 → revise → 对旧 attempt reclaim → 正常 dispatch 一次成功 | PASS；RUN-OUTSIDE-03 修前 flow 12 项、候选 18 项通过，原 attempt 被回收，新 attempt 的 task/spec/card/fence 及可见 pane 身份均核对 |
+| 旧 attempt 未 reclaim 时继续拒绝 | PASS；实际 path_overlap 绑定原 attempt；提前释放变异在对应业务断言失败 |
+| 角色说明与 a2a help 写明步骤 | PASS；修前五项失败、当前说明通过、删除 reclaim 步骤的文本变异被拒绝 |
+| 回收后保留脏现场且释放路径 | PASS；sentinel 内容保留，正常重派一次成功；回收后继续占用路径的变异被拒绝 |
+| 既有 T-121 终端、角色与插件回归 | PASS；49 项检查通过 |
+
+## RUN-OUTSIDE-03 最终证据
+
+执行主控 #43 回传脚本 rc=0；worker 核对五份摘要的候选、目标检查和 errors，结果如下。所有摘要原样提交，不把变异自身的 INCOMPLETE 状态改写成 PASS。
+
+| 运行 | 结果与文本证据 |
+| --- | --- |
+| 修前 flow，`--check flow --revision c01742804961214ed025b6c9fb9924a1ea49ee2d` | exit 0，12 项通过、errors=[]；[flow-baseline.json](t158-outside-03.r3PP19-flow-baseline.json) |
+| 当前完整候选 | exit 0，18 项通过、errors=[]；[candidate.json](t158-outside-03.r3PP19-candidate.json) |
+| `--check flow --mutant release-before-reclaim` | exit 1，前置齐全，`unreclaimed_attempt_still_reserves_paths` 失败、errors=[]；[提前释放反例](t158-outside-03.r3PP19-release-before-reclaim.json) |
+| `--check flow --mutant retain-after-reclaim` | exit 1，显式回收及 sentinel 保留已通过，`one_dispatch_after_reclaim_without_overlap_reason` 失败、errors=[]；[继续占用反例](t158-outside-03.r3PP19-retain-after-reclaim.json) |
+| 既有 `test_t121_role_request_e2e.py` | exit 0，49 项通过；[T-121 摘要](t158-outside-03.r3PP19-t121.json) |
+
+精确重放命令：`zsh evidence/2026-10-23-batch24/T-158/RUN-OUTSIDE-03.sh`。每次创建新摘要前缀和日志目录，不覆盖现有证据。主控本轮运行目录 `/private/tmp/t158-outside-03.r3PP19`。
+
+本地辅助只读证据审查对冻结候选 `1c34ad29cd206eda21c07d902cb5e87f39b7f467` 返回 PASS、无范围内阻断发现，见 [acceptance-review-01.md](acceptance-review-01.md)。此审查不替代执行主控安排的受管独立审查或集成。
+
+证据边界：真实 daemon、Git、PTY、Electron 与交互 Claude CLI；模型接口为本地脚本化 Messages，供应商模型回合 0。主控命令通过真实后台 socket，未逐条在用户终端手工输入全部 JSON；真实 `a2a help` 入口已运行。说明内容和资源绑定经过检查，但不证明模型将自行遵循说明；新 attempt 的 verify/integrate、崩溃恢复、其他权限边界和生产发布不在本票结论内。
+
+只提交小文本。两张 PNG 已目视核对，保留在原 `t158-outside-03.r3PP19-{candidate,flow-baseline}-retry.png` 路径，未加入此提交，交执行主控归档。原始夹具、数据库、原生日志与 Electron 数据均留在摘要记录的 `/private/tmp/t158-*` 目录，由执行主控按 T-088 归档；worker 未删除或迁移现场。最初两轮夹具失败与下面的诊断原样保留。
 
 文本检查（最新版测试，三项 errors 均为空）：
 
@@ -51,12 +74,10 @@
 
 本地 `zsh -n evidence/2026-10-23-batch24/T-158/RUN-OUTSIDE-01.sh` 与 Python AST 语法检查通过。一次 `python3 -m py_compile` 因系统 Python 想写沙箱外的 `/Users/luckye/Library/Caches/com.apple.python/...` 返回 PermissionError，未提权；语法检查改用不写缓存的 AST 解析，未把该环境错误算红态。
 
-静态检查：Python AST、RUN-OUTSIDE-02/03 的 zsh 语法、`git diff --check` 通过；改动的产品说明保持 UTF-8 无 BOM、LF、无替换字符。本轮只改夹具、复跑脚本与证据记录，产品内容仍为 `2ca1204b3`；未修改全局配置或其他任务。临时夹具仅位于 `/private/tmp/t158-*`，不是项目额外目录；供应商模型回合数 0。
+静态检查：Python AST、RUN-OUTSIDE-02/03 的 zsh 语法、`git diff --check` 通过；改动的产品说明保持 UTF-8 无 BOM、LF、无替换字符。产品内容为 `2ca1204b3`，最终测试内容为 `1c34ad29c`；未修改全局配置或其他任务，没有改动项目额外目录。供应商模型回合数 0。
 
-每轮启动及阶段记录完成前运行 `python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py status --root .`。本轮末次输出保存到 `status-final-04.txt`；此前记录原样保留。
+每轮启动及交付前运行 `python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py status --root .`。本轮末次输出保存到 `status-final-05.txt`；此前记录原样保留。
 
 原阻塞问题条目为 `20261024T003159Z-worker:b24-t158-issue-001`；主控 #36 已传回上述裁定，worker 不自行关闭 blocking issue。
 
-沙箱外请求：[RUN-OUTSIDE-03.sh](RUN-OUTSIDE-03.sh)。运行 `zsh evidence/2026-10-23-batch24/T-158/RUN-OUTSIDE-03.sh`；先跑修正两处夹具等待条件后的修前流程，再跑完整候选、release-before-reclaim 与 retain-after-reclaim 两个变异、既有 T-121。基线或候选异常立即停，不自动重试；摘要与日志每次新建，两个变异要求前置检查齐全且在各自业务断言失败。请主控回传生成的摘要前缀；夹具按 T-088 由主控归档。未请求提权，未在此启动后台或 Electron。
-
-说明修复后的相关既有回归为 `workbench/tests/test_t121_role_request_e2e.py`（终端命令、主控身份与插件挂载）。若需要改门禁，再增跑 S3 的路径交集、clean revise、dirty revoke 与 historical cleanup 场景；不会把历史候选的通过结论当作本票证据。
+RUN-OUTSIDE-03 已由主控完成，不再请求外部复跑。本票没有改门禁，未增跑完整 S3、8/9/18 或真实供应商模型场景，不引用这些旧候选的结论为本次变更背书。没有请求提权，没有 push 或集成。
