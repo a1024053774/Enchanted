@@ -51,4 +51,5 @@
 - `BUILD-01.json`：实现候选通过标准 `node app/build.mjs --slot t161-candidate`，独立 /private/tmp 构建槽完成后已清理，只代表构建通过。
 - `T157-IDENTITY-01.json`：四项隔离身份状态通过，不代替真实 CLI/PTY/GUI 证据。
 - 本票 Python、嵌入 peer、05/06 oracle、zsh 语法、UTF-8 回读和差异空白检查通过。主控运行真实检查；worker 核对 06 的全部摘要与反证，并目视核对 reviewer 无横幅、侧栏隐藏后头部显示普通终端及执行主控。
+- 新开只读上下文按 behavioral-acceptance-review 对冻结候选 `9f7deae97425c1602af10f434ea41c690c637010` 审计，结论 PASS，无发现，保留 T-165 和受控 PTY 的局限；见 `ACCEPTANCE-AUDIT.md`。这是交付证据审计，不代替主控的门禁审查和集成。
 - 此交付不 push、不合并 main，不回收其他会话；由执行主控继续门禁、独立审查与集成。T-165 保持独立处理。
