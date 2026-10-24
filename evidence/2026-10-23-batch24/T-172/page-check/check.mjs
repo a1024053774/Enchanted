@@ -1,5 +1,5 @@
 // Copied from evidence/2026-10-23-batch21/release-0.1.2/page-check/check.mjs for 0.1.3; only the browser path may be
-// given by PAGE_CHECK_CHROME (the Playwright Chromium cache was cleaned). Checks unchanged.
+// given by PAGE_CHECK_CHROME (the Playwright Chromium cache was cleaned) and the page by PAGE_CHECK_URL (live run). Checks unchanged.
 import { createRequire } from 'node:module';
 const require = createRequire('/Users/luckye/Documents/Code/a1024053774.github.io/package.json');
 const { chromium } = require('playwright-core');
@@ -11,7 +11,7 @@ for (const scheme of ['light', 'dark']) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, colorScheme: scheme });
   page.on('pageerror', e => report.errors.push(scheme + ': ' + e.message));
   page.on('console', m => { if (m.type() === 'error') report.errors.push(scheme + ' console: ' + m.text()); });
-  await page.goto('http://127.0.0.1:8765/'); await page.waitForTimeout(500);
+  await page.goto(process.env.PAGE_CHECK_URL ?? 'http://127.0.0.1:8765/'); await page.waitForTimeout(500);
   await page.screenshot({ path: `${out}/${scheme}-0-intro.png` });
   const state = () => page.evaluate(() => ({ y: Math.round(scrollY), tourTop: Math.round(document.querySelector('.tour').getBoundingClientRect().top),
     step: document.querySelector('[data-tour-index]').textContent, page: document.querySelector('.wb .workspace-pages [aria-current]')?.textContent }));
@@ -72,7 +72,7 @@ for (const scheme of ['light', 'dark']) {
 {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   page.on('pageerror', e => report.errors.push('edge: ' + e.message));
-  await page.goto('http://127.0.0.1:8765/'); await page.waitForTimeout(500);
+  await page.goto(process.env.PAGE_CHECK_URL ?? 'http://127.0.0.1:8765/'); await page.waitForTimeout(500);
   const state = () => page.evaluate(() => ({ tourTop: Math.round(document.querySelector('.tour').getBoundingClientRect().top), step: document.querySelector('[data-tour-index]').textContent }));
   await page.mouse.move(150, 450); await page.mouse.wheel(0, 100); await page.waitForTimeout(1200);
   for (let i = 0; i < 4; i++) { await page.mouse.wheel(0, 100); await page.waitForTimeout(500); }
@@ -96,7 +96,7 @@ for (const scheme of ['light', 'dark']) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   const page = await context.newPage();
   page.on('pageerror', e => report.errors.push('touch: ' + e.message));
-  await page.goto('http://127.0.0.1:8765/'); await page.waitForTimeout(500);
+  await page.goto(process.env.PAGE_CHECK_URL ?? 'http://127.0.0.1:8765/'); await page.waitForTimeout(500);
   const cdp = await context.newCDPSession(page);
   const swipe = async (from, to) => {
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 195, y: from }] });
@@ -116,7 +116,7 @@ for (const scheme of ['light', 'dark']) {
 for (const [w, h] of [[390, 844], [820, 1180]]) {
   const page = await browser.newPage({ viewport: { width: w, height: h }, hasTouch: true, isMobile: w < 500 });
   page.on('pageerror', e => report.errors.push(w + ': ' + e.message));
-  await page.goto('http://127.0.0.1:8765/'); await page.waitForTimeout(500);
+  await page.goto(process.env.PAGE_CHECK_URL ?? 'http://127.0.0.1:8765/'); await page.waitForTimeout(500);
   await page.screenshot({ path: `${out}/w${w}-intro.png` });
   await page.evaluate(() => scrollTo(0, document.querySelector('.tour').offsetTop)); await page.waitForTimeout(400);
   await page.screenshot({ path: `${out}/w${w}-tour.png` });

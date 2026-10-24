@@ -2,7 +2,7 @@
 id: T-172
 title: 发新 Release 并更新 Pages 页面（本批修复）
 type: build
-status: open
+status: closed
 blocked_by: [T-171]
 claimed_by:
 supersedes:
@@ -19,10 +19,16 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] GitHub Release 已发布，附件可下载并核对大小；Pages 返回 200 且含新版本说明。
-- [ ] 发行说明与页面只写已验证的变化，并标明 T-163 的 M02 残余等已知限制。
-- [ ] 安装产物在内置盘临时构建、构建缓存已清理。
+- [x] GitHub Release 已发布，附件可下载并核对大小；Pages 返回 200 且含新版本说明。
+- [x] 发行说明与页面只写已验证的变化，并标明 T-163 的 M02 残余等已知限制。
+- [x] 安装产物在内置盘临时构建、构建缓存已清理。
 
 ## 不做
 
 范围外的问题经问题上报，不顺手改。
+
+## Resolution
+
+2026-10-24，PASS。完整记录见 [RESULTS.md](../../evidence/2026-10-23-batch24/T-172/RESULTS.md)。
+
+0.1.3 在内置盘临时目录从 main `f7b176e88` 构建，签名核对通过；Release `v0.1.3` 附件 147,633,492 字节，下载回来逐字节相同。推送前扫描 0 处命中，`15a444674..54dd554ce`，无 force push。Pages 构建于 `54dd554ce`，返回 200，含“0.1.3 更新”，本地与线上各 44 项页面检查通过。发行说明与页面写明 T-163 M02 残余和 T-170 只在模拟失败上验证。agy 审查 PASS。没有替换 `/Applications` 里的应用。
