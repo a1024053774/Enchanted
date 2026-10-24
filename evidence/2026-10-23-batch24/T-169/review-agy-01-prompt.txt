@@ -1,0 +1,13 @@
+你是 a2a 项目的只读独立审查员（reviewer），审查 T-169：T-166 的残余缺陷。Claude Code 窗格里，模型还有工具调用时用户输入的一句话，被 CLI 并入当前回合（原生转录 queue-operation remove、reason absorbed_mid_turn），后台却按 T-166 一直等它成为单独回合，worker 停在忙/未知，门禁回执不写，回收被拒（T-164 第二轮 N03）。写入者是执行主控本人（也写了 T-166）。用户授权的转述：用户 2026-10-24“让执行主控修,然后做完每个票让 agy 审查”（构思主控 answer 20261024T070244Z-ideation-answer-001，T-166～T-168），本票为执行主控按 T-004 在同一已批准范围内自建的缺陷级票。
+重点：并入判定是否只认原生转录的真实记录（同会话、同正文、不早于收到时间、记录只用一次），会不会把仍要成为单独回合的输入误移出（看默认 separate 场景与清空队列的坏实现）；有没有超时清队列、吞异常、fallback；测试的期望是否来自 ticket 与 CLI 转录而非抄产品输出；红态是否在修前版本落在缺陷断言上。ticket 在 candidate/.project-map/tickets/T-169-absorbed-mid-turn-input.md；证据在 candidate/evidence/2026-10-23-batch24/T-169/（运行目录已归档，只留 CHECKS.json、RESULTS.md、截图、坏实现 diff）。
+
+材料在 /Users/luckye/Documents/Code/a2a-review/T-169-r1/ 下：candidate/ 为候选 6b87c2024 只读副本（ticket 在 candidate/.project-map/tickets/，任务卡、RESULTS 与运行证据在 candidate/evidence/2026-10-23-batch24/T-169/）；full.diff 为相对起点 73b7e7873 的 workbench/ 全部改动；user-decision.md 为本批用户授权的转述（构思主控 assign）。
+
+请核对：
+1. 根因是否找对，改动是否在最小根因层；有无吞异常、fallback、重试、兼容分支或平行 API。
+2. ticket 的每条验收是否有真实入口的证据；期望值是否来自 ticket/规格/用户原话而不是抄产品输出。
+3. 红态是否在修前版本上落在缺陷断言上；变异是否代表真实坏实现并被拒绝。
+4. 是否越出任务卡的修改边界；界面文案是否清楚、不含营销腔。
+5. 其他正确性、回归风险。
+
+这是交互会话。只用你自带的读文件/搜索工具，不要运行任何 shell 命令，不要写任何文件。可以打开截图。输出中文报告：每条发现写文件与行号、严重度（P0–P3）、失败场景。审查完把完整报告作为你最后一条回复直接输出，最后一行只写 `T-169 REVIEW PASS`、`T-169 REVIEW INCOMPLETE` 或 `T-169 REVIEW NO_GO` 之一。
