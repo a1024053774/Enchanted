@@ -54,3 +54,6 @@
 | 运行 | 版本 | 结果 |
 | --- | --- | --- |
 | run-20261024T144054Z | c822751c8（T-170 后续候选） | 54/55：t170-hang 超时，替身因检出缺少现场记录立即崩溃（同上更正），fast、failed 也因此并非按设计场景运行 |
+| run-20261024T145553Z | b89f64b75（T-170 测试修正后，与合并后 main 2cbb99b2a 的 workbench 相同） | 首跑 54/55：t141-green 公网 curl 超时（exit 28）；同版本单独重跑 `t141-green-rerun` 通过。t170 failed/fast/hang 按设计 PASS |
+
+退出码见 `exits-b89f64b75.txt`（含重跑行）。
