@@ -36,3 +36,13 @@
 | run-20261024T093446Z | e3b14d27b（T-169 合并后的 main） | 52/52 通过 |
 
 退出码见 `exits-e3b14d27b.txt`。
+
+## T-170 合并后（RUN-MERGE-REGRESSION-11）
+
+脚本 `RUN-MERGE-REGRESSION-11.sh <rev>`：10 的 52 项加 T-170（`--scenario failed`、`--scenario hang`），共 54 项；0 个厂商模型回合。
+
+| 运行 | 版本 | 结果 |
+| --- | --- | --- |
+| run-20261024T142313Z | 121f604e8（T-170 合并后的 main） | 52/54：两项 T-170 在 dispatch 处得到 run_blocked |
+
+满负载下替身 Codex 在 dispatch 回执前、leader 被观察到之前就退出，dispatch 报 run_blocked 且 attempt 停在 preparing、`runtime_identity` 为空，reclaim 仍报 identity_conflict。这是 T-170 的同一缺陷在启动更快时的形态，不是测试抖动；修复与 `--scenario fast` 见 T-170 后续。退出码见 `exits-121f604e8.txt`。
