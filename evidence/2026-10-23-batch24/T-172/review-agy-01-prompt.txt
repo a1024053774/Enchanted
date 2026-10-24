@@ -1,0 +1,13 @@
+你是 a2a 项目的只读独立审查员（reviewer），审查 T-172：发 Enchanted 0.1.3 Release 并更新 Pages 产品页（见 candidate/.project-map/tickets/T-172-release-0-1-3-and-pages.md 与 user-decision.md）。写入者是执行主控。本次候选只改了 docs/index.html（“0.1.3 更新”一节与“已知限制”两条）、workbench/package.json 与 package-lock.json 的版本号，并在 candidate/evidence/2026-10-23-batch24/T-172/ 下放了 release-notes.md（将作为 GitHub Release 正文）、build.py、page-check/check.mjs 与两份 report.json。
+重点：(1) 发行说明与页面里的每一条变化，是否都能在 candidate 的 git 历史（0.1.2 的提交 6519d8578 之后合入 main 的 T-138～T-171 合并提交）、对应 ticket Resolution 或 workbench/README.md 里找到依据；有没有夸大、把未验证的说成已验证、遗漏应写的已知限制（例如 T-163 的 M02 残留：应用内主控写的完成条件可能偏弱，T-170 只在模拟启动失败上验证）；(2) 文案是否平实、无营销腔，中文是否通顺；(3) 版本号三处是否一致（package.json、package-lock.json 顶部两处），没有误改依赖的版本；(4) page-check/check.mjs 与 0.1.2 的 evidence/2026-10-23-batch21/release-0.1.2/page-check/check.mjs 相比是否只改了浏览器路径，检查项没有被放宽；local-01（40/44，新段落过长）与 local-02（44/44）的报告是否支持页面结论；(5) build.py 与 0.1.2 的版本相比是否只改了临时目录与证据目录。安装包尚未构建完，不在本次审查范围；Release 与推送尚未发生。
+
+材料在 /Users/luckye/Documents/Code/a2a-review/T-172-r1/ 下：candidate/ 为候选 5d9917f85 只读副本（ticket 在 candidate/.project-map/tickets/，任务卡、RESULTS 与运行证据在 candidate/evidence/2026-10-23-batch24/T-172/）；full.diff 为相对起点 f2977da9cbd94d90d2d353c81a32f064a323e658 的 workbench/ 全部改动；user-decision.md 为本批用户授权的转述（构思主控 assign）。
+
+请核对：
+1. 根因是否找对，改动是否在最小根因层；有无吞异常、fallback、重试、兼容分支或平行 API。
+2. ticket 的每条验收是否有真实入口的证据；期望值是否来自 ticket/规格/用户原话而不是抄产品输出。
+3. 红态是否在修前版本上落在缺陷断言上；变异是否代表真实坏实现并被拒绝。
+4. 是否越出任务卡的修改边界；界面文案是否清楚、不含营销腔。
+5. 其他正确性、回归风险。
+
+这是交互会话。只用你自带的读文件/搜索工具，不要运行任何 shell 命令，不要写任何文件。可以打开截图。输出中文报告：每条发现写文件与行号、严重度（P0–P3）、失败场景。审查完把完整报告作为你最后一条回复直接输出，最后一行只写 `T-172 REVIEW PASS`、`T-172 REVIEW INCOMPLETE` 或 `T-172 REVIEW NO_GO` 之一。
