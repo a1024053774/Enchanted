@@ -1,6 +1,6 @@
 # T-159-1 / a1：任务内分屏讨论终端
 
-状态：**INCOMPLETE**。`RUN-OUTSIDE-04` 的两个变异均在预期业务断言被拒，T-139/T-143 回归通过；真实 Electron green 在正向对照处因测试基线变量被覆盖而中断。已按执行主控 #60 只修该基线，待 `RUN-OUTSIDE-05` 单独补跑 green。旧禁用方案的通过结论不替新实现背书。
+状态：**PASS（本次行为验证）**。`RUN-OUTSIDE-05` 真实 Electron green 的 46 项检查全部通过，含真实输入的正向对照；04 的两个变异均在预期业务断言被拒，T-139/T-143 回归通过。04 的 green 因测试对照缺陷中断，原始 INCOMPLETE 结果保留；05 只修正对照基线后补跑。独立审查与最终门禁验收由执行主控安排，本文不代替其结论。旧禁用方案的通过结论不替新实现背书。
 
 ## 当前授权与边界
 
@@ -22,7 +22,7 @@
 
 ## 红态与已运行检查
 
-- **真实 Electron 红态复用（仅证明替换现象）**：`outside-01-dJtqcETt/red.json`，产品版本 `c01742804961214ed025b6c9fb9924a1ea49ee2d`，原 worker `ddd67143-d12e-423a-bcab-4c326f1b5d28` 在分屏后消失，画面只剩一个项目根目录普通终端，任务选择被切走；截图 `red-03-after-right.png`。原运行断言名属于已撤回的禁用方案，本轮不复用该断言的语义，也不复用旧通过结论。`RUN-OUTSIDE-04` 会核对记录中的实际窗格与版本。
+- **真实 Electron 红态复用（仅证明替换现象）**：`outside-01-dJtqcETt/red.json`，产品版本 `c01742804961214ed025b6c9fb9924a1ea49ee2d`，原 worker `ddd67143-d12e-423a-bcab-4c326f1b5d28` 在分屏后消失，画面只剩一个项目根目录普通终端，任务选择被切走；截图 `red-03-after-right.png`。原运行断言名属于已撤回的禁用方案，本轮不复用该断言的语义，也不复用旧通过结论。`RUN-OUTSIDE-04` 已核对记录中的实际窗格与版本，见 `reused-red.txt`。
 - **布局恢复反事实**：新增 T-139 SQLite 场景在 `17796b166` 的真实 main.ts 上退出 1，业务断言 `task_restores_only_explicit_project_shell` 失败；见 `local-layout-store-parent-red-04.json`。已有声明的普通终端未被恢复，不是环境失败。
 - **布局恢复绿态**：最终 main.ts 运行同一测试退出 0，14 项通过，见 `local-layout-store-final-04.json`；覆盖只恢复明确加入的终端、单 agent 改名保留讨论布局、关闭讨论终端保留 agent、讨论终端不进入任务打开集。前一检查点的 `local-layout-store-04.json` 同样保留。
 - `test_t139_selection.mjs`：最终代码 25 项通过，见 `local-selection-final-04.json`；前一检查点的 `local-selection-04.json` 保留。
@@ -38,24 +38,38 @@
 - `test_t139_selection.mjs` 和 `test_t139_t143_views_perf_e2e.py`：只将旧“任务只有 agent”措辞改为“排除未选择的项目终端”。原场景未做任务内分屏，所以原排除条件继续有效，不放宽隔离断言、不改性能测量或输入权限条件。
 - 旧两个变异对应旧方向，本轮改为两种当前已知坏实现：`replace-worker` 恢复创建 shell 后切走任务的错误；`shell-input-to-worker` 在隔离 main.ts 副本中把讨论终端的输入误发给同屏 worker，必须产生并被 `task_right_no_intervention` 拒绝。后者不修改后台或测试 oracle，检查真实输入记录与事件。
 
+## 01～05 运行结论
+
+| 运行与结果目录 | 当次结论 | 当前适用范围 |
+| --- | --- | --- |
+| 01：`outside-01-dJtqcETt/` | 红态 oracle 退出 0，确认真实入口分屏后原 worker 被替换；T-139 selection/layout/catalog 通过。 | 经 #54 授权复用替换现象的红态，不沿用旧禁用断言语义。 |
+| 02：`outside-02-TzKrStnh/` | 旧方案 green 25 项通过，两个旧变异被拒，T-139 三项回归通过，oracle=0。 | “禁用并说明”方案已被用户裁定取代，仅保留历史证据。 |
+| 03：`outside-03-WDUFSMFa/` | 旧方案 green 33 项通过，含项目主控分屏保留原窗格；两个旧变异被拒，oracle=0。 | 其中“禁用并说明”分支已被用户裁定取代；项目主控场景已在新方案 04/05 重新验证。 |
+| 04：`outside-04-Agwb7jjs/` | 新方案 green 已记录 44 项通过，随后因测试正向对照基线错误而 INCOMPLETE，oracle=1；两个新变异在预期断言被拒，T-139/T-143 回归通过。 | 已执行新裁定允许的任务内分屏，不属于旧禁用方案。保留失败原件，不改写为 PASS。 |
+| 05：`outside-05-XQ8PsYCj/` | 只补跑修正基线后的新方案 green，46 项全部通过，green=0、oracle=0，无清理错误。 | 当前真实 Electron 绿态，含观察器正向对照；结合 04 的变异与回归证据。 |
+
 ## RUN-OUTSIDE-04 结果与正向对照修复
 
 - 执行主控 #60 返回 `outside-04-Agwb7jjs/`，候选 `5d6eb3bbb74197b274e1ed79082d8367e5cbc0b6`。原目录的小文本与截图原样提交，未覆盖失败证据。退出码为 `red=0 green=1 replace=1 intervention=1 selection=0 layout=0 catalog=0 t139_t143=0 oracle=1`。
 - green 摘要已记录的 44 项检查全部通过，包括任务右/下分屏保留 worker、普通终端类型/目录/输入隔离、布局恢复及项目主控分屏。随后在 `intervention_observer_positive_control` 求值时抛出 `KeyError: 'inputs'`，该项与最后的零模型请求断言未完成，整体为 **INCOMPLETE**，不是完整绿态。原因是同一函数中的 `before` 已被项目主控场景改为 Electron selection 结构。
 - 仅在正向对照输入前增加 `control_before = task_facts()`，比较输入与人工介入计数时使用此基线。两项各增加 1 的期望不变，其他断言及产品代码均未改动。
-- 本次静态检查通过：Python 与 05 内嵌 oracle 的语法、`zsh -n`、UTF-8 回读、证据文件边界及 `git diff --check`；产品目录差异为空。项目地图 status 为 0 Problems / 0 Stale docs，见 `project-map-status-08.txt`。这些检查不替代待运行的 green。
+- 修正基线时的静态检查通过：Python 与 05 内嵌 oracle 的语法、`zsh -n`、UTF-8 回读、证据文件边界及 `git diff --check`；产品目录差异为空。项目地图 status 为 0 Problems / 0 Stale docs，见 `project-map-status-08.txt`。真实 green 结果见下节。
 - `replace-worker` 在 `task_right_keeps_worker` 被拒；`shell-input-to-worker` 在 `task_right_no_intervention` 被拒，均为预期业务失败。selection 25 项、layout-store 14 项、terminal-catalog 2 项及真实 T-139/T-143 23 项回归通过，摘要均无清理错误。本次不重跑这些已完成场景。
 - 夹具保留：green `/private/tmp/t159-qho8_pob`，替换变异 `/private/tmp/t159-sxu8ba07`，介入变异 `/private/tmp/t159-se3dptop`，T-139/T-143 `/private/tmp/t139-ub3lm9_h`；完整位置以各摘要为准。
 
-## 待执行主控运行（仅 green）
+## RUN-OUTSIDE-05 结果（仅 green）
+
+执行主控 #62 返回 `outside-05-XQ8PsYCj/`，候选 `c964aad404ec66edfe94593641d6b6e135e88ae4`，夹具 `/private/tmp/t159-m00uw7ni`。`green.json` 为 PASS，46 项检查全部通过，无清理错误；`exits.txt` 为 `green=0`、`oracle=0`。正向对照中实际输入产生 1 条任务输入与 1 条 `human_intervention` 事件，观察器有效；讨论终端输入不增加这些记录。`zero_model_requests` 同样通过。
+
+复现命令：
 
 ```sh
 zsh evidence/2026-10-23-batch24/T-159/RUN-OUTSIDE-05.sh
 ```
 
-每次生成新 `outside-05-*` 目录，保留完整候选号、摘要、退出码和截图；只运行 T-159 真实 Electron green，不覆盖 04，也不重跑红态、变异或回归。脚本核对全部检查通过，包含实际 worker 输入的正向对照及零模型请求检查。
+每次生成新 `outside-05-*` 目录，保留完整候选号、摘要、退出码和截图；只运行 T-159 真实 Electron green。05 未覆盖 04，未重跑红态、变异或回归，且与 04 之间仅有测试基线修复及证据记录变更，产品未变。本次 #62 收尾只提交 05 证据与报告，不再修改产品或测试。
 
-05 只有 green 退出 0、摘要为 PASS、关键断言齐全、版本匹配且无清理错误才返回 PASS。目前 05 尚未运行；独立审查与最终门禁验收由执行主控安排。
+本次收尾核对 05 候选号、退出码、全部 46 项检查及证据文件边界，通过 UTF-8 回读与差异空白检查；`workbench` 差异为空。项目地图为 0 Problems / 0 Stale docs，见 `project-map-status-09.txt`。
 
 ## 历史处置与证据保留
 
