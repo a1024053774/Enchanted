@@ -1,6 +1,6 @@
 # T-165-1 / a1 进度记录
 
-状态：INCOMPLETE（产品修复与完整回归未完成）。检查点 RED：PASS，仅指 02 确定红态 2/2 成立；01 夹具失败保留。红态归档提交时产品实现尚未开始。
+状态：INCOMPLETE（03 真实完整回归及独立验收未完成）。检查点 RED：PASS，仅指 02 确定红态 2/2 成立；红态已单独提交 `9507ca28f` 后才修改产品。01 夹具失败保留。
 
 任务身份：worker `b24-t165`，task `T-165-1`，attempt `a1`，session `24606d10-cfde-4e53-8158-f544130fa48c`，launch `launch-c034197297074885aeb04bff28b7f8b7`。未取得 fence，不补造。规格为 T-165 ready_rev 1 与本目录任务卡。基线为当前 main `f2756ea2030d8ce0bddf9980d3f36d1825201d3a`；开始时 worktree 干净。
 
@@ -32,7 +32,24 @@
 
 ## 待完成
 
-- 02 确定红态已核对并单独提交；下一步实施最小修复。
-- 同时覆盖无关 Stop；在坏实现上拒绝丢失早到 Stop 的行为。
-- 同时序绿态、不带屏障的 T-157 多次运行、T-157 基线与坏实现、T-159/T-160/T-133 回归。
+- 执行并核对 03：同时序绿态三次、无关 Stop、丢失缓存坏实现、修前基线；不带屏障的 T-157 三次及其全部场景、T-159/T-160/T-133 回归。
 - 最终候选的独立只读审查与门禁验收由执行主控安排；当前无产品通过结论。
+
+## 修复候选与局部验证
+
+`panes.ts` 在原生转录尚未登记、当前没有 active/prompt、确有排队输入时，保留已验证根来源、规范转录路径、未复用 prompt id、时间及 stop_hook_active=false 的 Stop。缓存挂在当时等待的输入上，不建立原生 turn，不执行门禁。scan 仍须凭既有的 session/cwd、queued human 来源、正文、时间、uuid、未复用 prompt id 等全部条件登记该轮；随后只按精确 prompt id 取出 Stop，其他 id 追加 `stop_not_matched` 并丢弃。
+
+提取原 Stop 完成逻辑为同一个 `claudeStop` 方法，普通 Stop 与延迟登记的 Stop 都经它重新核对 envelope、当前 submission/prompt、时间、可信度与生命周期，再调用原 transfer。门禁 caller/attempt/fence/spec/commit 核对未改；异步转交前后仍核对同一 active/prompt。scan 在 Stop 正转交时不越过当前轮；延迟完成后调用原 drain 处理已排队反馈。没有重试循环、超时兜底、第二套门禁路径或 renderer 修改。
+
+新增反例经真实认证 hook 入口重放一个不同 prompt id 的对抗 Stop，并附同 attempt/commit、独立 request_id 的 submit 文件。它只能被记录为未匹配，不能产生该 prompt 的完成事实，也不能把请求送进 relay；正确 Stop 仍须完成本轮。凭据仅由隔离 worker 写到其私有 request 目录，沿用 T-157 stale-turn 夹具的做法，不读用户凭据。
+
+局部检查（不是实际 CLI/PTY 或独立验收）：
+
+- `node workbench/tests/test_t165_queued_stop.ts <源码根> <新输出目录>`：早到 Stop、无关 Stop、Stop 早于原生 turn 时间、启动失效四场 PASS；包含 caller.assertActive、重复 Stop 不重复转交。见 [HOST-GREEN-03.json](HOST-GREEN-03.json)。
+- 同一新 host 测试在 main 基线及 drop-early-stop 坏实现上均拒绝早到 Stop 丢失。见 [HOST-COUNTERFACTUAL-03.json](HOST-COUNTERFACTUAL-03.json)。第一次汇总脚本错误地要求坏实现只失败一场，实际它还删除了三个反例的明确拒绝事实，四场均失败；原始异常与原始各场结果保留，没有放宽测试或重跑覆盖。
+- `node workbench/tests/test_t157_turn_identity.ts <源码根> <新输出目录>`：既有四场身份/原样输入检查 PASS。见 [T157-IDENTITY-03.json](T157-IDENTITY-03.json)。
+- `zsh -n evidence/2026-10-23-batch24/T-165/RUN-OUTSIDE-03.sh`、Python AST/`--help`、`git diff --check` 通过。
+
+真实运行命令：`zsh evidence/2026-10-23-batch24/T-165/RUN-OUTSIDE-03.sh`，共 20 个独立实例，全部本地脚本化 Messages、供应商模型回合 0。三次同序绿态、无关 Stop、三次不加屏障的 T-157 正例、stale recover/expired、T-159/T-160/T-133 必须通过；当前 main、T-157 两个旧基线、坏调用方、丢 Stop 及 stale 三个变异必须在指定行为断言失败，无运行错误。每个 summary、日志、进程退出码写到新目录；总摘要明确区分正例通过与预期拒绝坏实现。03 尚未运行，不宣称实际绿态或 DELIVERED。
+
+实现后的 project-map status：Problems 0，Stale living docs 1（`workbench/README.md`）。README/地图超出任务卡写入范围，已用 `scripts/inbox send` 上报非 blocking 问题 `20261024T051309Z-worker:b24-t165-issue-001`，正文另存 [LIVING-DOC-ISSUE.md](LIVING-DOC-ISSUE.md)。该追加式收件箱条目保留在工作树，不纳入本票产品提交；请执行主控处理文档同步与条目收取。本 worker 未修改 README、地图或 renderer，也未把文档健康报告为 PASS。

@@ -5,6 +5,7 @@
 2. 时序未命中、原 submit 被拒或启动失败，却被算成预期红态。
 3. 夹具直接修改 pane/数据库或伪造原生 turn，掩盖真实身份检查。
 4. 覆盖旧摘要或把脚本化 Messages 冒称供应商模型回合。
+5. 无关 prompt 的 Stop 被匹配、完成了该轮或转交了它的独立 submit 请求。
 
 期望来自 T-165：先到的 Stop 在原生转录核验后仍须完成同一轮。
 复用 T-157 全部断言，不改其期望。只在临时源码副本的 Claude scan
@@ -15,10 +16,12 @@
 --revision 选择产品源码；--mutant drop-early-stop 在新增缓存点丢弃 Stop。
 """
 import argparse
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 import sys
 import time
+import uuid
 
 import test_t157_stop_input_e2e as original
 from scripted_claude import Fixture
@@ -61,6 +64,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--summary', required=True, type=Path)
     parser.add_argument('--mutant', choices=['drop-early-stop'])
+    parser.add_argument('--scenario', choices=['ordered', 'unrelated-stop'], default='ordered')
     args, rest = parser.parse_known_args()
     assert not args.summary.exists(), '保留既有摘要'
     inner = args.summary.with_name(args.summary.stem + '-t157.json')
@@ -71,8 +75,20 @@ def main():
             patches = list(options.pop('patches', ()))
             patches.append(('src/panes.ts', SCAN_POINT, SCAN_BARRIER))
             if args.mutant:
-                patches.append(('src/panes.ts', 'pane.claudeEarlyStops.push({ raw, received_at, transfer });',
-                                '/* T-165 mutant: discard the authenticated early Stop. */'))
+                patches.append(('src/panes.ts', 'queued.stops.set(value.prompt_id, { value, received_at, transfer });',
+                                'void 0; /* T-165 mutant: discard the authenticated early Stop. */'))
+            if args.scenario == 'unrelated-stop':
+                values = list(values)
+                plan = values[1]
+
+                def export_fixture_token(body):
+                    key, steps, final = plan(body)
+                    # Only this fixture's worker credential, never user auth.
+                    export = ('Bash', dict(command='printf %s "$A2A_CAPABILITY" > "$A2A_REQUEST_DIR/.t165-fixture-token"',
+                                           description='export isolated fixture launch credential'))
+                    return key, steps[:3] + [export] + steps[3:], final
+
+                values[1] = export_fixture_token
             super().__init__(*values, patches=patches, **options)
 
         def wait(self, label, predicate, timeout=90):
@@ -91,6 +107,25 @@ def main():
                 return True
 
             super().wait('真实新 Stop 已返回，转录尚未登记', early_stop_returned, 30)
+
+            if args.scenario == 'unrelated-stop':
+                record = self.request('launch_show', self.operator, launch=ordering['launch'])['launch']
+                token = (Path(record['request_dir']) / '.t165-fixture-token').read_text(encoding='utf-8')
+                foreign = {**ordering['stop'], 'prompt_id': str(uuid.uuid4())}
+                request_id = 't165-unrelated-' + uuid.uuid4().hex
+                # Same attempt/commit, unrelated native prompt: matching this
+                # Stop must never cause even relay_received for this request.
+                before = self.request('orchestration_events')['events']
+                request = next(e for e in before if e['type'] == 'request_received' and
+                               e['data']['id'] == ordering['request_id'])
+                source = request['data']['input']['relay_files'][0]
+                payload = {**json.loads(source['raw']), 'request_id': request_id}
+                response = self.request('signal', dict(launch=ordering['launch'], token=token),
+                    launch=ordering['launch'], raw_stdin=json.dumps(foreign, ensure_ascii=False),
+                    received_at=datetime.now(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z'),
+                    relay_files=[dict(name=request_id + '.json', raw=json.dumps(payload))])
+                assert response.get('ok'), response
+                ordering['unrelated_stop'] = dict(prompt_id=foreign['prompt_id'], request_id=request_id, response=response)
 
             def native_record_written():
                 # Complete native JSONL lines only; the CLI still owns this file.
@@ -128,12 +163,26 @@ def main():
               e['data'].get('prompt_id') == stop_id and e['data'].get('origin') == 'native-transcript']
     ordered = bool(stop_id and starts and ordering['result_seq'] < starts[0]['seq'])
     report['checks'].append(dict(name='real_stop_before_native_turn_registration', passed=ordered))
+    if args.scenario == 'unrelated-stop' and ordering.get('unrelated_stop'):
+        foreign = ordering['unrelated_stop']
+        report['checks'].extend([
+            dict(name='unrelated_stop_remains_unmatched', passed=any(e['type'] == 'stop_not_matched' and
+                 e['data'].get('prompt_id') == foreign['prompt_id'] for e in trace)),
+            dict(name='unrelated_stop_never_completes_turn', passed=not any(
+                 e['type'] == 'pane_idle' and e['data'].get('stop', {}).get('prompt_id') == foreign['prompt_id'] or
+                 e['type'] == 'claude_stop_matched_transcript' and e['data'].get('prompt_id') == foreign['prompt_id'] for e in trace)),
+            dict(name='unrelated_stop_never_transfers_request', passed=not any(e['type'] == 'relay_received' and
+                 e['data'].get('input', {}).get('request_id') == foreign['request_id'] for e in trace)),
+        ])
+    elif args.scenario == 'unrelated-stop':
+        report['checks'].append(dict(name='unrelated_stop_injected', passed=False))
     pane = report['observed'].get('final_pane', {})
     report['red_reproduced'] = bool(ordered and not report['errors'] and pane.get('state') == 'busy' and
         pane.get('active') and any(e['type'] == 'stop_not_matched' and e['data'].get('prompt_id') == stop_id for e in trace) and
         any(c['name'] == 'original_stop_submit_accepted' and c['passed'] for c in report['checks']))
     report['ordering'] = ordering
     report['mutant'] = args.mutant
+    report['scenario'] = args.scenario
     report['scope'] = 'real CLI/Electron with controlled transcript visibility; no vendor model calls'
     report['status'] = 'PASS' if not report['errors'] and all(c['passed'] for c in report['checks']) else 'INCOMPLETE'
     with args.summary.open('x', encoding='utf-8') as stream:

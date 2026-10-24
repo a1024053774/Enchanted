@@ -204,7 +204,9 @@ type Pane = {
   startupScreen?: string; trustAnswered?: boolean; startupOutputAt?: number; started?: boolean;
   claudePromptId?: string | null;
   claudePromptIds?: Set<string>;
-  claudeQueuedPrompts?: { prompt: string; received_at: string }[];
+  claudeQueuedPrompts?: { prompt: string; received_at: string;
+    stops?: Map<string, { value: any; received_at: string;
+      transfer?: (pane: Pane, stop: any, matched: boolean) => Promise<void> }> }[];
   permission?: { prompt_id: string; submission: string } | null;
   login?: ClaudeLogin;
   loginCleanup?: Promise<void>;
@@ -1026,6 +1028,9 @@ export class Panes implements GateRuntime {
     if (pane.record.role === "shell") return;
     if (pane.record.cli === "Claude Code") {
       if (!pane.claudeQueuedPrompts?.length) return;
+      // A Stop's caller checks also scan. They must not advance past the turn
+      // whose completion is still transferring its explicit requests.
+      if (pane.stopInProgress) return;
       // Busy-input UPS carries the still-running prompt id. Only the native
       // queued human transcript establishes the eventual new prompt id, before
       // any caller check or hook matching may use that turn.
@@ -1050,6 +1055,20 @@ export class Panes implements GateRuntime {
         this.store.event('turn_submitted', { ...pane.active, source: 'user', origin: 'native-transcript' }, pane.record);
         this.store.event('turn_start_signal', { session_id: pane.native, prompt_id: entry.promptId, origin: 'native-transcript',
           transcript_path: pane.nativeFile, transcript_uuid: entry.uuid, received_at: queued.received_at }, pane.record);
+        for (const [prompt, stop] of queued.stops ?? []) {
+          if (prompt !== entry.promptId) this.store.event('stop_not_matched', stop.value, pane.record);
+        }
+        const early = queued.stops?.get(entry.promptId);
+        if (early) {
+          this.store.event('claude_stop_matched_transcript', { prompt_id: entry.promptId, received_at: early.received_at,
+            transcript_uuid: entry.uuid }, pane.record);
+          // The native record supplies identity, not the early Stop. Complete
+          // through the same checks and transfer as a Stop arriving after it.
+          void this.claudeStop(pane, early.value, early.received_at, early.transfer)
+            .then(() => this.drain(pane))
+            .catch(error => this.recordFailure(pane, 'deferred_stop_failed', error));
+          break;
+        }
       }
       return;
     }
@@ -1623,30 +1642,7 @@ export class Panes implements GateRuntime {
         }
         check(value.hook_event_name === "Stop", "unsupported_hook");
         this.store.event("turn_end_signal", value, pane.record);
-        const active = pane.active;
-        const current = Boolean(active && pane.claudePromptId && value.prompt_id===pane.claudePromptId && !pane.failed && !pane.stopInProgress &&
-          !value.agent_id && Date.parse(received_at) >= Date.parse(active.at));
-        if (current && typeof value.stop_hook_active !== 'boolean') {
-          const error = new Refusal('stop_hook_active_required');
-          throw error;
-        }
-        const matched = current && value.stop_hook_active === false;
-        if (!matched) { this.store.event("stop_not_matched", value, pane.record); return; }
-        check(currentTurnTrust(pane, this.store.read().filter(e => e.launch === launch)) === 'verified', 'current_turn_untrusted');
-        if (pane.record.role !== "controller") this.claudeTurnFacts(pane, value);
-        pane.stopInProgress = true;
-        try {
-          if (transfer) await transfer(pane, value, true);
-          check(currentTurnTrust(pane, this.store.read().filter(e => e.launch === launch)) === 'verified', 'current_turn_untrusted');
-          if(pane.active!==active || pane.claudePromptId!==value.prompt_id){this.store.event("stop_not_matched",{...value,stage:"after_transfer"},pane.record);return;}
-          pane.active = null; pane.claudePromptId = null; pane.permission = null;
-          pane.state = pane.interrupted || pane.claudeQueuedPrompts?.length ? "busy" : "idle";
-          this.store.event(pane.claudeQueuedPrompts?.length ? 'pane_waiting_native_queue' : pane.state === "idle" ? "pane_idle" : "pane_completion_held",
-            { submission: active!.id, stop: value }, pane.record);
-        } catch (error) {
-          this.recordFailure(pane, "stop_transfer_failed", error); throw error;
-        } finally { pane.stopInProgress = false; }
-        return;
+        return await this.claudeStop(pane, value, received_at, transfer);
       }
       if (value.hook_event_name === "PermissionRequest") {
         pane.failed = "unexpected_permission_request"; pane.state = "unknown";
@@ -1685,6 +1681,48 @@ export class Panes implements GateRuntime {
       }, pane.record);
       throw error;
     }
+  }
+  async claudeStop(pane: Pane, value: any, received_at: string,
+    transfer?: (pane: Pane, stop: any, matched: boolean) => Promise<void>) {
+    validateHookEnvelope(pane, value);
+    check(Number.isFinite(Date.parse(received_at)), 'hook_received_at_required');
+    const active = pane.active;
+    const current = Boolean(active && pane.claudePromptId && value.prompt_id === pane.claudePromptId &&
+      !pane.failed && !pane.stopped && !pane.nativeEnded && !pane.stopInProgress && !value.agent_id &&
+      Date.parse(received_at) >= Date.parse(active.at));
+    if (current && typeof value.stop_hook_active !== 'boolean') throw new Refusal('stop_hook_active_required');
+    const matched = current && value.stop_hook_active === false;
+    if (!matched) {
+      const queued = pane.claudeQueuedPrompts?.[0];
+      // Keep only an authenticated, fresh root Stop while this exact queued
+      // input awaits native identity. Consuming that input discards other ids.
+      if (queued && !active && !pane.claudePromptId && !pane.failed && !pane.stopped && !pane.nativeEnded &&
+          !pane.interrupted && !pane.stopInProgress && !value.agent_id && value.stop_hook_active === false &&
+          !pane.claudePromptIds?.has(value.prompt_id) && Date.parse(received_at) >= Date.parse(queued.received_at)) {
+        check(realpathSync(value.transcript_path) === realpathSync(pane.nativeFile!), 'question_origin_unverified');
+        queued.stops ??= new Map();
+        if (!queued.stops.has(value.prompt_id)) queued.stops.set(value.prompt_id, { value, received_at, transfer });
+        this.store.event('claude_stop_waiting_transcript', value, pane.record);
+        return;
+      }
+      this.store.event('stop_not_matched', value, pane.record); return;
+    }
+    check(currentTurnTrust(pane, this.store.read().filter(e => e.launch === pane.record.id)) === 'verified', 'current_turn_untrusted');
+    if (pane.record.role !== 'controller') this.claudeTurnFacts(pane, value);
+    pane.stopInProgress = true;
+    try {
+      if (transfer) await transfer(pane, value, true);
+      check(currentTurnTrust(pane, this.store.read().filter(e => e.launch === pane.record.id)) === 'verified', 'current_turn_untrusted');
+      if (pane.active !== active || pane.claudePromptId !== value.prompt_id) {
+        this.store.event('stop_not_matched', { ...value, stage: 'after_transfer' }, pane.record); return;
+      }
+      pane.active = null; pane.claudePromptId = null; pane.permission = null;
+      pane.state = pane.interrupted || pane.claudeQueuedPrompts?.length ? 'busy' : 'idle';
+      this.store.event(pane.claudeQueuedPrompts?.length ? 'pane_waiting_native_queue' : pane.state === 'idle' ? 'pane_idle' : 'pane_completion_held',
+        { submission: active!.id, stop: value }, pane.record);
+    } catch (error) {
+      this.recordFailure(pane, 'stop_transfer_failed', error); throw error;
+    } finally { pane.stopInProgress = false; }
   }
   authenticate(identity: any) {
     const pane = this.byLaunch(identity.launch);
