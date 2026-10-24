@@ -41,3 +41,16 @@
 | [run_worker_delivery.py](run_worker_delivery.py) | [T-153](../../.project-map/tickets/T-153-migrate-worker-delivery.md)，已合入。 | 原生 Stop 批次与重复请求只处理一次、门禁回执只注入一次且收据回合无工具、实际 turn_context→delivery→尾注。 |
 
 迁移的红态、绿态和独立验收以各票绑定候选的证据为准；本索引不代替验收。T-152、T-153 的合入状态已由执行主控在集成时核对（2026-10-23）。
+
+## 已迁移覆盖后删除（T-156）
+
+用户 2026-10-24 选择“迁移后删 (Recommended)”，授权见[答复](../../.project-map/inbox/20261024T005556Z-ideation-answer-002.md)。原检查逐项对照见 [COVERAGE.md](../../evidence/2026-10-23-batch24/T-156/COVERAGE.md)；它记录迁移前的状态，本节记录迁移后的覆盖去向。
+
+| 已删除文件 | 覆盖去向与退役边界 |
+| --- | --- |
+| `test_t078_quality_host_bootstrap.py` | 唯一直接守护的凭据检查迁入 [test_t156_quality_host_credentials.py](test_t156_quality_host_credentials.py)：实际 `QualityCase.setUp/start_host` 两代路径分别为 fixture 内 `operator-01/02.credential.json`；实际 `quality_chain_host.ts` 在 socket 前创建凭据；`generation-1/2-created/kind/state/mode/readable` 检查创建、operator、fixture state、精确 0600 与真实读取；`generation-1/2-launch-filtered` 检查外来 `A2A_LAUNCH` 被过滤；`cleanup-failures` 与 `capabilities-removed-before-archive` 检查真实 `close_fixture` 后无残留。仅为测试 host 的直接检查，不代表 daemon/PTY 或原生 CLI 验收。 |
+| `run_t082_boundary.py` | 正常 tracer、审查副本生命周期与启动边界由现行 `test_t082_review_boundary_e2e.py` 的 `tracer_review_copy`、`launch_boundary_refused` 及 T-152 `run_suite.py` 守护，具体断言见 COVERAGE.md；旧“网络开启须拒收”已被 T-141 废止。runner 自有的失败日志复制协议及 bootstrap 的 `failed-run-copies-host-stderr` 随旧 runner 一并退役，不保留替代包装。 |
+
+T-156-2 的正常运行与隔离变异证据见 [RESULTS-2.md](../../evidence/2026-10-23-batch24/T-156/RESULTS-2.md)。原 T-156-1 基线只作为日期记录保留。
+
+历史证据脚本 `evidence/2026-10-16-batch16/T-090/run-host.py` 仍引用旧 runner，复跑须检出其当时 revision；按执行主控 #42 的裁定，它不算现行入口，本次保持原样。
