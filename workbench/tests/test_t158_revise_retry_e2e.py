@@ -6,6 +6,7 @@ Failure modes (written before the test):
 3. reclaim targets the new/current attempt instead of the explicitly named historical attempt.
 4. a reclaimed attempt still blocks dispatch, including when its dirty worktree must be preserved.
 5. help or either role instruction omits the ordered save/revise/old-attempt reclaim/dispatch procedure.
+6. the fixture mistakes an in-flight paste (state=idle, empty queue, writing=true) for quiescence.
 
 Oracle: controller #36 / user ruling relayed in 20261024T005556Z-ideation-answer-001:
 save v2 -> revise -> reclaim the old attempt -> one dispatch without overlap parameters.
@@ -14,6 +15,7 @@ Real daemon/Git/PTY/Electron; real interactive Claude CLI, local scripted Messag
 --check instructions runs the real help entry without starting a daemon, Electron, or a model endpoint.
 """
 import argparse
+from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
@@ -40,6 +42,10 @@ MUTANTS = {
 }
 
 
+class ContractFailure(Exception):
+    pass
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--summary', type=Path, required=True)
@@ -60,7 +66,8 @@ def main():
         return bool(condition)
 
     def require(name, condition, detail=None):
-        assert check(name, condition, detail), f'{name}: {detail}'
+        if not check(name, condition, detail):
+            raise ContractFailure(name)
 
     def ordered(text):
         # Commands, not an exact prose snapshot; each next operation must be discoverable after the previous one.
@@ -134,16 +141,22 @@ def main():
 
             def idle(attempt):
                 state = fixture.request('pane_status', fixture.operator, thread=attempt['thread_id'])
-                return state if state.get('state') == 'idle' and not state.get('failed') and not state.get('active') and not state.get('queued') else None
+                return state if state.get('state') == 'idle' and state.get('writing') is False and not state.get('failed') and not state.get('active') and not state.get('queued') else None
+
+            def wait_idle(label, attempt):
+                observed = fixture.wait(label, lambda: idle(attempt), 90)
+                report['observed'].setdefault('quiescence', []).append(dict(label=label,
+                    at=datetime.now(timezone.utc).isoformat(), pane=observed))
+                return observed
 
             first = request('dispatch', runtimeMode='workspace-write', model=MODEL, effort='low')
             require('initial_dispatch', first.get('ok'), first)
             old = first['attempt']
             fixture.wait('first candidate submitted', lambda: status()['state'] == 'submitted', 180)
-            fixture.wait('old worker idle after delivery', lambda: idle(old), 90)
+            wait_idle('old worker idle after delivery', old)
             rejected = request('verify')
             require('candidate_rejected_before_revision', rejected.get('error') == 'oracle_failed', rejected)
-            fixture.wait('old worker idle after rejection', lambda: idle(old), 90)
+            wait_idle('old worker idle after rejection', old)
             # Dirty retained evidence is a sentinel: path release must depend on reclaim, not worktree deletion.
             sentinel = Path(old['workspace']) / 'uncommitted-evidence.txt'
             sentinel.write_text('T-158 retained evidence\n', encoding='utf-8')
@@ -162,6 +175,7 @@ def main():
             overlap = request('dispatch', runtimeMode='workspace-write', model=MODEL, effort='low')
             require('unreclaimed_attempt_still_reserves_paths', overlap.get('error') == 'path_overlap' and
                     any(c['attempt'] == old['attempt_id'] for c in overlap.get('details', {}).get('conflicts', [])), overlap)
+            wait_idle('old worker quiescent before historical reclaim', old)
             reclaimed = request('reclaim', attempt=old['attempt_id'])
             require('explicit_historical_reclaim_succeeds', reclaimed.get('ok'), reclaimed)
             require('dirty_evidence_preserved_after_reclaim', sentinel.is_file() and
@@ -172,7 +186,7 @@ def main():
                     second)
             new = second['attempt']
             fixture.wait('new candidate submitted', lambda: status()['state'] == 'submitted', 180)
-            fixture.wait('new worker idle', lambda: idle(new), 90)
+            wait_idle('new worker idle', new)
             require('new_attempt_uses_v2', status()['current_attempt']['spec_rev'] == 2 and status()['card_version'] == 2)
             events = request('events')['events']
             require('old_attempt_reclaimed_event_preserved', any(e['type'] == 'reclaimed' and
@@ -187,6 +201,8 @@ def main():
             if args.check == 'all':
                 instructions(fixture.source)
         report['status'] = 'PASS' if all(row['passed'] for row in report['checks']) else 'INCOMPLETE'
+    except ContractFailure as failure:
+        report['target_failure'] = str(failure)
     except Exception:
         report['errors'].append(traceback.format_exc())
     finally:
