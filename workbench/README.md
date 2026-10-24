@@ -754,8 +754,9 @@ UserPromptSubmit 只阻断当前登记注入的正文错配，输出 hook JSON b
 不按文本标记拦截手打提交，不裁剪、不重送，Stop 的提交匹配语义不变。
 Claude 窗格工作中的用户输入仍原样直达 CLI，由 CLI 自己处理；Enter 不替换当前原生 turn，
 不使正在转交的 Stop 批次失效。新的 UserPromptSubmit 建立下一次用户回合身份。
-Stop 期间，CLI 接收排队输入时的 UserPromptSubmit 可能仍带原 prompt_id；后台记录排队事实，
-保留原身份。随后同原生会话转录中的 queued human 正文、时间和新 promptId 核对通过，
+回合工作中或 Stop 期间，CLI 接收排队输入时的 UserPromptSubmit 可能仍带原 prompt_id（T-157、T-166）；
+此前有用户在该窗格按下的 Enter 时，后台记录排队事实，保留原身份，原回合的 Stop 照常匹配；没有对应 Enter 的
+prompt_id 复用仍拒绝。原回合结束后，同原生会话转录中的 queued human 正文、时间和新 promptId 核对通过，
 才建立实际的新 turn；其匹配 Stop 结束后回到空闲。这一轮的 Stop 可能早于转录登记到达（T-165）：
 后台只暂存同一转录、晚于排队输入、非子代理、`stop_hook_active=false` 且 prompt_id 未用过的 Stop，
 登记该轮后按同一核对与转交完成；与该轮 promptId 不符的暂存 Stop 记为不匹配。门禁反馈等原生队列处理完才注入，用户输入仍即时发送。

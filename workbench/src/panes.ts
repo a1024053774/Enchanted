@@ -1031,6 +1031,9 @@ export class Panes implements GateRuntime {
       // A Stop's caller checks also scan. They must not advance past the turn
       // whose completion is still transferring its explicit requests.
       if (pane.stopInProgress) return;
+      // Input typed during a working turn (T-166) queues before that turn's Stop.
+      // It becomes its own turn only after the turn it was typed into completes.
+      if (pane.active) return;
       // Busy-input UPS carries the still-running prompt id. Only the native
       // queued human transcript establishes the eventual new prompt id, before
       // any caller check or hook matching may use that turn.
@@ -1604,7 +1607,9 @@ export class Panes implements GateRuntime {
         if (value.hook_event_name === "UserPromptSubmit") {
           const item = !pane.claudePromptId && pane.active && this.store.dispatchRecord(pane.active.dispatch);
           check(typeof value.prompt_id==="string" && value.prompt_id.length>0 && value.prompt_id.length<=128,"claude_prompt_id_required");
-          if (pane.stopInProgress && pane.active && value.prompt_id === pane.claudePromptId && typeof value.prompt === 'string') {
+          // Input typed while the current turn is still working or in its Stop
+          // batch: the CLI queues it under the running prompt id (T-157, T-166).
+          if (pane.active && value.prompt_id === pane.claudePromptId && typeof value.prompt === 'string') {
             const history = this.store.read().filter(event => event.launch === launch);
             const previous = history.findLast(event => ['turn_start_signal', 'claude_prompt_queued'].includes(event.type));
             const enter = history.findLast(event => event.type === 'terminal_input_write_intent' && event.seq > (previous?.seq ?? 0) &&
