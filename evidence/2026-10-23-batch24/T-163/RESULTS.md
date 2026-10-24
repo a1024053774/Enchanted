@@ -1,6 +1,6 @@
 # T-163-1 / a1
 
-状态：INCOMPLETE。RUN-OUTSIDE-01 的真实 Haiku oracle 红态成立；C5 漏项未复现，派发被夹具权限阻断。已修改两个产品说明入口并调整本票夹具，等待执行主控运行 RUN-OUTSIDE-02，尚无修后绿态。
+状态：INCOMPLETE。RUN-OUTSIDE-01 的真实 Haiku oracle 红态成立；RUN-OUTSIDE-02 的 oracle 仍为 NO_GO，C5 已实际派发且主控独立确认行为符合要求（显式逐项核对列表不完整）。已依据两场景原生记录再次修订说明，等待 RUN-OUTSIDE-03，仅跑 oracle 与旧说明变异。
 
 ## 范围与入口
 
@@ -39,24 +39,30 @@ zsh evidence/2026-10-23-batch24/T-163/RUN-OUTSIDE-01.sh
 
 夹具权限根因在本票生成的临时 settings，不在产品启动器。修正为仅对隔离测试主控允许 Bash，保留 dontAsk 和子 agent 禁用；产品与受管 worker 的权限未改。RUN-OUTSIDE-02 中绿态与旧说明变异使用相同夹具设置，场景输入与业务 oracle 未改。
 
-RUN-OUTSIDE-02 依次运行 C5、oracle 绿态；只有 oracle 绿态后才运行恢复旧说明的 oracle 变异（预先声明的反事实，不是重试）；最后跑 T-158 说明回归。最多新增 6 个真实根提示，累计预留 10/16。C5 仍由主控独立语义判断，不自动报 PASS。
+RUN-OUTSIDE-02 实际新增 4 个真实根提示，累计 8/16；oracle 未绿，变异按计划跳过。C5 真实派发，独立判断见执行主控 #49 与 `diagnosis-02.md`；T-158 说明回归 PASS。
+
+对照记录证明两个场景都加载了新版规则并实际自测，oracle 失败来自样本预期跟随自加的明细条件、缺少反向含义反例。再次修改将三条规则移出派发步骤，明确单独写验收脚本也适用；要求判据逐条追溯用户要求，先独立定样本预期，含没有额外明细的最小正例和关键词相同但含义相反的反例，不能修改预期或补无关明细凑通过。未改测试代码、场景提示、11 个业务样本或通过判据。
+
+下一轮 RUN-OUTSIDE-03 仅做 oracle 绿态及 parent-instructions 变异，预计 4 个真实根提示、累计最多 12/16；若绿态失败，保留失败、不重试并跳过变异（该情况下新增 2 回合）。不复跑 C5。此前 C5 结论只绑定 `d4b79be10`，不拿它替新说明的未运行行为背书。
 
 ```zsh
-zsh evidence/2026-10-23-batch24/T-163/RUN-OUTSIDE-02.sh
+zsh evidence/2026-10-23-batch24/T-163/RUN-OUTSIDE-03.sh
 ```
 
 ## 当前验证与限制
 
 - PASS：Python 编译、`--help` 与 diff 空白检查（未启动后台、Electron 或模型）。首次 py_compile 默认缓存目录被沙箱拒绝；改用允许的 `/private/tmp/t163-pycache` 后通过，这不是产品红态。
 - PASS：本次修改后的 Python 编译、RUN-OUTSIDE-02 shell 语法、真实 `a2a help` 入口和 UTF-8/空白检查，见 `local-checks-02.json`。收尾 project-map status 仍仅有 T-158 缺 Resolution，stale living docs 为 0，见 `project-map-status-02.json`。
+- PASS：第三轮说明修改后的真实 CLI help、RUN-OUTSIDE-03 语法、UTF-8/空白，以及测试代码与 `d4b79be10` 无差异，见 `local-checks-03.json`；T-158 说明回归见 `t158-instructions-03.json`。地图状态仍仅有同一项范围外问题、stale living docs 为 0，见 `project-map-status-03.json`。
 - PASS：将 T-155 历史弱验收原样交给本票输入探针，正确输入被接受，错数字、反向语义和分组四个坏样本揭露弱验收。结果见 `probe-oracle-known-bad.json`（首次内联运行）与 `probe-oracle-known-bad-replay.json`（下面命令重放）。这只证明测试可抓住已知坏检查器，不是本票真实模型修前红态。
 - PASS：修前真实 Haiku oracle 检出误拒和反向语义误收；两个摘要无环境错误，实际模型与 4 个根提示已核对。这是有效失败证据，不是产品通过。
-- INCOMPLETE：C5 漏项未复现；修后两场景、提示词变异、独立行为验收均等待 RUN-OUTSIDE-02。
-- 相关回归：`test_t158_revise_retry_e2e.py --check instructions` 已放入 RUN-OUTSIDE-02，确认两个说明入口保留 T-158 的修订顺序，不启动真实供应商模型。
+- NO_GO：RUN-OUTSIDE-02 的 oracle 仍误拒两个正确汇总、误收反向购买语义，摘要无环境错误；完整保留，不改判据。诊断见 `diagnosis-02.md`。
+- INCOMPLETE：C5 漏项红态未复现；RUN-OUTSIDE-02 的 C5 无遗漏且自测发现标签对调后修正，但显式逐项核对列表不完整。最新说明的 oracle 绿态、提示词变异和独立行为验收待运行，不能上调结论。
+- PASS：`test_t158_revise_retry_e2e.py --check instructions` 在 RUN-OUTSIDE-02 通过，摘要为 `t163-outside-02.8v3EhC-t158-instructions.json`。本次规则移位后另做同一静态入口回归（不调用模型）；RUN-OUTSIDE-03 按主控要求仅含 oracle 与变异。
 - M04 的三种状态与无新事实停点已加入同一主控说明；本卡指定的两个场景不会完整证明未知状态长轮询已消除，不能宣称可靠性或收益已改善。
 - 会话开始 project-map status：既存 `T-158 closed without a Resolution`，stale living docs 为 0。该 ticket 在修改边界外，已向主控报告，未改地图或他人 ticket。
 
-当前不声明 DELIVERED；这是按派发要求提交 RUN-OUTSIDE-02 后的暂停点。独立行为审查留在真实绿态与候选冻结之后，不以作者自检替代。
+当前不声明 DELIVERED；这是按派发要求提交 RUN-OUTSIDE-03 后的暂停点。独立行为审查留在真实绿态与候选冻结之后，不以作者自检替代。
 
 历史弱验收探针的重放命令：
 
