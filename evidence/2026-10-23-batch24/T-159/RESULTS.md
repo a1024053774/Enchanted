@@ -1,103 +1,56 @@
-# T-159-1 / a1：分屏修复与验证交接
+# T-159-1 / a1：任务内分屏讨论终端
 
-状态：**INCOMPLETE（P1 待决定）**。消息 #39 返回新增真实 Electron 场景 PASS，原两个变异仍在预期业务断言失败；证据已核对并保留。此前红态、绿态及 T-139 三项回归证据保留。消息 #37 已撤回 P3 的产品判据修改和按 role 判断变异要求；P1 验收第 1 条仍等构思主控答复，不上调独立审查或最终验收状态。
+状态：**INCOMPLETE**。用户已决定任务内允许分屏；新候选已实现，真实 Electron 绿态、两个新变异和 T-139/T-143 完整回归待 `RUN-OUTSIDE-04`。旧禁用方案的通过结论不替新实现背书。
 
-## 范围与依据
+## 当前授权与边界
 
-- worker：`b24-t159`；分支：`exec/t159`；产品起点：`c01742804961214ed025b6c9fb9924a1ea49ee2d`。
-- 修复提交：`9a4cc2dd68610ab143517bb9b90688f84c9d6d2c`；已完成的真实 Electron 绿态候选：`977bd408de4dd53ba4c3b320e52da372b64ee64b`（含 README 同步）。消息 #37 的补充仅改本票测试、运行脚本和报告，不改该候选的产品代码。
-- 目标：修复任务 worker 分屏后被项目普通终端替换的问题。非目标：改变 T-139 的三层视图、门禁或任务归属。
-- Ubiquitous language：使用 `CONTEXT.md` 的项目、任务、Agent 会话、普通终端术语。
-- 根因：`workbench/app/main.ts` 的 `a2a:pane-action` → `createTerminal` 未区分任务会话与普通终端。任务中分屏先调用 `shell_start`，再 `changeView` 到项目层，清掉相对窗格。`renderer.tsx` 的分屏回调只更新窗格和布局，没有同步任务标题，因此还显示旧任务上下文。真实 Electron 红态与该路径一致。
-- T-139 明确普通终端只在项目层；T-159 允许不能混屏时在操作前说明。现按该已授权分支处理：任务会话菜单禁用右/下分屏，事先说明“任务视图只展示 Agent 会话。请在普通终端中分屏。”；键盘导航跳过禁用项。创建入口在 `shell_start` 前拒绝任务会话的分屏请求，防止直接 IPC 绕过菜单。保留普通终端分屏。产品修改仅涉及 `workbench/app/main.ts` 与 `workbench/app/renderer.tsx`。不新增平行视图或兼容路径；沿用现有布局接口，遵守 Deep modules 原则。
-- 本次不跨存储、门禁和 API 实现新能力，无需新增 Tracer bullet；测试通过现有真实后台、门禁、PTY、Electron 完整入口观察。
+- worker：`b24-t159`，task `T-159-1`，attempt `a1`，分支 `exec/t159`。
+- 原始产品起点：`c01742804961214ed025b6c9fb9924a1ea49ee2d`；本轮开始于 `17796b166`（旧独立审查记录，已被用户方向裁定取代）。
+- 来源：执行主控消息 #54，转述构思主控 answer `20261024T024128Z-001` 中用户 2026-10-24 原话：“任务视图里也可以分屏吧,比如说我想对这个任务有疑问,想开一个分屏侧边聊天来讨论这个任务”。同条派发明确撤回禁用分支，允许修改与旧规则相关的 `test_t139_*`，并允许复用 `outside-01` 红态。
+- 目标：任务内向右/向下分屏保留原 worker，新增标明“普通终端”的 zsh，目录为任务仓库根。终端只有视图布局关联，不成为任务 agent、不认领任务路径、不记为 worker 的人工介入。
+- 非目标：修改门禁、PTY 生命周期、角色投影、侧栏分类、主控权限或其他票。未修改 `panes.ts`、`gates/**`、`sidebar.ts`、`preload.ts`、地图、术语表或 ticket。当前 worktree 内 ticket 仍是旧文字，以消息 #54 的明确裁定执行并在本报告记录；不自行改写治理文件。
+- 已读 main 的 T-159 新验收；main 的 T-139 ticket 仍有“只在自己视图出现”的旧目标，已非阻塞上报 `ISSUE-T139-DOC-SYNC-01.md`，请主控同步治理说明。worker 的 README 与对应测试已同步。
 
-## 已有证据
+## 实现
 
-1. session 启动的 `project_map.py status --root .`：Problems 0、Stale living docs 0。
-2. Python 初次语法检查被默认缓存目录的写入限制阻断；改用 `PYTHONPYCACHEPREFIX=/private/tmp/t159-pycache` 后通过。未申请提权。
-3. 沙箱运行命令：
+1. `workbench/app/main.ts`：删除任务分屏的拒绝与切到项目视图的路径；沿用现有 `shell_start`，保留原窗格与任务上下文，按菜单方向插入新叶子。从任务 agent 分屏时使用 `task.repo`，从普通终端分屏时仍沿用其启动目录。
+2. 新终端绑定 `project`，不绑定 gate `task/attempt/session/fence`。快照、输入、关闭仍走普通终端通道，原 worker 凭据不重建、不改投递目标。后台现有布局校验已经允许任务布局引用同项目 shell，无需新增后台入口。
+3. 任务布局恢复只补回保存树中明确引用、仍在同项目打开集中的普通终端；不自动加入其他项目终端。任务打开集仍只登记 agent。布局读取由 `taskPaneLayout` 同时服务任务恢复和单 agent 视图的布局保存；这是两个真实调用点，沿用现有 SQLite 布局事实，符合 Deep modules 原则。
+4. 单 agent 视图分屏保存时把当前子树放回原叶子，保留隐藏兄弟窗格、讨论终端及名称；恢复右/下嵌套结构。关闭讨论终端只关闭该 shell 并移除布局叶子。
+5. `renderer.tsx`：恢复任务窗格向右/向下分屏按钮，删除禁用说明；终端头仍按真实 shell 快照显示“普通终端”。README 同步任务布局说明。
+6. Ubiquitous language：普通终端与 Agent 会话保持区别。Tracer bullet 使用真实 shell → 应用窗格绑定 → 已有布局保存/恢复 → 普通终端输入这一条生产路径；没有新增存储或平行 API。
 
-   ```sh
-   python3 workbench/tests/test_t159_split_e2e.py --summary evidence/2026-10-23-batch24/T-159/sandbox-red-01.json --revision c01742804961214ed025b6c9fb9924a1ea49ee2d
-   ```
+## 红态与已运行检查
 
-   结果：**INCOMPLETE**。真实后台与受控原生 worker 已启动；Electron CDP `127.0.0.1:65525` 连接被拒绝，等待项目出现超时。没有执行到分屏操作，不是缺陷红态。摘要见 `sandbox-red-01.json`；夹具保留在 `/private/tmp/t159-cc0_42f1`，停止流程未报告 cleanup_errors。没有真实 CLI 模型调用。
-4. `zsh -n evidence/2026-10-23-batch24/T-159/RUN-OUTSIDE-01.sh` 与 `git diff --check`：通过。
-5. 执行主控消息 #31 返回 `RUN-OUTSIDE-01` 的 rc=0；已读取 `outside-01-dJtqcETt/red.json`、`exits.txt` 和回归摘要核对。真实 Electron 修前红态：worker `ddd67143-d12e-423a-bcab-4c326f1b5d28` 被一个普通终端替换，新窗格在项目根目录，菜单未事先说明。预期业务断言 `task_right_explains_before_action` 失败；没有 cleanup_errors。截图、摘要与小日志随本票提交；原始夹具 `/private/tmp/t159-qxrk1prm` 保留，待主控归档。T-139 selection、layout-store、terminal-catalog 的修前回归均通过。
-6. 修复后在沙箱内运行三项已有回归，均通过：
+- **真实 Electron 红态复用（仅证明替换现象）**：`outside-01-dJtqcETt/red.json`，产品版本 `c01742804961214ed025b6c9fb9924a1ea49ee2d`，原 worker `ddd67143-d12e-423a-bcab-4c326f1b5d28` 在分屏后消失，画面只剩一个项目根目录普通终端，任务选择被切走；截图 `red-03-after-right.png`。原运行断言名属于已撤回的禁用方案，本轮不复用该断言的语义，也不复用旧通过结论。`RUN-OUTSIDE-04` 会核对记录中的实际窗格与版本。
+- **布局恢复反事实**：新增 T-139 SQLite 场景在 `17796b166` 的真实 main.ts 上退出 1，业务断言 `task_restores_only_explicit_project_shell` 失败；见 `local-layout-store-parent-red-04.json`。已有声明的普通终端未被恢复，不是环境失败。
+- **布局恢复绿态**：最终 main.ts 运行同一测试退出 0，14 项通过，见 `local-layout-store-final-04.json`；覆盖只恢复明确加入的终端、单 agent 改名保留讨论布局、关闭讨论终端保留 agent、讨论终端不进入任务打开集。前一检查点的 `local-layout-store-04.json` 同样保留。
+- `test_t139_selection.mjs`：最终代码 25 项通过，见 `local-selection-final-04.json`；前一检查点的 `local-selection-04.json` 保留。
+- `test_t139_terminal_catalog.mjs`：2 项通过，见 `local-terminal-catalog-04.json`。
+- Python 测试、脚本内两个 oracle 的语法、`zsh -n RUN-OUTSIDE-04.sh`、UTF-8 回读和差异空白检查通过。当前目录没有新真实 Electron 运行结果，不能写成已通过。
+- 沙箱内 Electron CDP 不可达的原始失败 `sandbox-red-01.json` 保留为 INCOMPLETE，不当成产品红态；本轮不重复这一环境失败，不发起沙箱外运行提权请求。
 
-   ```sh
-   node --experimental-vm-modules workbench/tests/test_t139_selection.mjs evidence/2026-10-23-batch24/T-159/local-selection-02.json
-   node --experimental-vm-modules workbench/tests/test_t139_layout_store.mjs evidence/2026-10-23-batch24/T-159/local-layout-store-02.json
-   node workbench/tests/test_t139_terminal_catalog.mjs evidence/2026-10-23-batch24/T-159/local-terminal-catalog-02.json
-   ```
+## 本轮测试变更与理由
 
-   这三项只证明相关逻辑与存储边界，不替代 Electron 绿态。
-7. 更新后的 Python 测试语法检查、`zsh -n RUN-OUTSIDE-02.sh`、`git diff --check`：通过。
-8. 产品提交后 `project_map.py status` 检出 `workbench/README.md` 过期。卡中允许修改必要 README 行，已同步普通终端章节的分屏限制，并纠正同一段仍称普通终端混入任务视图的旧说明；未修改地图。
+- `test_t159_split_e2e.py`：将旧“任务分屏被拒绝”断言改为当前真实用户行为。受控原生 PTY、真实后台/门禁、真实 Electron，不调用供应商模型。分别从 worker 向右、向下分屏；核对数量、类型、几何位置、任务仓库根实际 pwd、侧栏仍是普通终端、worker 数量不增加、task/attempt/workspace/路径边界和 worker 状态不变。切换后恢复明确加入的终端与嵌套方向；关闭讨论终端保留 worker；单个 worker 视图仍只显示自己；保留项目主控分屏场景。
+- 观察独立读取 SQLite `user_inputs` 与门禁 `human_intervention` 事件。讨论终端输入不得增加二者；最后向 worker 直接输入必须增加二者，作为观察器正例，避免只比较空列表。这个正例是夹具中的人工介入，不用于声称讨论终端产生了介入。
+- `test_t139_layout_store.mjs`：增加新裁定允许的明确终端布局关联与关闭/恢复场景，使用实际 SQLite 与后台原有布局校验。
+- `test_t139_selection.mjs` 和 `test_t139_t143_views_perf_e2e.py`：只将旧“任务只有 agent”措辞改为“排除未选择的项目终端”。原场景未做任务内分屏，所以原排除条件继续有效，不放宽隔离断言、不改性能测量或输入权限条件。
+- 旧两个变异对应旧方向，本轮改为两种当前已知坏实现：`replace-worker` 恢复创建 shell 后切走任务的错误；`shell-input-to-worker` 在隔离 main.ts 副本中把讨论终端的输入误发给同屏 worker，必须产生并被 `task_right_no_intervention` 拒绝。后者不修改后台或测试 oracle，检查真实输入记录与事件。
 
-## 沙箱外验证结果
-
-执行主控消息 #33 返回 `RUN-OUTSIDE-02` 的 rc=0。已读取 `outside-02-TzKrStnh/` 的候选号、六份测试摘要与退出码，并查看菜单和普通终端分屏截图；所有运行均无 cleanup_errors。真实后台、门禁、受控原生 PTY 与真实 Electron 经 CDP 运行；零模型调用。
-
-| 场景 | 结果与证据 |
-| --- | --- |
-| 修后真实 Electron | `green.json`：PASS，25 项检查通过，exit 0。任务右/下分屏事先说明、保持原 worker、拒绝直接 IPC 且布局和启动记录不变；普通终端从子目录右/下分屏的数量、类型、几何位置与实际 pwd 正确；切回任务与单 agent 后仍隔离。 |
-| 恢复修前实现 | `mutant-old.json`：exit 1，`task_right_explains_before_action` 失败，并再次只剩一个普通终端、原 worker 不在画面。 |
-| 仅删除创建入口检查 | `mutant-guard.json`：exit 1，菜单说明仍通过，`task_right_ipc_refused_with_explanation` 失败。证明仅禁用菜单不能通过本票验收。 |
-| T-139 selection | `selection.json`：PASS，25 项，exit 0。 |
-| T-139 layout-store | `layout-store.json`：PASS，10 项，exit 0。 |
-| T-139 terminal-catalog | `terminal-catalog.json`：PASS，2 项，exit 0。 |
-| 运行脚本 oracle | `exits.txt`：`green=0 old_mutant=1 guard_mutant=1 selection=0 layout=0 catalog=0`，`oracle=0`。两个变异摘要的原始状态均为 INCOMPLETE；脚本核对它们是上述预期业务断言失败，而非启动或清理失败，才判定变异被拒。 |
-
-截图：[任务菜单的事前说明](outside-02-TzKrStnh/green-02-menu-right.png)、[普通终端向右分屏](outside-02-TzKrStnh/green-04-shell-right.png)、[继续向下分屏](outside-02-TzKrStnh/green-04-shell-down.png)。
-
-重放命令（每次生成新目录，保留原证据）：
+## 待执行主控运行
 
 ```sh
-zsh evidence/2026-10-23-batch24/T-159/RUN-OUTSIDE-02.sh
+zsh evidence/2026-10-23-batch24/T-159/RUN-OUTSIDE-04.sh
 ```
 
-脚本每次创建新 `outside-02-*` 目录，记录候选完整提交号，保留命令输出、摘要和截图；运行真实 Electron 绿态、两个变异及三项 T-139 回归。绿态还核对键盘导航跳过禁用项及说明文字在当前窗口内完整可见。
+每次生成新 `outside-04-*` 目录，保留完整候选号、摘要、退出码和截图；不覆盖旧证据。脚本先核对复用红态，然后运行新 T-159 真实 Electron 绿态、两个变异、T-139 selection/layout-store/terminal-catalog，以及完整 `test_t139_t143_views_perf_e2e.py`。后者使用现有隔离 HOME、真实 Claude CLI 加本地脚本化 Messages 接口，不调用供应商模型；不声称本轮性能收益。
 
-两个反例：`old-task-split` 在隔离源码副本中恢复修前 main/renderer，必须重现单个普通终端替换 worker；`missing-split-guard` 仅删除创建入口检查，保留菜单说明，必须被 `task_right_ipc_refused_with_explanation` 拒绝。脚本只认这些预期业务失败，启动错误和清理错误不能算杀死变异。
+只有候选全部行为断言通过、两个变异在预期业务断言失败、T-139/T-143 回归通过且无清理错误，脚本才返回 PASS。当前这些沙箱外运行尚未执行，不能标为通过。独立审查与最终门禁验收由执行主控安排。
 
-已有相关回归列入脚本：`test_t139_selection.mjs`、`test_t139_layout_store.mjs`、`test_t139_terminal_catalog.mjs`。覆盖三层视图、保存布局与普通终端目录；它们不能替代本票真实 Electron 验收。T-139/T-143 的完整真实 Claude 性能 e2e 未运行，本票不使用真实模型。
+## 历史处置与证据保留
 
-## 边界与交接
-
-- 本票采用 T-159 明确允许的“不能混屏时事前说明”分支，没有让任务 worker 与项目普通终端混屏；普通终端分屏仍保留原窗格。此边界与 T-139 一致。
-- 独立审查与最终门禁验收不属于本 worker 的通过声明；执行主控按既定流程新开只读审查。
-- `frontend-less-ai-tone` 的旧独立目录在本机两个指定位置未找到；已按整合技能 `frontend-production` 的 `references/look-and-copy.md` 编写限制说明，其 `SOURCE.md` 明确该规则原样迁入。
-- 结果目录约 1.1 MiB，仅含小文本和截图，已逐文件核对无超过 5 MiB 的文件。大夹具不入仓库；`/private/tmp/t159-u40ztvev`（绿态）、`/private/tmp/t159-5113q34s`（旧实现变异）、`/private/tmp/t159-xfpaa_9q`（缺入口检查变异）保留，后续由执行主控按 T-088 归档，不覆盖或删除失败现场。
-
-## 独立审查后：项目主控分屏前提核对
-
-消息 #34 要求项目层已批准主控可以分屏，并用按 role 判断的变异证明。事实探针发现：同一个已批准项目终端的侧栏角色为 controller，但真实 `workbench_snapshot.launch.role` 仍为 shell，因此当前菜单仍允许分屏；消息中“快照 role 变为 controller，所以被禁用”的前提尚未复现。仅把菜单改回按 role 判断的变异也不会被该真实场景拒绝。
-
-见 [原问题上报](ISSUE-CONTROLLER-SCOPE-01.md)、[实测摘要](controller-scope-probe-01.json) 和 [重放探针](PROBE-CONTROLLER-SCOPE-01.py)。执行主控消息 #37 明确：“你的探针是对的，我上一条（#34）把它定成‘回归’是错的”，并撤回产品判据修改和按 role 判断变异的要求。原上报与探针保留，不改写成已复现的产品缺陷。
-
-按消息 #37，仅在 `test_t159_split_e2e.py` 末尾增加真实场景：使用夹具已完成角色申请、批准和确认的项目执行主控终端；核对真实角色与侧栏归属，在项目视图从菜单向右分屏，原 launch 和 pane key 保留，新窗格在右侧、两者目录仍为项目目录，主控批准身份不变。保留真实 `launch.role: shell`，不替换快照。新增菜单与分屏截图供复核。
-
-新增场景的重放命令（生成新路径，不覆盖已有证据）：
-
-```sh
-zsh evidence/2026-10-23-batch24/T-159/RUN-OUTSIDE-03.sh
-```
-
-脚本只跑更新后的完整真实 Electron 绿态和原两个变异 `old-task-split`、`missing-split-guard`，每次保留新 `outside-03-*` 目录；要求新增主控场景通过，并核对原两个变异仍在预期业务断言失败。原 T-139 三项回归已在未变的产品代码上通过，本次不重复运行。
-
-本地准备检查：Python 测试及脚本内 oracle 的语法、`zsh -n RUN-OUTSIDE-03.sh`、UTF-8 回读和 `git diff --check` 均通过；产品源码与此前验证候选无差异，项目地图无问题或过期文档。
-
-消息 #39 返回 `RUN-OUTSIDE-03` rc=0，目录 `outside-03-WDUFSMFa/`，测试候选为 `7bc6b0032dddf5a1ee0aaa24d1d7dfc5b11dce59`。已核对三份测试摘要、候选号、退出码与主控分屏截图：
-
-| 场景 | 结果与证据 |
-| --- | --- |
-| 完整真实 Electron 绿态 | `green.json`：PASS，33 项检查通过，exit 0。新增项目主控已批准、项目归属、菜单可分屏、原 launch 与 pane key 保留、右侧几何位置、项目目录和主控身份保留均通过。 |
-| 原两个变异 | `mutant-old.json` 在 `task_right_explains_before_action` 失败；`mutant-guard.json` 在 `task_right_ipc_refused_with_explanation` 失败；均 exit 1，原始摘要状态 INCOMPLETE，属于预期反例被拒。没有新增按 role 判断的变异。 |
-| 脚本 oracle | `exits.txt`：`green=0 old_mutant=1 guard_mutant=1`，`oracle=0`。三次运行均零模型调用、无 cleanup_errors。 |
-
-截图：[已批准项目主控的菜单](outside-03-WDUFSMFa/green-05-controller-menu.png)、[项目主控向右分屏保留原窗格](outside-03-WDUFSMFa/green-06-controller-right-split.png)。结果目录约 1.2 MiB，仅含小文本与截图，无超过 5 MiB 的文件。原始夹具 `/private/tmp/t159-_x3ijukp`、`/private/tmp/t159-va1vzby9`、`/private/tmp/t159-g2ie3srs` 保留，由执行主控按 T-088 归档。
-
-本次只提交上述结果和报告，未改产品、测试或运行脚本。按消息 #39，之后等待构思主控对验收第 1 条的答复，期间不再改代码。
+- `outside-02-TzKrStnh/` 与 `outside-03-WDUFSMFa/` 的通过结果均属于已撤回的禁用方案，保留为历史记录，不能用于当前方案验收；历史提交不改写。
+- 旧审查 P3 把侧栏 controller 投影误当成窗格快照角色。真实探针 `controller-scope-probe-01.json` 证明已批准主控的窗格角色仍为 shell；执行主控 #37 已撤回该问题，不新增不会失败的按 role 变异。
+- 原 P1 的方向疑问已由消息 #54 的用户裁定解决：允许任务内分屏讨论终端，撤回“禁用并说明”。不再以旧“普通终端只在项目层”规则拒绝本次实现。
+- 报告、小摘要和截图入仓库；整个原始夹具留在摘要列出的 `/private/tmp/t159-*` 路径，由执行主控按 T-088 归档。未删除、覆盖旧失败证据，未更改用户全局配置。

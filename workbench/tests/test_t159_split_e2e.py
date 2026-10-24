@@ -1,10 +1,10 @@
 """T-159：真实 Electron、后台、门禁与受控原生 PTY；零模型调用。
 
 失败方式（期望来自 T-159、T-139，而非实现输出）：
-1. 任务 worker 的分屏菜单未经说明就创建项目普通终端，原 worker 消失。
-2. 仅禁用菜单，直接 IPC 仍能切走任务并创建终端。
-3. 普通终端向右/向下分屏丢原窗格、方向不对、目录不继承或混进任务。
-4. 切回任务/单 agent 后混入项目终端；拒绝操作修改了保存布局或启动记录。
+1. 任务分屏禁用或新终端替换原 worker，数量、方向、类型或目录不符。
+2. 讨论终端被当成 worker，或其输入被记到 worker 的人工介入记录。
+3. 普通终端向右/向下分屏丢原窗格、方向不对或目录不继承。
+4. 布局恢复丢失明确加入的终端，或混入未选择的项目终端；关闭终端改变 worker。
 5. 已批准项目主控的终端不能向右分屏，或分屏丢失原窗格、批准身份或项目目录。
 --revision 跑指定版本；--mutant 恢复修前实现或仅删除入口检查。
 --summary 必须是新路径；原始夹具保留，由主控按 T-088 归档。
@@ -12,13 +12,11 @@
 import argparse
 import json
 from pathlib import Path
+import sqlite3
 import subprocess
 import sys
 
 from scripted_claude import Electron, Fixture, ROOT, quote
-
-
-BASELINE = 'c01742804961214ed025b6c9fb9924a1ea49ee2d'
 
 
 def main():
@@ -26,7 +24,7 @@ def main():
     parser.add_argument('--summary', type=Path, required=True)
     target = parser.add_mutually_exclusive_group()
     target.add_argument('--revision')
-    target.add_argument('--mutant', choices=['old-task-split', 'missing-split-guard'])
+    target.add_argument('--mutant', choices=['replace-worker', 'shell-input-to-worker'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留旧证据，请使用新路径'
     args.summary.parent.mkdir(parents=True, exist_ok=True)
@@ -40,13 +38,15 @@ def main():
 
     try:
         patches = []
-        if args.mutant == 'old-task-split':
-            for name in ('main.ts', 'renderer.tsx'):
-                path = 'app/' + name
-                patches.append((path, (ROOT / 'workbench' / path).read_text(encoding='utf-8'),
-                                subprocess.check_output(['git', 'show', BASELINE + ':workbench/' + path], cwd=ROOT, text=True)))
-        elif args.mutant == 'missing-split-guard':
-            patches.append(('app/main.ts', "  if (relative && relative.project === undefined) throw new Error('任务视图只展示 Agent 会话。请在普通终端中分屏。');\n", ''))
+        if args.mutant == 'replace-worker':
+            anchor = '    // The shell stays a project terminal; only its layout placement belongs to this task view.'
+            patches.append(('app/main.ts', anchor,
+                            "    if (context.task) { await changeView(context, project === null ? {} : { project }); relative = undefined; }"))
+        elif args.mutant == 'shell-input-to-worker':
+            anchor = "    return sendWindowCommand(context, pane, { command: 'window_input', data, encoding });"
+            patches.append(('app/main.ts', anchor,
+                            "    const recipient = context.task && pane.project !== undefined ? [...context.panes.values()].find(p => p.task === context.options.task)! : pane;\n"
+                            "    return sendWindowCommand(context, recipient, { command: 'window_input', data, encoding });"))
         fixture = Fixture('t159-', lambda _: (_ for _ in ()).throw(AssertionError('禁止模型请求')), revision=args.revision, patches=patches)
         report['fixture'] = str(fixture.dir)
         # Reuse the existing compiled PTY driver, with a task-local hook peer.
@@ -91,46 +91,83 @@ if sys.argv[2] == '0':
             electron.screenshot(path)
             report.setdefault('screenshots', []).append(str(path))
 
-        def catalog():
-            value = fixture.request('sidebar_snapshot')
-            assert value.get('ok'), value
-            return sorted(row['id'] for row in value['terminals'])
-
         click('[data-project-id="demo"]')
         click('[data-task-option="demo+T-1"]')
         key = ready(worker)
-        before_layout = fixture.request('pane_layout', task='demo+T-1')
-        before_terminals = catalog()
+        click('[data-agent-launch="' + worker + '"]')
+        key = ready(worker)
+
+        def task_facts():
+            task = fixture.request('status', fixture.operator, task='demo+T-1')['task']
+            pane = fixture.request('workbench_snapshot', task='demo+T-1', launch=worker)['pane']
+            with sqlite3.connect((fixture.state / 'state.sqlite3').as_uri() + '?mode=ro', uri=True) as db:
+                inputs = db.execute('SELECT id FROM user_inputs WHERE task=? ORDER BY rowid', ('demo+T-1',)).fetchall()
+            events = fixture.request('events', fixture.operator, task='demo+T-1')['events']
+            return dict(task={**{k: task.get(k) for k in ('state', 'current_attempt', 'fence', 'spec_rev', 'candidate_commit')}, 'paths': task['card']['paths']},
+                        worker={k: pane.get(k) for k in ('state', 'lifecycle', 'failed', 'active', 'interrupted', 'input_generation')},
+                        inputs=inputs, interventions=[e for e in events if e['type'] == 'human_intervention'])
+
+        before = task_facts()
+        selected_shells = set()
         shot('01-before')
         for direction, text in [('right', '向右分屏'), ('down', '向下分屏')]:
             click(f'.pane[data-launch-id="{worker}"] [aria-label="窗格菜单"]')
             menu = electron.evaluate('''[...document.querySelectorAll('.pane-menu button')].map(b=>({text:b.textContent,disabled:b.disabled}))''')
-            explanation = electron.evaluate('document.querySelector(".pane-menu").textContent')
             shot('02-menu-' + direction)
+            check('task_' + direction + '_split_enabled', any(b['text'] == text and not b['disabled'] for b in menu), menu)
             electron.evaluate(f'[...document.querySelectorAll(".pane-menu button")].find(b=>b.textContent==={json.dumps(text)}).click()')
-            # An enabled faulty action must finish before capturing the red state.
-            if any(b['text'] == text and not b['disabled'] for b in menu):
-                electron.until('操作结束', f'''(async()=>{{const s=await window.a2a.selection();
-                    return !s.paneKeys.includes({json.dumps(key)})}})()''')
-            electron.until('窗格快照', '(()=>{const p=[...document.querySelectorAll(".pane")].filter(p=>p.getClientRects().length);return p.length&&p.every(p=>p.dataset.launchId)})()')
-            after = visible()
-            report['observed'][direction] = dict(menu=menu, explanation=explanation, panes=after,
-                                               terminals=catalog(), selection=electron.evaluate('window.a2a.selection()'))
+            # Wait for either the correct split or the reported replacement defect, not a setup timeout.
+            electron.until('任务分屏结果', f'''(async()=>{{const s=await window.a2a.selection();
+                return s.paneKeys.length==={len(selected_shells)+2}||!s.paneKeys.includes({json.dumps(key)})}})()''')
+            selected = electron.evaluate('window.a2a.selection()')
+            for launch in selected['launches'].values():
+                ready(launch)
+            panes = visible()
+            report['observed'][direction] = dict(menu=menu, panes=panes, selection=selected)
             shot('03-after-' + direction)
-            check('task_' + direction + '_explains_before_action', any(b['text'] == text and b['disabled'] for b in menu) and
-                  '任务' in explanation and '普通终端' in explanation, report['observed'][direction])
-            keyboard = electron.evaluate('''(()=>{const menu=document.querySelector('.pane-menu');menu.querySelector('button').focus();
-                menu.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}));
-                const rect=menu.getBoundingClientRect();return {focused:document.activeElement.textContent,
-                fits:rect.top>=0&&rect.left>=0&&rect.bottom<=innerHeight&&rect.right<=innerWidth}})()''')
-            check('task_' + direction + '_keyboard_skips_disabled_and_help_fits', keyboard['focused'] == '放大' and keyboard['fits'], keyboard)
-            check('task_' + direction + '_preserves_worker_and_terminals', [p['launch'] for p in after] == [worker] and catalog() == before_terminals, after)
-            refused = electron.evaluate(f'window.a2a.paneAction({json.dumps(key)},{{type:"split",direction:{json.dumps(direction)}}}).then(()=>({{refused:false}}),e=>({{refused:true,message:String(e)}}))')
-            check('task_' + direction + '_ipc_refused_with_explanation', refused['refused'] and '任务' in refused.get('message', '') and '普通终端' in refused.get('message', ''), refused)
-            check('task_' + direction + '_layout_unchanged', fixture.request('pane_layout', task='demo+T-1') == before_layout and catalog() == before_terminals)
-            electron.evaluate('document.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true}))')
-            # Close the menu through its own keyboard handler.
-            electron.evaluate('document.querySelector(".pane-menu")?.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true}))')
+            check('task_' + direction + '_keeps_worker', selected['task'] is not None and selected['task']['task_id'] == 'demo+T-1' and
+                  selected['launches'].get(key) == worker and len(panes) == len(selected_shells)+2 and
+                  any(p['launch'] == worker and p['role'] == 'worker' for p in panes), panes)
+            added = set(selected['launches'].values()) - selected_shells - {worker}
+            check('task_' + direction + '_one_new_terminal', len(added) == 1, list(added))
+            launch = added.pop()
+            selected_shells.add(launch)
+            original, terminal = [next(p for p in panes if p['launch'] == item) for item in (worker, launch)]
+            check('task_' + direction + '_geometry', terminal['x'] > original['x'] and abs(terminal['y']-original['y']) < 2 if direction == 'right'
+                  else terminal['y'] > original['y'] and abs(terminal['x']-original['x']) < 2, panes)
+            record = fixture.request('workbench_snapshot', project='demo', launch=launch)['launch']
+            check('task_' + direction + '_ordinary_root_terminal', terminal['role'] == 'shell' and '普通终端' in terminal['title'] and
+                  record['role'] == 'shell' and all(record[k] is None for k in ('task', 'attempt', 'session', 'fence')) and
+                  record['worktree'] == str(fixture.repo) and record['worktree'] != dispatched['attempt']['workspace'], record)
+            sidebar = fixture.request('sidebar_snapshot')
+            check('task_' + direction + '_catalog_not_worker', any(t['id'] == launch and t['role'] == 'shell' for t in sidebar['terminals']) and
+                  not any(a['id'] == launch for a in sidebar['agents']) and
+                  [a['id'] for a in sidebar['agents'] if a['task'] == 'demo+T-1'] == [worker])
+            pane_key = next(k for k, v in selected['launches'].items() if v == launch)
+            electron.until('讨论终端可输入', f'document.querySelector(\'.pane[data-launch-id="{launch}"]\')?.dataset.inputEnabled==="true"')
+            destination = fixture.out / ('task-' + direction + '-pwd.txt')
+            electron.evaluate(f'window.a2a.input({json.dumps(pane_key)},{json.dumps("pwd > " + quote(str(destination)) + chr(13))})')
+            after = task_facts()
+            check('task_' + direction + '_no_intervention', after['inputs'] == before['inputs'] and after['interventions'] == before['interventions'], after)
+            check('task_' + direction + '_worker_unchanged', after['task'] == before['task'] and after['worker'] == before['worker'], after)
+            fixture.wait('讨论终端实际 pwd', lambda: destination.exists() and destination.stat().st_size, 20)
+            check('task_' + direction + '_actual_pwd', destination.read_text(encoding='utf-8').strip() == str(fixture.repo))
+        click('[data-project-id="demo"]')
+        click('[data-task-option="demo+T-1"]')
+        for launch in {worker} | selected_shells:
+            ready(launch)
+        restored = visible()
+        check('task_explicit_terminals_restored', {p['launch'] for p in restored} == {worker} | selected_shells, restored)
+        # Persist the nested right/down arrangement, rather than appending every restored shell on the right.
+        worker_rect = next(p for p in restored if p['launch'] == worker)
+        check('task_restores_down_geometry', any(p['launch'] in selected_shells and p['y'] > worker_rect['y'] and abs(p['x']-worker_rect['x']) < 2 for p in restored), restored)
+        shot('03-task-restored')
+        closing = sorted(selected_shells)[0]
+        click(f'.pane[data-launch-id="{closing}"] [aria-label="关闭普通终端"]')
+        electron.until('讨论终端已关闭', f'(async()=>!Object.values((await window.a2a.selection()).launches).includes({json.dumps(closing)}))()')
+        selected_shells.remove(closing)
+        closed = fixture.request('workbench_snapshot', project='demo', launch=closing)
+        check('close_discussion_preserves_worker', closed['pane']['lifecycle'] == 'ended' and task_facts() == before)
 
         # Both supported split directions run on a real shell in a nested directory.
         child = fixture.repo / 'child'
@@ -165,7 +202,9 @@ if sys.argv[2] == '0':
             shot('04-shell-' + direction)
         click('[data-task-option="demo+T-1"]')
         ready(worker)
-        check('task_return_excludes_project_terminals', [p['launch'] for p in visible()] == [worker], visible())
+        for launch in selected_shells:
+            ready(launch)
+        check('task_return_only_explicit_terminals', {p['launch'] for p in visible()} == {worker} | selected_shells, visible())
         click('[data-agent-launch="' + shell + '"]')
         ready(shell)
         check('single_agent_only_itself', [p['launch'] for p in visible()] == [shell], visible())
@@ -211,6 +250,14 @@ if sys.argv[2] == '0':
         check('project_controller_role_preserved', who_after.get('role') == 'executor' and
               who_after.get('terminal') == controller)
         shot('06-controller-right-split')
+        # Positive control: the same observer must detect actual input to the worker.
+        click('[data-agent-launch="' + worker + '"]')
+        worker_key = ready(worker)
+        check('single_worker_excludes_discussion_terminals', [p['launch'] for p in visible()] == [worker], visible())
+        electron.evaluate(f'window.a2a.input({json.dumps(worker_key)},{json.dumps("T159_OBSERVER_CONTROL" + chr(13))})')
+        controlled = task_facts()
+        check('intervention_observer_positive_control', len(controlled['inputs']) == len(before['inputs'])+1 and
+              len(controlled['interventions']) == len(before['interventions'])+1, controlled)
         check('zero_model_requests', fixture.api.snapshot()['requests'] == 0, fixture.api.snapshot())
         report['status'] = 'PASS'
     except Exception as error:

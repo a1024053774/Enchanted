@@ -1,4 +1,4 @@
-// Failure modes: task includes a project shell; agent selection includes its siblings;
+// Failure modes: task includes an unselected project shell; agent selection includes its siblings;
 // selecting the same launch again issues a second input credential; ended agent gets stdin.
 // A single-agent rename/close must preserve the saved sibling layout and names.
 // Runs the actual main.ts with supplied Electron/transport boundaries. This is not GUI evidence.
@@ -75,7 +75,7 @@ try {
   const invoke = (name, ...args) => handlers.get('a2a:' + name)(event, ...args);
   const check = (name, condition, detail) => { assert(condition, name + ': ' + JSON.stringify(detail)); report.checks.push(name); };
   let selection = await invoke('selection');
-  check('task_only_its_agents', JSON.stringify(Object.values(selection.launches).sort()) === JSON.stringify(['reviewer-A', 'worker-A']), selection.launches);
+  check('task_excludes_unselected_project_terminals', JSON.stringify(Object.values(selection.launches).sort()) === JSON.stringify(['reviewer-A', 'worker-A']), selection.launches);
   selection = await invoke('select-agent', 'worker-A');
   check('agent_only_itself', Object.values(selection.launches).join() === 'worker-A', selection.launches);
   const snapshot = await invoke('snapshot', selection.focusKey);

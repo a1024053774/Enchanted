@@ -1,7 +1,8 @@
 // Derived from the independent T-139 reviewer probe.
 // Failure modes: a project layout query includes task agents; saving a project
 // terminal must exclude them, preserve other terminal names and pass the real validator.
-// Failure modes: task includes a project shell; agent selection includes its siblings;
+// Failure modes: task includes an unselected project shell or loses an explicitly placed shell;
+// agent selection includes its siblings; editing one leaf removes the task's discussion terminal;
 // selecting the same launch again issues a second input credential; ended agent gets stdin.
 // A single-agent rename/close must preserve the saved sibling layout and names.
 // Runs the actual main.ts with supplied Electron/transport boundaries. This is not GUI evidence.
@@ -116,6 +117,26 @@ try {
   const projectAfterClose=store.paneArrangement('project:demo');
   check('project_close_keeps_other_terminal',projectAfterClose.tree==='project-shell-2'&&projectAfterClose.names['project-shell-2']==='shell two',projectAfterClose);
   check('project_close_does_not_close_task_agents',store.openPanes('demo+T-A').length===2);
+  // User decision 2026-10-24: explicit placement is a view association, not gate task ownership.
+  const discussion = { direction:'right', first:{direction:'down',first:'worker-A',second:'reviewer-A'}, second:'project-shell-2' };
+  store.event('pane_arrangement_saved', {scope:'task:demo+T-A', arrangement:{tree:discussion,
+    names:{'worker-A':'reopened worker','reviewer-A':'A review','project-shell-2':'task discussion'}}});
+  const unrelated = {...agents.find(a=>a.id==='project-shell-2'),id:'unrelated-shell'};
+  agents.push(unrelated); store.launch(unrelated);store.event('pane_layout_opened',{position:3},unrelated);
+  selection=await invoke('select-task','demo+T-A');
+  check('task_restores_only_explicit_project_shell',JSON.stringify(Object.values(selection.launches).sort())===
+    JSON.stringify(['project-shell-2','reviewer-A','worker-A']),selection.launches);
+  // No input credential is requested by this store-focused fixture.
+  selection=await invoke('select-agent','worker-A');
+  await invoke('pane-action',selection.focusKey,{type:'rename',name:'with discussion'});
+  check('inspect_rename_preserves_discussion_layout',JSON.stringify(store.paneArrangement('task:demo+T-A').tree)===JSON.stringify(discussion),store.paneArrangement('task:demo+T-A'));
+  selection=await invoke('select-task','demo+T-A');
+  const shellKey=Object.keys(selection.launches).find(key=>selection.launches[key]==='project-shell-2');
+  await invoke('close-pane',shellKey);
+  check('close_discussion_keeps_agents',store.openPanes('demo+T-A').length===2&&
+    JSON.stringify(store.paneArrangement('task:demo+T-A').tree)===JSON.stringify(discussion.first),store.paneArrangement('task:demo+T-A'));
+  check('discussion_not_gate_task_member',!store.openPanes('demo+T-A').some(p=>p.launch==='project-shell-2')&&
+    store.launchRecord('project-shell-2').task===null);
   report.status = 'PASS';
 } catch (error) { report.error = String(error); report.status = 'NO_GO'; }
 finally { store?.close(); }

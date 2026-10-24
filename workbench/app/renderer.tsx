@@ -408,9 +408,8 @@ function SessionPane({ paneKey, active, screenReader, name, home, focusRequest, 
           } else if (event.key === 'Escape' || event.key === 'Tab') { if (event.key === 'Escape') event.preventDefault(); dismissMenu(); }
         }}>
           <button role="menuitem" onClick={() => { setDraftName(name ?? role); setRenaming(true); setMenu(null); }}>重命名窗格</button>
-          <button role="menuitem" disabled={!shell} aria-describedby={!shell ? `split-help-${paneKey}` : undefined} onClick={() => void act({ type: 'split', direction: 'right' })}>向右分屏</button>
-          <button role="menuitem" disabled={!shell} aria-describedby={!shell ? `split-help-${paneKey}` : undefined} onClick={() => void act({ type: 'split', direction: 'down' })}>向下分屏</button>
-          {!shell && <p id={`split-help-${paneKey}`} role="note" style={{ margin: '6px 10px' }}>任务视图只展示 Agent 会话。请在普通终端中分屏。</p>}
+          <button role="menuitem" onClick={() => void act({ type: 'split', direction: 'right' })}>向右分屏</button>
+          <button role="menuitem" onClick={() => void act({ type: 'split', direction: 'down' })}>向下分屏</button>
           <button role="menuitem" onClick={() => { onZoom(); dismissMenu(); }}>{zoomed ? '还原' : '放大'}</button>
           <button role="menuitemcheckbox" aria-checked={forwardRightClick} onClick={() => { setForwardRightClick(value => !value); dismissMenu(); }}>{forwardRightClick ? '✓ ' : ''}把右键发给窗格</button>
           <button role="menuitem" disabled={closing} onClick={closePane}>关闭窗格</button>

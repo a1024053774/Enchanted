@@ -61,6 +61,22 @@ function mapLayout(tree: Layout | null, convert: (key: string) => string | null)
   const first = mapLayout(tree.first, convert), second = mapLayout(tree.second, convert);
   return first && second ? { ...tree, first, second } : first ?? second;
 }
+// A task arrangement can explicitly include project shells without assigning
+// them to its gate task. Unrelated project terminals do not enter the view.
+async function taskPaneLayout(state: string, task: string, project: string) {
+  const layout = await request(state, { command: 'pane_layout', task });
+  if (!layout.ok) throw new Error(layout.error);
+  // Shell-only task layouts have an arrangement but no task-owned open event.
+  layout.saved ||= Boolean(layout.arrangement);
+  const referenced = new Set<string>();
+  mapLayout(layout.arrangement?.tree ?? null, id => { referenced.add(id); return id; });
+  for (const pane of layout.panes) referenced.delete(pane.launch);
+  if (!referenced.size) return layout;
+  const projectLayout = await request(state, { command: 'pane_layout', project });
+  if (!projectLayout.ok) throw new Error(projectLayout.error);
+  return { ...layout, panes: [...layout.panes, ...projectLayout.panes.filter((pane: { launch: string; task: string | null }) =>
+    pane.task === null && referenced.has(pane.launch))] };
+}
 async function serializedArrangement(context: WindowBinding, tree = context.layout, names = context.names) {
   const selected = { tree: mapLayout(tree, key => context.panes.get(key)?.viewOnly ? null : context.panes.get(key)?.launch ?? null),
     names: Object.fromEntries(Object.entries(names).flatMap(([key, name]) => {
@@ -69,16 +85,21 @@ async function serializedArrangement(context: WindowBinding, tree = context.layo
   if (!context.options.inspect) return selected;
   // A single-agent view edits only its leaf, not the hidden siblings in the
   // task/project arrangement. Reconstruct the saved open set before changing it.
-  const saved = await request(context.options.state, { command: 'pane_layout',
-    ...(context.options.task ? { task: context.options.task } : { project: context.options.project }) });
+  const saved = context.options.task ? await taskPaneLayout(context.options.state, context.options.task, context.task.project_id) :
+    await request(context.options.state, { command: 'pane_layout', project: context.options.project });
   if (!saved.ok) throw new Error(saved.error);
   const opened = saved.panes.filter((pane: { task: string | null }) => context.options.task !== undefined || pane.task === null);
   const full = restoreArrangement(opened.map((pane: { launch: string }) => ({ key: pane.launch, launch: pane.launch })), saved.arrangement);
   const kept = new Set<string>();
   mapLayout(selected.tree, id => { kept.add(id); return id; });
-  for (const pane of context.panes.values()) if (pane.launch && !pane.viewOnly && !kept.has(pane.launch)) {
-    full.layout = replaceLeaf(full.layout, pane.launch, null); delete full.names[pane.launch];
+  let anchor: string | undefined;
+  mapLayout(full.layout, id => { if (!anchor && kept.has(id)) anchor = id; return id; });
+  for (const pane of context.panes.values()) if (pane.launch && !pane.viewOnly) {
+    if (pane.launch !== anchor) full.layout = replaceLeaf(full.layout, pane.launch, null);
+    if (!kept.has(pane.launch)) delete full.names[pane.launch];
   }
+  if (anchor) full.layout = replaceLeaf(full.layout, anchor, selected.tree);
+  else if (selected.tree) full.layout = full.layout ? { direction: 'right', first: full.layout, second: selected.tree } : selected.tree;
   return { tree: full.layout, names: { ...full.names, ...selected.names } };
 }
 async function saveArrangement(context: WindowBinding) {
@@ -587,10 +608,10 @@ function restoreArrangement(panes: Pick<PaneBinding, 'key' | 'launch'>[], saved:
   return { layout, names };
 }
 // New terminals start in the selected project's directory, or home when no
-// project is selected. A split keeps the directory of the pane it splits.
+// project is selected. Shell splits keep their launch directory; task-agent
+// splits use the task repository root rather than the worker's worktree.
 async function createTerminal(context: WindowBinding, relative?: PaneBinding, direction: 'right' | 'down' = 'right') {
   if (context.closing || context.switching || context.creating || [...context.panes.values()].some(p => p.closing)) throw new Error('Task view is changing');
-  if (relative && relative.project === undefined) throw new Error('任务视图只展示 Agent 会话。请在普通终端中分屏。');
   const create = async () => {
     let project: string | null = context.task?.project_id ?? context.project?.project_id ?? null;
     let cwd = context.task?.repo ?? context.project?.repo ?? homedir();
@@ -602,9 +623,7 @@ async function createTerminal(context: WindowBinding, relative?: PaneBinding, di
     if (context.closing) throw new Error('Window is closing');
     const result = await request(context.options.state, { command: 'shell_start', project, cwd }, context.operator);
     requireShellPane(project, result.launch?.id, { ...result, task: null });
-    // A project terminal never becomes a task agent. Starting one from a task
-    // opens its project-level terminal view before adding the new pane.
-    if (context.task) { await changeView(context, project === null ? {} : { project }); relative = undefined; }
+    // The shell stays a project terminal; only its layout placement belongs to this task view.
     const pane: PaneBinding = { key: randomUUID(), launch: result.launch.id, project, sequence: 0,
       inputQueue: Promise.resolve(), pendingRelease: null };
     for (const [key, existing] of context.panes) {
@@ -665,10 +684,11 @@ async function prepareSelection(options: Options) {
   let saved = false;
   let arrangement: any = null;
   let launches: (string | undefined)[];
+  let shellLaunches: string[] = [];
   if (options.launch === undefined) {
-    const layout = await request(options.state, { command: 'pane_layout', task: options.task });
-    if (!layout.ok) throw new Error(layout.error);
-    launches = layout.panes.map((pane: { launch: string }) => pane.launch);
+    const layout = await taskPaneLayout(options.state, options.task, snapshot.task.project_id);
+    launches = layout.panes.filter((pane: { task: string | null }) => pane.task !== null).map((pane: { launch: string }) => pane.launch);
+    shellLaunches = layout.panes.filter((pane: { task: string | null }) => pane.task === null).map((pane: { launch: string }) => pane.launch);
     saved = layout.saved; arrangement = layout.arrangement;
     if (!saved) launches = [undefined];
   } else launches = typeof options.launch === 'string' ? [options.launch] : [...options.launch];
@@ -686,6 +706,12 @@ async function prepareSelection(options: Options) {
   }
   const panes: PaneBinding[] = launches.map(launch => ({ key: randomUUID(), launch, task: options.task, sequence: 0,
     inputQueue: Promise.resolve(), pendingRelease: null }));
+  for (const launch of shellLaunches) {
+    const project = snapshot.task.project_id;
+    const value = await request(options.state, { command: 'workbench_snapshot', project, launch });
+    requireShellPane(project, launch, value);
+    panes.push({ key: randomUUID(), launch, project, sequence: 0, inputQueue: Promise.resolve(), pendingRelease: null });
+  }
   if (options.inspect && typeof options.launch === 'string') {
     const value = await request(options.state, { command: 'workbench_snapshot', task: options.task, launch: options.launch });
     requireAgentView(options.task, options.launch, value);
