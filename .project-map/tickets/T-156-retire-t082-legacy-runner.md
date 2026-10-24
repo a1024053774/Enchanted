@@ -2,7 +2,7 @@
 id: T-156
 title: 旧 t082 runner 与 quality host bootstrap 测试：按裁定 C 删除不再有价值的，唯一守护者退回决定
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -24,10 +24,10 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 两个文件在当前 main 的运行结果保存在证据目录。
-- [ ] 逐项覆盖对照表，每条“已覆盖”指到具体测试与检查名。
-- [ ] 可删文件已删除、HISTORICAL.md 已记录；唯一守护者未动并已上报。
-- [ ] 删除后受影响测试导入或运行通过，证据保存。
+- [x] 两个文件在当前 main 的运行结果保存在证据目录。
+- [x] 逐项覆盖对照表，每条“已覆盖”指到具体测试与检查名。
+- [x] 可删文件已删除、HISTORICAL.md 已记录；唯一守护者未动并已上报。
+- [x] 删除后受影响测试导入或运行通过，证据保存。
 
 ## 不做
 
@@ -38,4 +38,6 @@ ready_rev: 1
 2026-10-23 执行主控阶段记录（票保持 open，NEEDS-DECISION）：当前 main `8933ee0f4` 实跑——`run_t082_boundary.py` exit 1、INCOMPLETE（正常 tracer 七条通过，第一个旧变异锚点已不存在）；`test_t078_quality_host_bootstrap.py` exit 0、PASS。覆盖对照 `evidence/2026-10-23-batch24/T-156/COVERAGE.md`：bootstrap 第 71～100 行是 `QualityCase.start_host → quality_chain_host.ts` 隔离 operator 凭据创建、state/kind/0600 与清理的唯一直接守护者，且它导入旧 runner 的 `run_case`，两个文件都未删、HISTORICAL.md 未改（合并 `0f413d74c`，仅证据）。上报 `20261023T223604Z-worker:b24-t156-issue-001`。原始现场按 T-088 归档外置盘（`*.archive.json`）。
 
 2026-10-24 构思主控答复 `20261024T005556Z-ideation-answer-002`：用户逐字选择“迁移后删 (Recommended)”——把凭据检查挪进现行测试，再删旧 runner 与 bootstrap 测试，覆盖不丢；迁移的变异/红态证据照常。执行主控据此开第二个 attempt（卡 T-156-2），原“不迁移”限制由该授权解除。
+
+2026-10-24 关闭，PASS。按用户“迁移后删 (Recommended)”：凭据检查（两代隔离 operator 凭据创建、state/kind/0600、清理）迁入 `workbench/tests/test_t156_quality_host_credentials.py`（18 项检查、7 个隔离变异均落在预期断言），删除 `run_t082_boundary.py` 与 `test_t078_quality_host_bootstrap.py`，`HISTORICAL.md` 记录去向（候选 `54824a217`，合并 `98293c2fb`）。执行主控沙箱外 RUN-OUTSIDE-02 PASS（原始现场归档外置盘）；独立审查 agy PASS。执行主控裁定：历史证据脚本 `evidence/2026-10-16-batch16/T-090/run-host.py` 仍导入旧 runner，按日期记录保留，复跑须检出当时 revision（ticket 只要求现行测试导入不断）。worker 提交未经执行主控批准弹窗，approvals.jsonl 无此条。
 
