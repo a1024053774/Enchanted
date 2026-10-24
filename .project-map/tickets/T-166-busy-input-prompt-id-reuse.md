@@ -2,7 +2,7 @@
 id: T-166
 title: F01 残余：普通工作回合中用户输入，UPS 复用原 prompt_id 被判重复，原 Stop 被拒
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -21,10 +21,15 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 红态：当前 main 上，用真实 daemon/PTY/Claude CLI/Electron（脚本化 Messages）在普通工具执行期输入，复现 `claude_prompt_id_reused` → `current_turn_untrusted` → 停在未知。
-- [ ] 绿态：同一序列下原回合交付被门禁接受、worker 回到空闲；输入原样送达 CLI 并记人工介入；输入引起的新回合完成后回到空闲。
-- [ ] 反例：没有对应用户输入的 prompt_id 复用仍判不可信；T-157、T-165 全部场景与 T-159/T-160/T-133 回归通过。
+- [x] 红态：当前 main 上，用真实 daemon/PTY/Claude CLI/Electron（脚本化 Messages）在普通工具执行期输入，复现 `claude_prompt_id_reused` → `current_turn_untrusted` → 停在未知。
+- [x] 绿态：同一序列下原回合交付被门禁接受、worker 回到空闲；输入原样送达 CLI 并记人工介入；输入引起的新回合完成后回到空闲。
+- [x] 反例：没有对应用户输入的 prompt_id 复用仍判不可信；T-157、T-165 全部场景与 T-159/T-160/T-133 回归通过。
 
 ## 不做
 
 范围外的问题经问题上报，不顺手改。
+
+## Resolution
+
+2026-10-24 关闭，PASS。写入者为执行主控本人（构思主控 answer 20261024T070244Z-ideation-answer-001 转述用户决定）。根因：用户输入发生在原回合仍在工作时（早于其 Stop），CLI 以运行中回合的 prompt_id 发 UserPromptSubmit；T-157 只在 `stopInProgress` 时把这种复用记为排队输入，工作中的复用被判 `claude_prompt_id_reused`，回合不可信，原 Stop 随后以 `current_turn_untrusted` 被拒。修复在 `workbench/src/panes.ts`：排队输入分支去掉 `stopInProgress` 条件（仍要求当前回合、同 prompt_id、此前有该窗格真实写入的 Enter、转录一致）；`scan()` 在原回合未结束时不登记排队回合。README 同步。门禁核对未放松。
+证据（0 个真实模型回合，真实 Electron/后台/PTY/Claude CLI）：修前红态 2/2 与 T-164 事件序列一致；绿态 3/3；主机级反例（无 Enter 的复用仍拒）与两个坏实现各自只在对应场景失败；回归 14 项符合预期。独立审查 agy PASS（两条 P3 观察，无需改动）。合并 b7d57b40f；合并后 T-166 端到端与主机级、T-157 stop-input、T-165 ordered 4/4 PASS。证据 `evidence/2026-10-23-batch24/T-166/RESULTS.md`。
