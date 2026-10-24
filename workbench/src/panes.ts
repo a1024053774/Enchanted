@@ -151,6 +151,8 @@ async function claudeArgv(executable: string, signal: string, session: string,
     ...extraDirectories.flatMap(path => ["--add-dir", path])];
 }
 const STARTUP_DEADLINE_MS = 120_000;
+// A submitted prompt starts its native turn within a second when the CLI takes it (T-164: 0.1 s).
+const TURN_START_DEADLINE_MS = 20_000;
 // The text a Claude prompt submitted. A long paste reaches UserPromptSubmit wrapped in Claude's
 // own pasted_content markers (seen with the user's login, T-122 GUI round 01); anything else
 // is compared as it is.
@@ -739,6 +741,9 @@ export class Panes implements GateRuntime {
       ...(review ? ["-c", `projects={${JSON.stringify(trustRoot)}={trust_level="untrusted"}}`] : []),
       "-c", `model_reasoning_effort=${JSON.stringify(effort)}`, "-c", `service_tier=${JSON.stringify(fast ? 'fast' : 'default')}`,
       "-c", "check_for_update_on_startup=false",
+      // Near the quota Codex asks at a turn's end whether to switch models; the next pasted
+      // prompt's Enter answered it and switched the model instead of starting a turn (T-167).
+      "-c", "notice.hide_rate_limit_model_nudge=true",
       "-c", "sandbox_workspace_write.network_access=true",
       "-c", `sandbox_workspace_write.writable_roots=${JSON.stringify(writeRoots)}`,
       ...extraDirectories.flatMap(path => ["--add-dir", path]),
@@ -1303,6 +1308,14 @@ export class Panes implements GateRuntime {
       this.store.event("turn_submit_intent", submission, pane.record);
       pane.pty.write("\r");
       this.store.event("turn_submitted", submission, pane.record);
+      // The Enter reached the terminal, which does not prove a turn started: a CLI dialog can take it
+      // (T-167: Codex's rate-limit model prompt). Only the native start signal starts the turn; without
+      // it the pane says so. Nothing is resent and no key is pressed for the user.
+      setTimeout(() => {
+        if (pane.active !== submission || pane.stopped || pane.failed) return;
+        if (this.store.lastEvent(pane.record.id, ["turn_submitted", "turn_start_signal"])?.type !== "turn_submitted") return;
+        this.store.event("turn_start_missing", { submission: submission.id, dispatch: item.id, deadline_ms: TURN_START_DEADLINE_MS }, pane.record);
+      }, TURN_START_DEADLINE_MS).unref();
       // A submitted Codex turn writes its rollout at once. One that never names this pane's folder ran
       // elsewhere or did not start (a hidden resume of a live session: "open in another app"); without
       // this the pane and its review wait forever with no record (T-127 counterexamples).
@@ -1464,6 +1477,11 @@ export class Panes implements GateRuntime {
       native_turn_changed: Boolean(requestTurn && currentTurn && requestTurn !== currentTurn),
       recovery_request_id: `recover-${sequence}` };
   }
+  // The current submission's Enter reached the terminal but no native turn started by the deadline (T-167).
+  private startMissing(pane: Pane) {
+    const last = pane.active && this.store.lastEvent(pane.record.id, ["turn_submitted", "turn_start_signal", "turn_start_missing"]);
+    return Boolean(last && last.type === "turn_start_missing" && last.data.submission === pane.active!.id);
+  }
   status(thread: string) {
     const record = this.store.threadLaunch(thread);
     const restore = record && this.store.lastEvent(record.id, ["pane_restore_pending", "pane_restored", "pane_restore_failed"]);
@@ -1475,6 +1493,7 @@ export class Panes implements GateRuntime {
         lifecycle: pane.archived || pane.nativeEnded || pane.record.role === "shell" && pane.stopped ? "ended" : pane.stopped ? "interrupted" : "running", shell_pid: pane.pty.pid,
         size: { cols: pane.pty.cols, rows: pane.pty.rows },
         state_source: pane.failed ? "runtime_failure" : "host_events", active: pane.active, native_session: pane.native,
+        start_missing: this.startMissing(pane),
         turn: pane.turn, writing: pane.writing, user_draft: pane.userDraft, interrupted: pane.interrupted,
         input_generation: pane.inputGeneration, interruption: pane.interruption,
         queued: pane.queue.map((item) => item.id), failed: pane.failed, stopped: pane.stopped, restoration,

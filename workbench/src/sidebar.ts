@@ -160,6 +160,7 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
         record.cli_version?.startsWith('codex-cli ') ? 'codex' : '未知',
       parent: senders.size === 1 ? [...senders][0] : null, state, question_id, state_label: stateLabels[state],
       delivery: statuses.get(record.id)?.delivery ?? null,
+      start_missing: Boolean(statuses.get(record.id)?.start_missing),
       created_at: record.created_at ?? null };
   });
   // T-121: a terminal whose CLI the user approved as a controller. Its state is the last turn event Enchanted's hooks
