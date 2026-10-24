@@ -13,7 +13,7 @@ import uuid
 
 
 SOURCE = Path(__file__).resolve().parents[3]
-BASELINE = "e3b14d27b5f0f94ee65d1e15a69d6c90c1eafc5d"  # T-164-3: main after T-169 (T-164-2 used 5380ebb28, T-164-1 7d7cb8342)
+BASELINE = "aacc1bb81ad81d2e0c4769029ce64f3559d6f5c0"  # T-164-4: main after T-170 (T-164-3 used e3b14d27b, T-164-2 5380ebb28, T-164-1 7d7cb8342)
 
 
 def write_json(path, value):
@@ -102,9 +102,9 @@ def prepare():
         "monitor_role_card": str(SOURCE / "workbench/roles/monitor.md"),
         "monitor_role_card_revision": BASELINE,
         "code_revision": BASELINE, "source_snapshot": str(SOURCE), "turn_limit": 6,
-        "hook_authorization": str(Path(__file__).parent / "card-3.md") +
+        "hook_authorization": str(Path(__file__).parent / "card-4.md") +
                               " — T-164 real managed workers; per-session Claude hooks and Codex worker hooks (isolated CODEX_HOME) approved by executor",
-        "turn_authorization": str(Path(__file__).parent / "card-3.md") + " — real-turn budget: Claude 60 in app; Codex workers zcode/GLM-5.3-Flash max, at most 2 in-app Codex sessions at once; stop when usage nears its limit",
+        "turn_authorization": str(Path(__file__).parent / "card-4.md") + " — real-turn budget: Claude 40 in app; one Codex worker zcode/GLM-5.3-Flash max, at most 2 in-app Codex sessions at once; stop when usage nears its limit",
     }
     write_json(root / "launch-config.json", launch_config)
     print("INSTANCE=" + str(root), flush=True)
