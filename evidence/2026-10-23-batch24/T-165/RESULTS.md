@@ -1,6 +1,6 @@
 # T-165-1 / a1 进度记录
 
-状态：INCOMPLETE。检查点 PLAN；01 两次均因夹具观察错误超时，不能算红态；02 已准备待执行主控运行。产品实现未开始，没有宣称 RED 或 DELIVERED。
+状态：INCOMPLETE（产品修复与完整回归未完成）。检查点 RED：PASS，仅指 02 确定红态 2/2 成立；01 夹具失败保留。红态归档提交时产品实现尚未开始。
 
 任务身份：worker `b24-t165`，task `T-165-1`，attempt `a1`，session `24606d10-cfde-4e53-8158-f544130fa48c`，launch `launch-c034197297074885aeb04bff28b7f8b7`。未取得 fence，不补造。规格为 T-165 ready_rev 1 与本目录任务卡。基线为当前 main `f2756ea2030d8ce0bddf9980d3f36d1825201d3a`；开始时 worktree 干净。
 
@@ -26,13 +26,13 @@
 
 夹具错误有两处：第一，观察器带 task 查询事件，但 request_received/request_result 的 task/launch 列为空，导致它看不到真实 Stop 请求的返回。第二，`pane_status` 是纯状态读取，不能保证释放屏障后会采集转录。02 只修夹具：查询全局事件，按 queued hook 的 launch、signal 输入的 launch 和 request id 严格关联成功回执；等待 CLI 完整排队记录后释放，再调用一次 `pane_process_info` 核对真实 leader 并采集。不改产品、不放宽 T-157 的空闲或交付断言。
 
-运行命令：`zsh evidence/2026-10-23-batch24/T-165/RUN-OUTSIDE-02.sh`。仍在同一固定 main 基线执行两场，保存新目录与新摘要。01 的失败状态保持 INCOMPLETE，02 运行结果尚未取得。
+运行命令：`zsh evidence/2026-10-23-batch24/T-165/RUN-OUTSIDE-02.sh`。主控 #78 回传 `/private/tmp/t165-outside-02.qi5XIj`：同一固定 main 基线两场确定红态均成立，供应商模型回合 0。原 submit、人工介入、原样输入、attempt/turn/commit 绑定、单次 submit 断言通过；只有空闲、排队回合 Stop 恢复空闲、queued turn 完成三项断言失败，无 error。底层 summary 的 INCOMPLETE 表示产品不通过；总摘要 PASS 只表示红态复现。仓库小文本摘要见 [总结果](RED-02-RESULT.json)、[第一场](RED-02-red-1.json)、[第二场](RED-02-red-2.json)，保留原始路径，未复制整个 fixture。
 
 已对 01 两份全局事件调用新的 `find_early_stop` 作只读回放：均找到 request seq 118、成功 result seq 122；把同一输入改为旧 task 过滤后均找不到，确认检查能拒绝已知坏观察方式。结果见 [OBSERVER-REPLAY-02.json](OBSERVER-REPLAY-02.json)，该 PASS 仅限夹具关联。02 脚本的 `zsh -n`、探针的 `--help` 与 `git diff --check` 通过；未把这些局部检查算成真实红态。
 
 ## 待完成
 
-- 收到 02 的真实结果后核对两次确定红态，再实现最小修复。
+- 02 确定红态已核对并单独提交；下一步实施最小修复。
 - 同时覆盖无关 Stop；在坏实现上拒绝丢失早到 Stop 的行为。
 - 同时序绿态、不带屏障的 T-157 多次运行、T-157 基线与坏实现、T-159/T-160/T-133 回归。
 - 最终候选的独立只读审查与门禁验收由执行主控安排；当前无产品通过结论。
