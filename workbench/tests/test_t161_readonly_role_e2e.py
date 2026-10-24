@@ -220,10 +220,17 @@ def main():
         assert outcome, '输入失败正例必须先可写'
         electron.evaluate(f'''(()=>{{const t=document.querySelector('.pane[data-launch-id="{launch}"] .terminal-mount').__t161Terminal;
             t.input('x'.repeat(1024*1024+1),true)}})()''')
-        electron.until('真实输入失败提示', f'''(()=>{{const p=document.querySelector('.pane[data-launch-id="{launch}"]');
-            return Boolean(p.querySelector('[role=alert]'))||p.dataset.inputEnabled==='false'}})()''')
+        visible_failure = electron.evaluate(f'''new Promise(resolve=>{{
+            const p=document.querySelector('.pane[data-launch-id="{launch}"]'), deadline=performance.now()+4000;
+            const inspect=()=>{{
+                const visible=[...p.querySelectorAll('[role=alert]')].some(n=>
+                    n.getClientRects().length>0&&n.textContent.includes('输入尚未确认'));
+                if(visible||performance.now()>=deadline)return resolve(visible);
+                setTimeout(inspect,50);
+            }};inspect();
+        }})''')
         rejected = facts(launch)
-        check('real_input_failure_still_visible', any('输入尚未确认' in e for e in rejected['errors']), rejected)
+        check('real_input_failure_still_visible', visible_failure and any('输入尚未确认' in e for e in rejected['errors']), rejected)
         shot('real-input-rejected')
         check('zero_model_requests', fixture.api.snapshot()['requests'] == 0, fixture.api.snapshot())
         report['status'] = 'PASS' if all(c['passed'] for c in report['checks']) else 'INCOMPLETE'
