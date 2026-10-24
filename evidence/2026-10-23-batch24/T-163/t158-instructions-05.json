@@ -1,0 +1,67 @@
+{
+  "status": "PASS",
+  "argv": [
+    "workbench/tests/test_t158_revise_retry_e2e.py",
+    "--check",
+    "instructions",
+    "--summary",
+    "evidence/2026-10-23-batch24/T-163/t158-instructions-05.json"
+  ],
+  "revision": null,
+  "mutant": null,
+  "product_head": "a1391bb166f811a48fd5786352b227dca1d52e9e",
+  "vendor_model_turns": 0,
+  "checks": [
+    {
+      "name": "help_entry_exits_zero",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "help_has_ordered_revision_retry_steps",
+      "passed": true,
+      "detail": "a2a：Enchanted 工作台的编排命令（在 Enchanted 的项目终端里运行）\n\n  a2a whoami                  这个终端的项目与身份\n  a2a request executor|ideation 申请成为执行主控或构思主控；等用户在界面批准，最多 10 分钟\n  a2a release                 放弃当前身份；已派出的工作继续做完\n  a2a call terminal_open --cwd <绝对目录>\n                              在本项目开普通终端，返回 launch.id；目录须在项目主目录或额外目录内\n  a2a call '<JSON>'           以已批准的身份调用本项目的门禁命令：本项目任务上的任务命令，\n                              新任务的 card_* 与 create（project 为本项目、repo 为本项目目录），\n                              以及本项目的 inbox_ready，例如\n                              a2a call '{\"command\":\"inbox_ready\",\"project\":\"<项目>\"}'\n                              派发前对照用户原话逐项核对任务卡并列出结果，含先后顺序、等待条件与首版演练要求；漏项先改卡。\n                              单独写验收脚本也须自检：每条判据对应用户明确要求，期望从原始数据推导，先独立确定样本预期，再写或运行检查器。\n                              优先实际运行全文断言对照：从原始数据构造正确正文，复制后保持全部数据不变，只在开头否定全文真实性或有效性，预期由通过转拒绝。\n                              检查器须核对开头对全文的限定；不能以改错数字代替此反例，也不能只核对正文数字关系。仍误收就记录失败、修正复验或明确交独立审查。\n                              正例含无额外明细的最小正确内容与另一种允许排版；反例含错数字、缺项、关键词仍在但标题或上下文含义相反的内容。\n                              核对全文断言，区分业务动作相反与正文真实性、有效性被否定；有限禁词表须用未参与规则编写的改述复验，不能只测必命中的词。\n                              实际运行并保留每项输入、要求依据、预期和实际退出码；不擅加逐项列名或排版条件，不只查存在或字串。\n                              发现不符先修检查器，不改预期或给正例补无关内容凑通过；自检完成后才交付脚本或用于任务卡。\n                              脚本只核对机械事实，无法机械判定的含义交独立审查。暂时未完成须有推进事实与等待条件；明确拒绝报告原始错误和 task/attempt；\n                              结果未知保留原请求，不自动重发写入。没有新事实就停止轮询，报告最后确定事实、具体停点与缺少的事实或决定。\n                              派 worker：card_template → card_save → create → dispatch\n                              （runtimeMode 为 workspace-write，带 model 与 effort）→ status\n                              → submitted 后 verify → verified 后带 score_file 的 integrate；\n                              或者一条 run 自动走完（身份结束或额度用完时它自己集成，记未评分）。\n                              修订已注册任务：先 status 保存旧 current_attempt.attempt_id，\n                              核对旧 worker 已提交、空闲且没有待发送输入；以下示例从 v1 改为 v2：\n                              a2a call '{\"command\":\"card_save\",\"task\":\"<任务>\",\"card\":\"<v2 JSON 路径>\",\"expected_version\":1}'\n                              a2a call '{\"command\":\"revise\",\"task\":\"<任务>\",\"spec_rev\":2,\"card_version\":2}'\n                              a2a call '{\"command\":\"reclaim\",\"task\":\"<任务>\",\"attempt\":\"<保存的旧 attempt_id>\"}'\n                              a2a call '{\"command\":\"dispatch\",\"task\":\"<任务>\",\"runtimeMode\":\"workspace-write\",\"model\":\"<模型>\",\"effort\":\"<强度>\"}'\n                              spec_rev 须递增；card_save 只存版本，revise 才采用新卡并撤销旧交付。\n                              旧会话回收成功才释放路径；未回收仍会 path_overlap，不用交叠参数绕过。\n                              worker_working 时先核对旧回合与输入队列，停止或归档未确认时保留现场并上报。\n                              回收后脏工作区仍保留、上报；保留证据不继续占用路径。\n                              回答 worker 上报的问题：issues / answer_issue，记为主控的回答。\n                              attach（role 为 monitor）挂一个只读观察会话。\n  a2a help                    显示这段说明\n\n只有用户本人要求时才申请身份；被拒绝或超时就停下告诉用户。申请命令被中断、被杀或超时，后台都会撤回申请。\n"
+    },
+    {
+      "name": "help_names_card_spec_and_old_attempt_parameters",
+      "passed": true,
+      "detail": "card_version, spec_rev and explicit old attempt are required"
+    },
+    {
+      "name": "controller_has_ordered_revision_retry_steps",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "controller_has_runnable_revise_and_explicit_reclaim_examples",
+      "passed": true,
+      "detail": {
+        "revise": [
+          {
+            "command": "revise",
+            "task": "<任务>",
+            "spec_rev": 2,
+            "card_version": 2
+          }
+        ],
+        "reclaim": [
+          {
+            "command": "reclaim",
+            "task": "<任务>",
+            "attempt": "<保存的旧 attempt_id>"
+          }
+        ]
+      }
+    },
+    {
+      "name": "worker_has_ordered_steps_and_controller_handoff",
+      "passed": true,
+      "detail": null
+    }
+  ],
+  "observed": {
+    "help_stdout": "a2a：Enchanted 工作台的编排命令（在 Enchanted 的项目终端里运行）\n\n  a2a whoami                  这个终端的项目与身份\n  a2a request executor|ideation 申请成为执行主控或构思主控；等用户在界面批准，最多 10 分钟\n  a2a release                 放弃当前身份；已派出的工作继续做完\n  a2a call terminal_open --cwd <绝对目录>\n                              在本项目开普通终端，返回 launch.id；目录须在项目主目录或额外目录内\n  a2a call '<JSON>'           以已批准的身份调用本项目的门禁命令：本项目任务上的任务命令，\n                              新任务的 card_* 与 create（project 为本项目、repo 为本项目目录），\n                              以及本项目的 inbox_ready，例如\n                              a2a call '{\"command\":\"inbox_ready\",\"project\":\"<项目>\"}'\n                              派发前对照用户原话逐项核对任务卡并列出结果，含先后顺序、等待条件与首版演练要求；漏项先改卡。\n                              单独写验收脚本也须自检：每条判据对应用户明确要求，期望从原始数据推导，先独立确定样本预期，再写或运行检查器。\n                              优先实际运行全文断言对照：从原始数据构造正确正文，复制后保持全部数据不变，只在开头否定全文真实性或有效性，预期由通过转拒绝。\n                              检查器须核对开头对全文的限定；不能以改错数字代替此反例，也不能只核对正文数字关系。仍误收就记录失败、修正复验或明确交独立审查。\n                              正例含无额外明细的最小正确内容与另一种允许排版；反例含错数字、缺项、关键词仍在但标题或上下文含义相反的内容。\n                              核对全文断言，区分业务动作相反与正文真实性、有效性被否定；有限禁词表须用未参与规则编写的改述复验，不能只测必命中的词。\n                              实际运行并保留每项输入、要求依据、预期和实际退出码；不擅加逐项列名或排版条件，不只查存在或字串。\n                              发现不符先修检查器，不改预期或给正例补无关内容凑通过；自检完成后才交付脚本或用于任务卡。\n                              脚本只核对机械事实，无法机械判定的含义交独立审查。暂时未完成须有推进事实与等待条件；明确拒绝报告原始错误和 task/attempt；\n                              结果未知保留原请求，不自动重发写入。没有新事实就停止轮询，报告最后确定事实、具体停点与缺少的事实或决定。\n                              派 worker：card_template → card_save → create → dispatch\n                              （runtimeMode 为 workspace-write，带 model 与 effort）→ status\n                              → submitted 后 verify → verified 后带 score_file 的 integrate；\n                              或者一条 run 自动走完（身份结束或额度用完时它自己集成，记未评分）。\n                              修订已注册任务：先 status 保存旧 current_attempt.attempt_id，\n                              核对旧 worker 已提交、空闲且没有待发送输入；以下示例从 v1 改为 v2：\n                              a2a call '{\"command\":\"card_save\",\"task\":\"<任务>\",\"card\":\"<v2 JSON 路径>\",\"expected_version\":1}'\n                              a2a call '{\"command\":\"revise\",\"task\":\"<任务>\",\"spec_rev\":2,\"card_version\":2}'\n                              a2a call '{\"command\":\"reclaim\",\"task\":\"<任务>\",\"attempt\":\"<保存的旧 attempt_id>\"}'\n                              a2a call '{\"command\":\"dispatch\",\"task\":\"<任务>\",\"runtimeMode\":\"workspace-write\",\"model\":\"<模型>\",\"effort\":\"<强度>\"}'\n                              spec_rev 须递增；card_save 只存版本，revise 才采用新卡并撤销旧交付。\n                              旧会话回收成功才释放路径；未回收仍会 path_overlap，不用交叠参数绕过。\n                              worker_working 时先核对旧回合与输入队列，停止或归档未确认时保留现场并上报。\n                              回收后脏工作区仍保留、上报；保留证据不继续占用路径。\n                              回答 worker 上报的问题：issues / answer_issue，记为主控的回答。\n                              attach（role 为 monitor）挂一个只读观察会话。\n  a2a help                    显示这段说明\n\n只有用户本人要求时才申请身份；被拒绝或超时就停下告诉用户。申请命令被中断、被杀或超时，后台都会撤回申请。\n"
+  },
+  "errors": [],
+  "fixture": "/private/tmp/t158-instructions-zcnfvoqg"
+}
