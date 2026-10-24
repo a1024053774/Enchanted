@@ -2,7 +2,7 @@
 id: T-162
 title: F04+F06：角色批准不进用户输入记录；指标把未知主控回合显示为 0
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -22,9 +22,13 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 真实实例：批准后记录页出现该条并关联角色事件。
-- [ ] 指标：主控回合与原生日志核对一致，或明确显示“未覆盖/未知”。
+- [x] 真实实例：批准后记录页出现该条并关联角色事件。
+- [x] 指标：主控回合与原生日志核对一致，或明确显示“未覆盖/未知”。
 
 ## 不做
 
 范围外的问题经问题上报，不顺手改。
+
+## Resolution
+
+2026-10-24 关闭，PASS。修前红态（RUN-OUTSIDE-01，c01742804）：角色决定不进用户输入、项目终端主控回合显示 0。修复：`roleRequests.ts` 决定与用户输入同一事务写入并关联角色事件（自动竞争拒绝不计用户输入，重复决定被拒，存储故障整体回滚）；`metrics.ts`/`MetricsPage.tsx` 区分未覆盖、已记录 0 与已记录 N，并可展开逐会话来源；`RecordsPage.tsx`、README 同步。RUN-OUTSIDE-02（候选 b27e9e4d0）14/14：真实 Electron 绿态、7 个已知坏实现均被拒、T-121/T-133/T-134/T-107 回归通过；两个真实原生主控日志核对（构思 4、执行 1 根回合）显示为未覆盖，修前版本对同一日志误报 0。独立审查 agy PASS。合并 3feb9e5ae。证据 `evidence/2026-10-23-batch24/T-162/RESULTS.md`。范围外：README 记录页旧“Codex 主控暂不记”与 T-133 一节矛盾，已转构思主控（20261024T022208Z）。
