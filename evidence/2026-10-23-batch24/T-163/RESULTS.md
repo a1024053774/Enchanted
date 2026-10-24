@@ -1,32 +1,36 @@
 # T-163-1 / a1 报告（追加阶段）
 
-状态：INCOMPLETE。前四轮真实 Haiku 的 oracle 失败项为 **3 → 3 → 1 → 1**，未取得完整绿态；第四轮收尾提交为 `541fe932e`。用户随后裁定继续改说明，执行主控 #55 授权追加最多两轮、8 个真实回合，累计上限 20。当前实际仍为 12 回合，已准备 RUN-OUTSIDE-05，尚未运行追加轮次，不宣称修复完成。
+状态：INCOMPLETE。五轮真实 Haiku 的 oracle 失败项为 **3 → 3 → 1 → 1 → 2**，未取得完整绿态。第五轮误拒两个正确汇总，原生记录显示自加逐项明细和文字白名单条件，见 `diagnosis-05.md`。当前实际 14/20 回合，已准备追加第二轮、最后一轮 RUN-OUTSIDE-06；结果回来后按已授权的 A 口径收尾，不再修改说明或询问。
 
-## 当前追加授权与第五轮
+## 当前追加授权与第六轮
 
 用户 2026-10-24 逐字：“B 继续改说明”（执行主控 #55 引用构思主控 answer `20261024T024128Z-002`）。完整边界见 [追加授权记录](resume-authorization-01.md)。从执行主控已添加 T-088 归档清单的 `a1391bb16` 继续，未改写旧失败或旧停止记录。
 
-本次优先要求通用的全文断言对照：从原始数据反推期望，实际确认正确正文通过；复制后保持全部正文数据和数字关系不变，仅在开头否定全文真实性或有效性，预期转为拒绝并实际运行。检查器不能只检查数字关系，不能以改错数值的样本代替。产品说明不加入夹具的食材、数值、原句或 oracle 样本名。
+第五轮已实际做全文断言对照，但模型又自加文末逐项列名，并以“剩余文字”规则拒绝正常数值标签。不是缺少固定开头导致；自称最小的正例仍带明细，无法揭露误拒。本次通用修订明确：不带任何开头说明、仅含必需内容的最小正确正文必须先通过；开头为空不算缺项，不自加字词白名单；每次为拦反例改检查器后原样重跑全部正例，误拒先改自加条件，不改正例。仍保留数据不变、只否定整体断言的实验，不加夹具食材、数值、原句或 oracle 样本名。
 
-RUN-OUTSIDE-05 仅 oracle 绿态和 parent-instructions 变异，预计最多 4 回合、累计最多 16/20；未绿则本轮只用 2 回合、跳过变异。旧预算默认仍为 16，新驱动参数 `--budget-limit 20` 显式启用当前追加授权；只改预算核对与记录，不改场景提示、样本或严格 oracle 判据。追加第一轮结果回来后核对原生记录，最多还可进行一个追加轮次，不自动重试。
+RUN-OUTSIDE-05 实际新增 2 回合，累计 14/20，变异未启动。RUN-OUTSIDE-06 仅 oracle 绿态和 parent-instructions 变异，预计最多新增 4 回合、累计最多 18/20；未绿则只新增 2 回合、跳过变异。该轮结束即收尾，不再使用未消耗预算开启其他轮次。驱动仍用 `--budget-limit 20`，场景提示、样本及严格判据不改。
 
 第五轮本地检查 PASS：Python 编译与预算参数帮助、shell 语法、CLI help、UTF-8/空白检查见 `local-checks-05.json`，T-158 说明回归见 `t158-instructions-05.json`；未启动模型。`project-map-status-05.json` 仍仅有既存 T-158 缺 Resolution，stale living docs 为 0，不改范围外 ticket。
 
+第六轮本地检查 PASS：脚本语法、CLI help、UTF-8/空白和测试代码与第五轮无差异见 `local-checks-06.json`，T-158 说明回归见 `t158-instructions-06.json`；未启动模型。`project-map-status-06.json` 仍为同一项范围外问题、stale living docs 为 0。
+
 若追加两轮后仍有残余，按用户已授权的选项 A 收尾，不再询问：以第四轮唯一失败为基线，oracle 失败项不增加，错数字、缺项、反向购买被拒；残余记为 M02 模型行为，整体否定类语义交独立审查。原始严格 oracle 的 NO_GO 保留，报告另列有限验收口径及其达成情况，不把改变口径写成修复。
 
+第五轮的两个正例误拒已超出第四轮唯一失败项，不能提前记为 A 口径通过；第六轮回来后逐项如实核对。无论结果如何，不再问是否继续，也不启动后续轮次。
+
 ```zsh
-zsh evidence/2026-10-23-batch24/T-163/RUN-OUTSIDE-05.sh
+zsh evidence/2026-10-23-batch24/T-163/RUN-OUTSIDE-06.sh
 ```
 
 ## 交付范围与版本
 
 - task `T-163-1`，attempt `a1`，worker `b24-t163`，分支 `exec/t163`。任务卡、oracle 与通过判据没有修改。
-- 前四轮最后被真实模型测试的产品版本：`89fb2f73a7a141d4e61c1095105bb1e6340d5628`。第四轮交付至追加授权前仅整理报告和归档；当前按新授权恢复说明修改，第五轮实际候选版本将由新摘要记录。
+- 第五轮被真实模型测试的产品版本：`252d58d5e0dccacde4fedf3f13be5bcb02e11c55`；第六轮候选尚未测试。前四轮最后版本为 `89fb2f73a7a141d4e61c1095105bb1e6340d5628`，归档清单在 `a1391bb16`。
 - 产品修改仅为应用内主控说明 `workbench/terminal/plugin/enchanted-a2a/skills/a2a/SKILL.md`、命令帮助 `workbench/src/terminalCli.ts` 及对应 README。三条要求是：派发前逐项对照用户要求；从原始数据独立确定验收预期并实际运行正反例；区分暂时未完成、明确拒绝、结果未知，无新事实报告停点。后续说明补充最小正例、断言含义和有限词表的覆盖限制，不含夹具食材、数值或原句清单。
 - 没有增加策略引擎、生产权限、重试或门禁旁路。沿用 Ubiquitous language 与现有 Fixture/Electron 驱动；按 Deep modules 原则没有新增生产包装层。本票不增加跨层功能，不另建 Tracer bullet。
 - 首轮夹具的有限 Bash 前缀误拦多行派发。确认来源是本票隔离 HOME 的 `dontAsk` 配置，非产品普通终端启动参数；第二轮起仅在隔离测试主控允许 Bash，产品与受管 worker 权限不变。详见 [修前读回](controller-baseline-01.md)。
 
-## 前四轮真实回合与 oracle 结果
+## 已运行五轮真实回合与 oracle 结果
 
 | 轮次 / 产品版本 | C5 根提示 | oracle 根提示 | 本轮 / 累计真实回合 | oracle 失败项数 | 变异 |
 | --- | --- | --- | --- | --- | --- |
@@ -34,8 +38,9 @@ zsh evidence/2026-10-23-batch24/T-163/RUN-OUTSIDE-05.sh
 | RUN-OUTSIDE-02 / `d4b79be10` | 2 | 2 | 4 / 8 | 3 | 未绿，跳过 |
 | RUN-OUTSIDE-03 / `f310249c2` | 0 | 2 | 2 / 10 | 1 | 未绿，跳过 |
 | RUN-OUTSIDE-04 / `89fb2f73a` | 0 | 2 | 2 / 12 | 1 | 未绿，跳过 |
+| RUN-OUTSIDE-05 / `252d58d5e` | 0 | 2 | 2 / 14 | 2 | 未绿，跳过 |
 
-前四轮实际合计 **12 个真实根回合**，当时上限 16、第四轮累计限制 14 均未超出；当前新授权累计上限为 20，账本不重置。计数来源为原生 JSONL 中有文本的根 user 提示，排除技能展开、工具结果、中断占位；每个主控会话含申请身份和执行场景各一条根提示。运行摘要均记录实际 assistant model 为 `claude-haiku-5-5`，Claude Code `2.1.310`、Node `v26.5.0`；不把请求 argv 当作供应商实际 tier 的证明。
+前五轮实际合计 **14 个真实根回合**，前四轮为 12、追加第一轮为 2；当前授权累计上限为 20，账本不重置。计数来源为原生 JSONL 中有文本的根 user 提示，排除技能展开、工具结果、中断占位；每个主控会话含申请身份和执行场景各一条根提示。运行摘要均记录实际 assistant model 为 `claude-haiku-5-5`，Claude Code `2.1.310`、Node `v26.5.0`；不把请求 argv 当作供应商实际 tier 的证明。
 
 真实供应商调用只来自项目终端主控。C5 的受管 worker 使用真实 CLI 与本地脚本化 Messages 接口，只结束观察回合，不写候选，不贡献真实供应商回合。没有真实 reviewer、完整交付验收或集成。
 
@@ -45,26 +50,27 @@ zsh evidence/2026-10-23-batch24/T-163/RUN-OUTSIDE-05.sh
 - 第二轮：[C5](t163-outside-02.8v3EhC-c5-green.json)、[oracle](t163-outside-02.8v3EhC-oracle-green.json)。
 - 第三轮：[oracle](t163-outside-03.8PILwD-oracle-green.json)。
 - 第四轮：[oracle](t163-outside-04.ChKWVG-oracle-green.json)、[一次性启动记录](RUN-OUTSIDE-04-started.json)。
+- 第五轮：[oracle](t163-outside-05.cnhFBn-oracle-green.json)、[一次性启动记录](RUN-OUTSIDE-05-started.json)。
 
 完整产品版本、启动命令、临时目录、实际模型和回合数在各摘要中；预留与事后核对记录追加保存在 [预算账本](model-budget.jsonl)。
 
 ## oracle 各项变化
 
-下表的 PASS 仅指该输入的实际退出码符合固定判据。前两轮有自加明细导致的误拒，坏输入被拒也不能单独证明识别了对应语义错误。四轮均无摘要 `error` 或清理错误；这些是业务失败，非环境失败。
+下表的 PASS 仅指该输入的实际退出码符合固定判据。第一、二、五轮有自加明细导致的误拒，坏输入被拒也不能单独证明识别了对应语义错误。五轮均无摘要 `error` 或清理错误；这些是业务失败，非环境失败。
 
-| 固定样本 | 期望 | 修前 | 第二轮 | 第三轮 | 第四轮 |
-| --- | --- | --- | --- | --- | --- |
-| summary-good | 接受 | 误拒 | 误拒 | PASS | PASS |
-| summary-good-other-layout | 接受 | 误拒 | 误拒 | PASS | PASS |
-| summary-wrong-numbers | 拒绝 | PASS | PASS | PASS | PASS |
-| summary-missing-total | 拒绝 | PASS | PASS | PASS | PASS |
-| summary-inverted | 拒绝 | PASS | PASS | **误收** | **误收** |
-| shopping-good | 接受 | PASS | PASS | PASS | PASS |
-| shopping-inverted | 拒绝 | **误收** | **误收** | PASS | PASS |
-| shopping-nonzero | 拒绝 | PASS | PASS | PASS | PASS |
-| shopping-grouped | 拒绝 | PASS | PASS | PASS | PASS |
-| shopping-stale-source | 拒绝 | PASS | PASS | PASS | PASS |
-| shopping-changed-source-good | 接受 | PASS | PASS | PASS | PASS |
+| 固定样本 | 期望 | 修前 | 第二轮 | 第三轮 | 第四轮 | 第五轮 |
+| --- | --- | --- | --- | --- | --- | --- |
+| summary-good | 接受 | 误拒 | 误拒 | PASS | PASS | 误拒 |
+| summary-good-other-layout | 接受 | 误拒 | 误拒 | PASS | PASS | 误拒 |
+| summary-wrong-numbers | 拒绝 | PASS | PASS | PASS | PASS | PASS |
+| summary-missing-total | 拒绝 | PASS | PASS | PASS | PASS | PASS |
+| summary-inverted | 拒绝 | PASS | PASS | **误收** | **误收** | PASS |
+| shopping-good | 接受 | PASS | PASS | PASS | PASS | PASS |
+| shopping-inverted | 拒绝 | **误收** | **误收** | PASS | PASS | PASS |
+| shopping-nonzero | 拒绝 | PASS | PASS | PASS | PASS | PASS |
+| shopping-grouped | 拒绝 | PASS | PASS | PASS | PASS | PASS |
+| shopping-stale-source | 拒绝 | PASS | PASS | PASS | PASS | PASS |
+| shopping-changed-source-good | 接受 | PASS | PASS | PASS | PASS | PASS |
 
 第二轮后 `test_t163_controller_e2e.py` 的场景提示、11 个业务样本与判据均未改变。没有以换样本、改期望或补明细使结果转绿。每轮为不同的模型生成结果；这些观察不是独立对照实验，不能证明可靠性、成本或收益改善。
 
@@ -123,4 +129,4 @@ zsh evidence/2026-10-23-batch24/T-163/RUN-OUTSIDE-03.sh
 zsh evidence/2026-10-23-batch24/T-163/RUN-OUTSIDE-04.sh
 ```
 
-前四轮原件的 T-088 清单已由执行主控提交于 `a1391bb16`，例如 `t163-ovw946lf.archive.json`；本 worker 只读取清单，未把它当成自己重新核对归档的证据。当前交接点是提交 RUN-OUTSIDE-05 后等执行主控运行；没有 push、集成、修改地图或关闭 ticket。
+前四轮原件的 T-088 清单已由执行主控提交于 `a1391bb16`，例如 `t163-ovw946lf.archive.json`；本 worker 只读取清单，未把它当成自己重新核对归档的证据。第五轮新原件仍保留在 `/private/tmp/t163-bp2jsk60` 与 `/private/tmp/t163-outside-05.cnhFBn`，交主控归档。当前交接点是提交 RUN-OUTSIDE-06 后等执行主控运行；没有 push、集成、修改地图或关闭 ticket。
