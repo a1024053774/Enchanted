@@ -1,6 +1,6 @@
 # T-159-1 / a1：分屏修复与验证交接
 
-状态：**PASS（worker 实现与测试交付）**。真实 Electron 红态、绿态、两个变异及 T-139 三项回归的证据齐全。独立审查与门禁验收仍由执行主控安排，本报告不宣告集成通过。
+状态：**INCOMPLETE（独立审查后待澄清）**。此前 worker 实现与测试交付的真实 Electron 红态、绿态、两个变异及 T-139 三项回归证据保留。主控消息 #34 转述独立审查 INCOMPLETE：P1 验收语义交构思主控决定；P3 的新增回归前提与当前真实快照不符，已实测并上报，未修改产品。此前通过结论不用于上调本次审查状态。
 
 ## 范围与依据
 
@@ -72,4 +72,8 @@ zsh evidence/2026-10-23-batch24/T-159/RUN-OUTSIDE-02.sh
 - `frontend-less-ai-tone` 的旧独立目录在本机两个指定位置未找到；已按整合技能 `frontend-production` 的 `references/look-and-copy.md` 编写限制说明，其 `SOURCE.md` 明确该规则原样迁入。
 - 结果目录约 1.1 MiB，仅含小文本和截图，已逐文件核对无超过 5 MiB 的文件。大夹具不入仓库；`/private/tmp/t159-u40ztvev`（绿态）、`/private/tmp/t159-5113q34s`（旧实现变异）、`/private/tmp/t159-xfpaa_9q`（缺入口检查变异）保留，后续由执行主控按 T-088 归档，不覆盖或删除失败现场。
 
-最终仅提交结果与本报告，交付执行主控继续审查、验收与集成；未改地图、ticket 或他人文件。
+## 独立审查后：项目主控分屏前提核对
+
+消息 #34 要求项目层已批准主控可以分屏，并用按 role 判断的变异证明。事实探针发现：同一个已批准项目终端的侧栏角色为 controller，但真实 `workbench_snapshot.launch.role` 仍为 shell，因此当前菜单仍允许分屏；消息中“快照 role 变为 controller，所以被禁用”的前提尚未复现。仅把菜单改回按 role 判断的变异也不会被该真实场景拒绝。
+
+见 [问题与最小选项](ISSUE-CONTROLLER-SCOPE-01.md)、[实测摘要](controller-scope-probe-01.json) 和 [重放探针](PROBE-CONTROLLER-SCOPE-01.py)。当前保持产品与测试不变，暂停待执行主控明确复现输入或分类边界反事实的范围。`RUN-OUTSIDE-03` 尚未生成；不把未成立的反例写成通过。
