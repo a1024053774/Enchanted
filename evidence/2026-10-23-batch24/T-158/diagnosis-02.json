@@ -1,0 +1,64 @@
+{
+  "source_summary": "evidence/2026-10-23-batch24/T-158/t158-outside-02.xbsX8S-flow-baseline.json",
+  "fixture": "/private/tmp/t158-retry-ze1cl8rx",
+  "business_checks": [
+    {
+      "name": "initial_dispatch",
+      "passed": true
+    },
+    {
+      "name": "candidate_rejected_before_revision",
+      "passed": true
+    },
+    {
+      "name": "save_v2_does_not_adopt_contract",
+      "passed": true
+    },
+    {
+      "name": "revise_revokes_candidate_and_keeps_ready_task",
+      "passed": true
+    },
+    {
+      "name": "unreclaimed_attempt_still_reserves_paths",
+      "passed": true
+    },
+    {
+      "name": "explicit_historical_reclaim_succeeds",
+      "passed": true
+    },
+    {
+      "name": "dirty_evidence_preserved_after_reclaim",
+      "passed": true
+    },
+    {
+      "name": "one_dispatch_after_reclaim_without_overlap_reason",
+      "passed": true
+    },
+    {
+      "name": "new_attempt_uses_v2",
+      "passed": true
+    },
+    {
+      "name": "old_attempt_reclaimed_event_preserved",
+      "passed": true
+    }
+  ],
+  "layout_events": [
+    {
+      "seq": 197,
+      "time": "2026-10-24T01:12:10.249Z",
+      "type": "pane_layout_closed",
+      "task": "demo+T-158-probe",
+      "launch": "ca02c944-af12-4945-8956-9fa926bfda56",
+      "data": {}
+    }
+  ],
+  "diagnosis": "The old attempt reclaim records pane_layout_closed. There is no open-pane event for the new launch. hasPaneLayout is true, openPanes is empty; task selection preserves that empty layout. data-task-id exists only on SessionPane, so it is not a valid task-selection predicate.",
+  "evidence_sources": [
+    "workbench/src/store.ts:77",
+    "workbench/app/main.ts:668",
+    "workbench/app/renderer.tsx:366",
+    "workbench/app/renderer.tsx:848"
+  ],
+  "limitation": "The failed run did not capture a DOM snapshot or screenshot before cleanup; its click success is not independently asserted. The next run checks aria-current, the main-process selected task, and explicitly opens the new worker."
+}

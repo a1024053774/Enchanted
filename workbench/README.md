@@ -384,6 +384,15 @@ M验收目录独立，顺序为路径边界、验收文件、完成条件、红�
 注册冻结选定版本，认领时再追加包含当时工作分支起点和唯一写入者的绑定快照。
 源文件或后续卡版本不会改变已注册合同。显式采用新卡用
 `revise --spec-rev N --card-version V`，会使旧 attempt 与候选失效。
+修订后重派的完整顺序为：先用 `status` 保存旧 `current_attempt.attempt_id`，
+`card_save` 保存新版本 → `revise` 显式采用（spec_rev 递增）→
+`reclaim --attempt <旧 attempt_id>` → 正常 `dispatch`，不传交叠参数。
+回收前核对旧 worker 已提交、空闲、无待发送输入；`pane_status` 的 `state=idle`
+还须同时满足 `writing=false`、`active=null`、`queued=[]`。输入正在发送时不能回收。
+旧会话未回收时仍保留路径占用，`path_overlap` 是有效拒绝；`worker_working` 时先核对旧回合与输入队列。
+回收会核对身份、空闲、停止与归档；无法确认时保留现场并上报，不继续重派。
+回收成功后，旧工作区有未提交改动仍保留并上报，但不继续占用路径。
+项目终端里的 JSON 示例见 `a2a help` 与应用内 a2a 主控说明。
 
 修改边界 `paths.allow` / `paths.deny` 用仓库相对文件名、末尾 `/` 的目录或 `.`，禁止项优先，不解释 glob。
 认领会比较同一 Git 仓库中活跃 attempt 的允许路径集合，并扣除双方禁止路径；

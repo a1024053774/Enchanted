@@ -1,0 +1,69 @@
+{
+  "status": "INCOMPLETE",
+  "argv": [
+    "workbench/tests/test_t158_revise_retry_e2e.py",
+    "--check",
+    "instructions",
+    "--mutant",
+    "help-no-reclaim",
+    "--summary",
+    "evidence/2026-10-23-batch24/T-158/instructions-mutant-02.json"
+  ],
+  "revision": null,
+  "mutant": "help-no-reclaim",
+  "product_head": "40fc3e501b5566ba62331a552d2dd904f3710ee4",
+  "vendor_model_turns": 0,
+  "checks": [
+    {
+      "name": "help_entry_exits_zero",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "help_has_ordered_revision_retry_steps",
+      "passed": false,
+      "detail": "a2a：Enchanted 工作台的编排命令（在 Enchanted 的项目终端里运行）\n\n  a2a whoami                  这个终端的项目与身份\n  a2a request executor|ideation 申请成为执行主控或构思主控；等用户在界面批准，最多 10 分钟\n  a2a release                 放弃当前身份；已派出的工作继续做完\n  a2a call terminal_open --cwd <绝对目录>\n                              在本项目开普通终端，返回 launch.id；目录须在项目主目录或额外目录内\n  a2a call '<JSON>'           以已批准的身份调用本项目的门禁命令：本项目任务上的任务命令，\n                              新任务的 card_* 与 create（project 为本项目、repo 为本项目目录），\n                              以及本项目的 inbox_ready，例如\n                              a2a call '{\"command\":\"inbox_ready\",\"project\":\"<项目>\"}'\n                              派 worker：card_template → card_save → create → dispatch\n                              （runtimeMode 为 workspace-write，带 model 与 effort）→ status\n                              → submitted 后 verify → verified 后带 score_file 的 integrate；\n                              或者一条 run 自动走完（身份结束或额度用完时它自己集成，记未评分）。\n                              修订已注册任务：先 status 保存旧 current_attempt.attempt_id，\n                              核对旧 worker 已提交、空闲且没有待发送输入；以下示例从 v1 改为 v2：\n                              a2a call '{\"command\":\"card_save\",\"task\":\"<任务>\",\"card\":\"<v2 JSON 路径>\",\"expected_version\":1}'\n                              a2a call '{\"command\":\"revise\",\"task\":\"<任务>\",\"spec_rev\":2,\"card_version\":2}'\n                              a2a call '{\"command\":\"reclaiM\",\"task\":\"<任务>\",\"attempt\":\"<保存的旧 attempt_id>\"}'\n                              a2a call '{\"command\":\"dispatch\",\"task\":\"<任务>\",\"runtimeMode\":\"workspace-write\",\"model\":\"<模型>\",\"effort\":\"<强度>\"}'\n                              spec_rev 须递增；card_save 只存版本，revise 才采用新卡并撤销旧交付。\n                              旧会话回收成功才释放路径；未回收仍会 path_overlap，不用交叠参数绕过。\n                              worker_working 时先核对旧回合与输入队列，停止或归档未确认时保留现场并上报。\n                              回收后脏工作区仍保留、上报；保留证据不继续占用路径。\n                              回答 worker 上报的问题：issues / answer_issue，记为主控的回答。\n                              attach（role 为 monitor）挂一个只读观察会话。\n  a2a help                    显示这段说明\n\n只有用户本人要求时才申请身份；被拒绝或超时就停下告诉用户。申请命令被中断、被杀或超时，后台都会撤回申请。\n"
+    },
+    {
+      "name": "help_names_card_spec_and_old_attempt_parameters",
+      "passed": true,
+      "detail": "card_version, spec_rev and explicit old attempt are required"
+    },
+    {
+      "name": "controller_has_ordered_revision_retry_steps",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "controller_has_runnable_revise_and_explicit_reclaim_examples",
+      "passed": true,
+      "detail": {
+        "revise": [
+          {
+            "command": "revise",
+            "task": "<任务>",
+            "spec_rev": 2,
+            "card_version": 2
+          }
+        ],
+        "reclaim": [
+          {
+            "command": "reclaim",
+            "task": "<任务>",
+            "attempt": "<保存的旧 attempt_id>"
+          }
+        ]
+      }
+    },
+    {
+      "name": "worker_has_ordered_steps_and_controller_handoff",
+      "passed": true,
+      "detail": null
+    }
+  ],
+  "observed": {
+    "help_stdout": "a2a：Enchanted 工作台的编排命令（在 Enchanted 的项目终端里运行）\n\n  a2a whoami                  这个终端的项目与身份\n  a2a request executor|ideation 申请成为执行主控或构思主控；等用户在界面批准，最多 10 分钟\n  a2a release                 放弃当前身份；已派出的工作继续做完\n  a2a call terminal_open --cwd <绝对目录>\n                              在本项目开普通终端，返回 launch.id；目录须在项目主目录或额外目录内\n  a2a call '<JSON>'           以已批准的身份调用本项目的门禁命令：本项目任务上的任务命令，\n                              新任务的 card_* 与 create（project 为本项目、repo 为本项目目录），\n                              以及本项目的 inbox_ready，例如\n                              a2a call '{\"command\":\"inbox_ready\",\"project\":\"<项目>\"}'\n                              派 worker：card_template → card_save → create → dispatch\n                              （runtimeMode 为 workspace-write，带 model 与 effort）→ status\n                              → submitted 后 verify → verified 后带 score_file 的 integrate；\n                              或者一条 run 自动走完（身份结束或额度用完时它自己集成，记未评分）。\n                              修订已注册任务：先 status 保存旧 current_attempt.attempt_id，\n                              核对旧 worker 已提交、空闲且没有待发送输入；以下示例从 v1 改为 v2：\n                              a2a call '{\"command\":\"card_save\",\"task\":\"<任务>\",\"card\":\"<v2 JSON 路径>\",\"expected_version\":1}'\n                              a2a call '{\"command\":\"revise\",\"task\":\"<任务>\",\"spec_rev\":2,\"card_version\":2}'\n                              a2a call '{\"command\":\"reclaiM\",\"task\":\"<任务>\",\"attempt\":\"<保存的旧 attempt_id>\"}'\n                              a2a call '{\"command\":\"dispatch\",\"task\":\"<任务>\",\"runtimeMode\":\"workspace-write\",\"model\":\"<模型>\",\"effort\":\"<强度>\"}'\n                              spec_rev 须递增；card_save 只存版本，revise 才采用新卡并撤销旧交付。\n                              旧会话回收成功才释放路径；未回收仍会 path_overlap，不用交叠参数绕过。\n                              worker_working 时先核对旧回合与输入队列，停止或归档未确认时保留现场并上报。\n                              回收后脏工作区仍保留、上报；保留证据不继续占用路径。\n                              回答 worker 上报的问题：issues / answer_issue，记为主控的回答。\n                              attach（role 为 monitor）挂一个只读观察会话。\n  a2a help                    显示这段说明\n\n只有用户本人要求时才申请身份；被拒绝或超时就停下告诉用户。申请命令被中断、被杀或超时，后台都会撤回申请。\n"
+  },
+  "errors": [],
+  "fixture": "/private/tmp/t158-instructions-oq4csp6u"
+}

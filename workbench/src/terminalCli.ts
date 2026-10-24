@@ -17,6 +17,16 @@ const usage = `a2a：Enchanted 工作台的编排命令（在 Enchanted 的项�
                               （runtimeMode 为 workspace-write，带 model 与 effort）→ status
                               → submitted 后 verify → verified 后带 score_file 的 integrate；
                               或者一条 run 自动走完（身份结束或额度用完时它自己集成，记未评分）。
+                              修订已注册任务：先 status 保存旧 current_attempt.attempt_id，
+                              核对旧 worker 已提交、空闲且没有待发送输入；以下示例从 v1 改为 v2：
+                              a2a call '{"command":"card_save","task":"<任务>","card":"<v2 JSON 路径>","expected_version":1}'
+                              a2a call '{"command":"revise","task":"<任务>","spec_rev":2,"card_version":2}'
+                              a2a call '{"command":"reclaim","task":"<任务>","attempt":"<保存的旧 attempt_id>"}'
+                              a2a call '{"command":"dispatch","task":"<任务>","runtimeMode":"workspace-write","model":"<模型>","effort":"<强度>"}'
+                              spec_rev 须递增；card_save 只存版本，revise 才采用新卡并撤销旧交付。
+                              旧会话回收成功才释放路径；未回收仍会 path_overlap，不用交叠参数绕过。
+                              worker_working 时先核对旧回合与输入队列，停止或归档未确认时保留现场并上报。
+                              回收后脏工作区仍保留、上报；保留证据不继续占用路径。
                               回答 worker 上报的问题：issues / answer_issue，记为主控的回答。
                               attach（role 为 monitor）挂一个只读观察会话。
   a2a help                    显示这段说明
