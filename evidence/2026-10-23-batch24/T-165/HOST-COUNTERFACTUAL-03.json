@@ -1,0 +1,75 @@
+{
+  "status": "PASS",
+  "scope": "host counterfactual detection only",
+  "fixture": "/private/tmp/t165-host-counterfactual-4zqyuamy",
+  "checks": [
+    {
+      "name": "baseline",
+      "result": {
+        "status": "INCOMPLETE",
+        "checks": [
+          {
+            "name": "stop-first",
+            "status": "INCOMPLETE",
+            "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n'busy' !== 'idle'\n",
+            "calls": []
+          },
+          {
+            "name": "unrelated-stop",
+            "status": "PASS",
+            "calls": [
+              "queued-prompt"
+            ]
+          },
+          {
+            "name": "predating-stop",
+            "status": "PASS",
+            "calls": []
+          },
+          {
+            "name": "failed-launch",
+            "status": "PASS",
+            "calls": []
+          }
+        ],
+        "scope": "controlled native-hook/transcript host; no real CLI/PTY/gate execution"
+      },
+      "known_bad_rejected": true
+    },
+    {
+      "name": "drop-early-stop",
+      "result": {
+        "status": "INCOMPLETE",
+        "checks": [
+          {
+            "name": "stop-first",
+            "status": "INCOMPLETE",
+            "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n'busy' !== 'idle'\n",
+            "calls": []
+          },
+          {
+            "name": "unrelated-stop",
+            "status": "INCOMPLETE",
+            "error": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert.ok(store.read().some(e => e.type === 'stop_not_matched' && e.data.prompt_id === stop.prompt_id))\n",
+            "calls": []
+          },
+          {
+            "name": "predating-stop",
+            "status": "INCOMPLETE",
+            "error": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert.ok(store.read().some(e => e.type === 'stop_not_matched' && e.data.prompt_id === stop.prompt_id))\n",
+            "calls": []
+          },
+          {
+            "name": "failed-launch",
+            "status": "INCOMPLETE",
+            "error": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert.ok(store.read().some(e => e.type === 'stop_not_matched' && e.data.prompt_id === stop.prompt_id))\n",
+            "calls": []
+          }
+        ],
+        "scope": "controlled native-hook/transcript host; no real CLI/PTY/gate execution"
+      },
+      "known_bad_rejected": true
+    }
+  ],
+  "exploratory_failure": "首次汇总脚本错误假设 drop mutant 只触发 stop-first；实际删除缓存也删除三个反例的明确拒绝事实，四项均失败。保留原始结果，不重跑或放宽测试。"
+}

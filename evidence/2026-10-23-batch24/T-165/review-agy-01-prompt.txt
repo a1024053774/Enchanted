@@ -1,0 +1,16 @@
+你是 a2a 项目的只读独立审查员（reviewer），审查 T-165（执行主控自建的缺陷票，属 T-157 已批准范围的残余）：T-157 合并后，受管 Claude worker 在 Stop 交付批次期间收到用户输入；CLI 处理排队输入那一轮的 Stop 有时早于后台凭原生转录登记该轮到达，被记 stop_not_matched，之后再无 Stop，worker 永远停在“运行中/未知”。
+T-157 的用户原则（经构思主控转述）：“我在 agent 工作过程中输入内容这个他自己 cli 会处理的吧,他会在此次工具执行完成后加入这句话再做思考,这个不用我们处理吧”——输入原样直达 CLI，只记人工介入；门禁 turn/attempt/版本核对不放松。
+修复（panes.ts）：Stop 先到且满足条件（有排队输入、无 active、同一转录、晚于排队输入、非子代理、stop_hook_active=false、prompt_id 未用过）时暂存；登记该轮后按同一 claudeStop 核对与转交完成；不符的暂存 Stop 记 stop_not_matched；current 判定新增 !stopped && !nativeEnded。
+执行主控沙箱外 outside-03（0 个真实模型回合，真实 daemon/PTY/Claude CLI/Electron）：同一时序绿态 3/3、T-157 stop-input 3/3 PASS；无关 Stop 反例 PASS；修前基线与丢弃早到 Stop 的坏实现只败在三项空闲/完成断言；T-157 基线、坏调用方与三个变异只在预期断言失败；stale recover/expired 与 T-159/T-160/T-133 回归 PASS。
+请特别核对：暂存条件会不会把无关或伪造的 Stop 配给该轮；延迟执行的 claudeStop 是否与同步路径同样核对（信任、transfer、after_transfer 比对），失败是否被记录而非吞掉；scan 中 stopInProgress 早返回会不会让排队输入永远不登记；有无竞态导致重复 submit；改动是否在任务卡边界内（panes.ts、test_t165_*、T-157 测试夹具、evidence）。
+
+材料在 /Users/luckye/Documents/Code/a2a-review/T-165-r1/ 下：candidate/ 为候选 c36e3eef2 只读副本（ticket 在 candidate/.project-map/tickets/，任务卡、RESULTS 与运行证据在 candidate/evidence/2026-10-23-batch24/T-165/）；full.diff 为相对起点 f2756ea2030d8ce0bddf9980d3f36d1825201d3a 的 workbench/ 全部改动；user-decision.md 为本批用户授权的转述（构思主控 assign）。
+
+请核对：
+1. 根因是否找对，改动是否在最小根因层；有无吞异常、fallback、重试、兼容分支或平行 API。
+2. ticket 的每条验收是否有真实入口的证据；期望值是否来自 ticket/规格/用户原话而不是抄产品输出。
+3. 红态是否在修前版本上落在缺陷断言上；变异是否代表真实坏实现并被拒绝。
+4. 是否越出任务卡的修改边界；界面文案是否清楚、不含营销腔。
+5. 其他正确性、回归风险。
+
+这是交互会话。只用你自带的读文件/搜索工具，不要运行任何 shell 命令，不要写任何文件。可以打开截图。输出中文报告：每条发现写文件与行号、严重度（P0–P3）、失败场景。审查完把完整报告作为你最后一条回复直接输出，最后一行只写 `T-165 REVIEW PASS`、`T-165 REVIEW INCOMPLETE` 或 `T-165 REVIEW NO_GO` 之一。
