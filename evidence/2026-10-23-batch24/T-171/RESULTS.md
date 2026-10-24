@@ -14,3 +14,5 @@
 | 早期运行 green-1、red-1 | 测试未等 a1 回合结束就 reclaim，被 `worker_working` 拒，属测试错误；改为按 T-158 的静止判据等待后重跑。保留不删 |
 
 未覆盖：门禁生成的问题（`from: system`）与普通 `revoke` 的不提示路径没有在端到端里构造。
+
+agy 独立审查 PASS（`review-agy-01.md`；P3：系统问题与普通 revoke 两条不提示的分支未在端到端里构造，已在上文声明）。
