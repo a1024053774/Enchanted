@@ -37,12 +37,17 @@ if sys.argv[2] == '0':
     print('\x1b[?1004hT161_FOCUS_OUTPUT', flush=True)
 else:
     text = sys.argv[1]
-    # A controlled PTY has no model replies. Its real hook transcript contains only this input;
-    # model/effort facts remain unknown rather than inventing a provider response.
+    # Protocol test double: this identity names this deterministic driver, never a vendor model.
+    # The gate still reads a transcript and Stop facts through its unchanged production path.
     with transcript.open('a', encoding='utf-8') as stream:
         stream.write(json.dumps(dict(type='user', sessionId=os.environ['A2A_NATIVE_SESSION'],
                                     promptId=prompt_id, message=dict(role='user', content=text))) + '\n')
     hook('UserPromptSubmit', prompt=text)
+    with transcript.open('a', encoding='utf-8') as stream:
+        stream.write(json.dumps(dict(type='assistant', sessionId=os.environ['A2A_NATIVE_SESSION'],
+                                    promptId=prompt_id, effort='low', message=dict(role='assistant',
+                                    model='t161-controlled-pty-no-model', content=[dict(type='text',
+                                    text='T161 deterministic PTY fixture; no model inference.')]))) + '\n')
     if os.environ['A2A_ROLE'] == 'worker' and os.environ['A2A_TASK'].endswith('+T-review'):
         Path('T-review.txt').write_text('candidate\n', encoding='utf-8')
         subprocess.run(['git', 'add', 'T-review.txt'], check=True)
@@ -54,7 +59,7 @@ else:
         print(result.stdout, result.stderr, flush=True)
         assert json.loads(result.stdout).get('queued') is True, 'submit must queue before Stop'
     if os.environ['A2A_ROLE'] != 'reviewer':
-        hook('Stop', stop_hook_active=False)
+        hook('Stop', stop_hook_active=False, effort=dict(level='low'))
 '''
 
 
@@ -68,6 +73,8 @@ def main():
     assert not args.summary.exists(), '保留旧证据，请换新路径'
     args.summary.parent.mkdir(parents=True, exist_ok=True)
     report = dict(status='INCOMPLETE', phase='setup', argv=sys.argv, checks=[], observed={}, model_calls=0,
+                  delivery_facts_source='deterministic PTY test double; not a vendor model observation',
+                  simulated_delivery_facts=dict(model='t161-controlled-pty-no-model', effort='low'),
                   code_version=subprocess.check_output(['git', 'rev-parse', args.revision or 'HEAD'], cwd=ROOT, text=True).strip())
     fixture = electron = None
 
@@ -116,6 +123,13 @@ def main():
             assert dispatched.get('ok'), dispatched
             workers[task] = dispatched['attempt']['runtime_identity']['launch']
             fixture.wait(task + ' Stop 后回合完成', lambda task=task: worker_finished(task), 40)
+            if task == 'T-review':
+                events = fixture.request('orchestration_events')['events']
+                delivery_events = [e for e in events if e.get('launch') == workers[task] and
+                                   e['type'] in ('native_turn_facts', 'relay_processed', 'relay_rejected')]
+                report['observed']['delivery_events'] = delivery_events
+                rejected = [e for e in delivery_events if e['type'] == 'relay_rejected']
+                assert not rejected, '夹具 Stop 交付被拒绝：' + json.dumps(rejected, ensure_ascii=False)
         fixture.wait('候选完成 Stop 交付', lambda: fixture.request('status', fixture.operator, task='demo+T-review')['task']['state'] == 'submitted', 30)
         verified = fixture.request('verify', fixture.terminal, task='T-review')
         assert verified.get('ok'), verified
