@@ -1,0 +1,109 @@
+// Failure modes, before implementation: Enter retires the still-current turn;
+// input is swallowed, rewritten, or delayed until Stop finishes; a genuine new
+// native prompt is ignored; an old caller survives that prompt; an old Stop or
+// duplicate old UPS clears/poisons the new turn; submit refusal facts are lost.
+// Oracle: controller #61 relays user ruling 20261024T030734Z-001.
+// This host controls the async boundary; it does not prove real CLI/PTY timing.
+import assert from 'node:assert/strict';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+
+const [source, out] = process.argv.slice(2);
+const { Panes } = await import(pathToFileURL(join(source, 'workbench/src/panes.ts')).href);
+const { OrchestrationStore } = await import(pathToFileURL(join(source, 'workbench/src/store.ts')).href);
+const { RequestRelay } = await import(pathToFileURL(join(source, 'workbench/src/relay.ts')).href);
+const checks: any[] = [];
+for (const scenario of ['input-during-stop', 'native-new-turn', 'idle-manual-prompt']) {
+  const root = join(out, scenario); mkdirSync(root);
+  const store = new OrchestrationStore(root), panes = new Panes(root, store, {}, () => {}), relay = new RequestRelay(store);
+  const record = { id: scenario, thread: scenario, task: 'demo+T-157', role: 'worker', cli: 'Claude Code',
+    worktree: root, attempt: 'a1', session: 's1', fence: 1, spec_rev: 1, turn_limit: 6, env: {} };
+  store.launch(record);
+  const original = { id: 'submission-1', dispatch: 'input:first', nativeTurn: null, at: '2026-10-24T00:00:00Z' };
+  const bytes: string[] = [];
+  const pane: any = { record, attempt: { thread_id: scenario, workspace: root }, task: {}, token: 'test-token',
+    native: 'native-session', state: 'busy', failed: null, stopped: false, archived: false, nativeEnded: false,
+    interrupted: false, active: original, turn: null, claudePromptId: 'prompt-1', claudePromptIds: new Set(['prompt-1']),
+    stopInProgress: false, writing: false, queue: [], writes: Promise.resolve(), pendingInputs: 0, inputGeneration: 0,
+    pty: { pid: 101, write: (data: string) => bytes.push(data) } };
+  panes.panes.set(record.thread, pane);
+  writeFileSync(join(root, 'native-session.jsonl'), JSON.stringify({type:'assistant',message:{model:'host-only'}})+'\n');
+  const envelope = (name: string, prompt: string) => ({hook_event_name:name,session_id:pane.native,prompt_id:prompt,
+    cwd:root,transcript_path:join(root,'native-session.jsonl'),stop_hook_active:false,effort:{level:'low'},prompt:'下一轮说明'});
+  let finishObserver=()=>{}, stopping:Promise<unknown>|undefined, pendingWrite:Promise<unknown>|undefined;
+  try {
+    if (scenario === 'idle-manual-prompt') {
+      pane.active = null; pane.claudePromptId = null; pane.state = 'idle';
+      await panes.signal(record.id, JSON.stringify(envelope('UserPromptSubmit','prompt-2')), '2026-10-24T00:02:00Z');
+      assert.equal(pane.claudePromptId, 'prompt-2');
+      assert.ok(pane.active, 'a native manual prompt must establish a submission');
+      checks.push({name:scenario,status:'PASS'});
+      continue;
+    }
+    let enterProcess!: () => void, finishProcess!: () => void;
+    const entered = new Promise<void>(resolve => {enterProcess=resolve;});
+    const finished = new Promise<void>(resolve => {finishProcess=resolve;});
+    finishObserver=finishProcess;
+    panes.processInfo = async () => {enterProcess();await finished;return {leader:102,failed:pane.failed};};
+    const input = {schema:1,request_id:'original-submit',command:'submit',task:record.task,attempt:'a1',
+      session:'s1',fence:1,spec_rev:1,commit:'1'.repeat(40)};
+    let receipt: any;
+    const stop = panes.signal(record.id, JSON.stringify(envelope('Stop','prompt-1')), '2026-10-24T00:01:00Z',
+      async (_pane: any, value: any, matched: boolean) => {
+        assert.equal(matched,true);
+        receipt = await relay.receive(record as any,{name:'original-submit.json',raw:JSON.stringify(input)},matched,async()=>{
+          const caller = await panes.caller({launch:record.id,token:pane.token,native_session:pane.native,prompt_id:value.prompt_id});
+          await caller.assertActive();
+          return {ok:true};
+        });
+      });
+    stopping=stop;
+    await entered;
+    const note='输入原样 / sentinel-157\r';
+    let recorded='';
+    const writing=panes.userInput(record.id,note,{request_id:'manual-note'},async(text:string)=>{recorded=text;},async()=>{});
+    pendingWrite=writing;
+    // Input must complete while the Stop's identity observation is still held.
+    await Promise.race([writing,new Promise((_,reject)=>setTimeout(()=>reject(new Error('input deferred behind Stop')),500))]);
+    assert.deepEqual(bytes,[note]);
+    assert.equal(recorded,note);
+    assert.equal(pane.active,original,'Enter alone is not a native turn transition');
+    assert.equal(pane.claudePromptId,'prompt-1');
+    if (scenario === 'native-new-turn') {
+      await panes.signal(record.id,JSON.stringify(envelope('UserPromptSubmit','prompt-2')),'2026-10-24T00:01:01Z');
+      assert.equal(pane.claudePromptId,'prompt-2','real native UPS must replace the old turn');
+      assert.notEqual(pane.active,original);
+    }
+    finishProcess();
+    await stop;
+    if (scenario === 'input-during-stop') {
+      assert.equal(receipt.result.ok,true);
+      assert.equal(pane.active,null);
+      assert.equal(pane.state,'idle');
+    } else {
+      assert.equal(receipt.result.error,'worker_not_active','old caller cannot survive a native new turn');
+      assert.equal(pane.claudePromptId,'prompt-2','old Stop must not clear the new turn');
+      const fact=panes.status(record.thread).delivery;
+      assert.equal(fact?.state,'rejected');
+      assert.equal(fact?.reason,'worker_not_active');
+      assert.equal(fact?.attempt,'a1');
+      const active=pane.active;
+      await panes.signal(record.id,JSON.stringify(envelope('Stop','prompt-1')),'2026-10-24T00:01:02Z');
+      await assert.rejects(panes.signal(record.id,JSON.stringify(envelope('UserPromptSubmit','prompt-1')),'2026-10-24T00:01:03Z'));
+      assert.equal(pane.active,active);
+      assert.equal(pane.failed,null);
+    }
+    checks.push({name:scenario,status:'PASS',receipt:receipt.result,bytes});
+  } catch(error) {checks.push({name:scenario,status:'INCOMPLETE',error:String(error),bytes});}
+  finally {
+    finishObserver();
+    await Promise.allSettled([stopping,pendingWrite]);
+    writeFileSync(join(root,'events.json'),JSON.stringify(store.read(),null,2)+'\n');store.close();
+  }
+}
+const report={status:checks.every(c=>c.status==='PASS')?'PASS':'INCOMPLETE',checks,
+  scope:'controlled native-hook/identity state; no real CLI, PTY, process observer or gate submit'};
+writeFileSync(join(out,'results.json'),JSON.stringify(report,null,2)+'\n',{flag:'wx'});
+console.log(JSON.stringify(report));
+process.exitCode=report.status==='PASS'?0:1;

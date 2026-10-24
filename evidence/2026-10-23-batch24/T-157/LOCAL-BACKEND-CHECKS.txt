@@ -1,0 +1,25 @@
+T-157-1 / a1，主控 #61 后端检查点；整体 INCOMPLETE。
+
+已运行（精确输入与 stdout 摘要另见各 JSON）：
+python3 -B workbench/tests/test_t157_turn_identity.py --revision ef99842b35e17c4cd69e1e58d5afca0689bf88b1 --summary evidence/2026-10-23-batch24/T-157/IDENTITY-RED-01.json
+  EXIT 1，针对 Enter 错换身份和空闲手动 UPS 的断言失败；不是启动错误。
+python3 -B workbench/tests/test_t157_turn_identity.py --summary evidence/2026-10-23-batch24/T-157/IDENTITY-GREEN-01.json
+  EXIT 0，3 场 PASS；只证明受控状态，不是真实 CLI/PTY。
+python3 -B workbench/tests/test_t157_turn_identity.py --mutant ignore-turn --summary evidence/2026-10-23-batch24/T-157/IDENTITY-MUTANT-ignore-turn-01.json
+  EXIT 1，旧 caller 被错误接受时断言失败；反证成立。
+python3 -B workbench/tests/test_t157_turn_identity.py --mutant swallow-input --summary evidence/2026-10-23-batch24/T-157/IDENTITY-MUTANT-swallow-input-01.json
+  EXIT 1，PTY 字节缺失时断言失败；反证成立。
+python3 -B workbench/tests/test_t157_turn_identity.py --mutant delay-input --summary evidence/2026-10-23-batch24/T-157/IDENTITY-MUTANT-delay-input-01.json
+  EXIT 1，输入须在 Stop 未完成时已经写出的断言失败；反证成立。
+python3 -B workbench/tests/test_t160_protocol_idle.py --summary evidence/2026-10-23-batch24/T-157/T160-STATE-REGRESSION-01.json
+  EXIT 0，既有 Codex Stop 受控状态回归 7 场 PASS。
+
+Python AST（本票三个 .py）、嵌入 WATCHER 的 node --input-type=module --check：PASS。
+python3 -B workbench/tests/test_t157_stop_input_e2e.py --help：PASS。
+zsh -n evidence/2026-10-23-batch24/T-157/RUN-OUTSIDE-02.sh：PASS。
+git diff --check：PASS。
+project_map.py status --root .：Problems 0 / Stale living docs 0（提交前）。
+
+未运行：RUN-OUTSIDE-02、真实 Electron 绿态/变异/回归、真实原生新 turn 的 Electron/UI 反例。
+renderer.tsx 未修改，等待执行主控 rebase/写入通知；独立行为验收尚未进行。
+真实供应商模型回合：0 / 12；本地未启动后台、Electron 或真实 CLI。

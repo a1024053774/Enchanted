@@ -5,12 +5,15 @@
 2. 拒绝仅排入终端反馈，侧栏与窗格头没有原因、最后确定事实或恢复入口。
 3. 探针把未命中竞态、启动失败或脚本化模型错误算成产品红态。
 4. 复跑覆盖旧证据，或把本地脚本化 API 回合冒称为真实供应商模型回合。
+5. 输入被吞、改写或延后到 Stop 结果之后，门禁通过却没有原样进入 CLI。
+6. 接受了别的 attempt/turn/提交，或用重复 submit / 自动重试取得表面成功。
 
 期望来自 T-157 Acceptance：原因与可操作恢复须在真实界面可见，绑定原 attempt。
-目前只调查红态；恢复的具体动作须等 DESIGN-QUESTION.md 裁定，尚无恢复验收。
+主控 #61 裁定：输入原样直达 CLI，Enter 不替换原生 turn；原 Stop 的 submit 应通过。
+本探针覆盖此正例；新原生 turn 的拒绝由 test_t157_turn_identity 覆盖，界面反例仍待 renderer 写入窗口。
 --revision 只选择产品源码；--mutant submit-never-active 是始终拒绝 worker 的已知坏实现。
 不修补时序、不暂停进程、不修改产品状态；只读观察 relay journal 后经 Electron 输入桥提交说明。
-若未命中 worker_not_active 则为 INCOMPLETE，保留该次现场，不自动重试。
+--revision 的修前运行应因 submit 未通过而失败；启动/时序未命中不冒称红态，不自动重试。
 """
 import argparse
 import json
@@ -22,6 +25,7 @@ import sys
 import threading
 import time
 import traceback
+import uuid
 
 from scripted_claude import Electron, Fixture, prompt_text, quote, working_directory
 
@@ -66,6 +70,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--summary', type=Path, required=True)
     parser.add_argument('--claude', default=shutil.which('claude'))
+    parser.add_argument('--note', help='可替换输入说明，默认带一次性 sentinel')
     target = parser.add_mutually_exclusive_group()
     target.add_argument('--revision')
     target.add_argument('--mutant', choices=['submit-never-active'])
@@ -75,6 +80,10 @@ def main():
                   product_head=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
                   vendor_model_turns=0, model_backend='local scripted Messages endpoint',
                   red_reproduced=False, checks=[], observed={}, errors=[])
+    note = args.note if args.note is not None else NOTE + ' sentinel-' + uuid.uuid4().hex
+    assert note.strip(), '输入 sentinel 不能为空'
+    report['input'] = note + '\r'
+    report['scope'] = 'real Electron/daemon/CLI Stop overlap positive; stale-turn state is separate; rejection UI pending'
     fixture = electron = watcher = watcher_log = None
     finish_ready, allow_finish = threading.Event(), threading.Event()
 
@@ -127,7 +136,7 @@ def main():
         ready, outcome = fixture.out / 'watcher-ready', fixture.out / 'watcher.json'
         watcher_log = (fixture.out / 'watcher.log').open('x', encoding='utf-8')
         watcher = subprocess.Popen(['node', '--input-type=module', '-e', WATCHER, str(electron.port),
-            str(fixture.state / 'state.sqlite3'), launch, pane_key, str(ready), str(outcome), NOTE],
+            str(fixture.state / 'state.sqlite3'), launch, pane_key, str(ready), str(outcome), note],
             stdout=watcher_log, stderr=subprocess.STDOUT, start_new_session=True)
         fixture.wait('CDP 观察器准备好', ready.exists, 15)
         allow_finish.set()
@@ -143,14 +152,19 @@ def main():
         results = fixture.wait('submit 有明确回执', result_seen, 30)
         rejected = [event for event in results if event['type'] == 'relay_rejected' and
                     event['data'].get('result', {}).get('error') == 'worker_not_active']
+        accepted = [event for event in results if event['type'] == 'relay_processed' and event['data'].get('result', {}).get('ok')]
+        if accepted:
+            fixture.wait('原样输入进入真实 CLI 的下一次模型请求',
+                         lambda: any(note in json.dumps(body, ensure_ascii=False) for body in fixture.api.bodies), 30)
+            fixture.wait('worker 及门禁反馈回到空闲', lambda: (
+                lambda p: p.get('state') == 'idle' and not p.get('writing') and not p.get('active') and not p.get('queued'))(
+                    fixture.request('pane_status', thread=attempt['thread_id'])), 45)
         trace = events()
         report['observed']['timeline'] = [event for event in trace if event['launch'] == launch and event['type'] in (
             'turn_end_signal', 'relay_received', 'relay_processed', 'relay_rejected', 'stop_not_matched',
-            'turn_submit_intent', 'turn_start_signal', 'terminal_input_written', 'pane_idle', 'stop_transfer_failed')]
+            'turn_submit_intent', 'turn_start_signal', 'terminal_input_write_intent', 'terminal_input_written', 'pane_idle', 'stop_transfer_failed')]
         report['observed']['gate_events'] = fixture.request('events', fixture.operator, task='demo+' + task)['events']
-        record('submit_rejected_worker_not_active', bool(rejected), results)
-        if not rejected:
-            raise RuntimeError('未命中指定竞态；本次不是 T-157 缺陷红态，不自动重试')
+        record('original_stop_submit_accepted', bool(accepted), results)
         # Let the renderer consume its normal snapshot/side-bar refresh once. This is observation, not a retry.
         time.sleep(2)
         report['observed']['pane'] = fixture.request('pane_status', thread=attempt['thread_id'])
@@ -173,23 +187,27 @@ def main():
         report['menu_screenshot'] = str(menu_shot)
         human = [event for event in report['observed']['gate_events'] if event['type'] == 'human_intervention']
         record('human_intervention_bound_original_attempt', any(event['attempt'] == attempt['attempt_id'] for event in human))
-        received = next(event for event in trace if event['type'] == 'relay_received' and
-                        event['data'].get('key') == rejected[0]['data']['key'])
-        record('input_intersects_original_stop_batch', any(received['seq'] < event['seq'] < rejected[0]['seq'] and
-               event['type'] == 'turn_submit_intent' and event['data'].get('source') == 'user'
-               for event in trace))
-        record('same_attempt_no_candidate', report['observed']['task']['current_attempt']['attempt_id'] == attempt['attempt_id'] and
-               report['observed']['task']['candidate_commit'] is None)
+        received = next(event for event in trace if event['type'] == 'relay_received' and event['data'].get('input', {}).get('command') == 'submit')
+        result_event = next(event for event in results if event['data'].get('key') == received['data']['key'])
+        input_written = [event for event in trace if event['launch'] == launch and event['type'] == 'terminal_input_written' and
+                         received['seq'] < event['seq'] < result_event['seq']]
+        record('input_intersects_original_stop_batch', bool(input_written))
+        request_ids = {event['data']['request_id'] for event in input_written}
+        record('input_bytes_unchanged', any(event['type'] == 'terminal_input_write_intent' and
+               event['data'].get('request_id') in request_ids and event['data'].get('data') == note + '\r' for event in trace))
+        record('native_cli_received_original_input', any(note in json.dumps(body, ensure_ascii=False) for body in fixture.api.bodies))
+        task_state = report['observed']['task']
+        record('submit_bound_original_attempt_and_commit', task_state['current_attempt']['attempt_id'] == attempt['attempt_id'] and
+               task_state['candidate_commit'] == received['data']['input']['commit'])
+        old_stop = next(event for event in trace if event['type'] == 'turn_end_signal' and event['seq'] < received['seq'])
+        record('submit_bound_original_native_turn', task_state['current_attempt'].get('turn_id') == old_stop['data']['prompt_id'])
+        submits = [event for event in trace if event['type'] == 'relay_received' and event['data'].get('input', {}).get('command') == 'submit']
+        record('exactly_one_submit_no_automatic_retry', len(submits) == 1)
         agent = next(row for row in report['observed']['sidebar']['agents'] if row['id'] == launch)
-        record('sidebar_unknown_header_busy', agent['state'] == 'unknown' and report['observed']['dom']['header'] == '忙',
+        record('positive_returns_idle_without_regular_recovery', agent['state'] == 'idle' and report['observed']['dom']['header'] == '空闲',
                dict(sidebar=agent['state'], header=report['observed']['dom']['header']))
-        report['red_reproduced'] = all(check['passed'] for check in report['checks'])
-        # Terminal scrollback can contain raw feedback; it does not prove persistent UI explanation/recovery.
-        dom = report['observed']['dom']
-        record('persistent_ui_explains_rejection', any(word in (dom.get('header') or '') + (dom.get('sidebar') or '')
-               for word in ['交付被拒', '交付暂停', 'worker_not_active']))
-        record('ui_has_explicit_recovery_action', any('交付' in (label or '') and any(word in label for word in ['恢复', '核对', '重新'])
-               for label in dom['actions'] + report['observed']['menu']))
+        report['red_reproduced'] = bool(rejected and input_written and task_state['current_attempt']['attempt_id'] == attempt['attempt_id'] and
+                                        task_state['candidate_commit'] is None and agent['state'] == 'unknown' and report['observed']['dom']['header'] == '忙')
         report['status'] = 'PASS' if all(check['passed'] for check in report['checks']) else 'INCOMPLETE'
     except Exception as error:
         report['errors'].append(dict(error=str(error), traceback=traceback.format_exc()))

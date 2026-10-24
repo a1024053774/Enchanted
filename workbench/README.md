@@ -751,6 +751,9 @@ Esc 后先由用户自行处理 CLI 草稿，看到输入框为空后点击“�
 声明后又有键入、粘贴、二进制输入或组合输入则拒绝陈旧放行。受管 worker 同时记人工介入。
 UserPromptSubmit 只阻断当前登记注入的正文错配，输出 hook JSON block 并保留原始诊断；
 不按文本标记拦截手打提交，不裁剪、不重送，Stop 的提交匹配语义不变。
+Claude 窗格工作中的用户输入仍原样直达 CLI，由 CLI 自己处理；Enter 不替换当前原生 turn，
+不使正在转交的 Stop 批次失效。只有新的 UserPromptSubmit 才建立下一次用户回合身份；
+此后旧 turn 的 caller 仍被拒绝。worker 的交付快照保留原 attempt、提交号及明确结果或未知结果，不自动重试。
 09A-3R2 的实际隔离场景证据已有独立版本绑定；新候选的入口检查使用真实
 daemon/window socket 与 hook CLI、模拟 PTY 和 vendor 身份，不等于实际 Claude 复验。
 
