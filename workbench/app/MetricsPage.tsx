@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import './records.css';
 
+type TurnSource = { sequence: number; type: string; time: string; in_range: boolean; file: string | null; offset: number | null; prompt_id: string | null };
 type Session = { launch: string; project: string | null; task: string | null; task_type: string | null; role: string; role_label: string;
-  cli: string | null; model: string; effort: string; requested_model: string | null; turns: number };
+  cli: string | null; model: string; effort: string; requested_model: string | null; turns: number | null; turn_sources: TurnSource[] };
 type Metrics = {
-  model_use: { sessions: Session[]; by_model: { model: string; task_type: string; sessions: number; turns: number }[] };
+  model_use: { sessions: Session[]; by_model: { model: string; task_type: string; sessions: number; turns: number | null;
+    recorded_turns: number; uncovered_sessions: number }[] };
   first_time: { integrated: number; first_time: number; rate: number | null; rejections: Record<string, number> };
   attention: { task: string; attempt: string; task_type: string; answers: number; approvals: number; interventions: number; stops: number }[];
   scores: { cli: string; model: string; effort: string; task_type: string; attempts: number; results: Record<string, number>;
@@ -50,22 +52,37 @@ export function MetricsPage({ project }: { project: string | null }) {
     {!error && metrics && <>
       <section className="metric-section" data-metric="model-use">
         <h3>模型使用</h3>
+        <p className="record-body">回合数只统计所选时间内后台采集的 Claude 回合事实和 Codex 回合上下文，按事件时间筛选。
+          项目终端主控未接入这些计数来源时显示“未覆盖”；人工输入后的回复、CLI 回执只有被这些来源采集时才计入。Reflect 复盘不在此表中，这不是全局总回合。</p>
+        <p className="record-body">0 表示该会话有计数来源，但区间内没有对应记录；“未知”表示汇总中还有未覆盖的会话。展开来源可核对会话、事件序号与原生日志位置。</p>
         {!metrics.model_use.sessions.length ? none : <>
           <table className="record-table">
-            <thead><tr><th>模型</th><th>任务类型</th><th>会话数</th><th>回合数</th></tr></thead>
+            <thead><tr><th>模型</th><th>任务类型</th><th>会话数</th><th>已记录回合数</th></tr></thead>
             <tbody>{metrics.model_use.by_model.map(row => <tr key={row.model + row.task_type} data-model={row.model} data-task-type={row.task_type}>
-              <td>{row.model}</td><td>{row.task_type}</td><td>{row.sessions}</td><td>{row.turns}</td></tr>)}</tbody>
+              <td>{row.model}</td><td>{row.task_type}</td><td>{row.sessions}</td><td>{row.turns ?? '未知'}
+                {row.uncovered_sessions > 0 && <div className="record-meta">已记录 {row.recorded_turns}；未覆盖 {row.uncovered_sessions} 个会话</div>}</td></tr>)}</tbody>
           </table>
           <table className="record-table">
-            <thead><tr><th>任务</th><th>角色</th><th>CLI</th><th>模型</th><th>强度</th><th>回合数</th></tr></thead>
+            <thead><tr><th>任务</th><th>角色</th><th>CLI</th><th>模型</th><th>强度</th><th>已记录回合数</th><th>计数来源</th></tr></thead>
             <tbody>{metrics.model_use.sessions.map(row => <tr key={row.launch} data-launch={row.launch}>
-              <td>{short(row.task)}</td><td>{row.role_label}</td><td>{row.cli ?? 'unknown'}</td><td>{row.model}</td><td>{row.effort}</td><td>{row.turns}</td></tr>)}</tbody>
+              <td>{short(row.task)}</td><td>{row.role_label}</td><td>{row.cli ?? 'unknown'}</td><td>{row.model}</td><td>{row.effort}</td>
+              <td data-turn-count>{row.turns ?? '未覆盖'}</td>
+              <td><details><summary>{row.turn_sources.length ? '查看来源' : '未接入计数来源'}</summary>
+                <div className="record-meta">会话 {row.launch}</div>
+                {row.turn_sources.map(source => <div key={source.sequence} className="record-meta">
+                  #{source.sequence} · {source.type === 'native_turn_facts' ? 'Claude 回合事实' : 'Codex 回合上下文'} · {source.time}
+                  {source.in_range ? '（区间内）' : '（区间外，不计入）'}
+                  {source.prompt_id && <div>提示 {source.prompt_id}</div>}
+                  {source.file && <div>{source.file} · 位置 {source.offset}</div>}
+                </div>)}
+              </details></td></tr>)}</tbody>
           </table>
         </>}
       </section>
       <section className="metric-section" data-metric="first-time">
         <h3>一次到位率</h3>
         <p className="record-body">第一次交付就过完整门禁、全程没人介入，才算一次到位。</p>
+        <p className="record-body">分母只含所选范围内结果为“通过”且有门禁事实的打分记录。打回原因来自所选范围内已打分的结束 attempt，尚未打分的不计入。</p>
         {metrics.first_time.rate === null ? none
           : <p className="metric-figure" data-rate={metrics.first_time.rate}>{Math.round(metrics.first_time.rate * 1000) / 10}%
             <span className="record-meta">（集成 {metrics.first_time.integrated} 个，一次到位 {metrics.first_time.first_time} 个）</span></p>}
@@ -78,7 +95,7 @@ export function MetricsPage({ project }: { project: string | null }) {
       </section>
       <section className="metric-section" data-metric="attention">
         <h3>你的注意力消耗</h3>
-        <p className="record-body">每个集成的任务一行，数的是这个任务全部 attempt 的累计。</p>
+        <p className="record-body">每个集成的任务一行，数的是这个任务全部 attempt 的累计。项目级角色批准/拒绝不摊入某个任务。</p>
         {!metrics.attention.length ? none : <table className="record-table">
           <thead><tr><th>集成的任务</th><th>任务类型</th><th>答题</th><th>审批</th><th>介入</th><th>叫停</th></tr></thead>
           <tbody>{metrics.attention.map(row => <tr key={row.task} data-task={row.task}>

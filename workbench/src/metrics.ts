@@ -16,6 +16,16 @@ export function metricsSnapshot(db: DatabaseSync, range: MetricsRange = {}) {
   // 1. Model use: every session the daemon recorded, with the model and effort its turns were observed with. A session
   // counts when it started or had turns in the range, and only its turns in the range are counted (review 01).
   const observed = new Map<string, { models: Set<string>; efforts: Set<string>; turns: number }>();
+  const turnSources = new Map<string, { sequence: number; type: string; time: string; in_range: boolean;
+    file: string | null; offset: number | null; prompt_id: string | null }[]>();
+  const source = (row: Record<string, unknown>, type: string, data: any) => {
+    const launch = String(row.launch);
+    const sources = turnSources.get(launch) ?? [];
+    sources.push({ sequence: Number(row.seq), type, time: String(row.time), in_range: inTime(String(row.time)),
+      file: typeof data.file === 'string' ? data.file : null, offset: typeof data.offset === 'number' ? data.offset : null,
+      prompt_id: typeof data.prompt_id === 'string' ? data.prompt_id : null });
+    turnSources.set(launch, sources);
+  };
   const observe = (launch: string, model: unknown, effort: unknown) => {
     const entry = observed.get(launch) ?? { models: new Set(), efforts: new Set(), turns: 0 };
     entry.models.add(typeof model === 'string' && model ? model : 'unknown');
@@ -23,15 +33,18 @@ export function metricsSnapshot(db: DatabaseSync, range: MetricsRange = {}) {
     entry.turns++;
     observed.set(launch, entry);
   };
-  for (const row of db.prepare("SELECT time, launch, data FROM orchestration_events WHERE type='native_turn_facts' ORDER BY seq").all()) {
-    if (!inTime(String(row.time))) continue;
+  for (const row of db.prepare("SELECT seq, time, launch, data FROM orchestration_events WHERE type='native_turn_facts' ORDER BY seq").all()) {
     const data = json(row.data);
+    source(row, 'native_turn_facts', data);
+    if (!inTime(String(row.time))) continue;
     observe(String(row.launch), data.model, data.effort);
   }
   // A Codex turn's facts are in its rollout's turn_context record.
-  for (const row of db.prepare("SELECT time, launch, data FROM orchestration_events WHERE type='native_record' AND json_extract(data,'$.record.type')='turn_context' ORDER BY seq").all()) {
+  for (const row of db.prepare("SELECT seq, time, launch, data FROM orchestration_events WHERE type='native_record' AND json_extract(data,'$.record.type')='turn_context' ORDER BY seq").all()) {
+    const data = json(row.data);
+    source(row, 'native_record.turn_context', data);
     if (!inTime(String(row.time))) continue;
-    const payload = json(row.data).record?.payload ?? {};
+    const payload = data.record?.payload ?? {};
     observe(String(row.launch), payload.model, payload.effort ?? payload.reasoning_effort);
   }
   // A project terminal counts as a controller session once the user approved its role request (T-119).
@@ -46,19 +59,26 @@ export function metricsSnapshot(db: DatabaseSync, range: MetricsRange = {}) {
     .filter(record => record.role !== 'shell' || controllers.has(record.id))
     .filter(record => (!range.project || record.project === range.project) && (inTime(record.created_at) || observed.has(record.id)))
     .map(record => {
-      const facts = observed.get(record.id);
+      // A source outside the selected interval proves a zero in this recorded-event count, not a native-log total.
+      const facts = observed.get(record.id) ?? (turnSources.has(record.id) ? { models: new Set(['unknown']), efforts: new Set(['unknown']), turns: 0 } : undefined);
       const controller = controllers.get(record.id);
       const role = controller ? controller.role : record.role === 'controller' ? record.preset : record.role;
       return { launch: record.id, project: record.project, task: record.task, task_type: record.task ? taskTypes.get(record.task) ?? '未知' : null,
         role, role_label: roleNames[role] ?? role ?? '未知', cli: controller ? controller.cli : record.cli ?? null,
         model: facts ? [...facts.models].join(' / ') : 'unknown', effort: facts ? [...facts.efforts].join(' / ') : 'unknown',
-        requested_model: record.model_requested ?? null, turns: facts?.turns ?? 0, created_at: record.created_at };
+        requested_model: record.model_requested ?? null, turns: facts?.turns ?? null,
+        turn_sources: turnSources.get(record.id) ?? [], created_at: record.created_at };
     });
-  const byModel = new Map<string, { model: string; task_type: string; sessions: number; turns: number }>();
+  const byModel = new Map<string, { model: string; task_type: string; sessions: number; turns: number | null; recorded_turns: number; uncovered_sessions: number }>();
   for (const session of sessions) {
     const key = session.model + '\u0000' + (session.task_type ?? '项目级');
-    const entry = byModel.get(key) ?? { model: session.model, task_type: session.task_type ?? '项目级', sessions: 0, turns: 0 };
-    entry.sessions++; entry.turns += session.turns;
+    const entry = byModel.get(key) ?? { model: session.model, task_type: session.task_type ?? '项目级', sessions: 0, turns: 0, recorded_turns: 0, uncovered_sessions: 0 };
+    entry.sessions++;
+    if (session.turns === null) { entry.uncovered_sessions++; entry.turns = null; }
+    else {
+      entry.recorded_turns += session.turns;
+      if (entry.turns !== null) entry.turns += session.turns;
+    }
     byModel.set(key, entry);
   }
 

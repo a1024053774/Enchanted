@@ -20,10 +20,13 @@ export function userInputRecords(db: DatabaseSync, project: string) {
     .map(row => JSON.parse(String(row.data)) as A2AUserInput)
     .map(input => {
       const session = roles.get(input.target.thread);
+      const roleDecision = input.source_ref?.rpc === 'role_request_decide';
       return { id: input.id, created_at: input.created_at, form: input.form, channel: input.channel, certainty: input.certainty,
         text: input.text, task: input.target.task, attempt: input.target.attempt, thread: input.target.thread,
-        launch: session?.launch ?? null, role: input.channel === 'controller-terminal' ? requested.get(input.source_ref?.label ?? '') ?? null
+        launch: session?.launch ?? null, role: roleDecision ? requested.get(input.target.request ?? '') ?? null
+          : input.channel === 'controller-terminal' ? requested.get(input.source_ref?.label ?? '') ?? null
           : session ? session.preset ?? session.role : null,
+        role_request: roleDecision ? input.target.request : null, role_event: roleDecision ? input.source_ref.source_sequence : null,
         intervention: interventions.get(input.id) ?? null, question: input.question ?? null };
     });
 }
