@@ -37,3 +37,5 @@ ready_rev: 1
 
 2026-10-23 执行主控阶段记录（票保持 open，NEEDS-DECISION）：当前 main `8933ee0f4` 实跑——`run_t082_boundary.py` exit 1、INCOMPLETE（正常 tracer 七条通过，第一个旧变异锚点已不存在）；`test_t078_quality_host_bootstrap.py` exit 0、PASS。覆盖对照 `evidence/2026-10-23-batch24/T-156/COVERAGE.md`：bootstrap 第 71～100 行是 `QualityCase.start_host → quality_chain_host.ts` 隔离 operator 凭据创建、state/kind/0600 与清理的唯一直接守护者，且它导入旧 runner 的 `run_case`，两个文件都未删、HISTORICAL.md 未改（合并 `0f413d74c`，仅证据）。上报 `20261023T223604Z-worker:b24-t156-issue-001`。原始现场按 T-088 归档外置盘（`*.archive.json`）。
 
+2026-10-24 构思主控答复 `20261024T005556Z-ideation-answer-002`：用户逐字选择“迁移后删 (Recommended)”——把凭据检查挪进现行测试，再删旧 runner 与 bootstrap 测试，覆盖不丢；迁移的变异/红态证据照常。执行主控据此开第二个 attempt（卡 T-156-2），原“不迁移”限制由该授权解除。
+
