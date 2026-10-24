@@ -37,3 +37,11 @@ ready_rev: 1
 - 复验（`findings/2026-10-24-real-user-dogfood-rerun.md`）：F02、F03、F04、F06、F07、M03、M04 本轮已走范围内消失；F01、M02 仍在；F05、M01 未能复验（额度停点）。新发现 N01、N02。
 - 执行主控事后只读核对实例事件，建缺陷级票：T-166（F01 残余：普通工作回合中输入，UPS 复用 prompt_id 被判重复、原 Stop 被拒）、T-167（N01：Codex 回执粘贴后提交未生效）、T-168（N02：只读审查窗格重叠）。
 - 独立审查 agy INCOMPLETE（报告如实、未越界）。合并 4ec08032e。实例按 T-088 归档（`evidence/2026-10-23-batch24/T-164/t164-dogfood-xn9_oslt.archive.json`）；隔离 CODEX_HOME（含 auth.json 副本与应用内 Codex 原生会话）与 operator.json 按规则删除未归档。
+
+## 阶段记录 2（2026-10-24 第二轮，票保持 open，INCOMPLETE）
+
+- 用户换 5 小时限额的新 Codex 号（构思主控 answer 20261024T072734Z-001）；T-166～T-168 修完并经 agy 审查合入后直接开跑（实例基线 5380ebb28，任务卡 `evidence/2026-10-23-batch24/T-164/card-2.md`）。开跑前 `/status` 两窗口 100% left（`rerun-2/quota-start.md`）。执行主控答复测试员三问（`rerun-2/controller-answers.md`）：允许 B 同票回收后重派、任何时刻 1 个活跃 Codex worker。
+- 09:02:52Z 外层测试员会话日志 5h 窗口已用 90%（周 14%），按卡停止；执行主控停掉实例 UI 与 daemon。走到：混合 CLI 并行、真实机械打回与修复重交、两种独审、面板答复、人工介入（工作中与交付后）、分屏、同后台重开、B 四次 revise→reclaim→重派、手动 Reflect。B 五次独审均需修复，A 回收被拒，C 未派发；**没有集成**。验收第 1 条仍未满足。
+- 复验（`findings/2026-10-24-real-user-dogfood-rerun-2.md`）：T-167 真实 Codex 复验 17 次后续消息全部自行开始回合（0.098～0.188 秒），27 个 Codex 回合均 gpt-6.1-sol/high；N02（T-168）消失；F05、M01 本轮复验为消失；F01、M02、M03 仍在。新发现 N03（工作中输入被 CLI 并入当前回合后 worker 停在等待）、N04（应用内主控写的检查器依赖 Git，独审副本无法原样运行；属模型行为，主控 v3 起已改）。
+- 执行主控核对归档实例与原生转录，建缺陷级票 T-169（N03：Claude Code 记 `absorbed_mid_turn`，T-166 仍等单独回合）。
+- 独立审查 agy INCOMPLETE（报告有证据支撑、未越界；INCOMPLETE 指运行未集成）。合并 73b7e7873。实例按 T-088 归档（`t164-dogfood-x339g6dx.archive.json`）；隔离 CODEX_HOME 与 operator.json 删除未归档；测试员采集错误目录归档（`rerun-2/capture-error.archive.json`）。
