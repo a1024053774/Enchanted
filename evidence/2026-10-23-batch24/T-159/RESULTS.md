@@ -1,6 +1,6 @@
 # T-159-1 / a1：分屏修复与验证交接
 
-状态：**INCOMPLETE（新增绿态待运行；P1 待决定）**。此前真实 Electron 红态、绿态、两个变异及 T-139 三项回归证据保留。主控消息 #37 确认 P3 前提与实测不符，撤回修改产品判据及新增按 role 判断变异的要求，仅补已批准项目主控终端分屏的真实 Electron 绿态场景。P1 验收语义仍交构思主控决定，此前通过结论不用于上调本次审查状态。
+状态：**INCOMPLETE（P1 待决定）**。消息 #39 返回新增真实 Electron 场景 PASS，原两个变异仍在预期业务断言失败；证据已核对并保留。此前红态、绿态及 T-139 三项回归证据保留。消息 #37 已撤回 P3 的产品判据修改和按 role 判断变异要求；P1 验收第 1 条仍等构思主控答复，不上调独立审查或最终验收状态。
 
 ## 范围与依据
 
@@ -80,7 +80,7 @@ zsh evidence/2026-10-23-batch24/T-159/RUN-OUTSIDE-02.sh
 
 按消息 #37，仅在 `test_t159_split_e2e.py` 末尾增加真实场景：使用夹具已完成角色申请、批准和确认的项目执行主控终端；核对真实角色与侧栏归属，在项目视图从菜单向右分屏，原 launch 和 pane key 保留，新窗格在右侧、两者目录仍为项目目录，主控批准身份不变。保留真实 `launch.role: shell`，不替换快照。新增菜单与分屏截图供复核。
 
-交主控运行：
+新增场景的重放命令（生成新路径，不覆盖已有证据）：
 
 ```sh
 zsh evidence/2026-10-23-batch24/T-159/RUN-OUTSIDE-03.sh
@@ -88,4 +88,16 @@ zsh evidence/2026-10-23-batch24/T-159/RUN-OUTSIDE-03.sh
 
 脚本只跑更新后的完整真实 Electron 绿态和原两个变异 `old-task-split`、`missing-split-guard`，每次保留新 `outside-03-*` 目录；要求新增主控场景通过，并核对原两个变异仍在预期业务断言失败。原 T-139 三项回归已在未变的产品代码上通过，本次不重复运行。
 
-本地检查：Python 测试及脚本内 oracle 的语法、`zsh -n RUN-OUTSIDE-03.sh`、UTF-8 回读和 `git diff --check` 均通过；产品源码与已验证候选无差异，项目地图无问题或过期文档。当前仅完成测试与脚本准备，新增场景未运行，不能称其已通过。P1 未决不在本 worker 范围内处置。
+本地准备检查：Python 测试及脚本内 oracle 的语法、`zsh -n RUN-OUTSIDE-03.sh`、UTF-8 回读和 `git diff --check` 均通过；产品源码与此前验证候选无差异，项目地图无问题或过期文档。
+
+消息 #39 返回 `RUN-OUTSIDE-03` rc=0，目录 `outside-03-WDUFSMFa/`，测试候选为 `7bc6b0032dddf5a1ee0aaa24d1d7dfc5b11dce59`。已核对三份测试摘要、候选号、退出码与主控分屏截图：
+
+| 场景 | 结果与证据 |
+| --- | --- |
+| 完整真实 Electron 绿态 | `green.json`：PASS，33 项检查通过，exit 0。新增项目主控已批准、项目归属、菜单可分屏、原 launch 与 pane key 保留、右侧几何位置、项目目录和主控身份保留均通过。 |
+| 原两个变异 | `mutant-old.json` 在 `task_right_explains_before_action` 失败；`mutant-guard.json` 在 `task_right_ipc_refused_with_explanation` 失败；均 exit 1，原始摘要状态 INCOMPLETE，属于预期反例被拒。没有新增按 role 判断的变异。 |
+| 脚本 oracle | `exits.txt`：`green=0 old_mutant=1 guard_mutant=1`，`oracle=0`。三次运行均零模型调用、无 cleanup_errors。 |
+
+截图：[已批准项目主控的菜单](outside-03-WDUFSMFa/green-05-controller-menu.png)、[项目主控向右分屏保留原窗格](outside-03-WDUFSMFa/green-06-controller-right-split.png)。结果目录约 1.2 MiB，仅含小文本与截图，无超过 5 MiB 的文件。原始夹具 `/private/tmp/t159-_x3ijukp`、`/private/tmp/t159-va1vzby9`、`/private/tmp/t159-g2ie3srs` 保留，由执行主控按 T-088 归档。
+
+本次只提交上述结果和报告，未改产品、测试或运行脚本。按消息 #39，之后等待构思主控对验收第 1 条的答复，期间不再改代码。
