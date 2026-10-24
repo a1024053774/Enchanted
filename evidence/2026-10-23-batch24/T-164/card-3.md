@@ -10,17 +10,18 @@
 | 模型设置 | 像用户一样在 Enchanted 的设置里把 Codex 类 worker 的模型设为 `zcode/GLM-5.3-Flash`、强度 `max`（不开 Fast），或在和应用内主控聊天时让它这样选；审查员按产品规定跟 worker 同 CLI 同模型。核对启动记录里的完整 argv 与终端状态行里的实际模型，不把请求当实际。 |
 | 并发 | 包括你自己在内，Codex 会话同时最多 3 个，所以应用内同时最多 2 个 Codex 会话（worker 加审查员）。 |
 | 非目标 | 改产品；为省用量删场景；把模型自报当验收；把 GLM 与 6.1-sol 的 worker 表现直接比较。 |
-| 修改边界 | 允许：`findings/2026-10-24-real-user-dogfood-rerun-3.md`（新报告）、`findings/README.md`（只加一行索引）、`evidence/2026-10-23-batch24/T-164/rerun-3/**`（文本证据、小截图；`glm-image-probe.md` 是执行主控写的，不要改）。禁止：`workbench/**`、其他测试、`.project-map/**`、`AGENTS.md`、`CONTEXT.md`、`evidence/2026-10-23-batch24/T-164/` 下的脚本与前两轮文件。 |
+| 修改边界 | 允许：`findings/2026-10-24-real-user-dogfood-rerun-3.md`（新报告）、`findings/README.md`（只加一行索引）、`evidence/2026-10-23-batch24/T-164/rerun-3/**`（文本证据、小截图；`glm-image-probe.md`、`quota-start*.md`、`glm-tester-attempt/` 是执行主控写的，不要改）。禁止：`workbench/**`、其他测试、`.project-map/**`、`AGENTS.md`、`CONTEXT.md`、`evidence/2026-10-23-batch24/T-164/` 下的脚本与前两轮文件。 |
 | 任务类型 | 调研 |
 | 复杂度 | L |
-| 执行器 | Codex `zcode/GLM-5.3-Flash`，`model_reasoning_effort="max"`，`service_tier="default"`（执行主控先用一次探针确认它能读截图，见 `rerun-3/glm-image-probe.md`） |
+| 执行器 | Codex `gpt-6.1-sol`，`model_reasoning_effort="high"`，`service_tier="default"`。GLM-5.3-Flash 做外层测试员的尝试没有走到第一条主控提示，用户 2026-10-24 选“等 09:11 换回 6.1-sol”，见 `rerun-3/glm-tester-attempt/README.md`；应用内 Codex 类 worker 仍用 GLM-5.3-Flash max |
 | 起点 | 本卡提交所在的 main |
-| 唯一写入者 | Herdr agent `b24-t164c`，worktree `/Users/luckye/Documents/Code/a2a-wt-t164c`，分支 `exec/t164c` |
+| 唯一写入者 | Herdr agent `b24-t164d`，worktree `/Users/luckye/Documents/Code/a2a-wt-t164d`，分支 `exec/t164d` |
 
 ## 用量
 
-- 开跑前执行主控在你的会话里读 `/status` 并记入 `rerun-3/quota-start.md`；你开始时自己看一次写进 RESULTS。GLM 经本机代理，`/status` 可能读不到它的额度，读不到就如实写“读不到”。
-- 任何窗口显示已用 ≥ 90%、或出现额度用尽/限流的报错，立即停止新的操作，写下走到哪一步与现场位置，交付 INCOMPLETE。
+- 开跑前执行主控在你的会话里读 `/status` 并记入 `rerun-3/quota-start-2.md`；你开始时从会话日志读一次写进 RESULTS。你（6.1-sol）消耗 ChatGPT 账号的 5h 与周窗口；应用内 GLM 请求不回报这个额度（`rerun-3/quota-start.md`）。
+- 你的状态栏或会话日志显示任一窗口已用 ≥ 90%，或 GLM 路线出现额度用尽、限流、鉴权报错，立即停止新的操作，写下走到哪一步与现场位置，交付 INCOMPLETE。
+- 你是上一轮主要的额度消耗处：只在需要证据时截图，读 AX 文本优先，少读整屏。
 - 应用内 Claude 真实回合合计不超过 60，逐场记录。截图只在需要证据时截，提示词精简，没有新事实不长轮询（M04）。
 
 ## 启动与怎么测
