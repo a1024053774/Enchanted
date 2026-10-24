@@ -1473,6 +1473,7 @@ export class Panes implements GateRuntime {
     if (pane) {
       return { thread, launch: pane.record.id, state: pane.failed || pane.stopped ? "unknown" : pane.state,
         lifecycle: pane.archived || pane.nativeEnded || pane.record.role === "shell" && pane.stopped ? "ended" : pane.stopped ? "interrupted" : "running", shell_pid: pane.pty.pid,
+        size: { cols: pane.pty.cols, rows: pane.pty.rows },
         state_source: pane.failed ? "runtime_failure" : "host_events", active: pane.active, native_session: pane.native,
         turn: pane.turn, writing: pane.writing, user_draft: pane.userDraft, interrupted: pane.interrupted,
         input_generation: pane.inputGeneration, interruption: pane.interruption,

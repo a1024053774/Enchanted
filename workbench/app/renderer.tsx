@@ -38,7 +38,7 @@ type Snapshot = {
     delivery?: WorkerDeliveryStatus | null;
     writing?: boolean; user_draft?: boolean; queued?: string[];
     restoration?: { status: string; error: string | null; details: string | null } | null;
-    interrupted?: boolean; interruption?: number | null; input_generation?: number; active?: { dispatch: string } | null } | null;
+    size?: { cols: number; rows: number }; interrupted?: boolean; interruption?: number | null; input_generation?: number; active?: { dispatch: string } | null } | null;
 };
 type Chunk = { launch: string; start_offset: number; next_offset: number; total_bytes: number; data_base64: string };
 type TaskItem = { task_id: string; project_id: string; title: string; state: string };
@@ -226,8 +226,15 @@ function SessionPane({ paneKey, active, screenReader, name, confirmedRole, home,
     const fit = new FitAddon(); term.loadAddon(fit);
     term.open(mount.current!);
     let writable = false, dimensions = '';
+    let ptySize: { cols: number; rows: number } | null = null;
     const resize = () => {
       if (!mount.current?.clientWidth || !mount.current?.clientHeight) return;
+      // A read-only view cannot resize the PTY, so it shows the PTY at its own size (T-168):
+      // the program draws for those columns, and another width moves its relative redraws onto other lines.
+      if (!writable && ptySize) {
+        if (term.cols !== ptySize.cols || term.rows !== ptySize.rows) term.resize(ptySize.cols, ptySize.rows);
+        return;
+      }
       fit.fit();
       const next = `${term.cols}:${term.rows}`;
       if (writable && dimensions !== next) {
@@ -311,7 +318,7 @@ function SessionPane({ paneKey, active, screenReader, name, confirmedRole, home,
             if (value.launch && !boundLaunch) { setRestoring(true); hidden = true; }
             if (value.launch) boundLaunch = value.launch.id;
             term.options.disableStdin = inputFailed || !value.input_enabled;
-            writable = value.input_enabled; resize();
+            writable = value.input_enabled; ptySize = value.pane?.size ?? null; resize();
             const p = value.pane;
             releaseBasis = settled && pendingInput === 0 && version === inputVersion && value.input_enabled && value.window_id &&
               value.launch && p?.interrupted && Number.isSafeInteger(p.interruption) && Number.isSafeInteger(p.input_generation)
@@ -492,7 +499,7 @@ function SessionPane({ paneKey, active, screenReader, name, confirmedRole, home,
           <button disabled={acting || !draftName.trim()}>保存名称</button><button type="button" onClick={() => { setRenaming(false); menuButton.current?.focus(); }}>取消</button>
         </form>}
         <QuestionsPanel questions={snapshot?.questions ?? []} enabled={inputEnabled} send={(question, answers) => window.a2a.answer(paneKey, question, answers)} />
-        <div className="terminal-scroll" data-output-offset={offset} data-restoring={restoring}>{restoring && <div className="terminal-restoring" role="status">正在恢复终端内容…</div>}<div className="terminal-mount" ref={mount} /></div>
+        <div className="terminal-scroll" data-output-offset={offset} data-restoring={restoring} data-readonly={Boolean(snapshot?.pane?.size && !snapshot.input_enabled)}>{restoring && <div className="terminal-restoring" role="status">正在恢复终端内容…</div>}<div className="terminal-mount" ref={mount} /></div>
         <TerminalScrollToBottom terminal={terminal} />
         {!shell && <div className="pane-footer"><span>{pane?.interrupted ? '请自行保留、修改或清空草稿；看到输入框空了再声明放行。'
           : snapshot?.launch?.role === 'reviewer' ? '独立审查 · 只读' : snapshot?.launch?.role === 'worker' ? '在此窗格输入会记录为人工介入' : '在此窗格输入会记录为用户输入'}</span><span>执行：{lifecycleNames[pane?.lifecycle ?? 'unknown'] ?? '未知'}</span></div>}
