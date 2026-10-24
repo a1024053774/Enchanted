@@ -1,0 +1,15 @@
+你是 a2a 项目的只读独立审查员（reviewer），审查 T-160：真实使用测试发现（M03）haiku reviewer 把审查 JSON 包进 ```json 代码块，门禁按 review_json 协议错误暂停，且无明确恢复路径。ticket 目标：（1）reviewer 启动指令与角色卡写清输出裸 JSON、输出前自检；（2）协议错误时保留原文并拒绝，不剥围栏追认通过；界面写明原因并给出恢复路径（为同一次交付新开审查）；不加自动重试。
+执行主控批准的边界扩展：允许改 workbench/src/panes.ts，仅在“该 reviewer 的审查提交协议解析失败，且该次提交对应的 Stop 已匹配完成”时补 idle/可回收事实；其他 unknown 一律拒绝回收。
+执行主控沙箱外运行：RUN-OUTSIDE-01 修前红态；RUN-OUTSIDE-02 idle 红/绿与两个状态变异（任意 unknown 可回收、忽略提交匹配）、真实 Electron 绿态、accept-fenced/unbound-review/reuse-failed 三个变异、问题页与审查集成回归均 PASS；RUN-OUTSIDE-03 真实 haiku reviewer 3 次（9/9 回合）：2 次裸 JSON 被接受，1 次仍带围栏被拒、原文保留、恢复入口可用。
+请特别核对：门禁是否仍拒绝带围栏输出且不剥围栏；恢复是否绑定原交付（同一 task/attempt/候选），不复用旧审查结论、不自动重试；panes.ts 改动是否只在上述条件成立、反例是否覆盖；界面文案是否说清原因与下一步；RESULTS 是否如实写 2/3 比例而非“均符合协议”。
+
+材料在 /Users/luckye/Documents/Code/a2a-review/T-160-r1/ 下：candidate/ 为候选 e281b1b55 只读副本（ticket 在 candidate/.project-map/tickets/，任务卡、RESULTS 与运行证据在 candidate/evidence/2026-10-23-batch24/T-160/）；full.diff 为相对起点 3aea74368 的 workbench/ 全部改动；user-decision.md 为本批用户授权的转述（构思主控 assign）。
+
+请核对：
+1. 根因是否找对，改动是否在最小根因层；有无吞异常、fallback、重试、兼容分支或平行 API。
+2. ticket 的每条验收是否有真实入口的证据；期望值是否来自 ticket/规格/用户原话而不是抄产品输出。
+3. 红态是否在修前版本上落在缺陷断言上；变异是否代表真实坏实现并被拒绝。
+4. 是否越出任务卡的修改边界；界面文案是否清楚、不含营销腔。
+5. 其他正确性、回归风险。
+
+这是交互会话。只用你自带的读文件/搜索工具，不要运行任何 shell 命令，不要写任何文件。可以打开截图。输出中文报告：每条发现写文件与行号、严重度（P0–P3）、失败场景。审查完把完整报告作为你最后一条回复直接输出，最后一行只写 `T-160 REVIEW PASS`、`T-160 REVIEW INCOMPLETE` 或 `T-160 REVIEW NO_GO` 之一。
