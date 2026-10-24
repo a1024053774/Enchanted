@@ -1741,6 +1741,7 @@ export class Panes implements GateRuntime {
       if (pane.active !== active || pane.claudePromptId !== value.prompt_id) {
         this.store.event('stop_not_matched', { ...value, stage: 'after_transfer' }, pane.record); return;
       }
+      this.dropAbsorbedPrompts(pane);
       pane.active = null; pane.claudePromptId = null; pane.permission = null;
       pane.state = pane.interrupted || pane.claudeQueuedPrompts?.length ? 'busy' : 'idle';
       this.store.event(pane.claudeQueuedPrompts?.length ? 'pane_waiting_native_queue' : pane.state === 'idle' ? 'pane_idle' : 'pane_completion_held',
@@ -1748,6 +1749,30 @@ export class Panes implements GateRuntime {
     } catch (error) {
       this.recordFailure(pane, 'stop_transfer_failed', error); throw error;
     } finally { pane.stopInProgress = false; }
+  }
+  // Input typed while a tool call is still to come is absorbed into the running
+  // turn: the CLI records queue-operation remove with reason absorbed_mid_turn and
+  // hands the text to the model with the next tool result. It never becomes a
+  // turn of its own, so the pane must not wait for one (T-169).
+  private dropAbsorbedPrompts(pane: Pane) {
+    if (!pane.claudeQueuedPrompts?.length) return;
+    const lines = readFileSync(pane.nativeFile!, 'utf8').split('\n');
+    lines.pop(); // A final partial line is not yet native evidence.
+    const removals = lines.filter(Boolean).map(line => JSON.parse(line)).filter(value =>
+      value.type === 'queue-operation' && value.operation === 'remove' && value.reason === 'absorbed_mid_turn' &&
+      value.sessionId === pane.native && typeof value.commandUuid === 'string' && value.commandUuid.length > 0 &&
+      Number.isFinite(Date.parse(value.timestamp)));
+    const used = new Set(this.store.read().filter(event => event.launch === pane.record.id && event.type === 'claude_prompt_absorbed')
+      .map(event => event.data.command_uuid));
+    pane.claudeQueuedPrompts = pane.claudeQueuedPrompts.filter(queued => {
+      const removal = removals.find(value => !used.has(value.commandUuid) && value.content === queued.prompt &&
+        Date.parse(value.timestamp) >= Date.parse(queued.received_at));
+      if (!removal) return true;
+      used.add(removal.commandUuid);
+      this.store.event('claude_prompt_absorbed', { prompt: queued.prompt, received_at: queued.received_at,
+        command_uuid: removal.commandUuid, delivery_id: removal.deliveryId ?? null, absorbed_at: removal.timestamp }, pane.record);
+      return false;
+    });
   }
   authenticate(identity: any) {
     const pane = this.byLaunch(identity.launch);

@@ -8,10 +8,17 @@
 3. 输入引起的新回合没有由原生转录登记，最终 Stop 不匹配，停在运行中。
 4. 用重复 submit / 自动重试取得表面成功，或接受了别的 attempt/提交。
 5. 把启动失败、脚本化模型错误或时序未命中算成产品红态，或覆盖旧证据。
+6. （T-169，--scenario absorbed）模型还有工具调用时输入，CLI 把它并入当前回合
+   （原生转录 queue-operation remove / absorbed_mid_turn），后台仍等它成为单独回合：
+   Stop 后停在 pane_waiting_native_queue，不回空闲，门禁回执不写入。
 
 期望来自 T-166 ticket 与用户原则（构思主控 answer 20261024T030734Z-001）：输入原样直达 CLI，
 只记人工介入；原回合交付照常通过；门禁核对不放松。
+T-169 的期望来自 T-169 ticket 与 Claude Code 原生转录对并入的说明（“within the running turn …
+rather than as a separate conversation turn”）。
 --revision 只选择产品源码（修前运行应复现红态）；不修补时序、不暂停进程。
+--scenario separate（默认）：输入时模型在写最终回复，CLI 把输入排成单独回合（T-166）。
+--scenario absorbed：输入时模型的下一步是工具调用，CLI 把输入并入当前回合（T-169）。
 """
 import argparse
 import json
@@ -37,6 +44,7 @@ def main():
     parser.add_argument('--summary', type=Path, required=True)
     parser.add_argument('--claude', default=shutil.which('claude'))
     parser.add_argument('--revision')
+    parser.add_argument('--scenario', choices=['separate', 'absorbed'], default='separate')
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
     report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision,
@@ -47,7 +55,10 @@ def main():
     input_packets = ['\x1b[200~' + note + '\x1b[201~', '\r']
     report['input'] = note
     report['input_packets'] = input_packets
-    report['scope'] = 'input typed while the original turn is still generating its final reply (not a Stop batch)'
+    report['scenario'] = args.scenario
+    report['scope'] = ('input typed while the original turn is still generating its final reply (not a Stop batch)'
+                       if args.scenario == 'separate' else
+                       'input typed while the original turn is waiting for a reply that is a tool call (T-169)')
     fixture = electron = None
     finish_ready, allow_finish = threading.Event(), threading.Event()
 
@@ -63,7 +74,10 @@ def main():
                     and any(isinstance(part, dict) and part.get('type') == 'tool_use' for part in message['content']))
         # Hold the original turn's final reply: the user types while the model is
         # still working, as in T-164 (input at 06:26:12, final reply at 06:26:13).
-        if count >= len(steps) and not allow_finish.is_set():
+        # absorbed: hold the reply that is the submit tool call instead, as in
+        # T-164-2 (input at 08:20:15 while a tool call was still to come).
+        hold = len(steps) if args.scenario == 'separate' else len(steps) - 1
+        if count == hold and not allow_finish.is_set():
             finish_ready.set()
             assert allow_finish.wait(60), '未在期限内完成输入'
         return cwd, steps, '已完成原任务。'
@@ -88,7 +102,7 @@ def main():
         assert dispatched.get('ok'), dispatched
         attempt = dispatched['attempt']
         report['observed']['attempt'] = attempt
-        fixture.wait('原回合工具已执行完、最终回复仍在生成', finish_ready.is_set, 150)
+        fixture.wait('原回合的下一次模型回复仍在生成', finish_ready.is_set, 150)
         rows = fixture.request('sidebar_snapshot')['agents']
         launch = next(row['id'] for row in rows if row['attempt'] == attempt['attempt_id'] and row['role'] == 'worker')
         selector = '[data-agent-launch=' + json.dumps(launch) + ']'
@@ -128,9 +142,13 @@ def main():
         if accepted:
             fixture.wait('原样输入进入真实 CLI 的下一次模型请求',
                          lambda: any(note in json.dumps(body, ensure_ascii=False) for body in fixture.api.bodies), 30)
-            fixture.wait('worker 回到空闲', lambda: (
-                lambda p: p.get('state') == 'idle' and not p.get('writing') and not p.get('active') and not p.get('queued'))(
-                    fixture.request('pane_status', thread=attempt['thread_id'])), 45)
+            try:
+                fixture.wait('worker 回到空闲', lambda: (
+                    lambda p: p.get('state') == 'idle' and not p.get('writing') and not p.get('active') and not p.get('queued'))(
+                        fixture.request('pane_status', thread=attempt['thread_id'])), 45)
+            except AssertionError as error:
+                # Observed outcome for the verdict below (returns_idle), not a retry.
+                report['observed']['idle_wait'] = str(error)
         else:
             # Observe the refused state for the red verdict; this is not a retry.
             time.sleep(5)
@@ -176,13 +194,31 @@ def main():
         queued = [event for event in mine if event['type'] == 'claude_prompt_queued']
         starts = [event for event in mine if event['type'] == 'turn_start_signal' and event['data'].get('origin') == 'native-transcript'
                   and queued and event['seq'] > queued[0]['seq']]
-        record('queued_native_turn_bound_and_completed', bool(starts) and any(
-            event['type'] == 'pane_idle' and event['data'].get('stop', {}).get('prompt_id') == starts[0]['data']['prompt_id'] for event in mine))
+        absorbed = [line for path in (fixture.home / '.claude/projects').rglob('*.jsonl') for line in path.read_text(encoding='utf-8').splitlines()
+                    if '"absorbed_mid_turn"' in line and note in line]
+        report['observed']['native_absorbed'] = absorbed
+        if args.scenario == 'separate':
+            record('scenario_cli_made_separate_turn', not absorbed)
+            record('queued_native_turn_bound_and_completed', bool(starts) and any(
+                event['type'] == 'pane_idle' and event['data'].get('stop', {}).get('prompt_id') == starts[0]['data']['prompt_id'] for event in mine))
+        else:
+            # The CLI absorbed the input into the running turn; there is no separate turn to wait for.
+            record('scenario_cli_absorbed_input', bool(absorbed))
+            record('no_separate_turn_awaited', not starts and not report['observed']['pane'].get('queued'), report['observed']['pane'])
+            receipts = [event for event in mine if event['type'] == 'dispatch_queued' and event['data'].get('source') == 'gate']
+            written = [event for event in mine if event['type'] == 'turn_submitted' and receipts and
+                       event['data'].get('dispatch') in {receipt['data']['id'] for receipt in receipts}]
+            record('gate_receipt_written_once', len(receipts) == 1 and len(written) == 1, dict(receipts=len(receipts), written=len(written)))
         agent = next(row for row in report['observed']['sidebar']['agents'] if row['id'] == launch)
         record('returns_idle', agent['state'] == 'idle' and report['observed']['pane'].get('state') == 'idle' and
                report['observed']['pane'].get('failed') is None, dict(sidebar=agent['state'], pane=report['observed']['pane'].get('state')))
-        # Red as observed in T-164: the reused UPS poisons the turn, its real Stop is refused, delivery never lands.
-        report['red_reproduced'] = bool(poisoned and untrusted_stop and not accepted and task_state['candidate_commit'] is None)
+        if args.scenario == 'separate':
+            # Red as observed in T-164: the reused UPS poisons the turn, its real Stop is refused, delivery never lands.
+            report['red_reproduced'] = bool(poisoned and untrusted_stop and not accepted and task_state['candidate_commit'] is None)
+        else:
+            # Red as observed in T-164-2: delivery lands, then the pane waits for a turn that never comes.
+            waiting = [event for event in mine if event['type'] == 'pane_waiting_native_queue']
+            report['red_reproduced'] = bool(absorbed and accepted and waiting and agent['state'] != 'idle')
         report['status'] = 'PASS' if all(check['passed'] for check in report['checks']) else 'INCOMPLETE'
     except Exception as error:
         report['errors'].append(dict(error=str(error), traceback=traceback.format_exc()))
