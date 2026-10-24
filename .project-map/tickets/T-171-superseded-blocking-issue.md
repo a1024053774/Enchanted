@@ -2,7 +2,7 @@
 id: T-171
 title: N07：修订重派后，旧 attempt 的 blocking 问题仍挂着“等你决定、阻塞”
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -19,10 +19,18 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 真实 Electron：revise 重派后，旧 attempt 的 blocking 问题显示“可能已随修订失效”、角标不再计入、一键确认可关闭；红态（修前仍阻塞角标）入证据。
-- [ ] 反例：未被修订影响的 blocking 问题仍阻塞；门禁自己生成的问题不显示失效提示；主控接口仍无法关闭 blocking 问题。
-- [ ] agy 独立审查。
+- [x] 真实 Electron：revise 重派后，旧 attempt 的 blocking 问题显示“可能已随修订失效”、角标不再计入、一键确认可关闭；红态（修前仍阻塞角标）入证据。
+- [x] 反例：未被修订影响的 blocking 问题仍阻塞；门禁自己生成的问题不显示失效提示；主控接口仍无法关闭 blocking 问题。
+- [x] agy 独立审查。
 
 ## 不做
 
 范围外的问题经问题上报，不顺手改。
+
+## Resolution
+
+2026-10-24 PASS。`core.ts` `readIssues`：worker 上报（`from` 不是 `system`）、仍未关闭、其 attempt 为 `revoked` 且 `revocation_reason` 为 `spec revised` 的问题读成“可能已随修订失效”，带 `superseded_by_revision`；不再计入“等你决定”（侧栏、页签角标都从这个数来）。`disposeIssue`：用户关闭这种问题时追加一条 `action` 用户输入。`IssuesPage`：卡片上加说明与“确认已失效，关闭”，原文仍在卡片上。主控关闭 blocking 照旧被拒。
+
+真实 Electron 端到端 `workbench/tests/test_t171_superseded_issue_e2e.py`：红态（`--revision 15a444674`）两条问题都“等你决定”、角标 2；绿态 2/2 PASS（角标 1、主控关闭被拒 `blocking_requires_user`、一键关闭记为用户 `action` 输入、a2 的问题不受影响）；两个变异（自动关闭、不看 attempt）都被拒；T-132 问题面板回归 PASS。证据 `evidence/2026-10-23-batch24/T-171/`。
+
+未覆盖：门禁自己生成的问题（`from: system`）在修订后保持原状只有代码路径与 README 说明，本测试没有构造这类问题；普通 `revoke`（非 revise）不显示提示，同样未单独构造。
