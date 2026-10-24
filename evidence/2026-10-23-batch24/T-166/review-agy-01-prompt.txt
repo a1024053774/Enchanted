@@ -1,0 +1,16 @@
+你是 Enchanted（a2a）项目的独立 reviewer，只读审查 T-166 的候选交付。
+
+T-166：Claude worker 在普通工作回合中（模型仍在生成最终回复、尚未进入 Stop 交付批次）收到用户在窗格里的输入时，CLI 以运行中回合的 prompt_id 发出 UserPromptSubmit；修前后台判 claude_prompt_id_reused，原回合 Stop 随后被拒（current_turn_untrusted），交付不转交、worker 停在未知（T-164 真实复现）。
+用户原则：用户输入原样直达 CLI，只记人工介入；原回合的交付照常经门禁；门禁核对不放松。
+本票由执行主控本人写（用户决定见 user-decision.md），因此写审分开靠你。改动在 workbench/src/panes.ts（排队输入条件、scan 登记时机）、README 一段、三个测试文件。
+
+材料在 /Users/luckye/Documents/Code/a2a-review/T-166-r1/ 下：candidate/ 为候选 206d3f601 只读副本（ticket 在 candidate/.project-map/tickets/，任务卡、RESULTS 与运行证据在 candidate/evidence/2026-10-23-batch24/T-166/）；full.diff 为相对起点 a808c1137 的 workbench/ 全部改动；user-decision.md 为本批用户授权的转述（构思主控 assign）。
+
+请核对：
+1. 根因是否找对，改动是否在最小根因层；有无吞异常、fallback、重试、兼容分支或平行 API。
+2. ticket 的每条验收是否有真实入口的证据；期望值是否来自 ticket/规格/用户原话而不是抄产品输出。
+3. 红态是否在修前版本上落在缺陷断言上；变异是否代表真实坏实现并被拒绝。
+4. 是否越出任务卡的修改边界；界面文案是否清楚、不含营销腔。
+5. 其他正确性、回归风险。
+
+这是交互会话。只用你自带的读文件/搜索工具，不要运行任何 shell 命令，不要写任何文件。可以打开截图。输出中文报告：每条发现写文件与行号、严重度（P0–P3）、失败场景。审查完把完整报告作为你最后一条回复直接输出，最后一行只写 `T-166 REVIEW PASS`、`T-166 REVIEW INCOMPLETE` 或 `T-166 REVIEW NO_GO` 之一。
