@@ -29,7 +29,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from scripted_claude import Electron, Fixture, prompt_text, working_directory  # noqa: E402
 
 FILES = {'T-1': 'a.txt', 'T-2': 'b.txt'}
-SLEEP = 'sleep 45'
+# Claude Code 2.1.310 blocks a standalone `sleep 45` tool call; a real long command keeps the worker running.
+SLEEP = 'python3 -c "import time; time.sleep(45)"'
 
 
 def main():

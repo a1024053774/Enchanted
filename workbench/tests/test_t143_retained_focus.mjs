@@ -15,7 +15,8 @@ try {
   assert(body, 'Actual focus effect must be found');
   let hidden = true, calls = 0;
   const textarea = {};
-  const context = vm.createContext({ active: true, focusRequest: 8, restoring: false,
+  // T-161: only writable panes take focus; this test covers a writable retained pane.
+  const context = vm.createContext({ active: true, snapshot: { input_enabled: true }, focusRequest: 8, restoring: false,
     restoredVisibility: 1, visibility: { current: { version: 2 } }, servedFocus: { current: 0 }, document: {activeElement:null},
     terminal: { textarea, focus() { calls++; if (!hidden) context.document.activeElement = textarea; } } });
   const effect = () => vm.runInContext('(function(){' + body[1] + '})()', context);

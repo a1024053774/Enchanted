@@ -51,6 +51,7 @@ const windowInterfaces = [
   ['reflect', 'reflect', ['catalog-project-sentinel']], // T-137
   ['project-settings', 'projectSettings', ['catalog-project-sentinel', ['/fixture/extra']]],
   ['pick-extra-directory', 'pickExtraDirectory', []], // T-140
+  ['review-restart', 'restartReview', ['task-one', 'attempt-one', 'review-one']], // T-160
 ];
 const paneInterfaces = [
   ['snapshot', 'snapshot', []], ['input', 'input', ['must-not-arrive']],
@@ -561,10 +562,10 @@ async function exercise(source, preloadSource) {
       const pending = bridge.newTerminal();
       await assert.rejects(() => bridge.newTerminal(), /Task view is changing/);
       const created = await pending;
-      assert.equal(created.task, null, 'Task terminal creation opens the project terminal view');
-      assert.equal(created.project.project_id, fixtureProject);
-      assert.equal(created.paneKeys.length, 1, 'Project terminal view must not contain task agents');
-      assert.ok(created.paneKeys.every(key => !selectedAgain.paneKeys.includes(key)), 'Project terminal must not reuse a task agent key');
+      // T-159: a terminal opened from a task view stays beside the task agents.
+      assert.deepEqual(JSON.parse(JSON.stringify(created.task)), fixtureTask, 'Task terminal creation keeps the task view');
+      assert.equal(created.paneKeys.length, selectedAgain.paneKeys.length + 1, 'Task view gains exactly one project terminal');
+      assert.ok(selectedAgain.paneKeys.every(key => created.paneKeys.includes(key)), 'Task agents stay in the task view');
       const shellKey = created.paneKeys.find(key => !selectedAgain.paneKeys.includes(key));
       const shell = await bridge.snapshot(shellKey);
       assert.equal(shell.launch.role, 'shell'); assert.equal(shell.task, null); assert.equal(shell.input_enabled, true);
