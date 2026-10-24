@@ -4241,10 +4241,17 @@ export class A2AGates {
         "identity_conflict",
       );
       this.checkThread(attempt, live);
-      requireGate(attempt.runtime_identity!.leader_pid !== null && attempt.runtime_identity!.native_session !== null,
+      // A CLI that exited before creating its native session (launch_failed)
+      // left no agent and no turn; its exited pane is all there is to reclaim (T-170).
+      const neverStarted = attempt.runtime_identity!.native_session === null && live.runtime_identity.native_session === null &&
+        live.stopped && !live.running && live.turn === null &&
+        live.error?.providerPresent === false && live.error.activeTurn === null;
+      requireGate(attempt.runtime_identity!.leader_pid !== null && (attempt.runtime_identity!.native_session !== null || neverStarted),
         "identity_conflict", { attempt, live });
-      this.checkErrorReclaim(live);
-      requireGate(!live.blocked, "run_blocked", live);
+      if (!neverStarted) {
+        this.checkErrorReclaim(live);
+        requireGate(!live.blocked, "run_blocked", live);
+      }
       requireGate(!live.running, "worker_working");
       this.event(taskId, "reclaim_intent", { attempt, live }, attempt.attempt_id);
       if (ownsTask && !["accepted", "abandoned", "upgraded"].includes(task.state)) this.invalidate(task, "controller reclaim");
