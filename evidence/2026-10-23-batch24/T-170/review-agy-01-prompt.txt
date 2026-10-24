@@ -1,0 +1,13 @@
+你是 a2a 项目的只读独立审查员（reviewer），审查 T-170：原生 CLI 在建立会话前启动失败（launch_failed），门禁 reclaim 要求原生会话非空、且失败窗格 blocked，使这种 attempt 永远无法回收，任务停在 claimed（T-164 第三轮 B a2 现场：Codex 账号路由超时启动即退出）。写入者是执行主控本人。用户授权转述见 user-decision.md（构思主控 answer 20261024T135340Z-ideation-answer-001：要求执行主控核对 B a2 现场并裁定，处置走门禁；被打回照常重派不限次数）。
+重点：放宽的条件是否只覆盖“确实从未启动、进程已退出、无回合、provider 不在”的情形，会不会把还活着或有过会话的 attempt 误回收；有没有绕过停止/归档/清理确认；测试替身是否如实重放现场（b-a2-pty.raw）而不是迎合实现；红态是否在修前版本落在缺陷断言上；反例是否成立。ticket 在 candidate/.project-map/tickets/T-170-reclaim-after-failed-launch.md；证据在 candidate/evidence/2026-10-23-batch24/T-170/（运行目录已归档，只留 CHECKS.json、RESULTS.md、现场 pty.raw 与 attempt 摘要）。注意 full.diff 只含 workbench/ 改动。
+
+材料在 /Users/luckye/Documents/Code/a2a-review/T-170-r1/ 下：candidate/ 为候选 aa2d7104a 只读副本（ticket 在 candidate/.project-map/tickets/，任务卡、RESULTS 与运行证据在 candidate/evidence/2026-10-23-batch24/T-170/）；full.diff 为相对起点 7a7885f7d603b1fe594dc5122f41d7988c07f976 的 workbench/ 全部改动；user-decision.md 为本批用户授权的转述（构思主控 assign）。
+
+请核对：
+1. 根因是否找对，改动是否在最小根因层；有无吞异常、fallback、重试、兼容分支或平行 API。
+2. ticket 的每条验收是否有真实入口的证据；期望值是否来自 ticket/规格/用户原话而不是抄产品输出。
+3. 红态是否在修前版本上落在缺陷断言上；变异是否代表真实坏实现并被拒绝。
+4. 是否越出任务卡的修改边界；界面文案是否清楚、不含营销腔。
+5. 其他正确性、回归风险。
+
+这是交互会话。只用你自带的读文件/搜索工具，不要运行任何 shell 命令，不要写任何文件。可以打开截图。输出中文报告：每条发现写文件与行号、严重度（P0–P3）、失败场景。审查完把完整报告作为你最后一条回复直接输出，最后一行只写 `T-170 REVIEW PASS`、`T-170 REVIEW INCOMPLETE` 或 `T-170 REVIEW NO_GO` 之一。
