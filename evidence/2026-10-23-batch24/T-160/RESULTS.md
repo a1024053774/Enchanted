@@ -79,3 +79,4 @@ RUN-OUTSIDE-03 在提交 `2df2fd2ce9f67fe1feaf9de313415d1da996c916` 上只补跑
 5. `test_t160_real_reviewers.py`：真实 haiku reviewer 3 次。为了保留真实生产启动路径，使用 3 个独立真实 haiku worker，各至多 2 回合（含交付 ACK），加 3 个 reviewer 各 1 回合，总上限 9。独立 HOME 先做原生登录预检；不写用户配置；记录完整 reviewer argv、版本、身份、原生模型事实与实际回合数。输出须有有效门禁结果，或被拒后原文与恢复按钮都存在。不自动点击真实恢复按钮。复制的登录文件仅在进程停止后删除，认证不就绪则在模型回合开始前失败。
 
 3 次真实夹具 reviewer 验证的是本票协议与恢复可见性，不是对本票候选代码的独立审查。执行主控后续按原门禁流程安排候选审查、验收与集成。未 push、合并或改地图/他人票；未追查 T-3 原文中的额外发现。最终状态检查见 `project-map-final.txt`。没有可靠性、成本或吞吐收益主张。
+- 2026-10-24 执行主控：/private/tmp/t160-login-copy-check-h6lkfh_w 内含一份 accessToken 形式的 credentials.json，按“登录副本不入证据”直接删除、未归档；其检查结论已在本目录 login-copy-check-01.json。
