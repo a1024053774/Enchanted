@@ -1,10 +1,11 @@
 # T-159-1 / a1：分屏修复与验证交接
 
-状态：**INCOMPLETE**。真实 Electron 修前红态成立；已实现最小修复，沙箱内三项 T-139 回归通过。真实 Electron 绿态、变异与独立审查待完成，不能用于集成。
+状态：**PASS（worker 实现与测试交付）**。真实 Electron 红态、绿态、两个变异及 T-139 三项回归的证据齐全。独立审查与门禁验收仍由执行主控安排，本报告不宣告集成通过。
 
 ## 范围与依据
 
 - worker：`b24-t159`；分支：`exec/t159`；产品起点：`c01742804961214ed025b6c9fb9924a1ea49ee2d`。
+- 修复提交：`9a4cc2dd68610ab143517bb9b90688f84c9d6d2c`；真实 Electron 绿态候选：`977bd408de4dd53ba4c3b320e52da372b64ee64b`（含 README 同步）。最终证据提交不修改该候选的产品代码或测试。
 - 目标：修复任务 worker 分屏后被项目普通终端替换的问题。非目标：改变 T-139 的三层视图、门禁或任务归属。
 - Ubiquitous language：使用 `CONTEXT.md` 的项目、任务、Agent 会话、普通终端术语。
 - 根因：`workbench/app/main.ts` 的 `a2a:pane-action` → `createTerminal` 未区分任务会话与普通终端。任务中分屏先调用 `shell_start`，再 `changeView` 到项目层，清掉相对窗格。`renderer.tsx` 的分屏回调只更新窗格和布局，没有同步任务标题，因此还显示旧任务上下文。真实 Electron 红态与该路径一致。
@@ -36,24 +37,39 @@
 7. 更新后的 Python 测试语法检查、`zsh -n RUN-OUTSIDE-02.sh`、`git diff --check`：通过。
 8. 产品提交后 `project_map.py status` 检出 `workbench/README.md` 过期。卡中允许修改必要 README 行，已同步普通终端章节的分屏限制，并纠正同一段仍称普通终端混入任务视图的旧说明；未修改地图。
 
-## 待主控运行
+## 沙箱外验证结果
+
+执行主控消息 #33 返回 `RUN-OUTSIDE-02` 的 rc=0。已读取 `outside-02-TzKrStnh/` 的候选号、六份测试摘要与退出码，并查看菜单和普通终端分屏截图；所有运行均无 cleanup_errors。真实后台、门禁、受控原生 PTY 与真实 Electron 经 CDP 运行；零模型调用。
+
+| 场景 | 结果与证据 |
+| --- | --- |
+| 修后真实 Electron | `green.json`：PASS，25 项检查通过，exit 0。任务右/下分屏事先说明、保持原 worker、拒绝直接 IPC 且布局和启动记录不变；普通终端从子目录右/下分屏的数量、类型、几何位置与实际 pwd 正确；切回任务与单 agent 后仍隔离。 |
+| 恢复修前实现 | `mutant-old.json`：exit 1，`task_right_explains_before_action` 失败，并再次只剩一个普通终端、原 worker 不在画面。 |
+| 仅删除创建入口检查 | `mutant-guard.json`：exit 1，菜单说明仍通过，`task_right_ipc_refused_with_explanation` 失败。证明仅禁用菜单不能通过本票验收。 |
+| T-139 selection | `selection.json`：PASS，25 项，exit 0。 |
+| T-139 layout-store | `layout-store.json`：PASS，10 项，exit 0。 |
+| T-139 terminal-catalog | `terminal-catalog.json`：PASS，2 项，exit 0。 |
+| 运行脚本 oracle | `exits.txt`：`green=0 old_mutant=1 guard_mutant=1 selection=0 layout=0 catalog=0`，`oracle=0`。两个变异摘要的原始状态均为 INCOMPLETE；脚本核对它们是上述预期业务断言失败，而非启动或清理失败，才判定变异被拒。 |
+
+截图：[任务菜单的事前说明](outside-02-TzKrStnh/green-02-menu-right.png)、[普通终端向右分屏](outside-02-TzKrStnh/green-04-shell-right.png)、[继续向下分屏](outside-02-TzKrStnh/green-04-shell-down.png)。
+
+重放命令（每次生成新目录，保留原证据）：
 
 ```sh
 zsh evidence/2026-10-23-batch24/T-159/RUN-OUTSIDE-02.sh
 ```
 
-脚本每次创建新 `outside-02-*` 目录，记录候选完整提交号，保留命令输出、摘要和截图；运行真实 Electron 绿态、两个变异及三项 T-139 回归。绿态核对任务菜单事前说明、键盘可达性、IPC 无副作用拒绝、原 worker 与保存布局不变；普通终端从子目录向右/向下分屏时核对数量、类型、几何位置和实际 pwd，并切回任务及单 agent 核对隔离。请返回输出目录。
+脚本每次创建新 `outside-02-*` 目录，记录候选完整提交号，保留命令输出、摘要和截图；运行真实 Electron 绿态、两个变异及三项 T-139 回归。绿态还核对键盘导航跳过禁用项及说明文字在当前窗口内完整可见。
 
 两个反例：`old-task-split` 在隔离源码副本中恢复修前 main/renderer，必须重现单个普通终端替换 worker；`missing-split-guard` 仅删除创建入口检查，保留菜单说明，必须被 `task_right_ipc_refused_with_explanation` 拒绝。脚本只认这些预期业务失败，启动错误和清理错误不能算杀死变异。
 
 已有相关回归列入脚本：`test_t139_selection.mjs`、`test_t139_layout_store.mjs`、`test_t139_terminal_catalog.mjs`。覆盖三层视图、保存布局与普通终端目录；它们不能替代本票真实 Electron 验收。T-139/T-143 的完整真实 Claude 性能 e2e 未运行，本票不使用真实模型。
 
-## 未完成项
+## 边界与交接
 
-- 真实 Electron 同一测试绿态、两个变异及沙箱外修后回归尚未运行。
-- 测试的修前缺陷信号已由真实 Electron 验证；其后半段普通终端分屏场景尚未运行，不能宣称覆盖通过。
-- 本次没有宣称行为验收通过，也没有独立审查结论；执行主控应在候选完成后新开只读审查。
+- 本票采用 T-159 明确允许的“不能混屏时事前说明”分支，没有让任务 worker 与项目普通终端混屏；普通终端分屏仍保留原窗格。此边界与 T-139 一致。
+- 独立审查与最终门禁验收不属于本 worker 的通过声明；执行主控按既定流程新开只读审查。
 - `frontend-less-ai-tone` 的旧独立目录在本机两个指定位置未找到；已按整合技能 `frontend-production` 的 `references/look-and-copy.md` 编写限制说明，其 `SOURCE.md` 明确该规则原样迁入。
-- 大夹具不入仓库；后续由执行主控按 T-088 归档，不覆盖或删除本次失败现场。
+- 结果目录约 1.1 MiB，仅含小文本和截图，已逐文件核对无超过 5 MiB 的文件。大夹具不入仓库；`/private/tmp/t159-u40ztvev`（绿态）、`/private/tmp/t159-5113q34s`（旧实现变异）、`/private/tmp/t159-xfpaa_9q`（缺入口检查变异）保留，后续由执行主控按 T-088 归档，不覆盖或删除失败现场。
 
-按派发要求停在 `RUN-OUTSIDE-02` 沙箱外运行交接。
+最终仅提交结果与本报告，交付执行主控继续审查、验收与集成；未改地图、ticket 或他人文件。
