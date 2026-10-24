@@ -28,3 +28,22 @@ B a2 的 Codex CLI 在启动时因账号路由超时退出 1，没有原生会�
 - 未在真实 Codex 账号路由失败下复验（外部故障不可控）。
 
 状态：agy 独立审查 PASS（`review-agy-01.md`，两条 P3：未逐项变异；ticket 待合并后关闭）。
+
+## 后续：dispatch 窗口内失败（2026-10-24，合并后全量回归发现）
+
+合并后 `RUN-MERGE-REGRESSION-11` 满负载下两项 T-170 失败：替身 Codex 在 dispatch 回执前、leader 被观察到之前就退出。dispatch 读到 `blocked` 直接拒绝 `run_blocked`，但它读到的身份只在内存里，没有保存：attempt 停在 `preparing`、`runtime_identity` 为空、任务停在 preparing；reclaim 的 `checkThread` 要求已绑定身份，仍报 identity_conflict。同一缺陷，只是失败更快。第一版修复还要求 `leader_pid` 非空，也挡这种情形。
+
+修改（`core.ts`）：dispatch 读到 blocked 时先把 attempt 与任务记为 claimed 并保存观察到的身份，再拒绝 `run_blocked`；reclaim 的“从未启动”分支不再要求 leader 已被观察到（仍要求窗格已停止、无会话、无回合、provider 不在）。
+
+测试加 `--scenario fast`（替身不停顿立刻退出 1）；dispatch 失败时从 status 读回 attempt；再派发检查改为“门禁接下任务并建了新 attempt”（替身每次都启动失败，所以再派发本身也是 run_blocked，而不是 already_claimed）。
+
+| 项 | 结果（`CHECKS-2.json`） |
+| --- | --- |
+| 红态 fast，`--revision 121f604e8`（第一版修复） | `red_reproduced`：dispatch run_blocked，reclaim identity_conflict，再派发 already_claimed |
+| 红态 fast，`--revision 6412c5e08`（修前） | 同上 |
+| 绿态 fast ×2（fast-green2-1/2） | PASS：reclaim 受理、工作区移除、门禁为再派发建新 attempt |
+| 绿态 failed（failed-green2-1 及更早 failed-green-*） | PASS |
+| 反例 hang（hang-green-*） | PASS：活进程 reclaim 仍拒绝 |
+| 探查过程中的中间运行 | fast-red-1～5、fast-green-*：测试逐步改正（读回 attempt、再派发判据）时的运行，保留不删 |
+
+全量回归 `RUN-MERGE-REGRESSION-12`（55 项，加 t170-fast）在候选 c822751c8 上的结果见 merge-wave README。
