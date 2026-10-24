@@ -88,8 +88,20 @@ for (const scenario of ['input-during-stop', 'native-new-turn', 'idle-manual-pro
       assert.equal(fact?.state,'rejected');
       assert.equal(fact?.reason,'worker_not_active');
       assert.equal(fact?.attempt,'a1');
+      assert.equal(fact?.native_turn_changed,true,'the refusal must carry evidence of a genuine prompt transition');
       const active=pane.active;
-      await panes.signal(record.id,JSON.stringify(envelope('Stop','prompt-1')),'2026-10-24T00:01:02Z');
+      let stale:any;
+      await panes.signal(record.id,JSON.stringify(envelope('Stop','prompt-1')),'2026-10-24T00:01:02Z',
+        async(_p:any,_v:any,matched:boolean)=>{
+          assert.equal(matched,false);
+          stale=await relay.receive(record as any,{name:'late.json',raw:JSON.stringify({...input,request_id:'late-submit'})},matched,
+            async()=>{throw new Error('stale Stop must never execute a gate operation');});
+        });
+      assert.equal(stale?.result.error,'relay_requires_current_stop');
+      const refused=panes.status(record.thread).delivery;
+      assert.equal(refused?.native_turn_changed,true);
+      assert.equal(refused?.request_id,'late-submit');
+      assert.equal(refused?.state,'rejected');
       await assert.rejects(panes.signal(record.id,JSON.stringify(envelope('UserPromptSubmit','prompt-1')),'2026-10-24T00:01:03Z'));
       assert.equal(pane.active,active);
       assert.equal(pane.failed,null);

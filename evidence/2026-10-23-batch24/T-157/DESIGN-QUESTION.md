@@ -8,7 +8,7 @@
 
 执行约束：输入原样直达 CLI，不拦、不延后、不改写时机或语义，只记人工介入。Enter 不得清空或替换仍有效的 turn 身份；正在进行的 Stop 批次按原 turn 核对同 attempt 的 submit，门禁的 turn/attempt/版本检查不放松。只有真实原生新 turn 已开始、旧 turn 不再当前时才明确拒绝，界面显示最后事实与原因并给最小恢复入口；不做常规的“暂停后点重新交付”，不自动重试。
 
-实现边界：先改 panes.ts/gates；renderer.tsx 等 T-159 合并后由执行主控通知 rebase 到合并后的 main，再开始写入。沙箱外运行交 RUN-OUTSIDE-02。
+实现边界：先改 panes.ts/gates；主控 #63 已给 renderer 写入窗口，主控 #65 已在沙箱外无冲突变基。确认变基后 HEAD 为 `c6725344ae81dce51656b2e44d1035a247df6604`，基于 `37c42f17aa5e0dc0b27272ba2363d713cf14f2b6`，包含 T-159/T-160。此前三个提交映射为 e909678c5、5ef0f0db5、c6725344a；历史红态材料保留当时版本，不改写。完整沙箱外候选验证见 RUN-OUTSIDE-03。
 
 此前按任务卡要求先写问题并停止；候选选项没有当作已授权验收条件。上述用户原则取代两项候选，下面的基线调查与问题为日期记录。
 
@@ -31,10 +31,12 @@
 
 ## renderer 协调
 
-尚未修改 `workbench/app/renderer.tsx`。后续预计只涉及：顶部 Snapshot/AgentItem 的事实类型、SessionPane 的状态徽标与最后事实/原因/恢复入口、renderAgents 的原因说明。具体动作随上述裁定确定；必须等执行主控回复，避开 T-159 的写入。
+主控 #63/#65 后开始修改 `workbench/app/renderer.tsx`，范围为顶部 Snapshot/AgentItem 的事实类型、SessionPane 的状态徽标与最后事实/原因/恢复入口、renderAgents 的原因说明。保留 T-159 的分屏与菜单变更。T-161 在本票交付前不写此文件。
+
+恢复入口只在有原生新 turn 证据且旧请求明确被拒时出现；回合结束、原 attempt/版本仍匹配且尚无候选时才可发送核对请求。通过现有 window_input 进入原 worker，正常记录人工介入；不调用 operator submit，不重放旧 request_id。新请求使用该拒绝事件的稳定新 request_id，仍由 CLI 排队文件和既有 relay/gate 核对。手动终端输入始终原样直达，不受恢复按钮的空闲要求影响。
 
 若裁定需要新增 Electron IPC、preload 或公开命令，当前任务卡未授权这些文件；届时先报最小扩边，不从 renderer 绕过门禁。
 
 ## 下一步与责任
 
-执行主控已运行 RUN-OUTSIDE-01，主控 #58 回传红态；主控 #61 已转述用户新原则。worker 依此修根因，RUN-OUTSIDE-02 用同一竞态验证原 submit 通过、原样输入、人工介入与原 attempt 绑定；隔离身份测试覆盖原生新 turn 拒绝旧 caller。真实 Electron 的新 turn 反例与界面验证还未完成，等待 renderer 写入窗口后接续。
+执行主控已运行 RUN-OUTSIDE-01，主控 #58 回传红态；主控 #61 已转述用户新原则，#63/#65 已解除 renderer 写入门。根因和界面候选已实现，隔离状态及构建检查通过。RUN-OUTSIDE-03 覆盖真实 Electron 正例、新 turn 后延迟旧 Stop 的反例、显式恢复、失效 attempt 禁用、坏实现及合并后的既有回归；运行与独立验收仍待执行主控，当前不把未运行项写成 PASS。

@@ -179,6 +179,11 @@ async function workerGitDenied(worktree: string) {
   const common = (await exec("git", ["-C", worktree, "rev-parse", "--path-format=absolute", "--git-common-dir"])).stdout.trim();
   return [realpathSync(common)];
 }
+export type WorkerDeliveryStatus = {
+  task: string; attempt: string; session: string; fence: number; spec_rev: number; commit: string; request_id: string;
+  received_at: string; result_at: string | null; state: 'processing' | 'submitted' | 'rejected' | 'unknown'; reason: string | null;
+  request_turn: string | null; current_turn: string | null; native_turn_changed: boolean; recovery_request_id: string;
+};
 type Pane = {
   record: Record<string, any> & { id: string; task: string | null; attempt: string | null };
   token: string; task: A2ATask | null; attempt: A2AAttempt | null; pty: any;
@@ -1367,20 +1372,46 @@ export class Panes implements GateRuntime {
     });
     return {key,purpose,screen_id,written:true,state:pane.state};
   }
-  private deliveryStatus(record: Pane['record']) {
-    const row = this.store.db.prepare(`SELECT q.data AS received,q.time AS received_at,r.data AS outcome,r.time AS result_at
+  private deliveryStatus(record: Pane['record']): WorkerDeliveryStatus | null {
+    const row = this.store.db.prepare(`SELECT q.seq AS received_seq,q.data AS received,q.time AS received_at,
+        r.seq AS result_seq,r.data AS outcome,r.time AS result_at
       FROM orchestration_events q LEFT JOIN orchestration_events r ON r.launch=q.launch
         AND r.type IN ('relay_processed','relay_rejected') AND json_extract(r.data,'$.key')=json_extract(q.data,'$.key')
       WHERE q.launch=? AND q.type='relay_received' AND json_extract(q.data,'$.input.command')='submit'
       ORDER BY q.seq DESC,r.seq DESC LIMIT 1`).get(record.id);
-    if (!row) return null;
-    const input = JSON.parse(String(row.received)).input;
-    const result = row.outcome ? JSON.parse(String(row.outcome)).result : null;
+    // An unmatched old Stop is refused before execution, so it has no relay intent.
+    // Project its explicit refusal too, without treating it as an executed request.
+    const refused = this.store.db.prepare(`SELECT seq,time,data FROM orchestration_events
+      WHERE launch=? AND type='relay_rejected' AND json_extract(data,'$.result.error')='relay_requires_current_stop'
+        AND json_extract(CASE WHEN json_valid(json_extract(data,'$.file.raw')) THEN json_extract(data,'$.file.raw') ELSE '{}' END,'$.command')='submit'
+      ORDER BY seq DESC LIMIT 1`).get(record.id);
+    const late = refused && (!row || Number(refused.seq) > Number(row.received_seq)) ? refused : null;
+    if (!row && !late) return null;
+    const data = late ? JSON.parse(String(late.data)) : null;
+    const input = late ? JSON.parse(data.file.raw) : JSON.parse(String(row!.received)).input;
+    if (input.task !== record.task || input.attempt !== record.attempt || input.session !== record.session ||
+        input.fence !== record.fence || input.spec_rev !== record.spec_rev ||
+        typeof input.commit !== 'string' || !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(input.commit) ||
+        typeof input.request_id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(input.request_id)) return null;
+    const result = late ? data.result : row!.outcome ? JSON.parse(String(row!.outcome)).result : null;
+    const sequence = Number(late?.seq ?? row!.received_seq);
+    const stop = this.store.db.prepare(`SELECT data FROM orchestration_events WHERE launch=?
+      AND type=? AND seq<? ORDER BY seq DESC LIMIT 1`).get(record.id, late ? 'stop_not_matched' : 'turn_end_signal', sequence);
+    const stopped = stop ? JSON.parse(String(stop.data)) : null;
+    const started = this.store.db.prepare(`SELECT data FROM orchestration_events WHERE launch=?
+      AND type='turn_start_signal' AND seq<=? ORDER BY seq DESC LIMIT 1`)
+      .get(record.id, Number(late?.seq ?? row!.result_seq ?? sequence));
+    const current = started ? JSON.parse(String(started.data)) : null;
+    const requestTurn = stopped?.prompt_id ?? stopped?.turn_id ?? null;
+    const currentTurn = current?.prompt_id ?? current?.turn_id ?? null;
     return { task: input.task, attempt: input.attempt, session: input.session, fence: input.fence, spec_rev: input.spec_rev,
-      request_id: input.request_id, commit: input.commit, received_at: String(row.received_at), result_at: row.result_at ?? null,
+      request_id: input.request_id, commit: input.commit, received_at: String(late?.time ?? row!.received_at),
+      result_at: late ? String(late.time) : row!.result_at === null ? null : String(row!.result_at),
       state: !result ? this.panes.get(record.thread)?.stopInProgress ? 'processing' : 'unknown'
         : result.ok ? 'submitted' : result.error === 'relay_outcome_unknown' ? 'unknown' : 'rejected',
-      reason: result?.error ?? null };
+      reason: result?.error ?? null, request_turn: requestTurn, current_turn: currentTurn,
+      native_turn_changed: Boolean(requestTurn && currentTurn && requestTurn !== currentTurn),
+      recovery_request_id: `recover-${sequence}` };
   }
   status(thread: string) {
     const record = this.store.threadLaunch(thread);
@@ -1438,7 +1469,19 @@ export class Panes implements GateRuntime {
       // before common-field validation and cannot poison the current launch.
       if (excluded) {
         check(value.session_id === pane.native || !value.session_id, 'hook_native_session_mismatch');
-        if (value.hook_event_name === 'Stop') { this.store.event('stop_not_matched', value, pane.record); return; }
+        if (value.hook_event_name === 'Stop') {
+          this.store.event('stop_not_matched', value, pane.record);
+          // Record a definite refusal for delayed requests from a known old root.
+          // matched=false prevents the relay from executing any new operation.
+          if (pane.record.cli === 'Claude Code' && pane.record.role === 'worker' &&
+              pane.claudePromptId && value.prompt_id !== pane.claudePromptId && pane.claudePromptIds?.has(value.prompt_id) &&
+              value.session_id === pane.native && !value.agent_id) {
+            validateHookEnvelope({ ...pane, claudePromptId: value.prompt_id }, value);
+            check(Number.isFinite(Date.parse(received_at)) && value.stop_hook_active === false, 'stale_stop_unverified');
+            if (transfer) await transfer(pane, value, false);
+          }
+          return;
+        }
         throw new Refusal('hook_origin_or_turn_mismatch');
       }
       check(Number.isFinite(Date.parse(received_at)), 'hook_received_at_required');

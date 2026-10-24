@@ -1,0 +1,32 @@
+T-157-1 / a1 renderer 候选；整体 INCOMPLETE，真实 Electron 与独立验收待主控。
+
+版本与变基：主控 #65 已在沙箱外变基，worker git log 确认 HEAD c6725344ae81dce51656b2e44d1035a247df6604。
+基线 37c42f17aa5e0dc0b27272ba2363d713cf14f2b6，含 T-159/T-160；main 后续对 workbench 无差异。
+task T-157-1 / attempt a1 / session abac2361-ec4f-4eca-bc68-ff22c9081137 / launch launch-f02b8466dd9a48fbbd146a0293ef858b。
+A2A_FENCE 未提供，不补造；交付尾注仍由现有钩子生成。
+
+python3 -B workbench/tests/test_t157_turn_identity.py --summary evidence/2026-10-23-batch24/T-157/IDENTITY-FACT-RED-02.json
+  EXIT 1；在变基后旧产品投影上，缺少 native_turn_changed 的断言失败。只改了测试后先取得红态。
+python3 -B workbench/tests/test_t157_turn_identity.py --summary evidence/2026-10-23-batch24/T-157/IDENTITY-FACT-GREEN-02.json
+  EXIT 0；补足拒绝事实及迟到旧 Stop 不执行的明确拒绝后 3 场 PASS。
+python3 -B workbench/tests/test_t157_turn_identity.py --summary evidence/2026-10-23-batch24/T-157/IDENTITY-FINAL-GREEN-03.json
+  EXIT 0；最终身份/事实实现 3 场 PASS，包含旧 caller 拒绝、原样即时输入、旧 Stop 不清新回合。
+python3 -B workbench/tests/test_t157_turn_identity.py --mutant ignore-turn --summary evidence/2026-10-23-batch24/T-157/IDENTITY-FINAL-MUTANT-ignore-turn-03.json
+python3 -B workbench/tests/test_t157_turn_identity.py --mutant swallow-input --summary evidence/2026-10-23-batch24/T-157/IDENTITY-FINAL-MUTANT-swallow-input-03.json
+python3 -B workbench/tests/test_t157_turn_identity.py --mutant delay-input --summary evidence/2026-10-23-batch24/T-157/IDENTITY-FINAL-MUTANT-delay-input-03.json
+  三项均 EXIT 1，分别因错误接受旧 caller、PTY 字节缺失、输入等 Stop 完成才写而失败；无启动错误。
+
+node app/build.mjs --slot t157-ui-20261024-01（cwd workbench）
+node app/build.mjs --slot t157-ui-20261024-02（cwd workbench）
+node app/build.mjs --slot t157-ui-20261024-03（cwd workbench）
+  三次 EXIT 0；最终版本在第三次构建。Vite 警告 chunk > 500 kB；未宣称性能变化。
+  构建清单保存为 BUILD-03.json / BUILD-04.json / BUILD-05.json；仅删除本任务成功构建的独立临时槽，未碰共享输出。
+
+Python AST（本票 .py）、RUN-OUTSIDE-03 的内嵌 Python AST、zsh -n：PASS。
+CLI --help：PASS。git diff --check：PASS。UTF-8/无 BOM/无替换字符检查：PASS。
+project_map.py status --root .：Problems 0 / Stale living docs 0（提交前）。
+
+未运行 RUN-OUTSIDE-03，未运行 renderer Computer Use；截图、原生新 turn 反例、实际恢复、expired 场景、
+三个 Electron 变异及合并后的 T-159/T-160/T-133 回归均待执行主控运行，不报 PASS。
+所有模型后台均计划用本地脚本化 Messages；真实供应商模型回合仍为 0 / 12。
+更正：LOCAL-BACKEND-CHECKS.txt 中“本票三个 .py”的数量表述不准确；当时命令按 glob 实际遍历文件做语法检查，不把该数量当覆盖证据。
