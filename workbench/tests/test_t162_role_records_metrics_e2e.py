@@ -5,12 +5,14 @@
 2. 同角色其他申请的自动拒绝被误记为用户拒绝；重复决定失败却增加输入记录。
 3. 无原生回合计数证据的主控被显示为 0；模型汇总把未知会话也加成已知的零。
 4. 逐会话行没有计数来源，页面没有说明覆盖范围，用户误把它当全局总回合。
+5. 输入记录写入失败后角色决定仍生效；批准过期又被记成一次用户拒绝。
 
 期望来自 T-162 与主控 #30：两次用户点击产生两条输入，自动拒绝不产生用户输入；
 没有回合事实的项目终端主控为未知/未覆盖。事件序号仅用于核对关联，不作为期望计数。
---revision 在指定版本运行同一场景；--mutant 由后续修复提供的已知坏实现定位。
+--revision 在指定版本运行同一场景；--mutant 在隔离源码中运行已知坏实现。
 """
 import argparse
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 import socket
@@ -28,7 +30,7 @@ def main():
     parser.add_argument('--summary', type=Path, required=True)
     target = parser.add_mutually_exclusive_group()
     target.add_argument('--revision')
-    target.add_argument('--mutant', choices=['unknown-as-zero'])
+    target.add_argument('--mutant', choices=['unknown-as-zero', 'decision-unrecorded', 'non-atomic-decision'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留旧证据，使用新路径'
     report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant,
@@ -40,9 +42,13 @@ def main():
         report['checks'].append(dict(name=name, status='PASS' if condition else 'FAIL', detail=detail))
 
     try:
-        patches = []
-        if args.mutant == 'unknown-as-zero':
-            patches = [('src/metrics.ts', 'turns: facts?.turns ?? null,', 'turns: facts?.turns ?? 0,')]
+        patches = {
+            'unknown-as-zero': [('src/metrics.ts', 'turns: facts?.turns ?? null,', 'turns: facts?.turns ?? 0,')],
+            'decision-unrecorded': [('src/roleRequests.ts',
+                'this.store.db.prepare("INSERT INTO user_inputs(id,task,message,data) VALUES (?,NULL,NULL,?)").run(inputId, JSON.stringify(input));', 'void input;')],
+            'non-atomic-decision': [('src/roleRequests.ts', 'this.store.db.exec("BEGIN IMMEDIATE");', ''),
+                                    ('src/roleRequests.ts', 'this.store.db.exec("COMMIT");', '')],
+        }.get(args.mutant, [])
         fixture = Fixture('t162-', lambda body: (_ for _ in ()).throw(AssertionError('本场景禁止模型请求')),
                           revision=args.revision, patches=patches)
         report['fixture'] = str(fixture.dir)
@@ -148,6 +154,72 @@ def main():
         check('metrics_page_labels_unknown_and_source', ('未知' in shown or '未覆盖' in shown) and '来源' in text, shown)
         check('metrics_page_explains_coverage', '全局' in text and '复盘' in text and '项目终端' in text, text)
         electron.screenshot(fixture.out / '02-metrics-unknown.png')
+
+        # Independent event fixtures exercise the real metrics API and UI for a known zero and two recorded turns.
+        # They do not claim that these synthetic sessions ran a CLI or that native-log collection is complete.
+        zero_launch, counted_launch = 'fixture-zero-' + uuid.uuid4().hex, 'fixture-counted-' + uuid.uuid4().hex
+        nonce = 'sentinel-' + uuid.uuid4().hex
+        now = datetime.now(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z')
+        with sqlite3.connect(fixture.state / 'state.sqlite3') as db:
+            for launch in (zero_launch, counted_launch):
+                record = dict(id=launch, thread=launch, role='worker', project='demo', task=None, attempt=None,
+                              session=None, worktree=str(fixture.repo), cli='Claude Code', model_requested='requested-only', created_at=now)
+                db.execute('INSERT INTO launch_records(id,task,attempt,data) VALUES (?,NULL,NULL,?)', (launch, json.dumps(record)))
+            sources = []
+            for launch, time, prompt in [(zero_launch, '2099-01-01T00:00:00.000Z', 'outside-' + nonce),
+                                          (counted_launch, now, 'first-' + nonce), (counted_launch, now, 'second-' + nonce)]:
+                cursor = db.execute('INSERT INTO orchestration_events(time,type,launch,task,attempt,data) VALUES (?,\'native_turn_facts\',?,NULL,NULL,?)',
+                                    (time, launch, json.dumps(dict(model='served-fixture', effort='high', prompt_id=prompt))))
+                sources.append(dict(sequence=cursor.lastrowid, launch=launch, prompt=prompt))
+        end = electron.evaluate('(()=>{const d=new Date();return new Date(d.getFullYear(),d.getMonth(),d.getDate()+1).toISOString()})()')
+        ranged = fixture.request('metrics', fixture.operator, project='demo', until=end)
+        counted = {row['launch']: row for row in ranged['model_use']['sessions']}
+        check('event_fixtures_distinguish_zero_unknown_and_recorded',
+              [counted[zero_launch]['turns'], counted[winner['launch']]['turns'], counted[counted_launch]['turns']] == [0, None, 2], counted)
+        electron.evaluate("(()=>{const d=new Date();const value=[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');"
+                          "const el=document.querySelectorAll('.metrics-page input[type=date]')[1];"
+                          "Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,value);el.dispatchEvent(new Event('input',{bubbles:true}));})()")
+        electron.until('已记录零与两个回合', f"document.querySelector('[data-launch=\"{zero_launch}\"] [data-turn-count]')?.textContent==='0' && "
+                       f"document.querySelector('[data-launch=\"{counted_launch}\"] [data-turn-count]')?.textContent==='2'")
+        electron.evaluate(f"document.querySelector('[data-launch=\"{counted_launch}\"] summary').click()")
+        shown_sources = electron.evaluate(f"document.querySelector('[data-launch=\"{counted_launch}\"]').innerText")
+        check('recorded_sources_are_visible_and_replayable', all(
+            str(row['sequence']) in shown_sources and row['prompt'] in shown_sources for row in sources if row['launch'] == counted_launch), shown_sources)
+        report['observed']['event_fixture_sources'] = sources
+        electron.screenshot(fixture.out / '03-metrics-sources.png')
+
+        # A user approval remains an input even if the CLI never confirms it. Expiry is not a second user decision.
+        expiring, fourth = ask(winner)
+        decide(expiring, True)
+        assert reply(fourth).get('ok'), '过期场景没有收到批准'
+        fixture.wait('批准过期', lambda: any(row['id'] == expiring for row in
+                     fixture.request('sidebar_snapshot').get('unconfirmed_role_requests', [])), 30)
+        with sqlite3.connect(f'file:{fixture.state / "state.sqlite3"}?mode=ro', uri=True) as db:
+            expired_inputs = [json.loads(row[0]) for row in db.execute(
+                "SELECT data FROM user_inputs WHERE json_extract(data,'$.target.request')=?", (expiring,))]
+        check('expiry_does_not_add_a_user_denial', len(expired_inputs) == 1 and expired_inputs[0]['form'] == 'approval', expired_inputs)
+
+        # Deliberate local storage failure: the request must remain pending, with neither half of the decision committed.
+        failed_request, fifth = ask(winner)
+        database = fixture.state / 'state.sqlite3'
+        with sqlite3.connect(database) as db:
+            db.execute("CREATE TRIGGER t162_input_failure BEFORE INSERT ON user_inputs WHEN "
+                       f"json_extract(NEW.data,'$.target.request')='{failed_request}' BEGIN SELECT RAISE(ABORT,'t162_storage_failure'); END")
+        try:
+            failed = fixture.request('role_request_decide', fixture.operator, role_request=failed_request, approved=True)
+            with sqlite3.connect(database) as db:
+                decided = db.execute("SELECT count(*) FROM orchestration_events WHERE type='role_request_decided' "
+                                     "AND json_extract(data,'$.role_request')=?", (failed_request,)).fetchone()[0]
+                inputs = db.execute("SELECT count(*) FROM user_inputs WHERE json_extract(data,'$.target.request')=?", (failed_request,)).fetchone()[0]
+            pending = any(row['id'] == failed_request for row in fixture.request('sidebar_snapshot').get('role_requests', []))
+            check('decision_and_input_roll_back_together', failed.get('ok') is False and decided == 0 and inputs == 0 and pending,
+                  dict(response=failed, decisions=decided, inputs=inputs, pending=pending))
+        finally:
+            with sqlite3.connect(database) as db:
+                db.execute('DROP TRIGGER t162_input_failure')
+            fifth.close()
+            askers.remove(fifth)
+
         assert fixture.api.requests == 0, '本场景不能消耗真实模型回合'
         report['status'] = 'PASS' if all(row['status'] == 'PASS' for row in report['checks']) else 'NO_GO'
     except BaseException as error:

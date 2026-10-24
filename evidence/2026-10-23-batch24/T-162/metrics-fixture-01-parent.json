@@ -1,0 +1,207 @@
+{
+  "status": "NO_GO",
+  "argv": [
+    "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+    "/Users/luckye/Documents/Code/a2a-wt-t162/workbench/tests/test_t162_metrics_sources.mjs",
+    "--summary",
+    "evidence/2026-10-23-batch24/T-162/metrics-fixture-01-parent.json",
+    "--revision",
+    "c01742804"
+  ],
+  "revision": "c01742804",
+  "mutant": null,
+  "fixture": "/private/tmp/t162-metrics-KkGNIG",
+  "checks": [
+    {
+      "name": "no_source_is_unknown",
+      "status": "FAIL",
+      "actual": 0,
+      "expected": null
+    },
+    {
+      "name": "verified_recorded_zero_is_distinct",
+      "status": "PASS"
+    },
+    {
+      "name": "zero_does_not_invent_observed_model",
+      "status": "PASS"
+    },
+    {
+      "name": "old_session_with_in_range_turns_is_included",
+      "status": "PASS"
+    },
+    {
+      "name": "requested_model_is_not_observed",
+      "status": "PASS"
+    },
+    {
+      "name": "codex_record_count",
+      "status": "PASS"
+    },
+    {
+      "name": "claude_replay_sources",
+      "status": "FAIL",
+      "expected": [
+        [
+          1,
+          true,
+          "first"
+        ],
+        [
+          2,
+          true,
+          "second"
+        ],
+        [
+          3,
+          false,
+          "outside"
+        ]
+      ]
+    },
+    {
+      "name": "codex_replay_source",
+      "status": "FAIL",
+      "expected": [
+        [
+          4,
+          "sessions/rollout-test.jsonl",
+          123
+        ]
+      ]
+    },
+    {
+      "name": "zero_has_excluded_source",
+      "status": "FAIL",
+      "expected": [
+        [
+          5,
+          false
+        ]
+      ]
+    },
+    {
+      "name": "no_cross_project_count",
+      "status": "PASS"
+    },
+    {
+      "name": "mixed_unknown_and_zero_group_remains_unknown",
+      "status": "FAIL",
+      "actual": [
+        0,
+        null,
+        null,
+        2
+      ],
+      "expected": [
+        null,
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "name": "counted_group_keeps_observed_total",
+      "status": "PASS"
+    },
+    {
+      "name": "scoring_contract_is_unchanged",
+      "status": "PASS"
+    }
+  ],
+  "snapshot": {
+    "range": {
+      "project": "demo",
+      "since": "2026-01-02T00:00:00.000Z",
+      "until": "2026-01-03T00:00:00.000Z"
+    },
+    "model_use": {
+      "sessions": [
+        {
+          "launch": "claude",
+          "project": "demo",
+          "task": null,
+          "task_type": null,
+          "role": "worker",
+          "role_label": "worker",
+          "cli": "Claude Code",
+          "model": "served-a",
+          "effort": "high",
+          "requested_model": "requested-must-not-be-observed",
+          "turns": 2,
+          "created_at": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "launch": "codex",
+          "project": "demo",
+          "task": null,
+          "task_type": null,
+          "role": "reviewer",
+          "role_label": "审查员",
+          "cli": "Claude Code",
+          "model": "served-b",
+          "effort": "medium",
+          "requested_model": "requested-must-not-be-observed",
+          "turns": 1,
+          "created_at": "2026-01-02T00:00:00.000Z"
+        },
+        {
+          "launch": "zero",
+          "project": "demo",
+          "task": null,
+          "task_type": null,
+          "role": "worker",
+          "role_label": "worker",
+          "cli": "Claude Code",
+          "model": "unknown",
+          "effort": "unknown",
+          "requested_model": "requested-must-not-be-observed",
+          "turns": 0,
+          "created_at": "2026-01-02T00:00:00.000Z"
+        },
+        {
+          "launch": "uncovered",
+          "project": "demo",
+          "task": null,
+          "task_type": null,
+          "role": "executor",
+          "role_label": "执行主控",
+          "cli": "Claude Code",
+          "model": "unknown",
+          "effort": "unknown",
+          "requested_model": "requested-must-not-be-observed",
+          "turns": 0,
+          "created_at": "2026-01-02T00:00:00.000Z"
+        }
+      ],
+      "by_model": [
+        {
+          "model": "served-a",
+          "task_type": "项目级",
+          "sessions": 1,
+          "turns": 2
+        },
+        {
+          "model": "served-b",
+          "task_type": "项目级",
+          "sessions": 1,
+          "turns": 1
+        },
+        {
+          "model": "unknown",
+          "task_type": "项目级",
+          "sessions": 2,
+          "turns": 0
+        }
+      ]
+    },
+    "first_time": {
+      "integrated": 0,
+      "first_time": 0,
+      "rate": null,
+      "rejections": {}
+    },
+    "attention": [],
+    "scores": []
+  }
+}

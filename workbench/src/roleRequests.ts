@@ -96,7 +96,26 @@ export class RoleRequests {
     refuse(parent === null || approved && roleRequest!.role === "executor" && typeof parent === "string" && isIdeation(parent, roleRequest!.project), "invalid_role_parent");
     // Approval is checked again here: another terminal may hold the role by now.
     if (approved) refuse(!this.holder(roleRequest!.project, roleRequest!.role), "role_taken");
-    this.store.event("role_request_decided", { role_request: roleRequest!.id, approved, ...(parent ? { parent_launch: parent } : {}) }, { id: roleRequest!.launch, task: null });
+    // This method handles the operator's decision. Automatic refusals in confirm() are separate events.
+    // Commit the decision and its user input together: a storage failure must leave the request pending.
+    this.store.db.exec("BEGIN IMMEDIATE");
+    try {
+      const inputId = randomUUID();
+      const sequence = this.store.event("role_request_decided", { role_request: roleRequest!.id, approved, input_id: inputId,
+        ...(parent ? { parent_launch: parent } : {}) }, { id: roleRequest!.launch, task: null });
+      const launch = this.store.launchRecord(roleRequest!.launch)!;
+      const input: import("./contracts/a2aGates.ts").A2AUserInput = {
+        id: inputId, schema: 1, form: approved ? "approval" : "denial",
+        text: `${approved ? "批准" : "拒绝"}角色申请：${roleRequest!.role === "ideation" ? "构思主控" : "执行主控"}`,
+        target: { project: roleRequest!.project, task: null, attempt: null, thread: launch.thread,
+          turn: null, message: null, request: roleRequest!.id, eventSequence: sequence },
+        channel: "ws-rpc", reply_to: roleRequest!.id, certainty: "observed",
+        source_ref: { rpc: "role_request_decide", source_sequence: sequence, event_id: `orchestration:${sequence}` },
+        created_at: String(this.store.db.prepare("SELECT time FROM orchestration_events WHERE seq=?").get(sequence)!.time),
+      };
+      this.store.db.prepare("INSERT INTO user_inputs(id,task,message,data) VALUES (?,NULL,NULL,?)").run(inputId, JSON.stringify(input));
+      this.store.db.exec("COMMIT");
+    } finally { if (this.store.db.isTransaction) this.store.db.exec("ROLLBACK"); }
     // A grant nobody confirms in time is ended by an event, timed on this process's
     // monotonic clock rather than the wall clock.
     if (approved) setTimeout(() => {

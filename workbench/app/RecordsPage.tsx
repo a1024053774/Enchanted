@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import './records.css';
 
 export type UserInputRecord = { id: string; created_at: string; form: string; channel: string; certainty: string; text: string;
-  task: string | null; attempt: string | null; thread: string; launch: string | null; role: string | null; intervention: number | null };
+  task: string | null; attempt: string | null; thread: string; launch: string | null; role: string | null; intervention: number | null;
+  role_request: string | null; role_event: number | null };
 const forms: Record<string, string> = { message: '消息', answer: '答复', approval: '批准', denial: '拒绝', choice: '选择', action: '操作', gap: '记录缺口' };
 const channels: Record<string, string> = { 'terminal-window': '窗格键入', 'controller-terminal': '主控终端提交', 'issue-panel': '问题面板', 'thread-message': '会话消息', 'ws-rpc': '界面操作',
   'ui-derived': '界面推断', 'settings-page': '设置页', 'commit-trailer': '提交（缺尾注）' };
@@ -58,7 +59,9 @@ export function RecordsPage({ project }: { project: string | null }) {
           <td>{roles[record.role ?? ''] ?? record.role ?? '未知会话'}</td>
           <td>{forms[record.form] ?? record.form}{record.intervention !== null && <span className="record-badge record-intervention">人工介入</span>}</td>
           <td>{channels[record.channel] ?? record.channel}{record.certainty === 'inferred' ? '（推断）' : ''}</td>
-          <td className="record-text">{content(record.text)}</td>
+          <td className="record-text">{content(record.text)}
+            {record.role_request && <div className="record-meta">角色申请 {record.role_request} · 角色事件 #{record.role_event}</div>}
+          </td>
         </tr>)}</tbody>
       </table>
     </>}
