@@ -1,8 +1,24 @@
 # T-162-1 / a1 交接
 
-状态：INCOMPLETE / NEEDS-DECISION。
+状态：INCOMPLETE（等待主控运行 RUN-OUTSIDE-01；写入边界已获批）。
 
 worker：b24-t162。分支：exec/t162。起点：c01742804。
+
+## 主控 #30 后续
+
+主控批准了所需的局部写入边界（修订卡 `1b5d6a8b5`，本分支按文执行）。已新增 `workbench/tests/test_t162_role_records_metrics_e2e.py` 与 `RUN-OUTSIDE-01.sh`：真实 Electron 中批准一个申请，确认后自动拒绝同角色竞争申请，再亲自拒绝新的申请；核对统一输入记录、关联事件与记录页，同时核对无原生计数证据的主控与汇总不显示为已知零。此轮不启动模型。
+
+尚未修改产品行为。真实 Electron 运行属于沙箱外工作，按派发约定提交脚本后停下，由主控执行：
+
+```zsh
+zsh evidence/2026-10-23-batch24/T-162/RUN-OUTSIDE-01.sh
+```
+
+脚本在 `c01742804` 源码上跑同一测试，写入带时间与随机后缀的新 summary、日志及截图；夹具留在 `/private/tmp/t162-*`，由主控按 T-088 归档。只有明确的缺陷断言失败才算红态，环境或夹具失败返回 INCOMPLETE。请回传 summary 路径后继续修复。
+
+本地静态检查 PASS：`zsh -n evidence/2026-10-23-batch24/T-162/RUN-OUTSIDE-01.sh`、测试 `--help`（含 Python 导入与语法检查）、`git diff --check`。这些不算行为验收。前端文案规则使用已合并旧技能内容的 `frontend-production/references/look-and-copy.md`。
+
+## 首次交接记录（a7ef82099）
 
 ## 已核对
 

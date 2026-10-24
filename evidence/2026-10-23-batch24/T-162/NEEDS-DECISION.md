@@ -1,6 +1,8 @@
 # T-162 写入边界核对
 
-状态：NEEDS-DECISION。task T-162-1，attempt a1，worker b24-t162，起点 c01742804。
+状态：已解决（主控 #30）。task T-162-1，attempt a1，worker b24-t162，起点 c01742804。
+
+主控 #30 已批准：允许局部修改 `daemon.ts` 的 `role_request_decide` 与 `roleRequests.ts` 的 `decide`，只记录操作员亲自的批准/拒绝并关联角色事件；自动拒绝、过期不算；`gates/core.ts` 移出允许范围。修订来源：main 提交 `1b5d6a8b5` 的任务卡，本分支按文执行，无需合并 main。下文保留初次上报内容。
 
 任务卡允许修改 `workbench/src/gates/core.ts`，限定为“仅角色批准写记录处”。实际代码中，该文件没有角色批准处理：
 
