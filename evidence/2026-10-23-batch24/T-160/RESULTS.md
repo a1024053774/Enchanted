@@ -1,6 +1,6 @@
 # T-160-1 / a1：reviewer 协议错误与同一次交付恢复
 
-状态：INCOMPLETE。修复与 RUN-OUTSIDE-02 已准备；修后真实 Electron 绿态、端到端变异、现行回归和真实 haiku 3 次仍待主控运行。当前真实模型使用 **0 回合**，不能据状态级检查宣称整票通过。
+状态：INCOMPLETE。RUN-OUTSIDE-02 的真实 Electron 绿态、端到端变异和现行回归已通过；真实 haiku 段在模型启动前因隔离登录缺失失败。已修测试的凭据准备并提供只跑真实段的 RUN-OUTSIDE-03。当前核对的真实模型使用 **0 回合**，3 次真实 reviewer 尚未完成，不能宣称整票通过。
 
 ## 范围与实现
 
@@ -15,6 +15,9 @@
 | 检查 | 结果与边界 |
 | --- | --- |
 | 修前真实 Electron 红态 | PASS（红态成立）。主控 #46 返回 RUN-OUTSIDE-01 rc=0；`red-20261024T013902Z-t160-red-outside-cp6P1m.json` 中 `fenced_output_rejected`、`raw_preserved`、`failed_review_cannot_integrate` 成立，`recovery_guidance_visible` 是指定失败；同名 PNG 为截图。现场 `/private/tmp/t160-y3qa2us6` 保留。 |
+| 修后真实 Electron 绿态 | PASS。主控 #51 返回并逐项核对 `green-20261024T020931Z-t160-verify-outside-U5psYJ.json`：16 个检查通过，覆盖闭合问题后仍能从按钮恢复、同候选/同 attempt/同验收的新会话、停止归档清理、原文留存与过期/重复恢复拒绝；两张 PNG 保留，已查看恢复后的页面。测试使用真实原生 CLI 与脚本化模型，不作为真实模型输出证明。 |
+| 端到端已知坏实现 | PASS（坏实现被拒）。同一批 `mutant-accept-fenced`、`mutant-unbound-review`、`mutant-reuse-failed` 摘要分别在 `fenced_output_rejected`、`unbound_recovery_rejected`、`same_delivery_new_review` 的指定业务断言失败，无环境/超时冒充捕获。 |
+| 现行问题页与审查集成回归 | PASS。同批 `regression-issues` 的 6 项、`regression-review-integration` 的 10 项通过，摘要与截图保留。 |
 | 本地初次真实入口 | 环境阻断，不能算缺陷红态。`sandbox-preflight-01.json`：真实 worker 交付命令返回 `Exit code 71` / `sandbox-exec: sandbox_apply: Operation not permitted`，最终交付等待超时；现场 `/private/tmp/t160-e305nd6b` 保留，后台已停止。初次夹具含换行，后将夹具收窄为无换行文本，未覆盖旧证据。 |
 | Codex Stop 状态级修前反例 | PASS（红态成立，仅状态级）。`idle-red-parent-01.json` 在明确修前版本 `3aea74368a020109027c6113a161f32db8614102` 失败于匹配协议错误不能回收、旧 Stop 清除了替换后的提交；`idle-red-01.json` 是本地首次定位运行。 |
 | Codex Stop 状态级绿态 | PASS（仅状态级）。`idle-green-01.json` 的 7 案全通过：对应提交已匹配完成的解析失败可停止；未匹配 Stop、替换提交、其他 unknown、其他审查错误、其他角色、转交抛错均不可停止。 |
@@ -22,8 +25,14 @@
 | 已知坏实现：忽略提交替换 | PASS（坏实现被拒）。`idle-mutant-ignore-submission-01.json` 在 `different_submission_not_reclaimable` 失败，证明测试不是只查一个失败标记。 |
 | 构建与语法 | PASS。标准 `node app/build.mjs --slot …` 的 `build-03.json` 是当前界面/运行时代码构建；临时构建输出已清理。`build-01.json`、`build-02.json` 是较早候选，不替后续改动背书。三次均有现有的大 chunk 提示，无构建错误。Python 编译、Node TS 语法、zsh 语法、UTF-8 回读与 diff 空白检查通过。 |
 | 旧协议回放诊断 | INCOMPLETE。`protocol-regression-01.json` 保留 `test_t082_review_protocol.ts` 使用 `t152_real_review_submit.json` 的失败：旧输入 task=`t082-real-03` 不符合当前项目限定 task id，报 `Error: task`。未修改他人测试或输入，也不将这次运行计入当前回归通过。 |
+| RUN-OUTSIDE-02 真实登录失败 | INCOMPLETE（夹具登录缺失，非审查协议失败）。`real-haiku-3-20261024T020931Z-t160-verify-outside-U5psYJ.json` 报 `isolated_login_ready`，auth 返回 1 / loggedIn false / authMethod none。`outside-02-audit.json` 核对该运行 trials 为空、原生 transcript 数 0，现场无启动配置、daemon pid、数据库、回合账本：真实消耗确认 0 回合。 |
+| 新凭据准备的合成检查 | PASS（仅本地复制逻辑，不是登录证明）。`login-copy-check-01.json` 的 6 项核对来源选择、access token 保留/refresh token 移除、0600、源对象不变、已有副本不覆盖、过期登录拒绝；读取器输入为合成数据，未访问 Keychain 或模型。新 Python 与 zsh 语法、diff 检查通过。 |
 
-状态级夹具只替换外部进程/原生记录收集，实际运行 `Panes.signal`、信任/身份信封检查、`readThread` 与 `stopThread`；假 PTY 只提供退出事件。它不能证明真实 Codex CLI、进程退出或沙箱行为。真实进程与界面恢复仍由 RUN-OUTSIDE-02 的 Claude 端到端路径验证。
+状态级夹具只替换外部进程/原生记录收集，实际运行 `Panes.signal`、信任/身份信封检查、`readThread` 与 `stopThread`；假 PTY 只提供退出事件。它不能证明真实 Codex CLI、进程退出或沙箱行为。真实进程与界面恢复已由 RUN-OUTSIDE-02 的 Claude 端到端路径验证。
+
+RUN-OUTSIDE-02 的候选为 `788df01fea0b6fadbdf3a650e91c63d71ac259f0`，日志目录 `/private/tmp/t160-verify-outside-U5psYJ`。本轮只改本票真实运行测试、脚本和证据；`git diff 788df01fea0b6fadbdf3a650e91c63d71ac259f0 -- workbench/src workbench/app workbench/roles` 为空，未改变已验证的产品路径。旧失败与原始现场均保留。
+
+主控 #51 授权沿用 T-163 的凭据准备。本票复用现有 `claudeLoginFiles.read_auth` 的精确文件/Keychain 读取路径，在一次性 HOME 的 `.claude/.credentials.json` 以 0600 写入去掉 refreshToken 的副本；登录剩余有效期不足 10 分钟即拒绝，不刷新用户共享登录。受管 Panes 当前不透传 CLAUDE_CONFIG_DIR，因此预检和实际受管 CLI 都使用其相同的默认 HOME/.claude 目录，不用仅预检生效的环境覆盖，也不改产品启动参数。停止所有自有资源后保存脱敏的原生 transcript，再删除整个隔离 HOME，包含可能的登录备份；回收未知时保留现场。凭据不进入命令行、报告或 Git。
 
 ## 授权扩展与最小改动
 
@@ -38,10 +47,10 @@
 ## 交回主控
 
 ```sh
-zsh evidence/2026-10-23-batch24/T-160/RUN-OUTSIDE-02.sh
+zsh evidence/2026-10-23-batch24/T-160/RUN-OUTSIDE-03.sh
 ```
 
-脚本逐项执行，失败即停止，不自动重试，每次写新的 summary 与日志路径：
+当前脚本只运行第 5 项的真实 haiku 段，不重复前四项。先核对已有真实摘要的总消耗为 0 且无观察未知，再预留完整 9 回合；每次写新的 summary 与日志路径，不自动重试。以下前四项已由 RUN-OUTSIDE-02 完成：
 
 1. 状态级修前/绿态及两个坏实现；不请求模型。
 2. 真实后台、原生 Claude CLI（本地脚本化接口）与 Electron：围栏拒绝、原文保留、不能集成、按钮恢复、绑定不变、新审查身份、旧审查停止归档与清理、旧错误留存、过期和重复恢复拒绝。
@@ -49,4 +58,4 @@ zsh evidence/2026-10-23-batch24/T-160/RUN-OUTSIDE-02.sh
 4. 现行 `test_t132_issues_panel_e2e.py`（问题页）与 `test_t137_reflect_e2e.py`（正常独立审查回收、评分、集成）回归。不将历史 controlled-quality host 与当前产品混跑。
 5. `test_t160_real_reviewers.py`：真实 haiku reviewer 3 次。为了保留真实生产启动路径，使用 3 个独立真实 haiku worker，各至多 2 回合（含交付 ACK），加 3 个 reviewer 各 1 回合，总上限 9。独立 HOME 先做原生登录预检；不写用户配置；记录完整 reviewer argv、版本、身份、原生模型事实与实际回合数。输出须有有效门禁结果，或被拒后原文与恢复按钮都存在。不自动点击真实恢复按钮。复制的登录文件仅在进程停止后删除，认证不就绪则在模型回合开始前失败。
 
-3 次真实 reviewer 的逐次结果、修后完整绿态、独立候选审查和最终状态待本脚本返回后填写。没有可靠性、成本或吞吐收益主张。
+3 次真实 reviewer 的逐次结果、独立候选审查和最终状态待 RUN-OUTSIDE-03 返回后填写。没有可靠性、成本或吞吐收益主张。

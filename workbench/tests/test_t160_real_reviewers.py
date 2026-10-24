@@ -4,6 +4,8 @@ Failure modes: a reviewer does not start with Haiku; output is accepted without 
 valid protocol result; invalid output loses its original text or offers no recovery;
 the three reviews reuse a session; real-turn usage exceeds nine; isolated login
 preflight fails. No scripted model response, automatic retry, or auto recovery.
+Login failures: missing/expired exact credentials, retaining refreshToken, a
+non-private credential copy, or a copy left behind after owned processes stop.
 
 Three independent tasks use real workers (at most two turns each, including the
 delivery acknowledgement) and one real reviewer turn each: total ceiling nine.
@@ -18,11 +20,28 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import time
 
 from scripted_claude import Electron, Fixture
 
 ROOT = Path(__file__).resolve().parents[2]
 MODEL = 'claude-haiku-5-5'
+
+
+def credentials(real_home, destination):
+    # Same access-token-only preparation as T-163, using the product's private
+    # reader (its stdout is captured in memory, never written to our report).
+    sys.path.insert(0, str(ROOT / 'workbench/src'))
+    from claudeLoginFiles import read_auth
+    source = real_home / '.claude/.credentials.json'
+    kind = 'file' if source.is_file() and not source.is_symlink() else 'macos-keychain'
+    oauth = read_auth(str(real_home), kind)['claudeAiOauth']
+    if oauth['expiresAt'] <= (time.time() + 600) * 1000:
+        raise RuntimeError('登录即将过期；不刷新或启动模型')
+    access_only = {key: value for key, value in oauth.items() if key != 'refreshToken'}
+    with os.fdopen(os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'w', encoding='utf-8') as stream:
+        json.dump({'claudeAiOauth': access_only}, stream)
+    return access_only['accessToken'], kind
 
 
 class RealFixture(Fixture):
@@ -61,6 +80,7 @@ def main():
     report = dict(status='INCOMPLETE', argv=sys.argv, checks=[], trials=[], real_turn_limit=9,
                   model=MODEL, real_turns_observed=0)
     fixture = electron = None
+    secret = None
 
     def check(name, condition, detail=None):
         assert condition, f'{name}: {detail}'
@@ -77,8 +97,10 @@ def main():
         for key in ('ANTHROPIC_BASE_URL', 'ANTHROPIC_AUTH_TOKEN'):
             fixture.env.pop(key, None)
         fixture.env.update({key: os.environ[key] for key in ('USER', 'LOGNAME') if key in os.environ})
-        # Only the isolated HOME is written. Let the native CLI read the user's
-        # normal keychain login, or copy its credential file privately if present.
+        # Managed Panes does not pass CLAUDE_CONFIG_DIR. Its actual default is
+        # HOME/.claude; use that identical location for both preflight and CLI.
+        private_config = fixture.home / '.claude'
+        private_config.mkdir(exist_ok=True, mode=0o700)
         config = {'hasCompletedOnboarding': True, 'theme': 'dark',
                   'projects': {str(fixture.repo): {'hasTrustDialogAccepted': True}}}
         original = Path.home() / '.claude.json'
@@ -88,11 +110,9 @@ def main():
                 config['oauthAccount'] = metadata['oauthAccount']
         (fixture.home / '.claude.json').write_text(json.dumps(config), encoding='utf-8')
         (fixture.home / '.claude.json').chmod(0o600)
-        credential = Path.home() / '.claude/.credentials.json'
-        if credential.is_file():
-            (fixture.home / '.claude').mkdir(exist_ok=True, mode=0o700)
-            shutil.copyfile(credential, fixture.home / '.claude/.credentials.json')
-            (fixture.home / '.claude/.credentials.json').chmod(0o600)
+        secret, kind = credentials(Path.home(), private_config / '.credentials.json')
+        report['login_preparation'] = dict(source=kind, config=str(private_config), refresh_token_copied=False,
+                                           credential_mode=oct((private_config / '.credentials.json').stat().st_mode & 0o777))
         auth = subprocess.run([args.claude, 'auth', 'status', '--json'], env=fixture.env,
                               capture_output=True, text=True, timeout=30)
         # Do not write account identifiers or credential material to evidence.
@@ -168,7 +188,8 @@ def main():
         check('no_scripted_model_calls', fixture.api.snapshot()['main'] == 0, fixture.api.snapshot())
         report['status'] = 'PASS'
     except BaseException as error:
-        report['error'] = f'{type(error).__name__}: {error}'
+        detail = f'{type(error).__name__}: {error}'
+        report['error'] = detail.replace(secret, '[REDACTED]') if secret else detail
     finally:
         if fixture and fixture.running:
             try:
@@ -186,14 +207,29 @@ def main():
                 except BaseException as error:
                     report['status'] = 'INCOMPLETE'
                     report.setdefault('cleanup_errors', []).append(str(error))
-        # Remove copied authentication only after the owned daemon/CLIs stopped.
+        # Preserve native evidence, then remove the complete private HOME:
+        # the CLI may have made credential backups alongside the known file.
         if fixture and not report.get('cleanup_errors'):
-            for relative in ('.claude/.credentials.json', '.claude.json'):
-                (fixture.home / relative).unlink(missing_ok=True)
-            report['copied_login_removed'] = True
+            try:
+                native = fixture.home / '.claude/projects'
+                saved = []
+                for path in sorted(native.rglob('*.jsonl')):
+                    destination = fixture.out / 'native' / path.relative_to(native)
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    raw = path.read_text(encoding='utf-8')
+                    with destination.open('x', encoding='utf-8') as stream:
+                        stream.write(raw.replace(secret, '[REDACTED]') if secret else raw)
+                    saved.append(str(destination))
+                report['native_transcripts'] = saved
+                shutil.rmtree(fixture.home)
+                report['copied_login_removed'] = not fixture.home.exists()
+            except BaseException:
+                report['status'] = 'INCOMPLETE'
+                report.setdefault('cleanup_errors', []).append('native evidence or private HOME cleanup failed; preserve instance')
         args.summary.parent.mkdir(parents=True, exist_ok=True)
         with args.summary.open('x', encoding='utf-8') as stream:
-            json.dump(report, stream, ensure_ascii=False, indent=2)
+            encoded = json.dumps(report, ensure_ascii=False, indent=2)
+            stream.write(encoded.replace(secret, '[REDACTED]') if secret else encoded)
             stream.write('\n')
     print(json.dumps(dict(status=report['status'], summary=str(args.summary), turns=report['real_turns_observed'], error=report.get('error')), ensure_ascii=False))
     return 0 if report['status'] == 'PASS' else 1
