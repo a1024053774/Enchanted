@@ -34,6 +34,7 @@
 
    这三项只证明相关逻辑与存储边界，不替代 Electron 绿态。
 7. 更新后的 Python 测试语法检查、`zsh -n RUN-OUTSIDE-02.sh`、`git diff --check`：通过。
+8. 产品提交后 `project_map.py status` 检出 `workbench/README.md` 过期。卡中允许修改必要 README 行，已同步普通终端章节的分屏限制，并纠正同一段仍称普通终端混入任务视图的旧说明；未修改地图。
 
 ## 待主控运行
 
