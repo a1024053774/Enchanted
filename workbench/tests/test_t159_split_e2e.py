@@ -5,6 +5,7 @@
 2. 仅禁用菜单，直接 IPC 仍能切走任务并创建终端。
 3. 普通终端向右/向下分屏丢原窗格、方向不对、目录不继承或混进任务。
 4. 切回任务/单 agent 后混入项目终端；拒绝操作修改了保存布局或启动记录。
+5. 已批准项目主控的终端不能向右分屏，或分屏丢失原窗格、批准身份或项目目录。
 --revision 跑指定版本；--mutant 恢复修前实现或仅删除入口检查。
 --summary 必须是新路径；原始夹具保留，由主控按 T-088 归档。
 """
@@ -168,6 +169,48 @@ if sys.argv[2] == '0':
         click('[data-agent-launch="' + shell + '"]')
         ready(shell)
         check('single_agent_only_itself', [p['launch'] for p in visible()] == [shell], visible())
+
+        # Fixture.start requests, approves and confirms this real project terminal's role.
+        # Keep the actual snapshot (role shell); do not substitute the sidebar's controller projection.
+        controller = fixture.terminal_launch
+        who = fixture.request('terminal_whoami', fixture.terminal)
+        entry = next(a for a in fixture.request('sidebar_snapshot')['agents'] if a['id'] == controller)
+        check('project_controller_approved', who.get('ok') and who.get('role') == 'executor' and
+              who.get('terminal') == controller and entry['role'] == 'controller' and entry.get('terminal') is True)
+        click('[data-agent-launch="' + controller + '"]')
+        controller_key = ready(controller)
+        before = electron.evaluate('window.a2a.selection()')
+        check('project_controller_view_is_project_scoped', before['task'] is None and
+              before['project']['project_id'] == 'demo' and list(before['launches'].values()) == [controller], before)
+        click(f'.pane[data-launch-id="{controller}"] [aria-label="窗格菜单"]')
+        menu = electron.evaluate('''(()=>{const m=document.querySelector('.pane-menu');
+            const b=[...m.querySelectorAll('button')].find(b=>b.textContent==='向右分屏');
+            return {enabled:!!b&&!b.disabled,explanation:m.textContent}})()''')
+        report['observed']['project_controller_menu'] = menu
+        shot('05-controller-menu')
+        check('project_controller_right_split_enabled', menu['enabled'] and '任务视图只展示' not in menu['explanation'], menu)
+        electron.evaluate('[...document.querySelectorAll(".pane-menu button")].find(b=>b.textContent==="向右分屏").click()')
+        electron.until('主控终端右侧新窗格', '(async()=>Object.keys((await window.a2a.selection()).launches).length===2)()')
+        selected = electron.evaluate('window.a2a.selection()')
+        launches = set(selected['launches'].values())
+        added_launch = (launches - {controller}).pop()
+        ready(added_launch)
+        panes = visible()
+        report['observed']['project_controller_split'] = dict(launch=controller, panes=panes)
+        check('project_controller_right_keeps_original', launches == {controller, added_launch} and
+              len(panes) == 2 and {p['launch'] for p in panes} == launches and
+              selected['launches'].get(controller_key) == controller and
+              selected['task'] is None and selected['project']['project_id'] == 'demo', panes)
+        original, added = [next(p for p in panes if p['launch'] == launch) for launch in (controller, added_launch)]
+        check('project_controller_right_geometry', added['x'] > original['x'] and abs(added['y']-original['y']) < 2, panes)
+        for launch in (controller, added_launch):
+            record = fixture.request('workbench_snapshot', project='demo', launch=launch)['launch']
+            check('project_controller_' + launch + '_directory', record['task'] is None and
+                  record['project'] == 'demo' and record['worktree'] == str(fixture.repo), record['worktree'])
+        who_after = fixture.request('terminal_whoami', fixture.terminal)
+        check('project_controller_role_preserved', who_after.get('role') == 'executor' and
+              who_after.get('terminal') == controller)
+        shot('06-controller-right-split')
         check('zero_model_requests', fixture.api.snapshot()['requests'] == 0, fixture.api.snapshot())
         report['status'] = 'PASS'
     except Exception as error:

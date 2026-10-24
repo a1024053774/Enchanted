@@ -1,11 +1,11 @@
 # T-159-1 / a1：分屏修复与验证交接
 
-状态：**INCOMPLETE（独立审查后待澄清）**。此前 worker 实现与测试交付的真实 Electron 红态、绿态、两个变异及 T-139 三项回归证据保留。主控消息 #34 转述独立审查 INCOMPLETE：P1 验收语义交构思主控决定；P3 的新增回归前提与当前真实快照不符，已实测并上报，未修改产品。此前通过结论不用于上调本次审查状态。
+状态：**INCOMPLETE（新增绿态待运行；P1 待决定）**。此前真实 Electron 红态、绿态、两个变异及 T-139 三项回归证据保留。主控消息 #37 确认 P3 前提与实测不符，撤回修改产品判据及新增按 role 判断变异的要求，仅补已批准项目主控终端分屏的真实 Electron 绿态场景。P1 验收语义仍交构思主控决定，此前通过结论不用于上调本次审查状态。
 
 ## 范围与依据
 
 - worker：`b24-t159`；分支：`exec/t159`；产品起点：`c01742804961214ed025b6c9fb9924a1ea49ee2d`。
-- 修复提交：`9a4cc2dd68610ab143517bb9b90688f84c9d6d2c`；真实 Electron 绿态候选：`977bd408de4dd53ba4c3b320e52da372b64ee64b`（含 README 同步）。最终证据提交不修改该候选的产品代码或测试。
+- 修复提交：`9a4cc2dd68610ab143517bb9b90688f84c9d6d2c`；已完成的真实 Electron 绿态候选：`977bd408de4dd53ba4c3b320e52da372b64ee64b`（含 README 同步）。消息 #37 的补充仅改本票测试、运行脚本和报告，不改该候选的产品代码。
 - 目标：修复任务 worker 分屏后被项目普通终端替换的问题。非目标：改变 T-139 的三层视图、门禁或任务归属。
 - Ubiquitous language：使用 `CONTEXT.md` 的项目、任务、Agent 会话、普通终端术语。
 - 根因：`workbench/app/main.ts` 的 `a2a:pane-action` → `createTerminal` 未区分任务会话与普通终端。任务中分屏先调用 `shell_start`，再 `changeView` 到项目层，清掉相对窗格。`renderer.tsx` 的分屏回调只更新窗格和布局，没有同步任务标题，因此还显示旧任务上下文。真实 Electron 红态与该路径一致。
@@ -76,4 +76,16 @@ zsh evidence/2026-10-23-batch24/T-159/RUN-OUTSIDE-02.sh
 
 消息 #34 要求项目层已批准主控可以分屏，并用按 role 判断的变异证明。事实探针发现：同一个已批准项目终端的侧栏角色为 controller，但真实 `workbench_snapshot.launch.role` 仍为 shell，因此当前菜单仍允许分屏；消息中“快照 role 变为 controller，所以被禁用”的前提尚未复现。仅把菜单改回按 role 判断的变异也不会被该真实场景拒绝。
 
-见 [问题与最小选项](ISSUE-CONTROLLER-SCOPE-01.md)、[实测摘要](controller-scope-probe-01.json) 和 [重放探针](PROBE-CONTROLLER-SCOPE-01.py)。当前保持产品与测试不变，暂停待执行主控明确复现输入或分类边界反事实的范围。`RUN-OUTSIDE-03` 尚未生成；不把未成立的反例写成通过。
+见 [原问题上报](ISSUE-CONTROLLER-SCOPE-01.md)、[实测摘要](controller-scope-probe-01.json) 和 [重放探针](PROBE-CONTROLLER-SCOPE-01.py)。执行主控消息 #37 明确：“你的探针是对的，我上一条（#34）把它定成‘回归’是错的”，并撤回产品判据修改和按 role 判断变异的要求。原上报与探针保留，不改写成已复现的产品缺陷。
+
+按消息 #37，仅在 `test_t159_split_e2e.py` 末尾增加真实场景：使用夹具已完成角色申请、批准和确认的项目执行主控终端；核对真实角色与侧栏归属，在项目视图从菜单向右分屏，原 launch 和 pane key 保留，新窗格在右侧、两者目录仍为项目目录，主控批准身份不变。保留真实 `launch.role: shell`，不替换快照。新增菜单与分屏截图供复核。
+
+交主控运行：
+
+```sh
+zsh evidence/2026-10-23-batch24/T-159/RUN-OUTSIDE-03.sh
+```
+
+脚本只跑更新后的完整真实 Electron 绿态和原两个变异 `old-task-split`、`missing-split-guard`，每次保留新 `outside-03-*` 目录；要求新增主控场景通过，并核对原两个变异仍在预期业务断言失败。原 T-139 三项回归已在未变的产品代码上通过，本次不重复运行。
+
+本地检查：Python 测试及脚本内 oracle 的语法、`zsh -n RUN-OUTSIDE-03.sh`、UTF-8 回读和 `git diff --check` 均通过；产品源码与已验证候选无差异，项目地图无问题或过期文档。当前仅完成测试与脚本准备，新增场景未运行，不能称其已通过。P1 未决不在本 worker 范围内处置。
