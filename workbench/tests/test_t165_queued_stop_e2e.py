@@ -9,7 +9,8 @@
 期望来自 T-165：先到的 Stop 在原生转录核验后仍须完成同一轮。
 复用 T-157 全部断言，不改其期望。只在临时源码副本的 Claude scan
 入口加转录可见性屏障：queued UPS 后不读取转录，真实新 Stop 的 signal
-请求返回后放开，再经真实 pane_status 入口采集。没有写 pane 或数据库。
+请求返回、原生排队记录落盘后放开，经真实 pane_process_info 入口采集，
+再用只读 pane_status 观察。没有写 pane 或数据库。
 这证明 Stop 早于转录登记，不声称控制了 CLI 的物理磁盘写入时点。
 --revision 选择产品源码；--mutant drop-early-stop 在新增缓存点丢弃 Stop。
 """
@@ -25,6 +26,35 @@ from scripted_claude import Fixture
 
 SCAN_POINT = '      if (!pane.claudeQueuedPrompts?.length) return;'
 SCAN_BARRIER = SCAN_POINT + "\n      if (!existsSync(join(this.root, 't165-transcript-visible'))) return;"
+
+
+def find_early_stop(trace):
+    """Correlate global request events with the queued hook's actual launch.
+
+    Request lifecycle events have no task/launch columns; the signal input has
+    the launch, and its response is correlated by request id.
+    """
+    queued = next((e for e in trace if e['type'] == 'claude_prompt_queued'), None)
+    if not queued:
+        return None
+    launch = queued['launch']
+    requests = [e for e in trace if e['type'] == 'request_received' and
+                e['data']['input'].get('command') == 'signal' and
+                e['data']['input'].get('launch') == launch and e['seq'] > queued['seq']]
+    for request in requests:
+        value = json.loads(request['data']['input']['raw_stdin'])
+        if value.get('hook_event_name') != 'Stop' or value.get('prompt_id') == queued['data']['prompt_id']:
+            continue
+        result = next((e for e in trace if e['type'] == 'request_result' and
+                       e['data'].get('command') == 'signal' and e['data'].get('id') == request['data']['id']), None)
+        if not result:
+            continue
+        assert result['data'].get('ok') is True, '新 Stop 请求失败，不是产品完成红态'
+        assert not any(e['launch'] == launch and e['type'] == 'turn_start_signal' and
+                       e['data'].get('prompt_id') == value['prompt_id'] for e in trace), '时序屏障未成立：新 turn 已登记'
+        return dict(stop=value, launch=launch, request_id=request['data']['id'], request_seq=request['seq'],
+                    result_seq=result['seq'], queued_seq=queued['seq'])
+    return None
 
 
 def main():
@@ -50,27 +80,32 @@ def main():
                 return super().wait(label, predicate, timeout)
 
             def early_stop_returned():
-                trace = self.request('orchestration_events', task='demo+T-157-probe')['events']
-                queued = next((e for e in trace if e['type'] == 'claude_prompt_queued'), None)
-                if not queued:
+                # Task-filtered events omit request_received/request_result.
+                trace = self.request('orchestration_events')['events']
+                found = find_early_stop(trace)
+                if not found:
                     return False
-                requests = [e for e in trace if e['type'] == 'request_received' and
-                            e['data']['input'].get('command') == 'signal' and e['seq'] > queued['seq']]
-                for request in requests:
-                    value = json.loads(request['data']['input']['raw_stdin'])
-                    if value.get('hook_event_name') != 'Stop' or value.get('prompt_id') == queued['data']['prompt_id']:
-                        continue
-                    if not any(e['type'] == 'request_result' and e['data'].get('id') == request['data']['id'] for e in trace):
-                        continue
-                    assert not any(e['type'] == 'turn_start_signal' and e['data'].get('prompt_id') == value['prompt_id']
-                                   for e in trace), '时序屏障未成立：新 turn 已登记'
-                    ordering.update(stop=value, request_seq=request['seq'], queued_seq=queued['seq'],
-                                    before_release=trace)
-                    return True
-                return False
+                ordering.update(found)
+                ordering['before_release'] = [e for e in trace if e['seq'] >= found['queued_seq'] and
+                    (e['launch'] == found['launch'] or e['data'].get('id') == found['request_id'])]
+                return True
 
             super().wait('真实新 Stop 已返回，转录尚未登记', early_stop_returned, 30)
+
+            def native_record_written():
+                # Complete native JSONL lines only; the CLI still owns this file.
+                lines = Path(ordering['stop']['transcript_path']).read_text(encoding='utf-8').split('\n')[:-1]
+                return any(entry.get('type') == 'user' and entry.get('promptId') == ordering['stop']['prompt_id']
+                           and entry.get('promptSource') == 'queued'
+                           for entry in (json.loads(line) for line in lines if line))
+
+            super().wait('真实 CLI 已写出被屏障遮住的排队转录', native_record_written, 30)
             (self.state / 't165-transcript-visible').write_text('visible\n', encoding='utf-8')
+            thread = next(row['thread'] for row in self.request('sidebar_snapshot')['agents']
+                          if row['id'] == ordering['launch'])
+            observed = self.request('pane_process_info', thread=thread)
+            assert observed.get('ok') and observed.get('leader') and not observed.get('failed'), observed
+            ordering['process_observation'] = observed
             # Baseline failure must reach the unchanged T-157 assertions, with
             # complete diagnostics, rather than exit only through a wait timeout.
             deadline = time.monotonic() + timeout
@@ -91,7 +126,7 @@ def main():
     stop_id = ordering.get('stop', {}).get('prompt_id')
     starts = [e for e in trace if e['type'] == 'turn_start_signal' and
               e['data'].get('prompt_id') == stop_id and e['data'].get('origin') == 'native-transcript']
-    ordered = bool(stop_id and starts and ordering['request_seq'] < starts[0]['seq'])
+    ordered = bool(stop_id and starts and ordering['result_seq'] < starts[0]['seq'])
     report['checks'].append(dict(name='real_stop_before_native_turn_registration', passed=ordered))
     pane = report['observed'].get('final_pane', {})
     report['red_reproduced'] = bool(ordered and not report['errors'] and pane.get('state') == 'busy' and
