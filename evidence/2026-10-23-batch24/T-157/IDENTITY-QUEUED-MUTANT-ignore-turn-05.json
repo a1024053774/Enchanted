@@ -1,0 +1,54 @@
+{
+  "status": "INCOMPLETE",
+  "argv": [
+    "workbench/tests/test_t157_turn_identity.py",
+    "--mutant",
+    "ignore-turn",
+    "--summary",
+    "evidence/2026-10-23-batch24/T-157/IDENTITY-QUEUED-MUTANT-ignore-turn-05.json"
+  ],
+  "revision": null,
+  "mutant": "ignore-turn",
+  "fixture": "/private/tmp/t157-identity-t1zidfok",
+  "vendor_model_turns": 0,
+  "command": [
+    "node",
+    "/Users/luckye/Documents/Code/a2a-wt-t157/workbench/tests/test_t157_turn_identity.ts",
+    "/private/tmp/t157-identity-t1zidfok/source",
+    "/private/tmp/t157-identity-t1zidfok/out"
+  ],
+  "returncode": 1,
+  "checks": [
+    {
+      "name": "input-during-stop",
+      "status": "PASS",
+      "receipt": {
+        "ok": true
+      },
+      "bytes": [
+        "输入原样 / sentinel-157\r"
+      ]
+    },
+    {
+      "name": "native-new-turn",
+      "status": "INCOMPLETE",
+      "error": "AssertionError [ERR_ASSERTION]: old caller cannot survive a native new turn\n+ actual - expected\n\n+ undefined\n- 'worker_not_active'\n",
+      "bytes": [
+        "输入原样 / sentinel-157\r"
+      ]
+    },
+    {
+      "name": "idle-manual-prompt",
+      "status": "PASS"
+    },
+    {
+      "name": "native-queued-input",
+      "status": "INCOMPLETE",
+      "error": "AssertionError [ERR_ASSERTION]: Missing expected rejection: old caller cannot survive an actual queued native turn",
+      "bytes": [
+        "输入原样 / sentinel-157\r"
+      ]
+    }
+  ],
+  "scope": "controlled native-hook/identity state; no real CLI, PTY, process observer or gate submit"
+}

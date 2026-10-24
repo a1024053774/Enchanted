@@ -204,6 +204,7 @@ type Pane = {
   startupScreen?: string; trustAnswered?: boolean; startupOutputAt?: number; started?: boolean;
   claudePromptId?: string | null;
   claudePromptIds?: Set<string>;
+  claudeQueuedPrompts?: { prompt: string; received_at: string }[];
   permission?: { prompt_id: string; submission: string } | null;
   login?: ClaudeLogin;
   loginCleanup?: Promise<void>;
@@ -1023,7 +1024,35 @@ export class Panes implements GateRuntime {
   scan(pane: Pane, final = false) {
     if (pane.stopped) return;
     if (pane.record.role === "shell") return;
-    if (pane.record.cli === "Claude Code") return;
+    if (pane.record.cli === "Claude Code") {
+      if (!pane.claudeQueuedPrompts?.length) return;
+      // Busy-input UPS carries the still-running prompt id. Only the native
+      // queued human transcript establishes the eventual new prompt id, before
+      // any caller check or hook matching may use that turn.
+      const lines = readFileSync(pane.nativeFile!, 'utf8').split('\n');
+      lines.pop(); // A final partial line is not yet native evidence.
+      const entries = lines.filter(Boolean).map(line => JSON.parse(line));
+      while (pane.claudeQueuedPrompts.length) {
+        const queued = pane.claudeQueuedPrompts[0]!;
+        const entry = entries.find(value => value.type === 'user' && value.isSidechain === false &&
+          value.sessionId === pane.native && value.cwd === pane.record.worktree &&
+          value.promptSource === 'queued' && value.turnOrigin === 'human' && value.origin?.kind === 'human' &&
+          typeof value.promptId === 'string' && value.promptId.length > 0 && value.promptId.length <= 128 &&
+          !pane.claudePromptIds!.has(value.promptId) && typeof value.uuid === 'string' && value.uuid.length > 0 &&
+          Number.isFinite(Date.parse(value.timestamp)) && Date.parse(value.timestamp) >= Date.parse(queued.received_at) &&
+          value.message?.role === 'user' && value.message.content === queued.prompt);
+        if (!entry) break;
+        pane.claudeQueuedPrompts.shift();
+        pane.active = { id: randomUUID(), dispatch: `input:${entry.promptId}`, at: entry.timestamp, nativeTurn: null };
+        pane.claudePromptIds!.add(entry.promptId); pane.claudePromptId = entry.promptId;
+        pane.state = 'busy'; pane.permission = null;
+        this.store.event('turn_submit_intent', { ...pane.active, source: 'user', origin: 'native-transcript' }, pane.record);
+        this.store.event('turn_submitted', { ...pane.active, source: 'user', origin: 'native-transcript' }, pane.record);
+        this.store.event('turn_start_signal', { session_id: pane.native, prompt_id: entry.promptId, origin: 'native-transcript',
+          transcript_path: pane.nativeFile, transcript_uuid: entry.uuid, received_at: queued.received_at }, pane.record);
+      }
+      return;
+    }
     const home = pane.record.env.CODEX_HOME as string;
     const walk = (dir: string): string[] => !existsSync(dir) ? [] : readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
       entry.isDirectory() ? walk(join(dir, entry.name)) : entry.name.endsWith(".jsonl") ? [join(dir, entry.name)] : []);
@@ -1174,8 +1203,8 @@ export class Panes implements GateRuntime {
         pane.state = "busy"; pane.userDraft = false;
         pane.permission = null;
         // Claude owns steering/queueing while it works. Enter is input evidence,
-        // not a native turn transition; only its next UserPromptSubmit can retire
-        // the current prompt. In particular, do not invalidate an in-flight Stop.
+        // not a native turn transition; a fresh UPS or verified queued transcript
+        // owns the next turn. In particular, do not invalidate an in-flight Stop.
         if (pane.record.cli !== "Claude Code") {
           pane.active = { id: randomUUID(), dispatch: `input:${receipt.request_id}`, at: new Date().toISOString(), nativeTurn: null };
           this.store.event("turn_submit_intent", { ...pane.active, source: "user", request_id: receipt.request_id }, pane.record);
@@ -1460,6 +1489,7 @@ export class Panes implements GateRuntime {
     try {
       value = JSON.parse(raw);
       check(value && typeof value === 'object' && !Array.isArray(value), 'hook_object_required');
+      if (pane.record.cli === 'Claude Code') { this.scan(pane); binding = currentTurnBinding(pane); }
       // A new authenticated Claude UPS is the native CLI's turn transition.
       // Do not infer it from Enter, and do not let a reused old prompt replace it.
       const newClaudePrompt = pane.record.cli === 'Claude Code' && value.hook_event_name === 'UserPromptSubmit' &&
@@ -1555,6 +1585,20 @@ export class Panes implements GateRuntime {
         if (value.hook_event_name === "UserPromptSubmit") {
           const item = !pane.claudePromptId && pane.active && this.store.dispatchRecord(pane.active.dispatch);
           check(typeof value.prompt_id==="string" && value.prompt_id.length>0 && value.prompt_id.length<=128,"claude_prompt_id_required");
+          if (pane.stopInProgress && pane.active && value.prompt_id === pane.claudePromptId && typeof value.prompt === 'string') {
+            const history = this.store.read().filter(event => event.launch === launch);
+            const previous = history.findLast(event => ['turn_start_signal', 'claude_prompt_queued'].includes(event.type));
+            const enter = history.findLast(event => event.type === 'terminal_input_write_intent' && event.seq > (previous?.seq ?? 0) &&
+              event.data.encoding === 'utf8' && typeof event.data.data === 'string' &&
+              !event.data.data.startsWith('\x1b[200~') && /[\r\n]/.test(event.data.data) &&
+              history.some(written => written.type === 'terminal_input_written' && written.data.request_id === event.data.request_id));
+            check(enter, 'claude_prompt_id_reused');
+            pane.nativeFile ??= nativeSessionFile(pane.record, pane.native!);
+            check(realpathSync(value.transcript_path) === realpathSync(pane.nativeFile), 'question_origin_unverified');
+            (pane.claudeQueuedPrompts ??= []).push({ prompt: claudeSubmittedText(value.prompt), received_at });
+            this.store.event('claude_prompt_queued', { ...value, input_seq: enter.seq, received_at }, pane.record);
+            return;
+          }
           check(pane.claudePromptIds && !pane.claudePromptIds.has(value.prompt_id),"claude_prompt_id_reused");
           if (item && claudeSubmittedText(value.prompt) !== item.text) {
             const reason = "登记注入与实际提交正文不一致；已阻断，请处理草稿后再决定。";
@@ -1595,8 +1639,10 @@ export class Panes implements GateRuntime {
           if (transfer) await transfer(pane, value, true);
           check(currentTurnTrust(pane, this.store.read().filter(e => e.launch === launch)) === 'verified', 'current_turn_untrusted');
           if(pane.active!==active || pane.claudePromptId!==value.prompt_id){this.store.event("stop_not_matched",{...value,stage:"after_transfer"},pane.record);return;}
-          pane.active = null; pane.claudePromptId = null; pane.permission = null; pane.state = pane.interrupted ? "busy" : "idle";
-          this.store.event(pane.state === "idle" ? "pane_idle" : "pane_completion_held", { submission: active!.id, stop: value }, pane.record);
+          pane.active = null; pane.claudePromptId = null; pane.permission = null;
+          pane.state = pane.interrupted || pane.claudeQueuedPrompts?.length ? "busy" : "idle";
+          this.store.event(pane.claudeQueuedPrompts?.length ? 'pane_waiting_native_queue' : pane.state === "idle" ? "pane_idle" : "pane_completion_held",
+            { submission: active!.id, stop: value }, pane.record);
         } catch (error) {
           this.recordFailure(pane, "stop_transfer_failed", error); throw error;
         } finally { pane.stopInProgress = false; }

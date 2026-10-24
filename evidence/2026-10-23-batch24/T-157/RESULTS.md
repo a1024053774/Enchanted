@@ -1,6 +1,6 @@
 # T-157-1 / a1 调查检查点
 
-状态：INCOMPLETE。红态复现 PASS；根因、拒绝事实与 renderer 候选均已实现，RUN-OUTSIDE-03 的真实新 turn 反例、恢复、失效与三项回归 PASS；核心 Stop 输入正例因夹具输入触发原生粘贴复核而 INCOMPLETE，等待 RUN-OUTSIDE-04。独立行为验收尚未进行。主控 #61 已裁定语义，#63 给 renderer 写入窗口，#65 在沙箱外无冲突变基到包含 T-159/T-160 的 main，worker 确认 HEAD `c6725344ae81dce51656b2e44d1035a247df6604` 后开始写 renderer。变基基线为 `37c42f17aa5e0dc0b27272ba2363d713cf14f2b6`；当时 main 后续变化未涉及 workbench。初次调查与红态提交保留旧号：`0e09483e95f841475d33811d475c060e52cec28e`、`e16817974244537cd633ae1dd1c8469fe82d9c46`；变基映射见 DESIGN-QUESTION.md。当前不是 T-157 验收通过或修复完成结论。
+状态：INCOMPLETE。红态复现 PASS；根因、拒绝事实与 renderer 候选均已实现，RUN-OUTSIDE-03 的真实新 turn 反例、恢复、失效与三项回归 PASS；修正粘贴夹具后，RUN-OUTSIDE-04 证明原 submit 与原文送达，但暴露原生排队身份相关的产品收尾缺陷，仍 INCOMPLETE。当前已修正 panes.ts，等待 RUN-OUTSIDE-05 全部 13 项复验。独立行为验收尚未进行。主控 #61 已裁定语义，#63 给 renderer 写入窗口，#65 在沙箱外无冲突变基到包含 T-159/T-160 的 main，worker 确认 HEAD `c6725344ae81dce51656b2e44d1035a247df6604` 后开始写 renderer。变基基线为 `37c42f17aa5e0dc0b27272ba2363d713cf14f2b6`；当时 main 后续变化未涉及 workbench。初次调查与红态提交保留旧号：`0e09483e95f841475d33811d475c060e52cec28e`、`e16817974244537cd633ae1dd1c8469fe82d9c46`；变基映射见 DESIGN-QUESTION.md。当前不是 T-157 验收通过或修复完成结论。
 
 调查与被测产品基线：`ef99842b35e17c4cd69e1e58d5afca0689bf88b1`；探针运行时 checkout 为 `0e09483e95f841475d33811d475c060e52cec28e`，经 --revision 使用前述基线产品源码。task 为 T-157-1，attempt 为 a1，worker 为 b24-t157；提交钩子记录 session `abac2361-ec4f-4eca-bc68-ff22c9081137`、launch `launch-f02b8466dd9a48fbbd146a0293ef858b`，本会话未取得 fence，不补造。规格为 T-157 ready_rev 1 与本目录 card.md。开始时工作树干净，project-map status 为 Problems 0 / Stale living docs 0。
 
@@ -45,11 +45,11 @@ renderer 只在明确拒绝且有原生新 turn 证据时显示“旧回合交�
 
 | 条件 | 状态与证据 |
 | --- | --- |
-| Stop 批次期间输入原样送达、同 attempt 原 turn submit 通过 | INCOMPLETE；RUN-OUTSIDE-03 原 submit 已通过，PTY 原样写入，但 CLI 留在粘贴复核，没有后续模型请求；修改夹具后等待 RUN-OUTSIDE-04 |
-| 原生新 turn 后拒绝旧 caller，界面显示最后事实与原因 | PASS（候选行为检查）；OUTSIDE-03/stale-recover.json 与拒绝截图，实际新 prompt_id 后明确拒绝旧 Stop |
+| Stop 批次期间输入原样送达、同 attempt 原 turn submit 通过 | INCOMPLETE；RUN-OUTSIDE-04 原 submit 通过且原文进入真实 CLI 请求，但排队回合结束后仍 unknown。修正产品相关身份处理后待 RUN-OUTSIDE-05 |
+| 原生新 turn 后拒绝旧 caller，界面显示最后事实与原因 | INCOMPLETE（当前候选待 RUN-OUTSIDE-05）；历史 710a72060 候选在 OUTSIDE-03/stale-recover.json 与截图上 PASS |
 | 修前同序列 worker_not_active 且界面无说明 | PASS（仅红态复现）；RED-01.json、RED-01.png、RED-01-menu.png；测试退出 1，两个界面期望断言按预期失败 |
-| 拒绝后的最小恢复绑定原 attempt，无重复/过期交付 | PASS（候选行为检查）；OUTSIDE-03/stale-recover.json、stale-expired.json；显式恢复只交付一次，原身份绑定，过期后禁用且无字节写入 |
-| 已知坏实现 | 当前隔离身份的忽略 turn、吞输入、延后输入均被拒；OUTSIDE-03 的执行旧 Stop、隐藏原因/入口变异均在预期断言上被拒 |
+| 拒绝后的最小恢复绑定原 attempt，无重复/过期交付 | INCOMPLETE（当前候选待 RUN-OUTSIDE-05）；历史 710a72060 候选恢复/失效场景 PASS，见 OUTSIDE-03 对应摘要 |
+| 已知坏实现 | 当前隔离身份的忽略 turn、吞输入、延后输入均被拒；历史 OUTSIDE-03 的执行旧 Stop、隐藏原因/入口变异均被拒；新候选将在 RUN-OUTSIDE-05 重跑 |
 
 ## 重放与证据
 
@@ -75,7 +75,7 @@ RUN-OUTSIDE-02 包含修改后的同一 Electron 竞态测试在修前版本失�
 
 RUN-OUTSIDE-03 是变基后完整候选检查点：同一 Stop 输入正例，新 turn 反例在 c6725344a 修前失败、候选恢复与 expired 场景、执行旧 Stop/隐藏原因/隐藏入口的坏实现，以及 T-159 分屏、T-160 审查恢复、T-133/T-107 主控的三项既有 e2e 回归。每项写新 summary/截图/日志，失败不重跑，不用旧候选 verdict 背书新候选。RUN-OUTSIDE-02 未收到结果，不推测通过。RUN-OUTSIDE-03 的结果由主控 #70 回传，见下方记录。
 
-交付并非修复完成；等待 RUN-OUTSIDE-04 回传并核对核心正例，再交执行主控独立验收。后续 rebase/merge 等 Git 操作交主控处理，不再申请提权；本次只做普通 git add/commit。
+交付并非修复完成；等待 RUN-OUTSIDE-05 全组回传并核对，再交执行主控独立验收。后续 rebase/merge 等 Git 操作交主控处理，不再申请提权；本次只做普通 git add/commit。
 
 
 ## RUN-OUTSIDE-03 回传与正例夹具修正
@@ -97,4 +97,30 @@ RUN-OUTSIDE-03 是变基后完整候选检查点：同一 Stop 输入正例，�
 
 本次只修本票夹具：观察器通过同一 Electron 输入桥先送标准括号粘贴包（正文不变），再单独发送 Enter；不追加第二次 Enter、不暂停产品、不重试、不改 CLI 设置或产品代码。断言仍要求两个包均在原 Stop 的 relay_received 与处理结果之间写出，逐包字节相同，且随机 sentinel 原文确实进入真实 CLI 的后续 Messages 请求。原 submit 与人工介入的身份核对保持。探针现在在等待前保存 submit 断言，finally 保存 API Messages、最终事件/任务/pane 和截图，超时不会再仅有空 checks。
 
-[RUN-OUTSIDE-04.sh](RUN-OUTSIDE-04.sh) 请主控运行：核心正例，加同一修正探针在原缺陷基线和 always-inactive caller 变异上的反证。产品文件与 `710a72060` 相同，因此不重复 RUN-OUTSIDE-03 已通过的九项；本次修改是否消除夹具问题仍待真实运行，不提前写 PASS。当前不是独立验收或发布结论。
+[RUN-OUTSIDE-04.sh](RUN-OUTSIDE-04.sh) 请主控运行：核心正例，加同一修正探针在原缺陷基线和 always-inactive caller 变异上的反证。产品文件与 `710a72060` 相同，所以当次脚本只重复核心正例与其反证。主控 #71 已回传，见下一节；当前仍不是独立验收或发布结论。
+
+
+## RUN-OUTSIDE-04 产品红态与排队回合修正
+
+主控 #71 回传 `/private/tmp/t157-outside-04.FeAsXA`，供应商模型回合 0。小摘要及截图逐字节复制到 [OUTSIDE-04](OUTSIDE-04/RESULT.json)，保留失败原样。已查看 stop-input-positive-final.png：门禁“已交付”，候选 `da16f7809477983e413b6a88f9687450e20e7d6f`、attempt `f813c39c-878a-42da-9f3d-3f75e5ace92d`；随机 sentinel 原样出现在真实 CLI 后续请求，CLI 回复后停在空提示符，但窗格“未知”、底栏“执行：运行中”。正例退出 1，等待空闲超时。基线 red_reproduced=true；always-inactive caller 变异在 submit 接受等断言上失败，二者 errors=[]。这次不再是粘贴夹具问题。
+
+[QUEUED-TURN-DIAGNOSIS-04.json](QUEUED-TURN-DIAGNOSIS-04.json) 保留原生排队记录和相关事件。原 Stop 的 prompt_id 为 `ce78588d-2d21-4aa6-abdf-dcec228412be`。说明已写入后，CLI 的 UserPromptSubmit 仍带此 ID（seq 109）；旧实现将它判成 claude_prompt_id_reused，追加 native_question_unverified（110）。原 submit 仍通过（114），但原 Stop 的第二次信任检查因此失败（116：stop_transfer_failed / current_turn_untrusted）。随后原生转录 dequeue 说明，并以新 promptId `96252177-30a3-4e59-a936-a0e02312d6b4` 记录 queued human 用户消息。其 Stop 到达（122）时后台没有该 turn 身份，留下 stop_not_matched（123）。这解释了 CLI 结束而工作台 unknown 的完整链条。
+
+本次产品变更仅在 panes.ts，README 同步事实；未写 renderer.tsx、questions.ts、daemon 或门禁合同。Stop 转交期间，同原生 prompt 的排队 UPS 必须有此前未消费的终端 Enter 写入收据，并通过既有 envelope 与唯一原生转录路径核对。它只记 claude_prompt_queued，保持原 submission/prompt 和信任事实。后台不会把原输入延后、重发或交给恢复按钮处理。
+
+实际新 turn 由该原生会话的 queued human 转录建立：核对同会话、工作目录、根线程、来源、原说明正文、时间、未用过的新 promptId 与消息 UUID。完整行才算证据；工具结果、子线程、错正文/会话/目录/时间和旧 promptId 都不建立 turn。processInfo 的既有 scan 和 hook 匹配前均会采集这条事实，因此实际新 turn 开始后，旧 caller 的严格 turn 核对仍失败。没有合格转录就不补造新身份或空闲。原 Stop 收尾时若仍有原生排队输入，保留 busy，等新 turn 的真实匹配 Stop；门禁反馈在 CLI 队列结束后才走既有注入队列，避免抢入用户排队回合。
+
+Tracer bullet 保持为用户输入即时写入 → 原 Stop 交付 → CLI 原生排队转录 → 新 turn Stop → 空闲 → 原门禁反馈。没有新交付 API、自动重试或成功改写。Ubiquitous language 区分原生排队输入与实际新 turn，不把 Enter 当成 turn。Deep modules 仍由 Panes 的 scan/signal 持有身份，不另造转交包装层。
+
+| 本地检查 | 结果与边界 |
+| --- | --- |
+| 新增 queued-input 隔离状态红态 | IDENTITY-QUEUED-RED-04.json，修前退出 1，失败于 claude_prompt_id_reused；其余原有 3 项 PASS |
+| 修后最终状态检查 | IDENTITY-QUEUED-FINAL-GREEN-05.json，4 项 PASS；原 Stop 通过、实际新 turn 拒旧 caller、人工介入 turn Stop 回到 idle；只控制 hook/observer，不冒称真实 CLI |
+| 错正文、会话、目录、时间、子线程、工具结果和旧 ID | 上述 queued 场景内均不能建立新 turn |
+| ignore-turn / swallow-input / delay-input 变异 | IDENTITY-QUEUED-MUTANT-*-05.json，全部退出 1，分别被旧 caller、字节、即时性断言拒绝；坏实现摘要保留 INCOMPLETE |
+| 既有 Codex Stop 状态回归 | T160-STATE-REGRESSION-05.json，7 项 PASS |
+| 标准构建 | BUILD-QUEUED-05.json，退出 0；仍有 Vite >500 kB chunk 提醒；只清理本次自己的成功构建槽位 |
+
+真实正例保留空闲等待与侧栏/窗格头断言，并补充人工介入 turn 没有 failed/active、若观察到原生排队事实则必须有新 turn 与匹配 idle 事件。不放宽失败断言。
+
+[RUN-OUTSIDE-05.sh](RUN-OUTSIDE-05.sh) 请主控运行，重跑 03 的 10 项和 04 的 3 项，共 13 场；两场正例使用不同的一次性 state/sentinel，是预先列明的独立场次，不因失败自动重试。所有场景仍是真实 Electron/后台/PTY/交互 Claude CLI 加本地 Messages，供应商模型回合 0。新候选的真实绿态、反例和回归全部待此次运行，旧候选 verdict 不替新变更背书；独立审查待执行主控安排。

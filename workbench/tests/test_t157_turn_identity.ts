@@ -2,6 +2,10 @@
 // input is swallowed, rewritten, or delayed until Stop finishes; a genuine new
 // native prompt is ignored; an old caller survives that prompt; an old Stop or
 // duplicate old UPS clears/poisons the new turn; submit refusal facts are lost.
+// Claude's busy-input UPS reuses the current prompt id, then its queued human
+// transcript has a fresh id: rejecting the UPS poisons the original Stop;
+// failing to bind the real dequeued turn leaves its final Stop unmatched.
+// Wrong text/session/root/time or a tool result must not establish that turn.
 // Oracle: controller #61 relays user ruling 20261024T030734Z-001.
 // This host controls the async boundary; it does not prove real CLI/PTY timing.
 import assert from 'node:assert/strict';
@@ -14,7 +18,7 @@ const { Panes } = await import(pathToFileURL(join(source, 'workbench/src/panes.t
 const { OrchestrationStore } = await import(pathToFileURL(join(source, 'workbench/src/store.ts')).href);
 const { RequestRelay } = await import(pathToFileURL(join(source, 'workbench/src/relay.ts')).href);
 const checks: any[] = [];
-for (const scenario of ['input-during-stop', 'native-new-turn', 'idle-manual-prompt']) {
+for (const scenario of ['input-during-stop', 'native-new-turn', 'idle-manual-prompt', 'native-queued-input']) {
   const root = join(out, scenario); mkdirSync(root);
   const store = new OrchestrationStore(root), panes = new Panes(root, store, {}, () => {}), relay = new RequestRelay(store);
   const record = { id: scenario, thread: scenario, task: 'demo+T-157', role: 'worker', cli: 'Claude Code',
@@ -70,6 +74,50 @@ for (const scenario of ['input-during-stop', 'native-new-turn', 'idle-manual-pro
     assert.equal(recorded,note);
     assert.equal(pane.active,original,'Enter alone is not a native turn transition');
     assert.equal(pane.claudePromptId,'prompt-1');
+    if (scenario === 'native-queued-input') {
+      // Use a real file at the native session locator, but control the hook and
+      // observer boundary. The external Electron run proves CLI provenance.
+      const projects=join(root,'projects');mkdirSync(projects);
+      record.env={CLAUDE_CONFIG_DIR:root};
+      const file=join(projects,'native-session.jsonl');
+      writeFileSync(file,JSON.stringify({type:'user',sessionId:pane.native,cwd:root,promptId:'prompt-1',
+        timestamp:'2026-10-24T00:00:00Z',message:{role:'user',content:'original'}})+'\n');
+      const queued={...envelope('UserPromptSubmit','prompt-1'),transcript_path:file,prompt:note.slice(0,-1)};
+      await panes.signal(record.id,JSON.stringify(queued),'2026-10-24T00:01:01Z');
+      assert.equal(pane.active,original,'queued UPS must not replace original Stop identity');
+      assert.equal(pane.claudePromptId,'prompt-1');
+      const oldCaller=await panes.caller({launch:record.id,token:pane.token,native_session:pane.native,prompt_id:'prompt-1'});
+      finishProcess();await stop;
+      assert.equal(receipt.result.ok,true,'original Stop remains trusted after queued UPS');
+      assert.equal(pane.failed,null);
+      assert.equal(pane.state,'busy','native queued input has not completed');
+      assert.equal(pane.active,null);
+      const actual={type:'user',isSidechain:false,sessionId:pane.native,cwd:root,promptId:'prompt-2',
+        timestamp:'2026-10-24T00:01:02Z',uuid:'native-user-2',promptSource:'queued',turnOrigin:'human',origin:{kind:'human'},
+        message:{role:'user',content:note.slice(0,-1)}};
+      for(const wrong of [
+        {...actual,isSidechain:true}, {...actual,sessionId:'foreign'}, {...actual,cwd:'/elsewhere'},
+        {...actual,timestamp:'2026-10-24T00:00:00Z'}, {...actual,promptId:'prompt-1'},
+        {...actual,message:{role:'user',content:'different'}},
+        {...actual,message:{role:'user',content:[{type:'tool_result',content:note.slice(0,-1)}]}},
+      ]) {
+        writeFileSync(file,JSON.stringify(wrong)+'\n');panes.scan(pane);
+        assert.equal(pane.claudePromptId,null,'unverified transcript must not establish native turn');
+        assert.equal(pane.active,null);
+      }
+      writeFileSync(file,JSON.stringify(actual)+'\n');panes.scan(pane);
+      assert.equal(pane.claudePromptId,'prompt-2');
+      assert.ok(pane.active,'native dequeued human prompt establishes actual turn');
+      await assert.rejects(oldCaller.assertActive(),'old caller cannot survive an actual queued native turn');
+      const caller=await panes.caller({launch:record.id,token:pane.token,native_session:pane.native,prompt_id:'prompt-2'});
+      await caller.assertActive();
+      await assert.rejects(panes.caller({launch:record.id,token:pane.token,native_session:pane.native,prompt_id:'prompt-1'}));
+      await panes.signal(record.id,JSON.stringify({...envelope('Stop','prompt-2'),transcript_path:file}),
+        '2026-10-24T00:01:03Z',async(_p:any,_v:any,matched:boolean)=>assert.equal(matched,true));
+      assert.equal(pane.state,'idle','the intervention turn Stop must restore idle');
+      assert.equal(pane.active,null);assert.equal(pane.failed,null);
+      checks.push({name:scenario,status:'PASS',receipt:receipt.result,bytes});continue;
+    }
     if (scenario === 'native-new-turn') {
       await panes.signal(record.id,JSON.stringify(envelope('UserPromptSubmit','prompt-2')),'2026-10-24T00:01:01Z');
       assert.equal(pane.claudePromptId,'prompt-2','real native UPS must replace the old turn');

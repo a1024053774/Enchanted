@@ -172,7 +172,7 @@ def main():
         trace = events()
         report['observed']['timeline'] = [event for event in trace if event['launch'] == launch and event['type'] in (
             'turn_end_signal', 'relay_received', 'relay_processed', 'relay_rejected', 'stop_not_matched',
-            'turn_submit_intent', 'turn_start_signal', 'terminal_input_write_intent', 'terminal_input_written', 'pane_idle', 'stop_transfer_failed')]
+            'turn_submit_intent', 'turn_start_signal', 'claude_prompt_queued', 'terminal_input_write_intent', 'terminal_input_written', 'pane_idle', 'stop_transfer_failed')]
         report['observed']['gate_events'] = fixture.request('events', fixture.operator, task='demo+' + task)['events']
         # Let the renderer consume its normal snapshot/side-bar refresh once. This is observation, not a retry.
         time.sleep(2)
@@ -215,6 +215,16 @@ def main():
         agent = next(row for row in report['observed']['sidebar']['agents'] if row['id'] == launch)
         record('positive_returns_idle_without_regular_recovery', agent['state'] == 'idle' and report['observed']['dom']['header'] == '空闲',
                dict(sidebar=agent['state'], header=report['observed']['dom']['header']))
+        queued = [event for event in trace if event['launch'] == launch and event['type'] == 'claude_prompt_queued']
+        if accepted:
+            record('intervention_turn_stop_restores_idle', report['observed']['pane'].get('failed') is None and
+                   report['observed']['pane'].get('active') is None and report['observed']['pane']['state'] == 'idle')
+            if queued:
+                starts = [event for event in trace if event['launch'] == launch and event['type'] == 'turn_start_signal' and
+                          event['data'].get('origin') == 'native-transcript' and event['seq'] > queued[0]['seq']]
+                record('queued_native_turn_bound_and_completed', bool(starts) and any(
+                    event['type'] == 'pane_idle' and event['data'].get('stop', {}).get('prompt_id') == starts[0]['data']['prompt_id']
+                    for event in trace))
         report['red_reproduced'] = bool(rejected and input_written and task_state['current_attempt']['attempt_id'] == attempt['attempt_id'] and
                                         task_state['candidate_commit'] is None and agent['state'] == 'unknown' and report['observed']['dom']['header'] == '忙')
         report['status'] = 'PASS' if all(check['passed'] for check in report['checks']) else 'INCOMPLETE'

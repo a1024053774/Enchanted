@@ -752,8 +752,11 @@ Esc 后先由用户自行处理 CLI 草稿，看到输入框为空后点击“�
 UserPromptSubmit 只阻断当前登记注入的正文错配，输出 hook JSON block 并保留原始诊断；
 不按文本标记拦截手打提交，不裁剪、不重送，Stop 的提交匹配语义不变。
 Claude 窗格工作中的用户输入仍原样直达 CLI，由 CLI 自己处理；Enter 不替换当前原生 turn，
-不使正在转交的 Stop 批次失效。只有新的 UserPromptSubmit 才建立下一次用户回合身份；
-此后旧 turn 的 caller 仍被拒绝。worker 的交付快照保留原 attempt、提交号及明确结果或未知结果，不自动重试。
+不使正在转交的 Stop 批次失效。新的 UserPromptSubmit 建立下一次用户回合身份。
+Stop 期间，CLI 接收排队输入时的 UserPromptSubmit 可能仍带原 prompt_id；后台记录排队事实，
+保留原身份。随后同原生会话转录中的 queued human 正文、时间和新 promptId 核对通过，
+才建立实际的新 turn；其匹配 Stop 结束后回到空闲。门禁反馈等原生队列处理完才注入，用户输入仍即时发送。
+新 turn 开始后旧 caller 仍被拒绝。worker 的交付快照保留原 attempt、提交号及明确结果或未知结果，不自动重试。
 只有新原生 turn 已被观察到、旧请求明确被拒时，侧栏与窗格头显示“旧回合交付被拒”，窗格保留原提交与原因。
 “请原 worker 核对交付”在当前回合结束后发送绑定原 attempt 的核对请求；worker 核对后通过正常 CLI 显式交付。
 原 attempt 已失效、已有候选或无法确认身份时禁用该操作；终端手动输入不受此按钮状态影响。
