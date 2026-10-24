@@ -6,7 +6,7 @@ export type TaskIssues = { task: string; name: string; title: string; issues: A2
   reviewRecovery?: { attempt: string; review_id: string; thread_id: string } | null };
 const roles: Record<string, string> = { worker: 'worker', reviewer: '审查员', monitor: '监视器' };
 // The states a user still has to act on come first; the rest keep their reporting order.
-const open = new Set(['等你决定', '待判断', '稍后', '已转交']);
+const open = new Set(['等你决定', '待判断', '稍后', '已转交', '可能已随修订失效']);
 const time = (value: string) => new Date(value).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
 export function IssuesPage({ project }: { project: string | null }) {
@@ -78,6 +78,12 @@ function Issue({ task, view, changed }: { task: TaskIssues; view: A2AIssueView; 
       {restarted && <p role="status">已为同一次交付新开审查，当前进度请查看任务。旧输出仍保留在这里。</p>}
       {!canRestart && !restarted && <p>这条记录不再提供恢复操作。请由执行主控核对当前任务状态；关闭问题不会恢复或验收任务。</p>}
     </section> : issue.body && <p className="record-body">{issue.body}</p>}
+    {view.superseded_by_revision && <div className="record-actions" data-superseded-attempt={view.superseded_by_revision.attempt}>
+      <p>上报它的 attempt 已在修订任务卡时作废，任务已按新卡重新派发，这个问题可能已经不成立。它不再计入等你决定。请看上面的原文，确认不再需要处理就关闭；仍需处理的照常答复。</p>
+      <div className="record-buttons"><button type="button" className="primary-button" data-confirm-superseded={issue.id} disabled={busy}
+        onClick={() => act(() => window.a2a.disposeIssue(task.task, issue.id, 'close', '已随修订失效',
+          `上报所在的 attempt ${view.superseded_by_revision!.attempt} 已因修订任务卡作废，任务按新卡重新派发`))}>确认已失效，关闭</button></div>
+    </div>}
     {view.answer && <p className="record-reply"><span>答复</span>{view.answer.body}</p>}
     {view.disposition && <p className="record-reply"><span>处置</span>{({ close: '已关闭', dismiss: '不处理', snooze: '稍后再看', forward: '转交构思主控', 'needs-user': '交给你决定', reopen: '重新打开', delivered: '答复已送达' } as Record<string, string>)[view.disposition.action ?? ''] ?? view.disposition.action}
       {view.disposition.reason ? `：${view.disposition.reason}` : ''}</p>}

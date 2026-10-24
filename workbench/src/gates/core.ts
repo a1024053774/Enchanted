@@ -643,6 +643,7 @@ export class A2AGates {
       .all(task)
       .map((row) => JSON.parse(String(row.data)) as A2AIssueRecord)
       .filter((record) => thread === undefined || record.thread_id === thread);
+    const revised = new Map<string, string>();
     const issues: A2AIssueView[] = records
       .filter((record) => record.kind === "issue")
       .map((issue) => {
@@ -672,11 +673,24 @@ export class A2AGates {
                     : last.kind === "disposition" || issue.blocking || elapsed >= 900_000
                       ? "等你决定"
                       : "待判断";
+        // A worker's open issue under an attempt that a revise revoked may no longer apply; it
+        // leaves the waiting count but stays open until the user confirms (T-171). Gate-raised
+        // issues describe the gate's own findings and keep their state.
+        let superseded: A2AIssueView["superseded_by_revision"];
+        if (issue.from !== "system" && issue.attempt_id && ["等你决定", "待判断", "稍后", "已转交"].includes(state)) {
+          if (!revised.has(issue.attempt_id)) {
+            const row = this.db.prepare("SELECT data FROM attempts WHERE id=?").get(issue.attempt_id);
+            const attempt = row ? (JSON.parse(String(row.data)) as A2AAttempt) : null;
+            revised.set(issue.attempt_id, attempt?.state === "revoked" && attempt.revocation_reason === "spec revised" ? "spec revised" : "");
+          }
+          if (revised.get(issue.attempt_id)) superseded = { attempt: issue.attempt_id, reason: revised.get(issue.attempt_id)! };
+        }
         return {
           issue,
-          state,
+          state: superseded ? "可能已随修订失效" : state,
           ...(answer ? { answer } : {}),
           ...(disposition ? { disposition } : {}),
+          ...(superseded ? { superseded_by_revision: superseded } : {}),
         };
       });
     const user_inputs = this.db
@@ -826,7 +840,17 @@ export class A2AGates {
         ...(caller ? [`actor-thread:${caller.thread}`] : []),
       ],
     };
-    this.appendIssue(record);
+    const sequence = this.appendIssue(record);
+    // Confirming that a revise made the issue obsolete is the user's decision (T-171).
+    if (args.action === "close" && actor === "user" && view.superseded_by_revision)
+      this.saveUserInput({
+        id: randomUUID(), schema: 1, form: "action", text: `确认关闭：${args.reason}`,
+        target: { task: view.issue.task_id, attempt: view.issue.attempt_id, thread: view.issue.thread_id, turn: null, message: null },
+        channel: "issue-panel", reply_to: view.issue.id,
+        source_ref: { event_id: record.id, source_sequence: sequence },
+        certainty: "observed", created_at: record.created_at,
+        question: { number: view.issue.number, title: view.issue.title, body: view.issue.body },
+      });
     const delivery =
       record.to === "ideation" || record.to === "executor"
         ? await this.deliverInbox(record)

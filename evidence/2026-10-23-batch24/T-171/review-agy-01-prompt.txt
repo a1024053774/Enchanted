@@ -1,0 +1,13 @@
+你是 a2a 项目的只读独立审查员（reviewer），审查 T-171（N07）：worker 上报的问题在主控 revise 作废其 attempt 并重派后仍挂“等你决定、阻塞”。用户选“建票:标“已随修订失效”，由我一键确认关闭”；构思主控 answer 选 A：被 revise 作废的 attempt 名下仍未关闭的问题一律提示，不自动关、不删，确认处展示原文由用户判断，确认记为用户输入，门禁自己生成的问题不适用，主控照旧不能关 blocking（见 user-decision.md 与 candidate/.project-map/tickets/T-171-superseded-blocking-issue.md）。写入者是执行主控。
+重点：(1) 判定条件是否只覆盖 revise（revocation_reason "spec revised"）作废的 attempt、worker 上报、仍未关闭的问题；会不会误伤当前 attempt、普通 revoke、系统问题、已答复的问题；(2) 新状态是否在所有计数处（侧栏 issues_waiting、页签角标、retrospective、inbox 紧急度 core.ts 约 3161 行等）行为一致，有没有遗漏的消费者把它当未知状态；(3) 用户输入记录字段是否符合既有 A2AUserInput 约定；主控关闭 blocking 仍被拒；(4) 测试期望是否来自 ticket 而非实现，红态与变异是否落在缺陷上；(5) 界面文案是否平实、不夸大。证据 candidate/evidence/2026-10-23-batch24/T-171/（RESULTS.md、CHECKS.json、截图）。注意 full.diff 只含 workbench/ 改动。
+
+材料在 /Users/luckye/Documents/Code/a2a-review/T-171-r1/ 下：candidate/ 为候选 6e40db3ce 只读副本（ticket 在 candidate/.project-map/tickets/，任务卡、RESULTS 与运行证据在 candidate/evidence/2026-10-23-batch24/T-171/）；full.diff 为相对起点 9093958a91d987453e68c8b1aba211e42f560b53 的 workbench/ 全部改动；user-decision.md 为本批用户授权的转述（构思主控 assign）。
+
+请核对：
+1. 根因是否找对，改动是否在最小根因层；有无吞异常、fallback、重试、兼容分支或平行 API。
+2. ticket 的每条验收是否有真实入口的证据；期望值是否来自 ticket/规格/用户原话而不是抄产品输出。
+3. 红态是否在修前版本上落在缺陷断言上；变异是否代表真实坏实现并被拒绝。
+4. 是否越出任务卡的修改边界；界面文案是否清楚、不含营销腔。
+5. 其他正确性、回归风险。
+
+这是交互会话。只用你自带的读文件/搜索工具，不要运行任何 shell 命令，不要写任何文件。可以打开截图。输出中文报告：每条发现写文件与行号、严重度（P0–P3）、失败场景。审查完把完整报告作为你最后一条回复直接输出，最后一行只写 `T-171 REVIEW PASS`、`T-171 REVIEW INCOMPLETE` 或 `T-171 REVIEW NO_GO` 之一。
