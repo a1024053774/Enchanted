@@ -37,4 +37,4 @@ Codex 0.163.0 的二进制里有 `rate-limit-switch-prompt`：“Approaching rat
 - 隐藏的是 Codex 的换模型提示；额度提示仍以 Codex 自己的“Heads up … weekly limit”文字出现在终端里（见 dialog-open 截图），不影响输入。别的 CLI 提示若吃掉回车，现由“回合未开始”如实显示，未逐一枚举。
 - `readWakeDelivery` 仍以 `turn_submitted` 报 delivered（收件箱唤醒的投递状态），未改；本票的显示以原生开始信号为准。
 
-状态：待 agy 独立审查。
+状态：agy 独立审查 PASS（`review-agy-01.md`，三条 P3 观察，无需改动）。未用真实 Codex 复验。
