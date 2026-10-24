@@ -16,3 +16,5 @@ PLAN / INCOMPLETE。修前 RED / PASS，修后真实 Electron、变异和回归�
 本次测试新增四个分离变异（焦点观察、自动焦点、角色标签、输入错误），并加入可写主控/worker 仍获得输入焦点的正向对照。绿态计划 17 条检查；变异必须只有对应业务断言失败、无运行错误且模型请求为 0。T-157 复跑 Stop 期间输入原样直达、旧回合拒绝后的显式恢复及失效 attempt；T-159 复跑真实分屏、普通终端标签、目录、输入归属与布局恢复。全部经真实 Electron/后台入口；T-157 使用真实 CLI 加本地脚本化 Messages，不调用供应商模型。
 
 当前限制：上述修后检查尚未执行，不报告产品 PASS；最终独立审查、门禁验收、集成和原始夹具归档由执行主控安排。
+
+本地检查 PASS：候选 `57b5c0b42a49dde905350d40e490f2dd50238700` 通过标准 `node app/build.mjs --slot t161-candidate` 构建（workbench 目录，独立 /private/tmp 构建槽）；完成后只清理该临时构建输出，见 `BUILD-01.json`。`python3 -B workbench/tests/test_t157_turn_identity.py --summary evidence/2026-10-23-batch24/T-161/T157-IDENTITY-01.json` 的四项隔离状态检查通过；这不是实际 CLI、PTY 或 GUI 证据。测试、受控 peer、05 内嵌 oracle 和 zsh 语法、UTF-8 回读及 `git diff --check` 通过。真实 Electron 仍待 05。
