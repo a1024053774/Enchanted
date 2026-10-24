@@ -2,7 +2,7 @@
 id: T-164
 title: T-155 重跑：修复后走到集成，并补 Codex worker 覆盖
 type: build
-status: open
+status: closed
 blocked_by: [T-157, T-158, T-159, T-160, T-161, T-162, T-163]
 claimed_by:
 supersedes:
@@ -22,9 +22,9 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 走到审查通过并集成（经门禁），含 Codex worker。
-- [ ] 上轮 7 条发现逐条复验结果。
-- [ ] 新发现的 Herdr 对照小结。
+- [x] 走到审查通过并集成（经门禁），含 Codex worker。
+- [x] 上轮 7 条发现逐条复验结果。
+- [x] 新发现的 Herdr 对照小结。
 
 ## 不做
 
@@ -52,3 +52,15 @@ ready_rev: 1
 - 走到：A（Haiku）真实机械打回、T-169 双输入、三次 attempt、四次独审（一次 review_protocol_failed 后经界面重开干净审查），最后经门禁集成到实例 `dogfood` 分支 547b261a1（门禁库有 integration_intent、integrated 事件，执行主控独立核对）。B（GLM）首个 attempt 6 个实际回合均 GLM/max，修卡（N06：主控写出 allow/deny 交集）后重派的 B a2 因 Codex 账号路由超时启动即退出，reclaim 报 identity_conflict（N05），执行主控裁定为产品缺陷建 T-170，B 保留现场；C 未派发。**验收第 1 条“含 Codex worker 走到集成”仍未满足。**
 - 复验（`findings/2026-10-24-real-user-dogfood-rerun-3.md`）：F01、F02、F03、F04、F05（已建会话）、F06、F07、M04、N02、N03（T-169）、N04 本轮走到范围内消失；M02、M03 仍在；M01 部分消失；N01 未单独复验。Claude 原生根回合 31，未到 60 上限；收尾时 5h 已用 51%、周 23%，未触发停线。
 - 独立审查 agy INCOMPLETE（与交付自评一致；P3：界面重开的审查在 Reflect 显示“未归属”、主控终端 `MCP server 'lcu' not connected` Stop-hook 报错，来源均未查）。合并 7189f6437。实例按 T-088 归档（`t164-dogfood-0zw8tib0.archive.json`）；隔离 CODEX_HOME 与 operator.json 删除未归档。
+
+## 阶段记录 4（2026-10-24 第四轮，PASS）
+
+- GLM 上游（ZCode）封本机 IP 返回 405（`rerun-4/glm-route-probe.md`），构思主控 answer 20261024T162332Z-ideation-answer-001 选 A：应用内 Codex worker 与同 CLI 审查员用 gpt-6.1-sol high；外层测试员按用户“codex 只用于需要的地方”“用 sonnet 去做 computer use”改为执行主控起的 Claude Sonnet 子代理（lcu Computer Use）。任务卡 `card-4.md`，实例基线 aacc1bb81（含 T-170）。
+- 走到：项目终端启动应用内主控（haiku）→ 界面批准角色申请 → 建卡派给 Codex worker → a1 交付被 oracle_failed 拒（主控把完成条件写成主仓库绝对路径，N08）→ revise、普通 reclaim、重派 a2 → 交付、verify 通过、新开同 CLI 独立审查“可合并”→ 打分 → 经门禁集成，demo-repo main 前进到 7ce91a867（尾注 codex-cli 0.164.0 / gpt-6.1-sol / high）。
+- 执行主控独立核对：门禁库 demo-repo+T-1 有 review_result #208、integration_intent #247、integrated #281、score_recorded #282；隔离 CODEX_HOME 原生日志 7 个 turn_context 全为 gpt-6.1-sol/high；Claude 应用内回合 6（haiku）。结束读数 5h 已用 54%、周 24%，未到 70% 线。N05/T-170 的启动失败路径本轮没有出现，未在真实环境复验。
+- 新发现 N07（worker 的 blocking 问题在主控修订重派后仍悬在问题页，没有关联提示）留构思主控判断是否属体验问题；N08 为主控卡错误（模型行为）。
+- 独立审查 agy PASS（P3：RESULTS 交叉引用把 N07 误写成 N01）。合并 ebb0e4725。实例按 T-088 归档（`t164-dogfood-dc_5rakx.archive.json`）；隔离 CODEX_HOME 与 operator.json 删除未归档。
+
+## Resolution
+
+2026-10-24 PASS。验收第 1 条由第四轮满足（Codex worker 任务经同 CLI 独立审查通过并经门禁集成）；第 2 条见第一至三轮逐条复验（F01～F07、M01～M04 及 N01～N06）；第 3 条见各轮报告的 Herdr 对照。四轮报告：`findings/2026-10-24-real-user-dogfood-rerun.md`、`-rerun-2.md`、`-rerun-3.md`、`-rerun-4.md`。按本票“完成后关闭 T-155 与本票”一并关闭 T-155。
