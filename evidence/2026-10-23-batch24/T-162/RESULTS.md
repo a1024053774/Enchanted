@@ -1,10 +1,40 @@
 # T-162-1 / a1 交接
 
-状态：INCOMPLETE（修前真实红态已确认，候选已实现，等待主控运行 RUN-OUTSIDE-02）。
+状态：PASS（worker 交付验证；独立审查与集成仍由执行主控后续完成）。
 
 worker：b24-t162。分支：exec/t162。起点：c01742804。
 
-## 主控 #32 后续：候选与证据
+## 主控 #35 后续：最终交付证据
+
+执行主控在沙箱外运行 `RUN-OUTSIDE-02.sh`，退出 0。被测产品候选为 `b27e9e4d09cd59cfffc10df9c7991ea2d3c30fcc`，运行前后候选未变；本次收尾仅提交证据与本报告，不再改产品或测试。
+
+总摘要：[verify-20261024T005052Z-7ae5a172-SUMMARY.json](verify-20261024T005052Z-7ae5a172-SUMMARY.json)。14 项验证均符合预期，已逐一回读子摘要，没有初始化或清理错误：
+
+| 验证 | 结果 | 证据（均为同一 verify 前缀） |
+| --- | --- | --- |
+| 指标事件夹具 | PASS，13 条断言 | `metrics-fixture.json` |
+| 未知为零、零为未知、丢来源、忽略区间四种变异 | 坏实现均为 NO_GO；指定断言均失败 | `metrics-mutant-*.json` |
+| 真实 Electron 完整场景 | PASS，11 条断言 | `electron-green.json` |
+| 无决定记录、未知为零、无事务三种 Electron 变异 | 坏实现均为 NO_GO；指定断言均失败 | `electron-mutant-*.json` |
+| T-121 角色申请权限与生命周期回归 | PASS，49 条检查 | `regression-t121.json` |
+| T-133/T-134 记录与四个指标回归 | PASS，14 条检查 | `regression-t133-t134.json` |
+| T-133/T-107 原生终端主控回归 | PASS，13 条检查 | `regression-native-controller.json` |
+| 两个原生主控日志核对 | PASS：构思主控 4 个根回合、执行主控 1 个，指标均明确未覆盖 | `native-controller-audit.json` |
+| 同一原生日志对修前 c01742804 的反事实 | NO_GO：两个主控被误报为 0，指定断言失败 | `native-controller-parent.json` |
+
+真实 Electron 场景证明：亲自批准/拒绝各产生一条统一用户输入并关联角色决定事件；同角色竞争申请的自动拒绝不计用户输入；重复决定被拒绝而不增记录；批准过期只保留原批准；输入存储故障时决定与输入一起回滚，申请仍待决定。指标界面同时展示未覆盖、已记录 0、已记录 2，并能展开核对带随机提示 id 的来源。0 与 2 来自明确标出的事件夹具，不冒称真实 CLI 回合。
+
+已人工查看三张核心截图：
+
+- [批准/拒绝及关联事件](verify-20261024T005052Z-7ae5a172-electron-green-01-role-records.png)
+- [主控未覆盖与口径说明](verify-20261024T005052Z-7ae5a172-electron-green-02-metrics-unknown.png)
+- [已记录 0、2 与展开来源](verify-20261024T005052Z-7ae5a172-electron-green-03-metrics-sources.png)
+
+本次提交同前缀 29 个小文本与 22 张截图，共 3,057,313 字节；没有提交原始 run/fixture、SQLite 或大日志。原始夹具路径保留在摘要中，由主控按 T-088 归档。供应商真实模型回合消耗 0；真实 Claude CLI 使用本地脚本化 Messages 接口，不据此宣称供应商模型能力通过。
+
+主控已接手转交 README 的旧 Codex 限制问题（主控 #35）；本票不扩改。独立审查、门禁集成和 ticket 关闭不在 worker 本次交付结论内，尚未由本 worker 执行。项目地图状态检查为 Problems 0、Stale living docs 0；结束前的原始输出另存 `status-final.txt`。
+
+## 历史交接：主控 #32 后续候选与证据
 
 主控在沙箱外运行 RUN-OUTSIDE-01，退出 0，修前产品为 NO_GO。原始摘要为 `red-20261024T003707Z-17506.json`，夹具为 `/private/tmp/t162-3yx8jzyc`。摘要中角色决定输入为空、项目终端主控 turns 为 0，记录页和指标页断言均失败；已保留同前缀日志与两张截图，没有覆盖红态。
 
@@ -44,7 +74,7 @@ zsh evidence/2026-10-23-batch24/T-162/RUN-OUTSIDE-02.sh
 
 范围外文档冲突已非阻塞上报 `20261024T004613Z-worker:b24-t162-issue-001`，见 `OUT-OF-SCOPE.md`；没有修改 Codex 提示采集或其验收文件。大的原始夹具均在 summary 指向的 `/private/tmp` 中，留待主控按 T-088 归档。
 
-## 主控 #30 后续
+## 历史交接：主控 #30 后续
 
 主控批准了所需的局部写入边界（修订卡 `1b5d6a8b5`，本分支按文执行）。已新增 `workbench/tests/test_t162_role_records_metrics_e2e.py` 与 `RUN-OUTSIDE-01.sh`：真实 Electron 中批准一个申请，确认后自动拒绝同角色竞争申请，再亲自拒绝新的申请；核对统一输入记录、关联事件与记录页，同时核对无原生计数证据的主控与汇总不显示为已知零。此轮不启动模型。
 
@@ -58,9 +88,9 @@ zsh evidence/2026-10-23-batch24/T-162/RUN-OUTSIDE-01.sh
 
 本地静态检查 PASS：`zsh -n evidence/2026-10-23-batch24/T-162/RUN-OUTSIDE-01.sh`、测试 `--help`（含 Python 导入与语法检查）、`git diff --check`。这些不算行为验收。前端文案规则使用已合并旧技能内容的 `frontend-production/references/look-and-copy.md`。
 
-## 首次交接记录（a7ef82099）
+## 历史交接：首次交接记录（a7ef82099）
 
-## 已核对
+### 已核对
 
 已读取 COMMON-FIX、任务卡、T-162 ticket、对应 F04/F06 报告、项目地图、CONTEXT.md、intent.md，以及记录页、指标页、后台角色决定入口和现有端到端夹具。
 
@@ -74,7 +104,7 @@ python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/pro
 
 代码位置核对发现任务卡边界不符，详见 [NEEDS-DECISION.md](NEEDS-DECISION.md)。阻塞上报：`20261024T003142Z-worker:b24-t162-issue-001`。建议允许局部修改 `daemon.ts` 的角色决定入口与 `roleRequests.ts` 的 `decide` 写入处；尚未获得批准。
 
-## 验收状态
+### 当时的验收状态
 
 | 条件 | 状态 | 证据或缺口 |
 | --- | --- | --- |
