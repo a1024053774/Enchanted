@@ -1,0 +1,13 @@
+你是 a2a 项目的只读独立审查员（reviewer），只审 T-170 测试的一处小改动（候选 b89f64b75，相对 c21c1f5b7）。背景：回归在不含 evidence/2026-10-23-batch24/ 的稀疏检出里跑，测试读的现场终端记录不存在，C 替身 fopen 失败立即崩溃，使 hang 反例失败、failed/fast 并非按设计运行。改动：把记录复制到 workbench/tests/t170_b_a2_pty.raw（来源 evidence/2026-10-23-batch24/T-170/b-a2-pty.raw，请核对两份内容一致），测试开头检查记录存在且含原始报错，缺失即报错。另在 RESULTS.md 增“后续二”更正此前把原因写成“满负载”的错误，并在 review-agy-02.md 头注明上次审查“55 项全通”一句不实。
+重点：副本是否与现场一致、守卫是否真能在缺失时失败、更正说明是否如实。改后全量回归 RUN-MERGE-REGRESSION-12 在 b89f64b75 上首跑 54/55（t141-green 公网 curl 超时 exit 28），单独重跑通过；t170 failed/fast/hang 三项按设计 PASS（时间线可见 terminal_protocol_write、pane_leader_observed），执行主控已核对。用户授权转述见 user-decision.md。
+
+材料在 /Users/luckye/Documents/Code/a2a-review/T-170c-r1/ 下：candidate/ 为候选 b89f64b75 只读副本（ticket 在 candidate/.project-map/tickets/，任务卡、RESULTS 与运行证据在 candidate/evidence/2026-10-23-batch24/T-170c/）；full.diff 为相对起点 c21c1f5b7 的 workbench/ 全部改动；user-decision.md 为本批用户授权的转述（构思主控 assign）。
+
+请核对：
+1. 根因是否找对，改动是否在最小根因层；有无吞异常、fallback、重试、兼容分支或平行 API。
+2. ticket 的每条验收是否有真实入口的证据；期望值是否来自 ticket/规格/用户原话而不是抄产品输出。
+3. 红态是否在修前版本上落在缺陷断言上；变异是否代表真实坏实现并被拒绝。
+4. 是否越出任务卡的修改边界；界面文案是否清楚、不含营销腔。
+5. 其他正确性、回归风险。
+
+这是交互会话。只用你自带的读文件/搜索工具，不要运行任何 shell 命令，不要写任何文件。可以打开截图。输出中文报告：每条发现写文件与行号、严重度（P0–P3）、失败场景。审查完把完整报告作为你最后一条回复直接输出，最后一行只写 `T-170c REVIEW PASS`、`T-170c REVIEW INCOMPLETE` 或 `T-170c REVIEW NO_GO` 之一。

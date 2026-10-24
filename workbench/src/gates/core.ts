@@ -1594,7 +1594,13 @@ export class A2AGates {
       const live = await this.runtime!.readThread(attempt.thread_id);
       attempt.runtime_identity = { ...this.runtimeIdentity(attempt, live) };
       this.checkThread(attempt, live);
-      requireGate(!live.blocked, "run_blocked", live);
+      if (live.blocked) {
+        // The CLI failed inside the dispatch window; record the bound identity so reclaim can find it (T-170).
+        attempt.state = "claimed";
+        task.state = "claimed";
+        this.save(task, "claimed");
+        throw new Refusal("run_blocked", live);
+      }
     }
     attempt.state = "claimed";
     task.state = "claimed";
@@ -4246,7 +4252,8 @@ export class A2AGates {
       const neverStarted = attempt.runtime_identity!.native_session === null && live.runtime_identity.native_session === null &&
         live.stopped && !live.running && live.turn === null &&
         live.error?.providerPresent === false && live.error.activeTurn === null;
-      requireGate(attempt.runtime_identity!.leader_pid !== null && (attempt.runtime_identity!.native_session !== null || neverStarted),
+      // It may also have exited before its leader process was observed.
+      requireGate(neverStarted || attempt.runtime_identity!.leader_pid !== null && attempt.runtime_identity!.native_session !== null,
         "identity_conflict", { attempt, live });
       if (!neverStarted) {
         this.checkErrorReclaim(live);
