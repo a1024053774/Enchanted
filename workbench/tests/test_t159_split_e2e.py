@@ -5,7 +5,7 @@
 2. 仅禁用菜单，直接 IPC 仍能切走任务并创建终端。
 3. 普通终端向右/向下分屏丢原窗格、方向不对、目录不继承或混进任务。
 4. 切回任务/单 agent 后混入项目终端；拒绝操作修改了保存布局或启动记录。
---revision 跑指定版本；--mutant old-task-split 恢复修前的分屏实现。
+--revision 跑指定版本；--mutant 恢复修前实现或仅删除入口检查。
 --summary 必须是新路径；原始夹具保留，由主控按 T-088 归档。
 """
 import argparse
@@ -25,7 +25,7 @@ def main():
     parser.add_argument('--summary', type=Path, required=True)
     target = parser.add_mutually_exclusive_group()
     target.add_argument('--revision')
-    target.add_argument('--mutant', choices=['old-task-split'])
+    target.add_argument('--mutant', choices=['old-task-split', 'missing-split-guard'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留旧证据，请使用新路径'
     args.summary.parent.mkdir(parents=True, exist_ok=True)
@@ -39,11 +39,13 @@ def main():
 
     try:
         patches = []
-        if args.mutant:
+        if args.mutant == 'old-task-split':
             for name in ('main.ts', 'renderer.tsx'):
                 path = 'app/' + name
                 patches.append((path, (ROOT / 'workbench' / path).read_text(encoding='utf-8'),
                                 subprocess.check_output(['git', 'show', BASELINE + ':workbench/' + path], cwd=ROOT, text=True)))
+        elif args.mutant == 'missing-split-guard':
+            patches.append(('app/main.ts', "  if (relative && relative.project === undefined) throw new Error('任务视图只展示 Agent 会话。请在普通终端中分屏。');\n", ''))
         fixture = Fixture('t159-', lambda _: (_ for _ in ()).throw(AssertionError('禁止模型请求')), revision=args.revision, patches=patches)
         report['fixture'] = str(fixture.dir)
         # Reuse the existing compiled PTY driver, with a task-local hook peer.
@@ -116,6 +118,11 @@ if sys.argv[2] == '0':
             shot('03-after-' + direction)
             check('task_' + direction + '_explains_before_action', any(b['text'] == text and b['disabled'] for b in menu) and
                   '任务' in explanation and '普通终端' in explanation, report['observed'][direction])
+            keyboard = electron.evaluate('''(()=>{const menu=document.querySelector('.pane-menu');menu.querySelector('button').focus();
+                menu.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}));
+                const rect=menu.getBoundingClientRect();return {focused:document.activeElement.textContent,
+                fits:rect.top>=0&&rect.left>=0&&rect.bottom<=innerHeight&&rect.right<=innerWidth}})()''')
+            check('task_' + direction + '_keyboard_skips_disabled_and_help_fits', keyboard['focused'] == '放大' and keyboard['fits'], keyboard)
             check('task_' + direction + '_preserves_worker_and_terminals', [p['launch'] for p in after] == [worker] and catalog() == before_terminals, after)
             refused = electron.evaluate(f'window.a2a.paneAction({json.dumps(key)},{{type:"split",direction:{json.dumps(direction)}}}).then(()=>({{refused:false}}),e=>({{refused:true,message:String(e)}}))')
             check('task_' + direction + '_ipc_refused_with_explanation', refused['refused'] and '任务' in refused.get('message', '') and '普通终端' in refused.get('message', ''), refused)

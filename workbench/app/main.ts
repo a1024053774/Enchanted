@@ -590,6 +590,7 @@ function restoreArrangement(panes: Pick<PaneBinding, 'key' | 'launch'>[], saved:
 // project is selected. A split keeps the directory of the pane it splits.
 async function createTerminal(context: WindowBinding, relative?: PaneBinding, direction: 'right' | 'down' = 'right') {
   if (context.closing || context.switching || context.creating || [...context.panes.values()].some(p => p.closing)) throw new Error('Task view is changing');
+  if (relative && relative.project === undefined) throw new Error('任务视图只展示 Agent 会话。请在普通终端中分屏。');
   const create = async () => {
     let project: string | null = context.task?.project_id ?? context.project?.project_id ?? null;
     let cwd = context.task?.repo ?? context.project?.repo ?? homedir();
