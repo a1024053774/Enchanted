@@ -1,0 +1,26 @@
+# T-159 / 主控消息 #34：项目主控的角色来源与回归前提不符
+
+状态：INCOMPLETE / NEEDS-DECISION。阻塞的是新增场景与对应变异的验收定义；未改产品或原测试。P1 仍由构思主控决定，不在本上报中另作判断。
+
+目标：按消息 #34 对项目层主控分屏取得真实回归证据，再统一菜单与主进程的分屏判据。非目标：改角色投影、改 T-161、用夹具改写生产快照制造回归。
+
+## 已观测与实测
+
+- observed：`workbench/src/sidebar.ts:183` 将已批准终端投影为 `role: controller, terminal: true`。
+- observed：`workbench/src/daemon.ts:722–725` 的 `workbench_snapshot` 直接返回原 shell 启动记录，`task: null`；`workbench/app/main.ts:462–463` 只追加窗格和输入字段，不改写 `launch.role`。
+- measured：隔离真实后台、真实项目 zsh，经角色申请、批准、确认后，同一个 launch 的 `terminal_whoami.role` 为 `executor`，侧栏角色为 `controller`，窗格快照角色仍为 `shell`。见 `controller-scope-probe-01.json`（候选 `16fca3526707fec7712b672ba0c4e351d6d5ae02`，exit 0，零模型调用，无清理错误）。夹具 `/private/tmp/t159-role-probe-nviht3n5` 保留。
+- inferred：在当前产品路径中，已批准项目主控的菜单仍满足 `snapshot.launch.role === 'shell'`；单纯把分屏判据改回这一表达式，不会被这个真实项目主控场景拒绝。不能把它宣称为已复现、已杀死的回归变异。
+- unknown：审查是否采用了不同代码版本、角色投影变化，或替换快照字段的夹具。尚无真实 Electron 的该禁用现象证据。
+
+可重放事实探针（新路径，不覆盖旧输出）：
+
+```sh
+PYTHONPYCACHEPREFIX=/private/tmp/t159-pycache python3 evidence/2026-10-23-batch24/T-159/PROBE-CONTROLLER-SCOPE-01.py --summary /private/tmp/t159-controller-scope-new.json
+```
+
+## 最小选项
+
+1. 请审查者给出在当前候选上出现 `snapshot.launch.role === 'controller'` 的真实窗格快照与步骤；worker 按实际入口复现后修复并补回归。
+2. 将本项明确为判据一致性的契约加固：worker 统一窗格归属判据，真实 e2e 覆盖已批准项目主控可分屏；另用受控角色投影变化测试“按 role 判断”的反例，并明确它是分类边界反事实，不是当前生产路径缺陷复现。需要主控确认这种反例满足消息 #34 的要求。
+
+REALITY GATE：INCOMPLETE。下一步由执行主控确认复现输入或反例范围；worker 不自行扩大到角色投影层，也不让不会失败的变异冒充通过。

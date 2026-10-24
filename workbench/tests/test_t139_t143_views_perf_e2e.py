@@ -1,7 +1,7 @@
 """T-139/T-143：同一真实 Electron、后台与真实 Claude CLI 的联合验证。
 
 失败方式（先列再写；期望来自两张 ticket）：
-1. 任务视图混入项目终端或另一任务，agent 视图混入其他会话。
+1. 任务视图自动混入未明确加入的项目终端或另一任务，agent 视图混入其他会话。
 2. 项目只显示普通终端，没有每任务一格的导航。
 3. 切换重复创建输入凭据；ended 会话拿到输入权限；布局丢失。
 4. 回放偏移倒退、重复或丢失，切换后焦点或输入错路由。
@@ -107,7 +107,7 @@ def main():
         # Red-state assertion collected before the project assertion, matching the reported defect.
         click('[data-task-option="demo+T-A"]')
         key_a = ready(workers['T-A'])
-        check('task_A_only_its_agents', visible() == [workers['T-A']], visible())
+        check('task_A_excludes_unselected_project_terminals', visible() == [workers['T-A']], visible())
         shot('02-task-A')
         click('[data-agent-launch="' + workers['T-A'] + '"]')
         ready(workers['T-A'])

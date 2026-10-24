@@ -401,7 +401,7 @@ function SessionPane({ paneKey, active, screenReader, name, home, focusRequest, 
           </span>
         </div>
         {menu && <div ref={menuRef} className="pane-menu" role="menu" aria-label="窗格操作" style={{ left: menu.x, top: menu.y }} onKeyDown={event => {
-          const items = [...menuRef.current!.querySelectorAll<HTMLButtonElement>('button')];
+          const items = [...menuRef.current!.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')];
           const index = items.indexOf(document.activeElement as HTMLButtonElement);
           if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
             event.preventDefault();
