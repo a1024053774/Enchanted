@@ -18,3 +18,7 @@ ERROR: unexpected status 405 Method Not Allowed: ZCode: 405 Method Not Allowed �
 ```
 
 首次探针未关 stdin，codex exec 一直等 stdin，8 分钟后由执行主控终止，不算 GLM 结果。
+
+追加：`auto/GLM-5.3-Flash` 同样 405（同一上游防火墙）。构思主控 answer 20261024T162332Z 选 A，应用内 Codex 改用 gpt-6.1-sol high，不再探 GLM。
+
+开跑读数（外层会话日志 2026-10-24T14:25:24Z）：5h 窗口已用 52%（300 分钟窗口），周窗口已用 23%。实例 `/private/tmp/t164-dogfood-dc_5rakx`，Electron PID 96695，daemon PID 96694，基线 aacc1bb81。隔离 CODEX_HOME 只含 auth.json 副本与对 demo-repo 的信任。
