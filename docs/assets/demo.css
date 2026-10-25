@@ -6,7 +6,7 @@
 .wb {
   --ink: #1d1d1f; --muted: #6b6b72; --faint: #8e8e95;
   --sheet: #ffffff; --sheet-edge: rgba(0, 0, 0, .07); --line: rgba(0, 0, 0, .08);
-  --sidebar: linear-gradient(160deg, #dde4f3 0%, #e8ebf2 45%, #e3ecef 100%);
+  --sidebar: linear-gradient(160deg, #e3e7f0 0%, #eaecf1 45%, #e5eaed 100%);
   --row-hover: rgba(0, 0, 0, .045); --row-selected: #ffffff; --row-selected-shadow: 0 1px 2px rgba(0, 0, 0, .08), 0 0 0 .5px rgba(0, 0, 0, .06);
   --control: rgba(0, 0, 0, .05); --control-hover: rgba(0, 0, 0, .09); --control-border: rgba(0, 0, 0, .1);
   --accent: #0a66d8; --needs: #b7791f; --needs-ink: #93600f; --needs-bg: rgba(214, 150, 50, .12);
@@ -327,3 +327,28 @@
 .wb:has(.role-requests) .app-notifications { top: auto; bottom: 64px; }
 /* 通知、菜单项悬停时保留自己的底色：通用的按钮悬停底色是半透明的，会让下面的窗格文字透出来。 */
 @media (hover: hover) and (pointer: fine) { .wb .app-notifications button:hover:not(:disabled) { background: var(--menu); box-shadow: var(--shadow), inset 0 0 0 1px var(--needs); } }
+
+/* 项目的任务分屏：取自 workbench/app/style.css 的 .project-task-grid、.project-task-tile。 */
+.wb .project-task-grid { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); grid-auto-rows: minmax(180px, 1fr); overflow: auto; }
+.wb .project-task-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 24px; border: 0; border-radius: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--sheet); color: inherit; text-align: left; min-width: 0; }
+.wb .project-task-tile strong { font-size: 18px; font-weight: 600; overflow-wrap: anywhere; }
+.wb .project-task-tile .task-meta { color: var(--muted); font-size: 12px; }
+.wb .task-agents { margin-top: auto; color: var(--muted); font-size: 12px; }
+@media (hover: hover) and (pointer: fine) { .wb .project-task-tile:hover:not(:disabled) { background: var(--row-hover); } }
+.wb .project-task-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+.wb .project-task-tile.wb-spot { outline-offset: -3px; border-radius: 0; }
+
+/* 换场景：主区域淡入，窗格和任务格依次出现；只动 opacity 与 transform，减弱动效时不动。 */
+@media (prefers-reduced-motion: no-preference) {
+  .wb.wb-enter main > :not(.task-header) { animation: wb-fade .36s cubic-bezier(.16, 1, .3, 1) both; }
+  .wb.wb-enter .pane-slot, .wb.wb-enter .project-task-tile { animation: wb-rise .42s cubic-bezier(.16, 1, .3, 1) both; }
+  .wb.wb-enter .pane-slot:nth-child(2), .wb.wb-enter .project-task-tile:nth-child(2) { animation-delay: 60ms; }
+  .wb.wb-enter .pane-slot:nth-child(3), .wb.wb-enter .project-task-tile:nth-child(3) { animation-delay: 120ms; }
+  .wb.wb-enter .pane-slot:nth-child(n+4), .wb.wb-enter .project-task-tile:nth-child(n+4) { animation-delay: 180ms; }
+  .wb.wb-enter .app-notifications button { animation: wb-toast .4s cubic-bezier(.16, 1, .3, 1) both .2s; }
+  .wb.wb-enter .wb-spot { animation: wb-spot .9s cubic-bezier(.16, 1, .3, 1) both; }
+}
+@keyframes wb-fade { from { opacity: 0; } }
+@keyframes wb-rise { from { opacity: 0; transform: translateY(6px) scale(.985); } }
+@keyframes wb-toast { from { opacity: 0; transform: translateX(12px); } }
+@keyframes wb-spot { from { outline-color: transparent; } }
