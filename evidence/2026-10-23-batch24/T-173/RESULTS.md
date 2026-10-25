@@ -50,3 +50,11 @@ python3 -m http.server 8766 --bind 127.0.0.1 -d docs &
 ## 独立审查
 
 `review-agy-01.md`：PASS。P3 两条：任务格计数排除主控（演示数据的差别，审查后补了代码注释，未再审查）；`wb-spot` 动的是 outline-color，减弱动效下不播。
+
+## 上线
+
+推送前扫描 `credential-scan-01.json` 0 处命中，无用户邮箱、无大文件；`3688e2ec2..275b792db`，无 force push。Pages 构建于 `275b792db`，返回 200；线上 `live-01` 51/51 通过（Playwright 自带 Chromium，无头）。
+
+## 状态：INCOMPLETE（只差 lcu 亲眼复看）
+
+lcu 挂接 “Google Chrome for Testing” 两次都没有返回：第一次 30 分钟无响应后超时，第二次我手动停止。推测在等应用授权，授权要用户批准，我没有代批。票上“用 lcu 打开 Chrome 看、修后在 Chrome 里复看本地与线上”这一条未完成；其余验收项有上面的 Playwright 证据。用户批准 lcu 控制 Chrome for Testing（或指定可以用的 Chrome 窗口）后可补。
