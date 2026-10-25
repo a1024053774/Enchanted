@@ -20,7 +20,7 @@
 
 ## 第三阶段：工作台约束
 
-- 方向：各家原生 CLI 以交互终端运行，不用无头模式；a2a 只做编排、门禁与记录，不用 Synara 的 provider 层与 MCP 网关（T-069）。终端由编排后台托管（node-pty、xterm.js），窗格里跑用户的 zsh；第一版只支持 Claude Code 与 Codex；2026-10-25 用户要求“增加 antigravity,opencode 的支持吧,按理说应该不限 cli 的,但应该还要实测一下”（T-187）。
+- 方向：各家原生 CLI 以交互终端运行，不用无头模式；a2a 只做编排、门禁与记录，不用 Synara 的 provider 层与 MCP 网关（T-069）。终端由编排后台托管（node-pty、xterm.js），窗格里跑用户的 zsh；第一版只支持 Claude Code 与 Codex；2026-10-25 用户要求“增加 antigravity,opencode 的支持吧,按理说应该不限 cli 的,但应该还要实测一下”（T-187）；两者可作 worker（用户选 C）：agy 以 --dangerously-skip-permissions 运行，靠门禁事后检查（含 Git 元数据守护）兜底，agy 信任写入用户 ~/.gemini 的 trustedWorkspaces 是用户批准的唯一全局配置例外。
 - 工作台：本仓库新目录里的轻量 Electron 应用，借用 Synara 的前端组件与样式；fork（GitHub `a1024053774/synara`）只作组件来源，不再跟进上游，不删。界面按“项目 → 任务 → agent 会话”组织；任务与 agent 会话的归属由 a2a 自己保存（受管任务以门禁 task id 为身份）。编排后台常驻，界面关掉不影响 agent。
 - 主控身份（T-119～T-121，2026-10-21）：用户在项目终端里用自己的命令启动 CLI；用户让它做主控时，它经 `a2a request` 做角色申请，用户在 Enchanted 界面批准后生效，身份绑定该终端与项目，终端关闭即结束。没有已批准角色的会话不能用主控命令。worker 与 reviewer 不申请，由后台按主控所选 CLI 启动时定身份（T-122）。术语见 `CONTEXT.md`“角色申请”。
 - 提示词管判断，脚本管事实：能机械核对的由脚本和门禁保证，角色卡只写“用哪个命令”；要判断的交给提示词和人；不做策略引擎（T-070）。

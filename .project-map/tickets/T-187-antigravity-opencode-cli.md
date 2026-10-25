@@ -8,7 +8,7 @@ claimed_by:
 supersedes:
 ready: yes
 ready_by: ideation
-ready_rev: 1
+ready_rev: 2
 ---
 
 ## What to build
@@ -19,7 +19,15 @@ ready_rev: 1
 
 通用：先留真实入口的红态再修根因；真实 Claude 用 claude-haiku-5-5、尽量少；不写 ~/.claude、~/.codex 等全局配置，钩子只经每会话启动参数；agy 独立审查。
 
+补充（ready_rev 2）：权限决定。用户 2026-10-25 在执行主控 needs-decision（inbox 20261025T150744Z）的选项里选“C 两者都作 worker”，选项原文：“agy 用 --dangerously-skip-permissions 全放开，只靠门禁事后检查；Git 元数据可能被改，每次派发写一次 ~/.gemini”。据此：
+- agy、opencode 都可作 worker 与审查员。agy 以 `--dangerously-skip-permissions` 启动；opencode 也按会话放开到能无人值守完成任务。门禁照常做路径边界、验收文件不变、独立审查与提交尾注检查，并核对 worktree 的 Git 元数据（HEAD、refs、config、hooks）在交付前后没有被 worker 改动，被改动则拒绝交付。
+- 这是 AGENTS.md“不写全局配置”的一项用户批准例外：agy 每个新 worktree 的信任确认会写入用户 ~/.gemini；只允许写 trustedWorkspaces 这一项，由后台在 worker 启动前以 agy 自身的信任流程完成（不靠盲按回车），不写其他键。完成报告列出写入条数。
+- 审查员仍须只读：给 agy/opencode 审查员的会话用文件权限（chmod）保证只读，与现有 agy 审查员做法一致。
+- 用户选择保留探针误写的 /private/tmp/t187-probe/repo 信任项，不删。
+
 ## Acceptance
+
+- [ ] Git 元数据守护：反例中 worker 改动 worktree 的 HEAD/refs/hooks，门禁拒绝交付；正例通过。
 
 - [ ] 真实 agy 与真实 opencode 各走一遍：项目终端启动 → 申请主控 → 批准 → 派一张卡给另一种 CLI 的 worker → 独立审查 → 门禁集成；各留截图与运行记录。
 - [ ] 两种 CLI 作 worker 时状态（运行中/空闲/等回答）在侧栏正确；做不到的信号在界面上显示“未知”而不是猜。
