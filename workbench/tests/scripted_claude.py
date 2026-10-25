@@ -201,12 +201,14 @@ class Fixture:
     def git(self, *arguments):
         return subprocess.check_output(['git', '-C', str(self.repo), *arguments], text=True).strip()
 
-    def start(self, claude, files):
-        """Start the daemon, make the demo repository with the given files, open it, and approve a terminal controller."""
+    def start(self, claude, files, launch_config=None):
+        """Start the daemon, make the demo repository with the given files, open it, and approve a terminal controller.
+        launch_config adds to the daemon's worker launch configuration (T-187: agy_bin, opencode_bin)."""
         config = dict(claude_bin=claude, role_card=str(self.source / 'workbench/roles/worker.md'), role_card_revision='fixture',
                       reviewer_role_card=str(self.source / 'workbench/roles/reviewer.md'), reviewer_role_card_revision='fixture',
                       monitor_role_card=str(self.source / 'workbench/roles/monitor.md'), monitor_role_card_revision='fixture',
-                      code_revision='fixture', hook_authorization='fixture: hooks only through launch arguments', turn_limit=6)
+                      code_revision='fixture', hook_authorization='fixture: hooks only through launch arguments', turn_limit=6,
+                      **(launch_config or {}))
         (self.dir / 'launch-config.json').write_text(json.dumps(config), encoding='utf-8')
         self.run_cli('daemon_start', '--launch-config', str(self.dir / 'launch-config.json'))
         self.running = True

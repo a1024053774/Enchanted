@@ -36,8 +36,9 @@ import {
 } from "../contracts/index.ts";
 import { execFile as execProcessFile, spawn } from "node:child_process";
 import { createInterface } from "node:readline";
-import { TaskCardError, taskCardTemplate, validateTaskCard, pathAllowed, pathIntersection, projectRules, type ProjectQuality, type TaskCard } from "./taskCards.ts";
+import { cliProvider, workerClis, TaskCardError, taskCardTemplate, validateTaskCard, pathAllowed, pathIntersection, projectRules, type ProjectQuality, type TaskCard } from "./taskCards.ts";
 import { Schema } from "effect";
+import { terminalClis } from "../terminalClis.ts";
 import { executorScore, reviewVerdict, reviewEvidence, QualityProtocolError } from "./qualityProtocol.ts";
 import { A2AMembership } from "./membership.ts";
 import { readyTickets } from "./readyTickets.ts";
@@ -47,6 +48,15 @@ import {
   saveRolePermission,
 } from "./rolePermissions.ts";
 
+// T-187: an agy or opencode reviewer has no OS sandbox; its review checkout is made read-only for the session and
+// writable again before the gate removes it.
+export function treeWritable(path: string, writable: boolean) {
+  const entries = readdirSync(path, { withFileTypes: true, recursive: true });
+  for (const target of [path, ...entries.filter(entry => !entry.isSymbolicLink()).map(entry => join(entry.parentPath, entry.name))]) {
+    const mode = lstatSync(target).mode & 0o7777;
+    chmodSync(target, writable ? mode | 0o200 : mode & ~0o222);
+  }
+}
 export class Refusal extends Error {
   readonly code: string;
   readonly details?: unknown;
@@ -60,7 +70,7 @@ export class Refusal extends Error {
   }
 }
 // The native provider an attached session runs on: its own CLI.
-const attachmentProvider = (attachment: A2AAttachment) => attachment.cli === "Claude Code" ? "claude" : "codex";
+const attachmentProvider = (attachment: A2AAttachment) => cliProvider(attachment.cli);
 function requireGate(value: unknown, code: string, details?: unknown): asserts value {
   if (!value) throw new Refusal(code, details);
 }
@@ -1241,7 +1251,7 @@ export class A2AGates {
   // not reclaim it (T-124 e2e dev runs 01 and 11).
   private threadProvider(attachment: A2AAttachment | undefined, attempt: A2AAttempt | null | undefined) {
     if (attachment) return attachmentProvider(attachment);
-    return attempt && this.boundCard(attempt).executor.cli === "Claude Code" ? "claude" : "codex";
+    return attempt ? cliProvider(this.boundCard(attempt).executor.cli) : "codex";
   }
   private boundCard(attempt: A2AAttempt): TaskCard {
     const row = this.db.prepare("SELECT data FROM task_card_snapshots WHERE id=? AND task=? AND attempt=?")
@@ -2083,7 +2093,8 @@ export class A2AGates {
   // metadata, which the paths check does not see. Read what a worker must not change once its worktree exists, and compare
   // before the paths check: the worktree's HEAD, the repository and worktree config, the hooks, and refs. The user keeps
   // working in the same repository meanwhile, so a ref counts as the worker's only when it holds one of the worker's
-  // commits (base..candidate); the attempt's own branch and the gate's refs/a2a/ are expected to.
+  // commits: the candidate's, less those the base or the integration branch already has (a rework candidate holds the
+  // branch's newer commits; review round 3, F1). The attempt's own branch and the gate's refs/a2a/ are expected to.
   // Hashes stand in for the hook and config files themselves in the stored attempt.
   private async gitMetadata(taskId: string, workspace: string) {
     const gitDir = await this.git(taskId, workspace, ["rev-parse", "--path-format=absolute", "--git-dir"]);
@@ -2104,10 +2115,11 @@ export class A2AGates {
     for (const name of new Set([...Object.keys(before.hooks), ...Object.keys(after.hooks)]))
       if (before.hooks[name] !== after.hooks[name]) changed.push(`hooks/${name}`);
     const own = `refs/heads/a2a/${this.attemptName(attempt)}`;
-    const commits = (await this.git(task.task_id, task.repo, ["rev-list", "--parents", `${attempt.base_commit}..${v.C}`]))
+    const commits = (await this.git(task.task_id, task.repo, ["rev-list", "--parents", v.C, `^${attempt.base_commit}`, `^${v.G}`]))
       .split("\n").filter(Boolean).map(line => line.split(" "));
     const worker = new Set(commits.map(([commit]) => commit));
-    // A ref that holds any worker commit holds one whose parents are not the worker's.
+    // A ref that holds any worker commit holds one whose parents are not the worker's. Several --contains list the refs
+    // that hold any of them.
     const first = commits.filter(([, ...parents]) => !parents.some(parent => worker.has(parent))).map(([commit]) => commit);
     if (first.length) {
       const refs = await this.git(task.task_id, task.repo, ["for-each-ref", "--format=%(refname)", ...first.flatMap(commit => ["--contains", commit])]);
@@ -2411,7 +2423,8 @@ export class A2AGates {
     const sandbox = Array.isArray(argv) ? argv.indexOf("--sandbox") : -1;
     const cwd = Array.isArray(argv) ? argv.indexOf("-C") : -1;
     const config = (key: string) => Array.isArray(argv) && argv.includes(key);
-    const claude = this.boundCard(review.attempt).executor.cli === "Claude Code";
+    const cli = this.boundCard(review.attempt).executor.cli, claude = cli === "Claude Code";
+    const managed = Object.hasOwn(terminalClis, cli) ? terminalClis[cli]!.managed : undefined;
     // A Claude reviewer (D24: same CLI as the worker) never asks, loads user MCP but no settings
     // files, and writes only its candidate copy and registered extra directories. The argv
     // is checked as a whole: fixed flags in fixed places, and settings with exactly these fields.
@@ -2424,7 +2437,7 @@ export class A2AGates {
     // D24: same model, effort and Fast as the worker launch, and the worker's signal command with
     // only the launch id changed. The executable is recorded, not compared: its real path names
     // the Claude version, which may update between the two launches (T-118, review 03).
-    const worker = claude ? this.launchRecord(review.attempt.runtime_identity?.launch) : null;
+    const worker = claude || managed ? this.launchRecord(review.attempt.runtime_identity?.launch) : null;
     let workerSettings: any = null;
     try { workerSettings = worker ? JSON.parse(String(worker.argv?.[14])) : null; } catch { workerSettings = null; }
     const workerSignal = workerSettings?.hooks?.Stop?.[0]?.hooks?.[0]?.command;
@@ -2433,7 +2446,16 @@ export class A2AGates {
     const extraStart = mcp ? 17 : 15;
     requireGate(Array.isArray(extraDirectories) && extraDirectories.every(path => typeof path === 'string' && isAbsolute(path)),
       "review_extra_directories", { extraDirectories });
-    const boundary = claude
+    // T-187: an agy or opencode reviewer's launch is the one the register builds from the worker launch's model and
+    // effort, as a whole; its review checkout is read-only, since the CLI has no sandbox.
+    const expected = managed && worker ? managed({ executable: String(argv?.[0]), workspace: review.candidate_workspace,
+      model: worker.model_requested, effort: worker.effort_requested, extraDirectories }) : null;
+    const boundary = managed
+      ? launch?.cli === cli && worker?.cli === cli && worker.role === "worker" && expected !== null &&
+        JSON.stringify(argv) === JSON.stringify(expected.argv) &&
+        Object.entries(expected.env).every(([key, value]) => launch.env?.[key] === value) &&
+        live.workspace === review.candidate_workspace && (statSync(review.workspace).mode & 0o222) === 0
+      : claude
       ? launch?.cli === "Claude Code" && Array.isArray(argv) && argv.length === extraStart + 2 * extraDirectories.length &&
         (!mcp || typeof launch.env?.HOME === "string" && isAbsolute(launch.env.HOME) && argv[16] === join(launch.env.HOME, ".claude.json")) &&
         JSON.stringify(argv.slice(extraStart)) === JSON.stringify(extraDirectories.flatMap(path => ['--add-dir', path])) &&
@@ -2469,7 +2491,7 @@ export class A2AGates {
     requireGate(launch && launch.role === "reviewer" && launch.review_id === review.review_id &&
       launch.review_verification_id === review.verification_id && launch.session === review.session_id &&
       launch.thread === review.thread_id && launch.attempt === review.attempt.attempt_id &&
-      launch.sandbox === "workspace-write" && launch.worktree === review.candidate_workspace && boundary &&
+      launch.sandbox === (managed ? "none" : "workspace-write") && launch.worktree === review.candidate_workspace && boundary &&
       !Object.keys(launch.env ?? {}).some((key) => key.startsWith("GIT_CONFIG_")),
       "review_launch_boundary", { launch, live: { workspace: live.workspace, runtime_identity: live.runtime_identity } });
     return launch;
@@ -2783,6 +2805,7 @@ export class A2AGates {
     const binding = { review_id: review.review_id, workspace: review.workspace, candidate_commit: review.candidate_commit,
       ordinal: review.ordinal, attempt: review.attempt.attempt_id };
     this.event(task.task_id, "review_worktree_cleanup_intent", binding, review.attempt.attempt_id);
+    treeWritable(review.workspace, true);
     await this.git(task.task_id, task.repo, ["worktree", "remove", review.workspace]);
     const after = await this.git(task.task_id, task.repo, ["worktree", "list", "--porcelain", "-z"]);
     requireGate(!existsSync(review.workspace) && !after.split("\0").includes("worktree " + review.workspace),
@@ -2869,7 +2892,7 @@ export class A2AGates {
     const identity = this.runtimeIdentity(attempt, live), bound = attempt.runtime_identity;
     requireGate(
       live.workspace === attempt.workspace &&
-        ["codex", "claude"].includes(live.provider) &&
+        workerClis.map(cliProvider).includes(live.provider) &&
         bound && identity.launch === bound.launch && identity.thread === bound.thread && identity.shell_pid === bound.shell_pid &&
         (bound.leader_pid === null || identity.leader_pid === bound.leader_pid) &&
         (bound.native_session === null || identity.native_session === bound.native_session),
@@ -4077,7 +4100,7 @@ export class A2AGates {
             !live.error &&
               live.workspace === attempt.workspace &&
               // The task card names the worker's CLI.
-              live.provider === (this.boundCard(attempt).executor.cli === "Claude Code" ? "claude" : "codex") &&
+              live.provider === cliProvider(this.boundCard(attempt).executor.cli) &&
               live.running &&
               !live.blocked &&
               attempt.runtime_identity!.leader_pid !== null && attempt.runtime_identity!.native_session !== null &&
@@ -4136,8 +4159,12 @@ export class A2AGates {
         if (attempt.thread_id) {
           requireGate(this.runtime?.sessionFacts, "delivery_facts_required");
           const facts = await this.runtime.sessionFacts(attempt.thread_id);
+          // agy and opencode report no model or effort for a turn (T-187): their delivery records them as unknown, never as
+          // the requested ones.
+          const cli = this.boundCard(attempt).executor.cli;
+          const unobserved = Object.hasOwn(terminalClis, cli) && terminalClis[cli]!.turns === "osc7501";
           requireGate(facts.launch.role === "worker" && facts.launch.id === attempt.runtime_identity?.launch &&
-            facts.model !== "unknown" && facts.effort !== "unknown", "delivery_facts_unknown");
+            (unobserved || facts.model !== "unknown" && facts.effort !== "unknown"), "delivery_facts_unknown");
           attempt.delivery = { commit, turn_id: attempt.turn_id, launch_id: facts.launch.id, cli: facts.launch.cli_version,
             model: facts.model, effort: facts.effort, number: (attempt.delivery?.number ?? 0) + 1,
             submitted_at: new Date(this.now()).toISOString() };

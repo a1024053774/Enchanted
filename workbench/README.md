@@ -300,6 +300,14 @@ zsh；历史快照返回 `lifecycle: ended`。退出无法核对时保留 unknow
 
 agy 与 opencode 的回合状态不经钩子，取自它们自己报给终端的 OSC 7501（`ESC ] 7501 ; state=…[:kind=…] BEL`，T-187）：后台从项目终端的输出里读出最后一条报告（`pane_status` 的 `cli_turn`；一条报告被拆在两段输出里也能读出），前台程序退出后清掉。经角色申请成为主控的 agy、opencode 终端，侧栏与窗格头按它取状态：`working` 为运行中，`idle`、`done`、`clear` 为空闲，`blocked` 且 `kind=question` 为等待用户回答；`blocked` 的权限确认、登录和还没有报告时显示未知，不猜。`a2a request` 按运行它的 CLI 给子进程的环境认出是哪个 CLI（`CLAUDECODE`、`CODEX_THREAD_ID`、`OPENCODE_SESSION_ID`，agy 用包装脚本的 `A2A_SHIM=agy`），CLI 自己设的变量优先于包装脚本的。
 
+agy、opencode 也可作 worker 与审查员（任务卡 `executor.cli` 为 `agy` 或 `opencode`；T-187 ready_rev 2，用户选 C）。没有按会话的钩子，回合同样取自 OSC 7501：派发写入后的 `working` 是回合开始，之后的 `idle`、`done`、`clear` 是回合结束，worker 写在请求目录里的交付请求在这里转交门禁（与 Stop 钩子同一条路径）；审查员把结论 JSON 写进请求目录的 `review-result.json`，回合结束时读取。
+
+- 启动参数：agy 为 `agy --dangerously-skip-permissions --model <卡上模型> --effort <卡上强度>`，环境 `AGY_CLI_OSC7501=on`；opencode 为 `opencode --standalone --auto <worktree>`，模型经 `OPENCODE_CONFIG_CONTENT` 传入。两者都在用户自己的 HOME 运行（登录在那里，不复制凭据），没有操作系统沙箱；门禁核对完整 argv。它们报不出本回合的模型与强度，交付与提交尾注记为 `unknown`。
+- agy 的目录信任：agy 对每个新目录弹一次“Trust this folder?”。后台核对屏幕上选中的是 “Yes, I trust this folder”、目录是本会话的 worktree 后才按回车，再核对 `~/.gemini/antigravity-cli/settings.json` 只有 `trustedWorkspaces` 多了这一个目录、其他键不变；写入条数记在 `agy_trust_written` 事件里。对不上就记 `agy_trust_failed`，不按键。每次派发（worker 与审查员各一个新目录）写一条。
+- 审查员只读：审查 checkout 在启动前 chmod 去掉写权限（`review_checkout_read_only`），门禁的审查启动检查核对它不可写；回收前恢复。
+- Git 元数据：门禁在认领后记下 worktree 的 HEAD、仓库与 worktree config、hooks 目录，交付验收时比对，并检查含有 worker 提交的 ref；有改动以 `git_metadata_changed` 拒绝（对所有 worker 生效）。
+- 限制：后台重启后不恢复 agy、opencode 的受管窗格；回合内的工具调用不逐条记录；agy worker 没有开局说明，角色卡照常作为首条提示的开头；`blocked`（权限、登录）显示未知。
+
 每格右上角的“⋯”和右键菜单提供重命名、向右分屏、向下分屏、放大/还原、把右键发给窗格、关闭。
 分屏保留原窗格，按所选方向新建普通 zsh。普通终端沿用原启动目录；从任务 agent 分屏时，目录为任务仓库根，
 不使用 worker 的 worktree。用户可以自行在新终端启动 CLI 讨论任务；新终端标为“普通终端”，不计入 worker，

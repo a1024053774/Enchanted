@@ -24,6 +24,9 @@ export function agentState(pane: any, events: any[], worktree: string | undefine
   if (!pane || pane.historical || pane.failed || pane.interrupted || pane.lifecycle !== 'running') return 'unknown';
   const waiting = questionState(pane, events);
   if (waiting) return waiting;
+  // T-187: an agy or opencode session that reports a question or a permission or sign-in wait is waiting on nobody the
+  // backend can name (a managed session asks through `issue`), as with a Codex worker's native question.
+  if (pane.cli_turn?.state === 'blocked') return 'unknown';
   const resolvedQuestions = new Set(projectQuestions(events).filter(q => ['answered', 'cancelled'].includes(q.status)).map(q => q.tool_use_id));
   const pending = new Set<string>();
   const files = new Map<string, { kind: ReturnType<typeof codexSessionOrigin>; turn: string | null }>();

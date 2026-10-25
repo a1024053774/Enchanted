@@ -42,6 +42,9 @@ def claude_turn_facts(env):
 
 
 def latest_turn_facts(env):
+    # agy and opencode (T-187) report turns only to the terminal and keep no record this hook can read.
+    if env.get('A2A_TURNS') == 'osc7501':
+        return 'unknown', 'unknown'
     home = env.get('CODEX_HOME')
     if not home:
         return claude_turn_facts(env)

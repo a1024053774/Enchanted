@@ -1,10 +1,10 @@
 # T-187 结果：增加 agy 与 opencode 的支持并实测
 
-## 状态：INCOMPLETE（终端侧已实现并通过替身测试和真实 opencode 运行；worker 权限待用户决定，真实 agy 运行要用户点一次信任，验收第 1 条的完整流程还没走）
+## 状态：INCOMPLETE（终端侧、Git 元数据守护、agy/opencode 作 worker 与审查员已实现并通过替身端到端测试；真实 agy、opencode 的 worker 运行与第四轮审查还没做）
 
 ## 依据
 
-ticket T-187（ready_rev 1）。用户 2026-10-25 原话：“增加 antigravity,opencode 的支持吧,按理说应该不限 cli 的,但应该还要实测一下,”。实测事实见 `facts.md`。worker 权限的决定请求见 inbox `20261025T150744Z-executor-needs-decision-001`。
+ticket T-187（ready_rev 1；2026-10-25 起 ready_rev 2）。用户 2026-10-25 原话：“增加 antigravity,opencode 的支持吧,按理说应该不限 cli 的,但应该还要实测一下,”。实测事实见 `facts.md`。worker 权限的决定请求见 inbox `20261025T150744Z-executor-needs-decision-001`。
 
 ## 做了什么（终端侧：作主控与普通终端）
 
@@ -33,9 +33,8 @@ ticket T-187（ready_rev 1）。用户 2026-10-25 原话：“增加 antigravity
 
 ## 还没做
 
-- 验收第 1 条的完整流程（申请主控 → 派卡给另一种 CLI 的 worker → 独立审查 → 门禁集成）：worker 用哪种 CLI、权限怎么定，等用户决定。
-- 真实 agy 运行：agy 在隔离 HOME 下没有登录；在用户自己的 `~/.gemini` 下，每个新夹具目录都要用户本人点一次信任。
-- AGENTS.md 的支持范围：等 worker 的决定定下后一起改。
+- 真实运行（验收第 2 条）：agy 主控派卡给 opencode worker、opencode 主控派卡给 agy worker，各自独立审查后集成。用户 2026-10-25 已选 C，信任写入经 agy 自身流程写用户的 `~/.gemini`，条数在完成报告里列出。
+- 第四轮独立审查。
 
 ## 已知限制
 
@@ -78,6 +77,7 @@ probe-01 把一个临时夹具目录写进了用户 agy 配置的 `trustedWorksp
 
 | 运行（`test_t187_git_metadata_guard_e2e.py`） | 结果 | 说明 |
 | --- | --- | --- |
+| `guard-green-05`（第三轮修后） | PASS | 同下，加 merged 案例：worker 提交后、交付前，用户在 main 上提交并被合进 worker 分支，照常通过 |
 | `guard-green-02` | PASS | 真实后台、门禁、终端主控、Claude Code worker 与审查员（脚本化模型）。交付后、验收前由测试从外面改动：放 hooks/post-merge、设 core.fsmonitor、分离 worktree HEAD、把候选挂到新分支并移动已有标签，四个都被拒并点名；正例中用户同时在主 checkout 建分支、提交、切换，照常通过审查并集成 |
 | `guard-red-main-01`（`--revision main`） | 16 项失败 | 修前四个反例都被验收 |
 | `guard-mutant-refs-ignored-01`、`-config-ignored-01`、`-head-ignored-01` | 各在自己的案例上被拒 | 只看一部分元数据 |
@@ -85,3 +85,41 @@ probe-01 把一个临时夹具目录写进了用户 agy 配置的 `trustedWorksp
 | `setup-error-01/guard-green-01-head-made-a-ref` | 测试自身的错误 | head 案例的篡改步骤顺手建了一个指向候选的分支，门禁把它也点了名（判断正确），期望写漏；改为只分离 HEAD |
 
 已知限制：worker 把别的 ref 删掉、回退，或挂到不在候选历史里的提交上，这一规则认不出（无法和用户自己的操作区分）。集成分支被动过时，集成本身的 CAS 会拒绝。
+
+## 独立审查第三轮（`review-agy-03.md`，候选 105cbaa7c）：`T-187 REVIEW INCOMPLETE`
+
+- F1（P1，成立）：守护用认领时的 base 算 worker 提交。集成分支在认领后前进、又被合进候选（冲突返工或 worker 自己合并）时，集成分支本身被当成泄漏 ref，交付必被误拒。修法：worker 提交改为 `rev-list 候选 ^base ^集成分支头`。测试：新增 merged 案例；修前的 main 上 `guard-red-main-merged-03` 失败（main 没有守护），变异 `base-only`（回到只排除 base）`guard-mutant-base-only-03` 被拒。
+- F2（P2，不成立）：审查认为 `for-each-ref` 的多个 `--contains` 是“与”。实测是“或”：只含 W1 的 `leak` 也被列出（`check_for_each_ref_contains.sh`、`check-for-each-ref-contains-01.txt`，git 2.52.0）。
+- F3（P2，成立）：候选里的 ticket 还是 ready_rev 1。rev 2 在 main 上，已把 main 合进 exec/t187。
+- F4（P3，成立）：补上变异 `hooks-ignored`，`guard-mutant-hooks-ignored-03` 在 hooks 案例上被拒。
+
+## agy、opencode 作 worker 与审查员（ready_rev 2）
+
+设计见 `worker-design.md`，README 有对应一节。要点：
+- 任务卡 `executor.cli` 接受 `agy`、`opencode`。启动参数：agy `--dangerously-skip-permissions --model --effort`、`AGY_CLI_OSC7501=on`；opencode `--standalone --auto <worktree>`、模型经 `OPENCODE_CONFIG_CONTENT`。在用户自己的 HOME 运行，不复制凭据。
+- 回合取自 OSC 7501（`panes.ts` 的 `reportedTurns`、`reportedStop`，后台 `daemon.ts` 的 `reportedTurnEnd`）：回合结束时 worker 的交付请求经与 Stop 钩子相同的转交路径进门禁；审查员把结论写进 `review-result.json`。
+- 交付事实：这两个 CLI 报不出本回合的模型与强度，门禁对它们接受 `unknown`，交付与尾注都记 `unknown`（`core.ts` 的 `delivery_facts_unknown` 检查）。
+- agy 信任：核对画面（目录、选中项）后才按回车，再核对 settings.json 只有 `trustedWorkspaces` 多了这一个目录；条数记在 `agy_trust_written`。
+- 审查员：审查 checkout chmod 只读，门禁的审查启动检查核对不可写。
+
+| 运行（`test_t187_managed_worker_e2e.py`） | 结果 | 说明 |
+| --- | --- | --- |
+| `worker-green-agy-02` | PASS | 真实后台、门禁、终端主控；agy 替身作 worker 与审查员。启动参数与环境、侧栏运行中 → 空闲、交付、审查通过、集成、尾注 unknown；信任写入 2 条（worker、审查员各一），其他键不变 |
+| `worker-green-opencode-02` | PASS | 同上，opencode 替身 |
+| `worker-green-agy-trust-no-02` | PASS | 信任框选中的是 “No, exit”：不按键，记 `agy_trust_failed`，settings 不变，没有交付，侧栏未知 |
+| `worker-red-main-02`（`--revision main`） | 被拒 | 修前任务卡不接受 agy（`invalid_task_card`） |
+| `worker-mutant-reviewer-writable-02` | 被拒 | 审查 checkout 不 chmod：门禁 `review_launch_boundary` |
+| `worker-mutant-trust-unchecked-02` | 被拒 | 不看画面就按回车：trust-no 案例失败 |
+| `worker-mutant-facts-required-01` | 被拒 | 要求观察到模型与强度：交付 `delivery_facts_unknown`，任务停在未交付 |
+
+回归（同一份最终源码）：`green-07`（终端侧）PASS，`regression-t184-04` PASS，`regression-t180-02` PASS，`guard-green-05` PASS。
+
+开发中暴露并修掉的问题（现场在 `setup-error-01/`）：
+- `worker-dev-01-fake-no-version`：替身不认 `--version`，后台取版本时卡住（测试自身）。
+- `worker-dev-02-trust-idle-race`：agy 在信任写入核对完成之前就报了 idle，会话一直没被当成已启动。修法：核对完成时若已报过 idle 就启动（`reportedStart`）。
+- `worker-dev-03-delivery-facts`：门禁要求观察到模型与强度，交付被拒；见上“交付事实”。
+- `guard-green-03-…`、`guard-mutant-base-only-01-…`：源码在运行中被我改动，作废。`guard-mutant-hooks-ignored-01-…`：变异补丁删掉整行后语法错误，改为把条件换成 false。`guard-red-main-merged-01-…`：测试的 else 分支让 merged 案例也执行了 clean 的步骤。
+- `worker-dev-04-…`：测试在审查会话回收前就集成（`operation_busy`），改为等 `review_reclaimed`。
+- 另有一次回归：`panes.ts` 里新加的局部变量 `cli` 遮住了模块级的 gate CLI 路径，Claude worker 的钩子命令变成 `node 'Claude Code' …`，会话开始钩子报 `MODULE_NOT_FOUND`。修前的 main 上同一案例通过，改名后通过。`superseded/` 是修这些之前的一批运行。
+
+已知限制：后台重启后不恢复 agy、opencode 的受管窗格；回合内工具调用不逐条记录；agy worker 没有开局说明；opencode 没有按会话的思考强度参数。

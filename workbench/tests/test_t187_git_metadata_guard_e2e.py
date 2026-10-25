@@ -12,6 +12,8 @@
 - head：worktree 的 HEAD 从任务分支改为分离状态（同一提交，不建新 ref）。期望拒绝交付，并点名 HEAD。
 - refs：把候选提交挂到一个新分支 leak，并把已有标签 release 移到候选提交上。期望拒绝交付，并点名这两个 ref。
 - clean：干净交付，其间用户自己在主 checkout 里建分支、提交、来回切换。期望通过审查并集成，不误拒。
+- merged：worker 提交后、交付前，用户在集成分支 main 上提交，main 被合进 worker 的分支（返工时候选同样含有集成分支的新提交，
+  审查第三轮 F1）。main 含有的提交不是 worker 的，期望不误拒（任务卡允许全部路径，只看守护）。
 
 失败方式（先列再写）：
 1. 门禁不看 Git 元数据（修前）：四个反例都被验收。
@@ -39,28 +41,46 @@ MUTANTS = {
     'refs-ignored': [(GUARD, '    if (first.length) {\n', '    if (false) {\n')],
     'head-ignored': [(GUARD, '    if (after.head !== before.head) changed.push("HEAD");\n', '')],
     'config-ignored': [(GUARD, '    if (after.config !== before.config) changed.push("config");\n', '')],
+    'hooks-ignored': [(GUARD, '      if (before.hooks[name] !== after.hooks[name]) changed.push(`hooks/${name}`);', '      if (false) changed.push(`hooks/${name}`);')],
+    # Worker commits counted from the base alone: the integration branch's own newer commits look like a leak (review 3, F1).
+    'base-only': [(GUARD, ', `^${attempt.base_commit}`, `^${v.G}`]', ', `^${attempt.base_commit}`]')],
     # Every ref holding a worker commit counts, the attempt's own branch too.
     'own-branch-counted': [(GUARD, 'ref && ref !== own && !ref.startsWith("refs/a2a/")', 'ref && !ref.startsWith("refs/a2a/")')],
 }
-CASES = ['hooks', 'config', 'head', 'refs', 'clean']
+CASES = ['hooks', 'config', 'head', 'refs', 'clean', 'merged']
 FILES = {'README.md': 'fixture\n', 'check.py': 'from pathlib import Path\nassert Path("done.txt").read_text() == "done\\n"\n'}
 
 
-def plan(body):
-    text = prompt_text(body)
-    if '审查这一次交付' in text:
-        shape = json.loads(text[text.rindex('{\n  "schema": 1'):])
-        shape.update(verdict='可合并', findings=[], report={'结论': '候选只改了 done.txt，满足任务卡。',
-                                                            '完成条件与变异检查': '变异：删除 done.txt，完成条件失败。'})
-        return 'reviewer', [('Bash', dict(command='rm done.txt; python3 check.py; echo "mutation rc=$?"', description='mutation'))], \
-            json.dumps(shape, ensure_ascii=False)
-    cwd = working_directory(body)
-    submit = re.search(r'显式交付：\n(.+)\n', text).group(1).replace("'FULL_COMMIT_SHA'", '"$(git rev-parse HEAD)"')
-    # A gate repair message later in the same session gets no tool calls: the steps are counted per session.
-    return 'worker', [('Write', dict(file_path=f'{cwd}/done.txt', content='done\n')),
-                      ('Bash', dict(command='git add done.txt', description='stage')),
-                      ('Bash', dict(command=f'git commit -q -m {quote("T-1 fixture change")}', description='commit')),
-                      ('Bash', dict(command=submit, description='submit'))], '已交付。'
+def make_plan(name, holder):
+    def plan(body):
+        text = prompt_text(body)
+        if '审查这一次交付' in text:
+            shape = json.loads(text[text.rindex('{\n  "schema": 1'):])
+            shape.update(verdict='可合并', findings=[], report={'结论': '候选只改了 done.txt，满足任务卡。',
+                                                                '完成条件与变异检查': '变异：删除 done.txt，完成条件失败。'})
+            return 'reviewer', [('Bash', dict(command='rm done.txt; python3 check.py; echo "mutation rc=$?"', description='mutation'))], \
+                json.dumps(shape, ensure_ascii=False)
+        cwd = working_directory(body)
+        submit = re.search(r'显式交付：\n(.+)\n', text).group(1).replace("'FULL_COMMIT_SHA'", '"$(git rev-parse HEAD)"')
+        steps = [('Write', dict(file_path=f'{cwd}/done.txt', content='done\n')),
+                 ('Bash', dict(command='git add done.txt', description='stage')),
+                 ('Bash', dict(command=f'git commit -q -m {quote("T-1 fixture change")}', description='commit'))]
+        if name == 'merged':
+            # Once the worker has committed and before it submits: the user commits on the integration branch and the
+            # branch is merged into the worker's. The test merges from outside, as an unsandboxed worker would: a Claude
+            # worker's sandbox refuses the merge's ORIG_HEAD.
+            step = sum(1 for m in body['messages'] if m['role'] == 'assistant' and isinstance(m['content'], list)
+                       and any(isinstance(p, dict) and p.get('type') == 'tool_use' for p in m['content']))
+            if step == len(steps) and not holder.get('merged'):
+                repo, env = holder['fixture'].repo, holder['fixture'].env
+                (repo / 'notes.txt').write_text('user\n', encoding='utf-8')
+                subprocess.run(['git', '-C', str(repo), 'add', 'notes.txt'], check=True, env=env)
+                subprocess.run(['git', '-C', str(repo), 'commit', '-q', '-m', 'user work on main'], check=True, env=env)
+                subprocess.run(['git', '-C', cwd, 'merge', '-q', '--no-edit', 'main'], check=True, env=env)
+                holder['merged'] = True
+        # A gate repair message later in the same session gets no tool calls: the steps are counted per session.
+        return 'worker', steps + [('Bash', dict(command=submit, description='submit'))], '已交付。'
+    return plan
 
 
 def run_case(name, args, out):
@@ -69,7 +89,9 @@ def run_case(name, args, out):
     def check(label, condition, detail=None):
         (report['checks'] if condition else report['failed']).append(dict(name=label, detail=detail))
 
-    fixture = Fixture('t187g-', plan, revision=args.revision, patches=MUTANTS.get(args.mutant, []))
+    holder = {}
+    fixture = Fixture('t187g-', make_plan(name, holder), revision=args.revision, patches=MUTANTS.get(args.mutant, []))
+    holder['fixture'] = fixture
     report['fixture'] = str(fixture.dir)
 
     def git(*argv, cwd=None):
@@ -86,7 +108,7 @@ def run_case(name, args, out):
         fixture.start(args.claude, FILES)
         if name == 'refs':
             git('tag', 'release')
-        fixture.card('T-1', 'done.txt', 'check.py')
+        fixture.card('T-1', '.' if name == 'merged' else 'done.txt', 'check.py')
         dispatched = fixture.request('dispatch', fixture.terminal, task='T-1', runtimeMode='workspace-write')
         assert dispatched.get('ok'), dispatched
         fixture.wait('交付', lambda: status()['state'] == 'submitted', 180)
@@ -105,7 +127,7 @@ def run_case(name, args, out):
         elif name == 'refs':
             git('branch', 'leak', candidate)
             git('tag', '-f', 'release', candidate)
-        else:
+        elif name == 'clean':
             git('switch', '-q', '-c', 'user-side')
             (fixture.repo / 'notes.txt').write_text('user\n', encoding='utf-8')
             git('add', 'notes.txt')
@@ -114,7 +136,16 @@ def run_case(name, args, out):
         before = len(events())
         verified = fixture.request('verify', fixture.terminal, task='T-1')
         report['observed']['verify'] = {k: verified.get(k) for k in ('ok', 'error', 'details')}
-        if name != 'clean':
+        if name == 'merged':
+            user = git('rev-parse', 'refs/heads/main')
+            held = subprocess.run(['git', '-C', str(fixture.repo), 'merge-base', '--is-ancestor', user, candidate]).returncode == 0
+            report['observed']['merged'] = dict(user_commit=user, candidate=candidate, held=held)
+            check('merged_candidate_holds_user_commit', held, report['observed']['merged'])
+            guard = [e for e in events()[before:] if e['type'] == 'git_metadata_check']
+            report['observed']['guard'] = [e.get('details') or e.get('data') for e in guard]
+            check('merged_not_refused_by_guard', verified.get('error') != 'git_metadata_changed' and len(guard) == 1
+                  and (guard[0].get('details') or guard[0].get('data') or {}).get('passed') is True, report['observed']['verify'])
+        elif name != 'clean':
             expected = {'hooks': ['hooks/post-merge'], 'config': ['config'], 'head': ['HEAD'],
                         'refs': ['refs/heads/leak', 'refs/tags/release']}[name]
             changed = (verified.get('details') or {}).get('changed') or []

@@ -9,7 +9,7 @@ import { readOperatorCredential } from './src/credentials.ts';
 import { desktopConnection, desktopCredentialDirectory, migrateDesktopCredential, newDesktopCredential, saveDesktopConnection } from './src/desktopCredentials.ts';
 import { run } from './ui/main.mjs';
 
-// What the backend needs to start workers (T-122). The user's own claude and codex are found
+// What the backend needs to start workers (T-122). The user's own claude, codex, agy and opencode (T-187) are found
 // the way their terminal finds them, through their login shell; without one, no worker of that
 // CLI starts. Codex sessions run in the user's own ~/.codex (user ruling 2026-10-21, T-127).
 async function userExecutable(name) {
@@ -20,10 +20,11 @@ async function userExecutable(name) {
   } catch (error) { console.error(JSON.stringify({ warning: `${name}_not_found`, reason: String(error) })); return null; }
 }
 async function workerLaunchConfig(packaged) {
-  const [claude, codex] = await Promise.all([userExecutable('claude'), userExecutable('codex')]);
+  const [claude, codex, agy, opencode] = await Promise.all(['claude', 'codex', 'agy', 'opencode'].map(userExecutable));
   const revision = packaged.a2a?.revision ?? 'unknown';
   return { ...(claude ? { claude_bin: claude } : {}),
-    ...(codex ? { codex_bin: codex, codex_home: join(homedir(), '.codex') } : {}), role_card: join(app.getAppPath(), 'roles/worker.md'),
+    ...(codex ? { codex_bin: codex, codex_home: join(homedir(), '.codex') } : {}),
+    ...(agy ? { agy_bin: agy } : {}), ...(opencode ? { opencode_bin: opencode } : {}), role_card: join(app.getAppPath(), 'roles/worker.md'),
     role_card_revision: revision, reviewer_role_card: join(app.getAppPath(), 'roles/reviewer.md'), reviewer_role_card_revision: revision,
     monitor_role_card: join(app.getAppPath(), 'roles/monitor.md'), monitor_role_card_revision: revision,
     code_revision: revision, turn_limit: 6,
