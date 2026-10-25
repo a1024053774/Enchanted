@@ -1,0 +1,18 @@
+#!/bin/sh
+# Enchanted shim (T-187): run the user's own opencode with the session-start orientation as this session's instructions,
+# passed in OPENCODE_CONFIG_CONTENT (the user's own config is untouched). Only a private server reads this session's
+# environment, so the interactive start gets --standalone; the shared background service would ignore it (T-187 facts).
+# A subcommand, the user's own --server/--standalone or their own OPENCODE_CONFIG_CONTENT pass through unchanged.
+# opencode reports its turn states as OSC 7501 by itself. A2A_SHIM marks the launch (src/terminalClis.ts).
+. "$(dirname "$0")/real-cli.sh"
+real=$(a2a_real_cli opencode) || exit 127
+export A2A_SHIM=opencode
+[ -n "${OPENCODE_CONFIG_CONTENT:-}" ] && exec "$real" "$@"
+case ${1:-} in ''|-*) ;; *) [ -d "$1" ] || exec "$real" "$@" ;; esac
+for argument in "$@"; do
+  case $argument in --server|--server=*|--standalone) exec "$real" "$@" ;; esac
+done
+orientation=$(cd "$(dirname "$0")/.." && pwd -P)/orientation.md
+OPENCODE_CONFIG_CONTENT=$(printf '{"instructions":["%s"]}' "$(printf '%s' "$orientation" | sed 's/[\\"]/\\&/g')")
+export OPENCODE_CONFIG_CONTENT
+exec "$real" --standalone "$@"

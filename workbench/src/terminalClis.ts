@@ -1,8 +1,48 @@
-// T-184: the CLIs Enchanted's project-terminal shims wrap (terminal/bin), and how a running one shows it came through
-// its shim. The fact is the process's own argv: the shim always adds these launch arguments. A CLI started by its real
-// path or another alias lacks them: no plugin, no hooks, so no turn states or role records. New CLIs join here.
-export const shimWiring: Record<string, (argv: string[]) => boolean> = {
-  claude: argv => argv.some((arg, index) => arg === "--plugin-dir" && (argv[index + 1] ?? "").endsWith("/plugin/enchanted-a2a")),
+// T-184, T-187: the CLIs Enchanted's project-terminal shims wrap (terminal/bin), in one place. New CLIs join here.
+// - wired: whether a running one came through its shim. The fact is the process's own launch: the shim always adds its
+//   launch arguments or, where a CLI has no harmless argument to add, names itself as A2A_SHIM in the environment. A CLI
+//   started by its real path or another alias lacks them: no orientation, no turn states, no role records.
+// - turns: where its turn states come from. "hooks": Enchanted's hooks report each turn (claude, codex). "osc7501": the
+//   CLI reports its own state to the terminal as OSC 7501 (T-187 facts: agy needs AGY_CLI_OSC7501=on, opencode always).
+// - inCommand: whether a command (`a2a request`) runs inside it, from the environment the CLI gives its commands. A
+//   variable the CLI sets itself comes before a shim's, so a CLI started inside another is told apart.
+export type LaunchFacts = { argv: string[]; shim: string | null };
+export type TerminalCli = { wired: (launch: LaunchFacts) => boolean; turns: "hooks" | "osc7501";
+  inCommand: (env: NodeJS.ProcessEnv) => boolean };
+
+export const terminalClis: Record<string, TerminalCli> = {
+  claude: { turns: "hooks", inCommand: env => Boolean(env.CLAUDECODE),
+    wired: ({ argv }) => argv.some((arg, index) => arg === "--plugin-dir" && (argv[index + 1] ?? "").endsWith("/plugin/enchanted-a2a")) },
   // The hook commands name the a2a shim through the terminal's environment, unexpanded in the argument itself.
-  codex: argv => argv.some(arg => arg.includes('$A2A_TERMINAL_BIN/a2a')),
+  codex: { turns: "hooks", inCommand: env => Boolean(env.CODEX_THREAD_ID), wired: ({ argv }) => argv.some(arg => arg.includes('$A2A_TERMINAL_BIN/a2a')) },
+  opencode: { turns: "osc7501", inCommand: env => Boolean(env.OPENCODE_SESSION_ID), wired: ({ shim }) => shim === "opencode" },
+  agy: { turns: "osc7501", inCommand: env => env.A2A_SHIM === "agy", wired: ({ shim }) => shim === "agy" },
 };
+
+export const commandCli = (env: NodeJS.ProcessEnv): string | undefined =>
+  Object.keys(terminalClis).find(name => terminalClis[name].inCommand(env));
+
+// One OSC 7501 report: `ESC ] 7501 ; state=<s>[:id=..][:kind=<k>][:app=..][:msg=<base64>] (BEL | ESC \)`. A bare `?` is
+// the CLI asking whether the terminal supports it, not a state.
+export type CliTurn = { state: string; kind: string | null };
+const OSC7501 = /\x1b\]7501;([^\x07\x1b]*)(?:\x07|\x1b\\)/g;
+export function readOsc7501(carry: string, data: string): { carry: string; turns: CliTurn[] } {
+  const text = carry + data, turns: CliTurn[] = [];
+  let end = 0;
+  for (const match of text.matchAll(OSC7501)) {
+    end = match.index! + match[0].length;
+    const fields = new Map(match[1].split(":").map(field => [field.slice(0, field.indexOf("=")), field.slice(field.indexOf("=") + 1)]));
+    if (fields.get("state")) turns.push({ state: fields.get("state")!, kind: fields.get("kind") ?? null });
+  }
+  // Keep an unfinished report for the next chunk; a report is short, so anything longer is not one.
+  const open = text.lastIndexOf("\x1b]7501;");
+  return { carry: open >= end && text.length - open < 4096 ? text.slice(open) : "", turns };
+}
+
+// The sidebar's reading of the last report. A permission prompt, a sign-in or anything not listed is not guessed.
+export function osc7501State(turn: CliTurn | null | undefined): "running" | "idle" | "waiting_user_answer" | "unknown" {
+  if (!turn) return "unknown";
+  if (turn.state === "working") return "running";
+  if (["idle", "done", "clear"].includes(turn.state)) return "idle";
+  return turn.state === "blocked" && turn.kind === "question" ? "waiting_user_answer" : "unknown";
+}

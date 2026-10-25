@@ -603,7 +603,7 @@ function SettingsDialog({ open, onClose, theme, onTheme, screenReader, onScreenR
       <section aria-labelledby="settings-terminal-font"><h3 id="settings-terminal-font">终端字体</h3>
         <TerminalFontField value={terminalFont} onChange={onTerminalFont} /></section>
       <section aria-labelledby="settings-models"><h3 id="settings-models">主控派发的默认模型</h3>
-        <p className="settings-note">主控派发新会话时按角色取这里的模型和思考强度，主控也可以按你在对话里的要求临时改。只影响之后启动的会话；已经打开的终端、正在运行的会话，以及你在终端里自己启动的 claude / codex 都不受影响。</p>
+        <p className="settings-note">主控派发新会话时按角色取这里的模型和思考强度，主控也可以按你在对话里的要求临时改。只影响之后启动的会话；已经打开的终端、正在运行的会话，以及你在终端里自己启动的 claude、codex、agy、opencode 都不受影响。</p>
         <ExecutionSettings /></section>
       <section aria-labelledby="settings-work-branch"><h3 id="settings-work-branch">工作分支前缀</h3>
         <p className="settings-note">你没有指定工作分支时，主控建任务会从项目当前分支新建“前缀 + 项目名”的分支（如 enchanted/demo），任务都集成到这里，不动 main，不 push。改了只影响之后还没有任务的项目：已有任务的项目继续用原来的工作分支。</p>

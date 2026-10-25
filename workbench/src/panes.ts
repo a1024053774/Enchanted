@@ -17,7 +17,7 @@ import { ClaudeLogin } from "./claudeLogin.ts";
 import { noticeText, SECURITY_NOTICE_TEXT } from "./claudeNotice.ts";
 import { resumeArgv, nativeSessionFile, codexSessionOrigin, codexSessionFileName } from "./paneRecovery.ts";
 import type { ExecutionOverrides } from './executionSettings.ts';
-import { shimWiring } from './terminalClis.ts';
+import { terminalClis, readOsc7501, type CliTurn } from './terminalClis.ts';
 
 const exec = promisify(execFile);
 const require = createRequire(import.meta.url);
@@ -215,6 +215,8 @@ type Pane = {
   outputAt?: number; silenceCheck?: boolean; silenceBusy?: boolean; silentForeground?: { command: string; since: string } | null;
   // T-184: a wrapped CLI in the foreground without the shim's launch arguments, and when its argv is next read.
   unwiredCli?: { command: string; pid: number; since: string } | null; wiringCheckAt?: number; wiringBusy?: boolean;
+  // T-187: the last OSC 7501 state report of the terminal's CLI (agy, opencode), until that CLI exits.
+  cliTurn?: CliTurn | null; oscCarry?: string;
   claudePromptId?: string | null;
   claudePromptIds?: Set<string>;
   claudeQueuedPrompts?: { prompt: string; received_at: string;
@@ -287,6 +289,9 @@ export class Panes implements GateRuntime {
     this.panes.set(thread, pane);
     terminal.onData((data: string) => {
       pane.outputAt = Date.now(); pane.silentForeground = null;
+      const reports = readOsc7501(pane.oscCarry ?? "", data);
+      pane.oscCarry = reports.carry;
+      if (reports.turns.length) pane.cliTurn = reports.turns.at(-1);
       try { appendFileSync(trace, data); }
       catch (error) { this.recordFailure(pane, "trace_write_failed", error); }
     });
@@ -326,12 +331,12 @@ export class Panes implements GateRuntime {
       const info = await this.processInfo(pane.record.thread);
       const leader = (info.processes as { pid: number; pgid: number; tpgid: number }[])
         .find(row => row.pid !== pane.pty.pid && row.pid === row.pgid && row.pgid === row.tpgid);
-      if (!leader) { pane.unwiredCli = null; return; }
+      if (!leader) { pane.unwiredCli = null; pane.cliTurn = null; return; }
       const { stdout } = await exec("/usr/bin/python3", ["-I", "-S", "-B", processArgs, String(leader.pid)], { timeout: 5000 });
-      const argv = JSON.parse(stdout).argv as string[];
-      const command = basename(argv[0] ?? "");
-      const wired = shimWiring[command];
-      const unwired = Boolean(wired) && !wired(argv);
+      const launch = JSON.parse(stdout) as { argv: string[]; shim: string | null };
+      const command = basename(launch.argv[0] ?? "");
+      const cli = Object.hasOwn(terminalClis, command) ? terminalClis[command] : undefined;
+      const unwired = Boolean(cli) && !cli!.wired(launch);
       pane.unwiredCli = !unwired ? null : pane.unwiredCli?.pid === leader.pid ? pane.unwiredCli
         : { command, pid: leader.pid, since: new Date().toISOString() };
       if (unwired) pane.wiringCheckAt = Date.now() + WIRING_RECHECK_MS;
@@ -1561,6 +1566,7 @@ export class Panes implements GateRuntime {
         state_source: pane.failed ? "runtime_failure" : "host_events", active: pane.active, native_session: pane.native,
         start_missing: this.startMissing(pane), silent_foreground: pane.silentForeground ?? null,
         unwired_cli: pane.unwiredCli ? { command: pane.unwiredCli.command, since: pane.unwiredCli.since } : null,
+        cli_turn: pane.cliTurn ?? null,
         turn: pane.turn, writing: pane.writing, user_draft: pane.userDraft, interrupted: pane.interrupted,
         input_generation: pane.inputGeneration, interruption: pane.interruption,
         queued: pane.queue.map((item) => item.id), failed: pane.failed, stopped: pane.stopped, restoration,

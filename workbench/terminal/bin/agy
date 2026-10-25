@@ -1,0 +1,8 @@
+#!/bin/sh
+# Enchanted shim (T-187): run the user's own agy with its terminal state reports (OSC 7501) on, which Enchanted reads for
+# this terminal's turn states; agy asks the terminal first and Enchanted's does not answer. A2A_SHIM marks the launch
+# (src/terminalClis.ts). The user's own AGY_CLI_OSC7501 wins. agy takes no per-session instructions: no orientation.
+. "$(dirname "$0")/real-cli.sh"
+real=$(a2a_real_cli agy) || exit 127
+export A2A_SHIM=agy AGY_CLI_OSC7501="${AGY_CLI_OSC7501:-on}"
+exec "$real" "$@"
