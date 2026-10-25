@@ -110,7 +110,14 @@ def main():
     report['fixture'] = str(fixture.dir)
     electron = None
 
-    def check(name, condition, detail=None):
+    soft_failed = []
+
+    def check(name, condition, detail=None, soft=False):
+        # The T-176 checks are soft: each is recorded and the run goes on, so a red run shows every one of them.
+        if not condition and soft:
+            soft_failed.append(name)
+            report['observed'].setdefault('soft_failed', {})[name] = detail
+            return
         assert condition, f'{name}: {detail}'
         report['checks'].append(name)
 
@@ -218,9 +225,9 @@ def main():
         check('ideation_idle_after_turn', True)
         # T-176: the controller's own pane says the same.
         show(ideation['launch'])
-        seen = fixture.wait('构思主控窗格头', lambda: (lambda v: v if v['header'] else None)(pane_matches_row(ideation['launch'])), 20)
+        seen = fixture.wait('构思主控窗格头', lambda: (lambda v: v if v['headerText'] else None)(pane_matches_row(ideation['launch'])), 20)
         report['observed']['ideation_pane'] = seen
-        check('controller_pane_header_matches_row', seen['row'] == 'idle' and seen['header'] == 'idle' and seen['headerText'] == '空闲', seen)
+        check('controller_pane_header_matches_row', seen['row'] == 'idle' and seen['header'] == 'idle' and seen['headerText'] == '空闲', seen, soft=True)
         report['observed']['ideation_results'] = fixture.api.results.get('ideation')
 
         executor = terminal('X')
@@ -273,14 +280,16 @@ def main():
         electron.screenshot(fixture.out / '05-issue-waiting.png')
         check('unanswered_issue_waits_for_controller', True)
         # T-176: both controllers are out of a turn, so the project waits on the user, not on a controller.
-        project_state = electron.evaluate("document.querySelector('[data-project-id=\"demo\"]')?.dataset.projectState ?? null")
-        report['observed']['project_state_while_issue_waits'] = dict(project=project_state, ideation=agent(ideation['launch']), executor=agent(executor['launch']))
-        check('project_waits_on_user_when_no_controller_in_turn', project_state == 'waiting_user_answer', report['observed']['project_state_while_issue_waits'])
+        project_row = electron.evaluate("(()=>{const r=document.querySelector('[data-project-id=\"demo\"]');return r&&{state:r.dataset.projectState,"
+                                        "visible:[...r.querySelectorAll('.project-needs')].map(e=>e.textContent)}})()")
+        report['observed']['project_state_while_issue_waits'] = dict(project=project_row, ideation=agent(ideation['launch']), executor=agent(executor['launch']))
+        check('project_waits_on_user_when_no_controller_in_turn', project_row['state'] == 'waiting_user_answer' and
+              any('等你' in text for text in project_row['visible']), report['observed']['project_state_while_issue_waits'], soft=True)
         show(worker)
         seen = pane_matches_row(worker)
         report['observed']['worker_pane'] = seen
         check('worker_pane_header_matches_row_without_second_state', seen['header'] == seen['row'] == 'waiting_controller_answer' and
-              '执行：' not in (seen['footer'] or ''), seen)
+              '执行：' not in (seen['footer'] or ''), seen, soft=True)
         # The gate's operation lock may be held by the worker's own call at that moment (operation_busy); only that is retried.
         def answer():
             result = fixture.request('answer_issue', fixture.operator, task='demo+T-1', issue=views[0]['issue']['id'], answer=ANSWER)
@@ -304,7 +313,17 @@ def main():
         ended_time = electron.until('结束的终端行', f"(()=>{{const r=document.querySelector('.agent-row[data-agent-launch=\"{fixture.terminal_launch}\"]');"
                                     "return r&&r.dataset.agentState==='ended'?r.querySelector('.row-time').textContent.trim():null})()", 30)
         report['observed']['ended_row_time'] = ended_time
-        check('ended_row_time_says_ended', ended_time.startswith('结束'), ended_time)
+        check('ended_row_time_says_ended', ended_time.startswith('结束'), ended_time, soft=True)
+
+        # T-176 review 01: a home-directory terminal is in the same catalog, so its header is not left unknown.
+        electron.evaluate("document.querySelector('.free-terminals').click()")
+        time.sleep(1)
+        electron.evaluate("[...document.querySelectorAll('button')].find(b=>b.textContent==='新建终端').click()")
+        electron.until('家目录终端窗格', "!!document.querySelector('.pane .pane-state')", 20)
+        time.sleep(3)  # a few catalog refreshes
+        home_header = electron.evaluate("document.querySelector('.pane .pane-state').textContent")
+        report['observed']['home_terminal_header'] = home_header
+        check('home_terminal_header_known', home_header == '运行中', home_header, soft=True)
 
         # The ideation controller gives its role back; what the user says after that is not a controller prompt.
         submit(ideation, RELEASE)
@@ -342,6 +361,7 @@ def main():
         # The hooks print nothing into the turn: the model never saw hook output and every prompt reached it.
         bodies = json.dumps([b['messages'] for b in fixture.api.bodies], ensure_ascii=False)
         check('hooks_do_not_touch_the_turn', IDEA_PROMPT in bodies and AFTER_RELEASE in bodies and 'UserPromptSubmit' not in bodies, None)
+        assert not soft_failed, f'T-176 checks failed: {soft_failed}'
         report['status'] = 'PASS'
     except BaseException as error:
         report['error'] = f'{type(error).__name__}: {error}'

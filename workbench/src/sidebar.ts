@@ -192,9 +192,9 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
   }
   // Ordinary project terminals have their own selectable view too. A terminal
   // with a confirmed role is already represented by its controller row above.
+  // Home-directory terminals (no project) are listed as well, so their pane header has the same source (T-176).
   const terminals: typeof agents = [];
-  for (const record of store.launches().filter(record => record.role === 'shell' && record.project !== null &&
-    !agents.some(agent => agent.id === record.id))) {
+  for (const record of store.launches().filter(record => record.role === 'shell' && !agents.some(agent => agent.id === record.id))) {
     const pane = panes.status(record.thread);
     const state: AgentState = pane?.lifecycle === 'ended' ? 'ended' : pane?.lifecycle === 'running' ? 'running' : 'unknown';
     terminals.push({ id: record.id, project: record.project, task: null, task_name: null, attempt: null, thread: record.thread,

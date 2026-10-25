@@ -865,7 +865,8 @@ function Workbench() {
               <span className="project-heading"><span className="project-title">{item.project_id}</span>
                 <span className="project-git" data-project-git={item.project_id}>{projectGit(item.git)}</span></span>
               <span className="project-count">{scope.length || ''}</span>
-              {waiting > 0 && <span className="project-needs">{waiting} 个等你</span>}
+              {waiting > 0 ? <span className="project-needs">{waiting} 个等你</span>
+                : item.state === 'waiting_user_answer' && <span className="project-needs" data-project-needs-you title="有上报在等主控答复，但没有主控在回合中">等你处理</span>}
               {item.issues_waiting === null ? <span className="project-needs" data-project-issues="unknown" title="这个项目的问题列表读取失败">问题数未知</span>
                 : item.issues_waiting > 0 && <span className="project-needs" data-project-issues={item.issues_waiting}>{item.issues_waiting} 个问题</span>}
               <span className="sr-only project-state">{item.state_label}</span>
