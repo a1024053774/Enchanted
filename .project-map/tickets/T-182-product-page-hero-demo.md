@@ -8,7 +8,7 @@ claimed_by:
 supersedes:
 ready: yes
 ready_by: ideation
-ready_rev: 2
+ready_rev: 3
 ---
 
 ## What to build
@@ -31,7 +31,8 @@ ready_rev: 2
 ## Acceptance
 
 - [ ] 多个分功能展示由紫色抽象线条连接；修前/修后截图（桌面宽与 390px）对照：演示在首屏、背景有层次、切换引导清楚。
-- [ ] reduced-motion 下有静态替代；390px 无横向滚动；T-173 的 51 项页面检查（加本票新增检查）全过。
+- [ ] reduced-motion 下有静态替代；390px 无横向滚动。
+- [ ] 页面检查（ready_rev 3，用户 2026-10-25 选 “A 退役这 35 项”，见 inbox 20261025T044927Z-executor-needs-decision-001）：T-173 中检单一导览的 35 项（浅/深滚轮切步与连滚、边界漂移与方向键、触摸滑动）在证据里逐项列出并注明“随 rev 2 拆分退役”；其余 16 项移植到新结构后照检；新增检查：首屏有演示、每个分功能展示有上一步/下一步/第几步与键盘操作、紫色连线随滚动绘制且减弱动效下静态完整、深浅色、390px 无横滚。全部通过。
 - [ ] lcu 在 Chrome 复看线上页；agy 独立审查；push 后 Pages 返回 200。
 
 ## 不做
