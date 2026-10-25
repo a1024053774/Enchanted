@@ -185,7 +185,9 @@
     const agentPane = launch => { const key = 'p' + (++paneSeq); panes[key] = { kind: 'agent', launch, lines: (lines[launch] || [['dim', '（演示没有为这个会话预设输出）']]).slice(), forward: false }; return key; };
     const shellPane = (cwd, label) => { const key = 'p' + (++paneSeq); panes[key] = { kind: 'shell', cwd, lines: shellLines(cwd), forward: false, project: label }; return key; };
     layouts['inkwell/T-12'] = { direction: 'right', first: agentPane('launch-41c7'), second: { direction: 'down', first: agentPane('launch-8e02'), second: agentPane('launch-a3f9') } };
-    layouts['inkwell/T-11'] = { direction: 'right', first: agentPane('launch-2a6e'), second: agentPane('launch-5d20') };
+    // 任务内分屏可以把普通终端放在 agent 旁（T-159）：它不算 worker，打字也不记人工介入。
+    layouts['inkwell/T-11'] = { direction: 'right', first: agentPane('launch-2a6e'),
+      second: { direction: 'down', first: agentPane('launch-5d20'), second: shellPane('~/work/inkwell', 'inkwell') } };
     layouts['inkwell/T-14'] = agentPane('launch-e7b4');
     layouts['inkwell/T-09'] = null;
     layouts['tidepool/T-3'] = { direction: 'down', first: { direction: 'right', first: agentPane('launch-62aa'), second: agentPane('launch-93fe') },
@@ -193,7 +195,6 @@
     layouts['tidepool/T-5'] = null;
     layouts['ledger-cli/T-1'] = null;
     for (const project of data.projects) layouts[project.id] = null;
-    layouts.inkwell = shellPane('~/work/inkwell', 'inkwell');
     // ledger-cli：左边是已批准的构思主控，右边是正在申请执行主控的项目终端。
     const requesting = shellPane('~/work/ledger-cli', 'ledger-cli');
     panes[requesting].lines = [['', '~/work/ledger-cli % claude'], ['', '> 你来当这个项目的执行主控'], ['', '● a2a request executor'],
@@ -418,7 +419,13 @@
           const request = data.roleRequests.find(item => item.id === panes[key].request && !item.decided);
           return `<div class="pane-slot" ${request ? 'data-role-request-pending="true"' : ''} data-edge-right="${rect.x + rect.w >= 99.9}" data-edge-bottom="${rect.y + rect.h >= 99.9}" ${ui.zoom && ui.zoom !== key ? 'hidden' : ''} style="left:${rect.x}%;top:${rect.y}%;width:${rect.w}%;height:${rect.h}%">${request ? `<span class="role-request-tag">申请 1 · ${request.role_label}</span>` : ''}${paneView(key, ui.focusedPane === key)}</div>`;
         }).join('')}
-        ${keys.length ? '' : `<div class="selection-hint"><h2>${task ? '这个任务还没有打开的窗格' : project ? '还没有打开的终端' : '独立终端'}</h2>
+        ${/* 真实应用按 agent.task 计数，主控的 task 恒为 null；演示数据给主控挂了 T-12，所以这里显式排除主控。 */''}
+        ${!keys.length && !task && project?.tasks.length ? `<div class="project-task-grid" aria-label="项目任务分屏">
+          ${project.tasks.map(item => `<button class="project-task-tile" data-action="task" data-task-option="${item.id}" data-task-tile="${item.id}" data-fk="tile:${item.id}">
+            <span class="task-meta">${gateNames[item.state]}</span><strong>${esc(item.title)}</strong><span class="task-meta">${item.id}</span>
+            <span class="task-agents">${data.agents.filter(agent => agent.project === project.id && agent.task === item.id && agent.role !== 'controller').length} 个 agent<span aria-hidden="true"> ↗</span></span></button>`).join('')}
+        </div>` : ''}
+        ${keys.length || !task && project?.tasks.length ? '' : `<div class="selection-hint"><h2>${task ? '这个任务还没有打开的窗格' : project ? '还没有打开的终端' : '独立终端'}</h2>
           <p>${project ? `新建的终端从 ${esc(project.repo)} 启动。经门禁派发的会话会按项目出现在左边。` : '这里的终端从家目录启动，不属于任何项目。'}</p>
           <button class="primary-button" data-action="new-terminal" data-fk="hint-new-terminal">新建终端</button></div>`}
       </div>
@@ -924,18 +931,34 @@
     sidebar: { project: 'inkwell', task: 'T-12', page: 'terminal', spot: '.project-list' },
     role: { project: 'ledger-cli', task: null, page: 'terminal', spot: '.role-requests, .pane-slot[data-role-request-pending]' },
     question: { agent: 'launch-41c7', spot: '.native-question, .app-notifications' },
-    terminal: { project: 'inkwell', task: 'T-11', page: 'terminal', spot: '.pane-layout, .gate' },
-    flow: { project: 'inkwell', page: 'flow', spot: '.flow-lane[data-flow-task="T-11"]' },
+    // 0.1.3 的三层视图：先停在项目的任务分屏，再像点了 T-11 那样进入它的 agent 分屏。
+    views: { project: 'inkwell', task: null, page: 'terminal', spot: '.project-task-tile[data-task-tile="T-11"]',
+      then: { task: 'T-11', spot: '.pane-layout, .gate' } },
+    // 泳道比窗口宽（真实应用也是左右滚动）：先往右带一眼独立审查和集成，停一会儿再回到泳道开头。
+    flow: { project: 'inkwell', page: 'flow', spot: '.flow-lane[data-flow-task="T-11"]', play: [
+      [1500, () => { const lanes = root.querySelector('.flow-scroll'); lanes?.scrollTo({ left: lanes.scrollWidth, behavior: 'smooth' }); }],
+      [4300, () => root.querySelector('.flow-scroll')?.scrollTo({ left: 0, behavior: 'smooth' })]] },
     issues: { project: 'inkwell', page: 'issues', spot: '.issue-card[data-issue-id="i-2"]' },
     records: { project: 'inkwell', page: 'records', spot: '.record-table' },
     metrics: { project: 'inkwell', page: 'metrics', spot: '.metric-section[data-metric="first-time"]' },
     reflect: { project: 'inkwell', page: 'reflect', spot: '.reflect-tree' },
     settings: { settings: true, spot: '.execution-settings' },
   };
+  const calm = window.matchMedia('(prefers-reduced-motion: reduce)');
+  // 换场景时内容淡入、窗格依次出现；减弱动效时直接显示。
+  function enter() {
+    if (calm.matches) return;
+    root.classList.remove('wb-enter'); void root.offsetWidth; root.classList.add('wb-enter');
+    // render() 会重建内容；动画播完就去掉，之后在演示里点按不再重播。
+    clearTimeout(enter.done); enter.done = setTimeout(() => root.classList.remove('wb-enter'), 900);
+  }
   function go(name) {
+    timers.forEach(clearTimeout); timers = [];
     if (name === 'reset') { reset(); render(); return; }
     const scene = scenes[name];
     if (!scene) return;
+    // 通知只在讲它的两步出现，其余步骤当作已经看过，不盖住要讲的区域；问题本身仍等你回答。
+    if (name !== 'sidebar' && name !== 'question') ui.noticeActive.clear();
     Object.assign(ui, { menu: null, note: null, settingsOpen: false, renaming: null, zoom: null, spot: scene.spot });
     if (scene.agent) selectAgent(scene.agent);
     if ('project' in scene) Object.assign(ui, { project: scene.project, focusedAgent: null, focusedPane: null });
@@ -943,9 +966,14 @@
     else if (scene.project && !findProject(scene.project).tasks.some(task => task.id === ui.task)) ui.task = null;
     if (scene.page) ui.page = scene.page;
     if (scene.settings) ui.settingsOpen = true;
-    render();
+    const then = scene.then;
+    if (then && calm.matches) Object.assign(ui, then);
+    render(); enter();
+    if (scene.play && !calm.matches) for (const [delay, step] of scene.play) timers.push(setTimeout(() => { if (ui.page === scene.page) step(); }, delay));
+    if (then && !calm.matches) timers.push(setTimeout(() => { if (ui.project === scene.project && !ui.task) { Object.assign(ui, then); render(); enter(); } }, 1600));
     // 每一步从页面顶部看起。
     root.querySelectorAll('.records-page, .flow-page').forEach(el => { el.scrollTop = 0; });
+    root.querySelectorAll('.flow-scroll').forEach(el => { el.scrollLeft = 0; });
   }
   window.EnchantedDemo = { go, scenes: Object.keys(scenes) };
 
