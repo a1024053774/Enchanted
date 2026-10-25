@@ -15,6 +15,35 @@ const keys: Record<string, string> = { '\r': '回车', '\n': '换行', '\x1b': '
 const content = (text: string) => keys[text] ? `（按键：${keys[text]}）` : /^[\x00-\x1f\x7f]+$/.test(text)
   ? `（按键：${[...text].map(c => keys[c] ?? '0x' + c.charCodeAt(0).toString(16).padStart(2, '0')).join(' ')}）` : text;
 
+// T-179: what the gate answered a session's requests (submit, status, issue). Kept apart from the user's own input.
+export type GateReceipt = { key: string; task: string; attempt: string | null; launch: string; role: string | null; command: string | null;
+  created_at: string; ok: boolean; summary: string[]; result: unknown };
+function Receipts({ project }: { project: string }) {
+  const [receipts, setReceipts] = useState<GateReceipt[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let mounted = true;
+    const load = () => window.a2a.receipts(project).then((value: GateReceipt[]) => { if (mounted) { setReceipts(value); setError(null); } },
+      (reason: unknown) => { if (mounted) setError('门禁回执读取失败：' + String(reason)); });
+    void load();
+    const timer = setInterval(load, 3000);
+    return () => { mounted = false; clearInterval(timer); };
+  }, [project]);
+  return <section className="receipts" aria-label="门禁回执">
+    <h3>门禁回执</h3>
+    <p className="records-empty">worker 等会话交付、查状态、上报问题后，门禁给它的答复。会话窗格里只显示摘要，完整内容在这里。</p>
+    {error && <p className="catalog-error" role="alert">{error}</p>}
+    {receipts === null && !error ? <p className="records-empty" role="status">正在读取…</p>
+      : receipts !== null && !receipts.length ? <p className="records-empty">这个项目还没有门禁回执。</p> : null}
+    {!error && receipts?.map(receipt => <article className="receipt" key={receipt.key} data-receipt-key={receipt.key}
+      data-receipt-command={receipt.command ?? ''} data-receipt-ok={receipt.ok}>
+      <div className="record-meta">{time(receipt.created_at)} · {short(receipt.task)} · {roles[receipt.role ?? ''] ?? receipt.role ?? '未知会话'}</div>
+      <div className="receipt-summary">{receipt.summary.join('\n')}</div>
+      <details><summary>完整回执</summary><pre className="receipt-full">{JSON.stringify(receipt.result, null, 2)}</pre></details>
+    </article>)}
+  </section>;
+}
+
 export function RecordsPage({ project }: { project: string | null }) {
   const [records, setRecords] = useState<UserInputRecord[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -65,5 +94,6 @@ export function RecordsPage({ project }: { project: string | null }) {
         </tr>)}</tbody>
       </table>
     </>}
+    {project && <Receipts key={project} project={project} />}
   </div>;
 }
