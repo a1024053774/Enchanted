@@ -2,7 +2,7 @@
 id: T-180
 title: L07：首次派发默认新建 enchanted/xxx 工作分支，前缀可在设置里改
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -21,9 +21,13 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 真实 Electron：不指定分支时首次派发直接成功，分支名为 enchanted/…；改设置前缀后新任务用新前缀。
-- [ ] 用户指定分支时照用；主分支不被改动。
+- [x] 真实 Electron：不指定分支时首次派发直接成功，分支名为 enchanted/…；改设置前缀后新任务用新前缀。
+- [x] 用户指定分支时照用；主分支不被改动。
 
 ## 不做
 
 范围外的问题经问题上报，不顺手改。
+
+## Resolution
+
+2026-10-25，PASS。记录见 [RESULTS.md](../../evidence/2026-10-25-batch25/T-180/RESULTS.md)。主控建任务不写 branch 时，后台定工作分支：本仓库已有任务就沿用；否则用“前缀 + 项目名”（默认 enchanted/，如 enchanted/demo），同名分支已存在直接用，不存在就从当前 HEAD 新建；不动 main、不切换、不 push；回执 work_branch 写明分支名与是否新建，skill 要求主控转告用户。用户指定 branch 照用，门禁照旧校验。设置页新增“工作分支前缀”，非法前缀不保存；改前缀只影响之后还没有任务的项目（门禁一个仓库一个工作分支）。红态复现 L07，修后两次 PASS 13/13，两个变异被拒，T-131 回归 PASS；agy 审查 PASS（P2：沿用旧同名分支的取舍已记录）；合并后复跑 PASS。真实模型下主控是否不再停下来问，未在本票验证。
