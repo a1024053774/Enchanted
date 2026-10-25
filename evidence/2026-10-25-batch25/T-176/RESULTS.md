@@ -1,6 +1,6 @@
 # T-176 结果：各处会话状态一致
 
-## 状态：INCOMPLETE（待 agy 审查）
+## 状态：INCOMPLETE（第二轮 agy 审查中）
 
 ## 根因与改动
 
@@ -32,3 +32,22 @@ L03 的四处现象来自两种原因：几处界面各取各的来源；另有�
 
 - 没用真实模型复跑（本票用脚本化接口即可证明界面取同一来源；真实额度留给必须的地方）。
 - 普通终端（未申请角色）的行在 shell 活着时仍是“运行中”转圈图标，这是 shell 的生命周期，不属于 L03 的会话回合状态；记为观察。
+
+## 第一轮审查（`review-agy-01.md`，INCOMPLETE）与处理
+
+| 发现 | 处理 |
+| --- | --- |
+| P1 家目录“独立终端”的窗格头恒为“未知”：它不在侧栏数据里，窗格头取不到状态（本票第一版引入） | `sidebar_snapshot` 的普通终端列表也收家目录终端（`project` 为空，界面只在项目下列出有项目的终端，所以侧栏不变） |
+| P2 主控都空闲、worker 等主控答复时，项目行只在读屏文字里写“等待用户回答”，看不见 | 项目行此时显示“等你处理”（悬停说明：有上报在等主控答复，但没有主控在回合中） |
+| P2 新增检查在修前版本上只跑到第一项 | 本票的检查改为“记下失败继续跑、最后一起判定”，修前每项都有观察值 |
+
+新增检查 `home_terminal_header_known`（家目录终端窗格头是“运行中”）；`project_waits_on_user_when_no_controller_in_turn` 加上“项目行可见文字含‘等你’”。
+
+| 运行 | 结果 |
+| --- | --- |
+| 修前 main `--revision 8f36d6495`（`red-main-02.json`） | 红：本票四项都失败，各有观察值（主控窗格头“运行中”而侧栏空闲；项目行 `waiting_controller_answer` 且无可见提示；worker 窗格头“空闲”而行为等主控、底栏“执行：运行中”；结束行“刚刚”）。家目录终端一项在 main 上通过（这个缺陷是本票第一版引入的） |
+| 第一轮候选 `--revision 2e1f33266`（`regression-review01-candidate-01.json`） | 红：`project_waits_on_user_when_no_controller_in_turn`（可见文字为空）与 `home_terminal_header_known`（“未知”），即两条审查发现 |
+| 修后 `green-03.json` | PASS，18 项 |
+| `test_t157_stop_input_e2e.py`（`regression-t157-02.json`） | PASS |
+
+运行输出：`runs-03.log`。
