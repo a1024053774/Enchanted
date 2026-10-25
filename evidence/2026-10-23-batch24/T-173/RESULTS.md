@@ -55,6 +55,21 @@ python3 -m http.server 8766 --bind 127.0.0.1 -d docs &
 
 推送前扫描 `credential-scan-01.json` 0 处命中，无用户邮箱、无大文件；`3688e2ec2..275b792db`，无 force push。Pages 构建于 `275b792db`，返回 200；线上 `live-01` 51/51 通过（Playwright 自带 Chromium，无头）。
 
-## 状态：INCOMPLETE（只差 lcu 亲眼复看）
+## lcu 亲眼复看（用户批准后，2026-10-24）
 
-lcu 挂接 “Google Chrome for Testing” 两次都没有返回：第一次 30 分钟无响应后超时，第二次我手动停止。推测在等应用授权，授权要用户批准，我没有代批。票上“用 lcu 打开 Chrome 看、修后在 Chrome 里复看本地与线上”这一条未完成；其余验收项有上面的 Playwright 证据。用户批准 lcu 控制 Chrome for Testing（或指定可以用的 Chrome 窗口）后可补。
+用户批准 lcu 后，用 lcu 操作独立的 “Google Chrome for Testing”（临时资料目录，不碰用户自己的 Chrome）打开线上页，按真实滚轮和方向键走了一遍，截图在 `lcu/`：
+
+- 首屏：页头与正文同一条左边线（`01-hero.jpg`）。
+- 第 1 步：通知只在这一步与第 3 步出现。
+- 第 4 步：先是任务格（`02-step4-grid.jpg`），约 1.6 秒后进入 T-11：worker、独立审查、普通终端并排，底部门禁状态（`03-step4-panes.jpg`）。
+- 第 5 步：没有通知遮挡（`04-step5-start.jpg`）；泳道往右平移出独立审查与集成（`05-step5-pan.jpg`）。
+- 越过第 10 步进入下载区，左边线一致（`06-download.jpg`）。
+- 深色：首屏与演示（`07-dark-hero.jpg`、`08-dark-records.jpg`）同一深色底。
+
+复看中一度看到画面停在第 5 步、方向键像是没反应：辅助功能树显示当前已是第 10 步，是窗口被其他窗口遮住时 Chrome 暂停绘制，截图停在旧帧；把这个独立窗口提到前面后画面正常。不是页面缺陷。
+
+在真实 Chrome 里新看到一处：任务条下方显示了一条横向滚动条（系统设置为总是显示滚动条时），Playwright 无头截图里看不到；它和真实应用的任务条行为一致，未改，记为观察。
+
+## 状态：PASS
+
+验收三条均有证据：修前清单与修后对照、动画与 0.1.3 一致且有减弱动效的静态替代、390px 无横向滚动；agy 审查 PASS；Pages 200，线上 51/51，并用 lcu 在 Chrome 里复看线上。本地页用 Playwright 复看，lcu 只看了线上。
