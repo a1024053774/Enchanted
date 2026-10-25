@@ -1,6 +1,6 @@
 # T-180 结果：不指定工作分支时自动新建 enchanted/<项目>，前缀可在设置里改
 
-## 状态：INCOMPLETE（e2e 全过；待 agy 审查、合并）
+## 状态：PASS
 
 ## 依据
 
@@ -53,3 +53,11 @@ ticket T-180（ready_rev 1），来源 `findings/2026-10-25-lcu-real-use.md` 的
 - 没有用真实模型跑：主控读了新说明后会不会不再停下来问、会不会把分支名告诉用户，本票没有新增证据；T-181 的真实 haiku 复跑会一并观察。
 - Codex 主控用同一份 skill 说明；本票没有单独用 Codex 跑。
 - `test_t178_flow_project_scope_e2e.py` 在本分支不存在（T-178 未合并），没有作为回归运行。
+
+## 独立审查
+
+agy（gemini-3.8-flash-high，只读）审查候选 74724cfa0：`T-180 REVIEW PASS`。
+- P1：候选从 T-177 合并前的 main 切出，diff 里看起来像删除了 T-177。处置：用 `git merge` 三方合并，合并后重跑 T-177 与 T-180 的 e2e（结果见合并后的记录）。
+- P2：同名分支已存在时直接沿用，若是很久以前的旧分支，任务会从旧代码起步。回执里 `created: false, reason: existing` 会告诉主控，skill 要求主控转告用户；属已知取舍，本票不改。
+- P3：审查员认为 `regression-t131-01` 没有 summary。实际已提交：`regression-t131-01/summary.json`（status PASS）。审查员误读。
+全文 `review-agy-01.md`，启动参数 `review-agy-01-argv.txt`。
