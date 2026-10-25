@@ -1,6 +1,6 @@
 # T-178 结果：流程页只把本项目的任务放在前面，标题不重复
 
-## 状态：INCOMPLETE（e2e 全过；待 agy 审查、合并）
+## 状态：PASS
 
 ## 依据
 
@@ -44,3 +44,9 @@ ticket T-178（ready_rev 1），来源 `findings/2026-10-25-lcu-real-use.md` 的
 - P3：展开“其他项目”后截图前没有滚动，截图看不出变化。已改：截图前把 `#flow-others-lanes` 滚进视口。
 - P3：其他项目只有未归属会话时按钮写“0 张”。已改：此时写“其他项目未归属的会话 N 个”。
 - 修后 `green-04` PASS 8/8，回归 `regression-t144-03` PASS；截图 `shots/green-04-*`。
+
+## 独立审查第二轮（候选 b9d66b8cd）
+
+- 第一次输出 `T-178 REVIEW INCOMPLETE`（`review-agy-02.md`）：确认 setup-error-01 是第一轮误读、两处 P3 修改正确，但仍认为 `shots/` 没有图片。执行主控在审查副本里实际列出 8 张 `.jpg`（`git ls-tree exec/t178` 同样 8 张），判断是审查员的目录列举没有列出二进制文件，于是把两张图的完整路径发给审查员，请它直接打开、据实修正，不替它下结论。
+- 追问后（`review-agy-02-followup.md`）：审查员打开了截图，核销该项，`T-178 REVIEW PASS`。
+- 启动参数 `review-agy-02-argv.txt`。
