@@ -12,6 +12,7 @@ if (!home) throw new Error('Missing home directory');
 contextBridge.exposeInMainWorld('a2a', Object.freeze({
   paneKeys: Object.freeze(paneKeys),
   home,
+  workBranchPrefix: (prefix?: string) => ipcRenderer.invoke('a2a:work-branch-prefix', prefix),
   executionSettings: (change?: { role: string; model: string; effort: string; fast: boolean }) => ipcRenderer.invoke('a2a:execution-settings', change),
   projects: () => ipcRenderer.invoke('a2a:projects'),
   flow: () => ipcRenderer.invoke('a2a:flow'),

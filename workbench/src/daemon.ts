@@ -17,6 +17,7 @@ import { randomUUID } from "node:crypto";
 import { createOperatorCredential, readOperatorCredential } from "./credentials.ts";
 import { sidebarSnapshot, projectCatalog } from './sidebar.ts';
 import { flowSnapshot } from './flow.ts';
+import { checkWorkBranchPrefix, defaultWorkBranch } from './workBranch.ts';
 import { metricsSnapshot } from './metrics.ts';
 import { userInputRecords } from './userInputRecords.ts';
 import { reflectTree } from './reflect.ts';
@@ -162,7 +163,7 @@ export async function serve(
   };
   const catalogCommands = new Set(["projects_list", "tasks_list", "sidebar_snapshot", "flow_snapshot"]);
   const readOnly = new Set([...catalogCommands, "daemon_status", "orchestration_events", "pane_output", "workbench_snapshot",
-    "pane_layout", "pane_status", "pane_process_info", "launch_show", "status", "events", "issues", "card_show", "card_template", "card_validate", "execution_settings", "metrics", "user_input_records", "trajectory_archive", "retrospective_list", "reflect_tree"]);
+    "pane_layout", "pane_status", "pane_process_info", "launch_show", "status", "events", "issues", "card_show", "card_template", "card_validate", "execution_settings", "work_branch_prefix", "metrics", "user_input_records", "trajectory_archive", "retrospective_list", "reflect_tree"]);
   const authenticate = (identity: any): { source: string; kind: "operator" | "window" | "launch" | "terminal" | "anonymous";
       window?: WindowBinding; terminal?: { id: string; project: string | null; task: string | null } } => {
     if (!identity) return { source: "anonymous", kind: "anonymous" };
@@ -376,13 +377,12 @@ export async function serve(
     } else throw new Refusal("role_command_not_scoped");
     if (input.project !== undefined && input.project !== roleRequest.project) throw new Refusal("role_project_mismatch");
     const { parent_launch: _parent, ...gateInput } = input;
-    assertOpenedRepo(gateInput);
     // Workers this call starts belong to the terminal that holds the role.
-    const result = await panes.parentLaunch.run(terminal.id, () => gates.call(gateInput, undefined, { address: roleRequest.role, project: roleRequest.project,
+    const result = await createGate(gateInput, command => panes.parentLaunch.run(terminal.id, () => gates.call(command, undefined, { address: roleRequest.role, project: roleRequest.project,
       assertActive: async () => {
         if (stopping) throw new Refusal("daemon_stopping");
         if (roleRequests.approved(terminal.id)?.id !== roleRequest.id) throw new Refusal("role_request_ended");
-      }, controller: terminalController(terminal.id, roleRequest) }));
+      }, controller: terminalController(terminal.id, roleRequest) })));
     return result;
   };
   // An opened directory owns its project id: a task may join that project
@@ -392,6 +392,17 @@ export async function serve(
     const opened = store.openedProjects().find(project => project.project_id === command.project);
     if (opened && !(typeof command.repo === 'string' && existsSync(command.repo) && realpathSync(command.repo) === opened.repo))
       throw new Refusal('project_repo_mismatch');
+  };
+  // T-180: a create without a branch gets the default work branch; the result says which and whether it was new.
+  const createGate = async (command: Record<string, any>, call: (input: Record<string, any>) => Promise<any>) => {
+    assertOpenedRepo(command);
+    if (command.command !== 'create' || command.branch !== undefined) return await call(command);
+    if (typeof command.repo !== 'string' || !existsSync(command.repo) || typeof command.project !== 'string' || !command.project)
+      throw new Refusal('invalid_work_branch');
+    const { branch, work_branch } = await defaultWorkBranch(realpathSync(command.repo), command.project, store.workBranchPrefix(),
+      gates.repoWorkBranch(command.repo));
+    const result = await call({ ...command, branch });
+    return result?.ok ? { ...result, work_branch } : result;
   };
   const handle = async (envelope: any, authority: ReturnType<typeof authenticate>, asker: Asker) => {
     const input = envelope.input;
@@ -449,6 +460,12 @@ export async function serve(
     if (input.command === 'metrics') {
       if ([input.project, input.since, input.until].some(value => value != null && typeof value !== 'string')) throw new Refusal('invalid_metrics_range');
       return { ok: true, ...metricsSnapshot(store.db, { project: input.project, since: input.since, until: input.until }) };
+    }
+    if (input.command === 'work_branch_prefix') return { ok: true, prefix: store.workBranchPrefix() };
+    if (input.command === 'work_branch_prefix_save') {
+      if (authority.kind !== 'operator') throw new Refusal('operator_required');
+      store.event('work_branch_prefix_saved', { prefix: await checkWorkBranchPrefix(input.prefix) });
+      return { ok: true, prefix: store.workBranchPrefix() };
     }
     if (input.command === 'execution_settings_save') {
       if (authority.kind !== 'operator') throw new Refusal('operator_required');
@@ -808,8 +825,7 @@ export async function serve(
                   attempt.fence !== command.fence || result.task?.spec_rev !== command.spec_rev) throw new Refusal("stale_attempt");
               return result;
             }
-            assertOpenedRepo(command);
-            return await panes.parentLaunch.run(controller ? pane.record.id : null, () => gates.call(command, caller));
+            return await createGate(command, input => panes.parentLaunch.run(controller ? pane.record.id : null, () => gates.call(input, caller)));
           });
           if (!receipt.replayed && !isPendingInboxResult(receipt.result)) receipts.push(receipt);
           if (pane.record.role === "reviewer" && !receipt.replayed) {
@@ -847,9 +863,8 @@ export async function serve(
     const actor = authority.kind === "operator" ? { address: input.command === "disposition" ? "user" : "executor",
       assertActive: async () => { if (stopping) throw new Refusal("daemon_stopping"); } } : undefined;
     const { parent_launch, ...gateInput } = input;
-    assertOpenedRepo(gateInput);
-    return await panes.parentLaunch.run(authority.kind === "operator" ? parent_launch ?? null : null,
-      () => gates.call(gateInput, undefined, actor));
+    return await createGate(gateInput, command => panes.parentLaunch.run(authority.kind === "operator" ? parent_launch ?? null : null,
+      () => gates.call(command, undefined, actor)));
   };
   // Two sockets share one handler. The terminal socket (T-126) is the only one a project terminal is told about; it
   // takes terminal identities only, so nothing a terminal can read lets it act as the operator or a window.

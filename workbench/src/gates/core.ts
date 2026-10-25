@@ -356,6 +356,11 @@ export class A2AGates {
     return this.db.prepare("SELECT DISTINCT json_extract(data,'$.project_id') AS project_id FROM tasks ORDER BY project_id")
       .all().map(row => ({ project_id: String(row.project_id) }));
   }
+  // T-180: the work branch the repo's tasks already use (create keeps one per repo), or null.
+  repoWorkBranch(repo: string): string | null {
+    const row = this.db.prepare("SELECT json_extract(data,'$.integration_ref') AS ref FROM tasks WHERE json_extract(data,'$.repo')=? LIMIT 1").get(realpathSync(repo));
+    return row ? String(row.ref) : null;
+  }
   listTasks(project: string) {
     id(project);
     return this.db.prepare(`SELECT id AS task_id, json_extract(data,'$.project_id') AS project_id,

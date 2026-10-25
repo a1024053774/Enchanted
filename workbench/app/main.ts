@@ -182,6 +182,14 @@ function registerHandlers() {
   handlersRegistered = true;
   app.on('browser-window-focus', updateDockBadge);
   app.on('browser-window-blur', updateDockBadge);
+  ipcMain.handle('a2a:work-branch-prefix', async (event, prefix?: unknown) => {
+    const context = windowTarget(event);
+    if (prefix !== undefined && typeof prefix !== 'string') throw new Error('Invalid work branch prefix');
+    const result = await request(context.options.state, prefix === undefined ? { command: 'work_branch_prefix' } :
+      { command: 'work_branch_prefix_save', prefix }, context.operator);
+    if (!result.ok) throw new Error(result.error);
+    return result.prefix;
+  });
   ipcMain.handle('a2a:execution-settings', async (event, change?: { role: string; model: string; effort: string; fast: boolean }) => {
     const context = windowTarget(event);
     if (change !== undefined && (!change || typeof change !== 'object' || Array.isArray(change) ||
