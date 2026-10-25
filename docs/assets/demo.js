@@ -419,6 +419,7 @@
           const request = data.roleRequests.find(item => item.id === panes[key].request && !item.decided);
           return `<div class="pane-slot" ${request ? 'data-role-request-pending="true"' : ''} data-edge-right="${rect.x + rect.w >= 99.9}" data-edge-bottom="${rect.y + rect.h >= 99.9}" ${ui.zoom && ui.zoom !== key ? 'hidden' : ''} style="left:${rect.x}%;top:${rect.y}%;width:${rect.w}%;height:${rect.h}%">${request ? `<span class="role-request-tag">申请 1 · ${request.role_label}</span>` : ''}${paneView(key, ui.focusedPane === key)}</div>`;
         }).join('')}
+        ${/* 真实应用按 agent.task 计数，主控的 task 恒为 null；演示数据给主控挂了 T-12，所以这里显式排除主控。 */''}
         ${!keys.length && !task && project?.tasks.length ? `<div class="project-task-grid" aria-label="项目任务分屏">
           ${project.tasks.map(item => `<button class="project-task-tile" data-action="task" data-task-option="${item.id}" data-task-tile="${item.id}" data-fk="tile:${item.id}">
             <span class="task-meta">${gateNames[item.state]}</span><strong>${esc(item.title)}</strong><span class="task-meta">${item.id}</span>

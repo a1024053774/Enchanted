@@ -1,0 +1,13 @@
+你是 a2a 项目的只读独立审查员（reviewer），审查 T-173：产品页更新交互动画，修整体页面割裂、不和谐（见 candidate/.project-map/tickets/T-173-product-page-motion-cohesion.md 与 user-decision.md）。写入者是执行主控。只改了 docs/index.html、docs/assets/site.css、demo.css、demo.js；证据在 candidate/evidence/2026-10-23-batch24/T-173/（RESULTS.md、key/ 截图、page-check/check.mjs 与 report.json）。
+重点：(1) RESULTS.md 的修前问题清单是否具体、每条有结论，截图能否支撑；(2) 演示是否与 0.1.3 真实界面一致、不演示不存在的功能——对照 candidate/workbench/app/renderer.tsx 的 project-task-grid/project-task-tile、paneView 的普通终端、workbench/README.md 第 100～106、273～277 行，以及 flow.css 的泳道宽度；任务格的“N 个 agent”计数与真实应用的差别是否需要说明；(3) 配色改用 workbench/app/style.css 的 token 后，浅色与深色下文字对比度是否够（--muted 在 --bg 上、主按钮墨色）；(4) 动效：只动 opacity/transform、能被打断、reduced-motion 下有静态替代、换步定时器在切步与重置时清掉、wb-enter 不会在演示内点按时反复重播；(5) check.mjs 与 T-172 版本相比是否只改了第 4 步等待并新增 T-173 检查，原有检查没放宽；新检查是否在修前页红、两个变异被拒；(6) 390px 无横向滚动；文案平实。lcu 复看尚未完成（RESULTS 已写明），不算本次缺陷。
+
+材料在 /Users/luckye/Documents/Code/a2a-review/T-173-r1/ 下：candidate/ 为候选 3b27d494f 只读副本（ticket 在 candidate/.project-map/tickets/，任务卡、RESULTS 与运行证据在 candidate/evidence/2026-10-23-batch24/T-173/）；full.diff 为相对起点 ebca246167c7f6cf6a98cbbe7e07b7e452ae1f0d 的 workbench/ 全部改动；user-decision.md 为本批用户授权的转述（构思主控 assign）。
+
+请核对：
+1. 根因是否找对，改动是否在最小根因层；有无吞异常、fallback、重试、兼容分支或平行 API。
+2. ticket 的每条验收是否有真实入口的证据；期望值是否来自 ticket/规格/用户原话而不是抄产品输出。
+3. 红态是否在修前版本上落在缺陷断言上；变异是否代表真实坏实现并被拒绝。
+4. 是否越出任务卡的修改边界；界面文案是否清楚、不含营销腔。
+5. 其他正确性、回归风险。
+
+这是交互会话。只用你自带的读文件/搜索工具，不要运行任何 shell 命令，不要写任何文件。可以打开截图。输出中文报告：每条发现写文件与行号、严重度（P0–P3）、失败场景。审查完把完整报告作为你最后一条回复直接输出，最后一行只写 `T-173 REVIEW PASS`、`T-173 REVIEW INCOMPLETE` 或 `T-173 REVIEW NO_GO` 之一。

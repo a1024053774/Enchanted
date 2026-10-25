@@ -46,3 +46,7 @@ python3 -m http.server 8766 --bind 127.0.0.1 -d docs &
 (cd workbench && PAGE_CHECK_URL=http://127.0.0.1:8766/ node ../evidence/2026-10-23-batch24/T-173/page-check/check.mjs <目录>)
 (cd workbench && node ../evidence/2026-10-23-batch24/T-173/shoot.mjs <url> <目录>)   # shoot2、shoot3 同
 ```
+
+## 独立审查
+
+`review-agy-01.md`：PASS。P3 两条：任务格计数排除主控（演示数据的差别，审查后补了代码注释，未再审查）；`wb-spot` 动的是 outline-color，减弱动效下不播。
