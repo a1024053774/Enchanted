@@ -18,7 +18,7 @@ import { createOperatorCredential, readOperatorCredential } from "./credentials.
 import { sidebarSnapshot, projectCatalog } from './sidebar.ts';
 import { flowSnapshot } from './flow.ts';
 import { receiptLines } from './gateReceipts.ts';
-import { checkWorkBranchPrefix, defaultWorkBranch } from './workBranch.ts';
+import { checkWorkBranchPrefix, defaultWorkBranch, dropWorkBranch } from './workBranch.ts';
 import { metricsSnapshot } from './metrics.ts';
 import { userInputRecords } from './userInputRecords.ts';
 import { reflectTree } from './reflect.ts';
@@ -407,9 +407,16 @@ export async function serve(
     if (command.command !== 'create' || command.branch !== undefined) return await call(command);
     if (typeof command.repo !== 'string' || !existsSync(command.repo) || typeof command.project !== 'string' || !command.project)
       throw new Refusal('invalid_work_branch');
-    const { branch, work_branch } = await defaultWorkBranch(realpathSync(command.repo), command.project, store.workBranchPrefix(),
+    const repo = realpathSync(command.repo);
+    const { branch, work_branch, made } = await defaultWorkBranch(repo, command.project, store.workBranchPrefix(),
       gates.repoWorkBranch(command.repo));
-    const result = await call({ ...command, branch });
+    let result: any;
+    try { result = await call({ ...command, branch }); }
+    catch (error) {
+      if (made) await dropWorkBranch(repo, made, error instanceof Refusal ? error.code : String(error));
+      throw error;
+    }
+    if (!result?.ok && made) await dropWorkBranch(repo, made, result?.error);
     return result?.ok ? { ...result, work_branch } : result;
   };
   const handle = async (envelope: any, authority: ReturnType<typeof authenticate>, asker: Asker) => {
