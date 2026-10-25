@@ -2,7 +2,7 @@
 id: T-177
 title: L04：侧栏堆积与启动默认选中已结束终端
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -27,3 +27,7 @@ ready_rev: 1
 ## 不做
 
 范围外的问题经问题上报，不顺手改。
+
+## Resolution
+
+2026-10-25，PASS。记录见 [RESULTS.md](../../evidence/2026-10-25-batch25/T-177/RESULTS.md)。侧栏把已结束的会话和被新 attempt 取代的会话折进每个任务下的“历史 N 个”，默认收起；“清理”把已结束的会话从列表拿掉（追加 `sidebar_hidden` 事件，记录与门禁事件不删，运行中的会话拒绝清理）；已集成任务仍空闲的当前 worker 显示“回收”，经门禁 `reclaim`；没有指定启动目标时，打开最近活跃、未结束的会话，不再选中已退出的家目录终端。真实 Electron 红态 13 项失败，修后两次 PASS 18/18，两个变异被拒，三项回归 PASS；agy 审查 PASS（一项 P3 观察：纯终端只打字不更新 `active_at`，已记录）。
