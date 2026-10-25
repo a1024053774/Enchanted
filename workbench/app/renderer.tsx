@@ -4,6 +4,8 @@ import { createRoot } from 'react-dom/client';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
+import { Unicode11Addon } from '@xterm/addon-unicode11';
+import { WebglAddon } from '@xterm/addon-webgl';
 import '@xterm/xterm/css/xterm.css';
 import './style.css';
 import { FlowPage } from './FlowPage';
@@ -141,7 +143,7 @@ const canRequestDeliveryCheck = (value: Snapshot, delivery: WorkerDeliveryStatus
     value.pane.delivery.request_id === delivery.request_id;
 };
 
-function SessionPane({ paneKey, active, screenReader, name, confirmedRole, agentState, home, focusRequest, zoomed, onZoom, onAction, onStatus, onClose }: { paneKey: string; active: boolean; screenReader: boolean; name?: string; confirmedRole?: string; agentState?: string; home: string | null; focusRequest: number; zoomed: boolean; onZoom: () => void; onAction: (key: string, action: { type: string; direction?: string; name?: string }) => Promise<void>; onStatus: (key: string, status: PaneStatus) => void; onClose: (key: string, value: Selection) => void }) {
+function SessionPane({ paneKey, active, screenReader, fontFamily, name, confirmedRole, agentState, home, focusRequest, zoomed, onZoom, onAction, onStatus, onClose }: { paneKey: string; active: boolean; screenReader: boolean; fontFamily: string; name?: string; confirmedRole?: string; agentState?: string; home: string | null; focusRequest: number; zoomed: boolean; onZoom: () => void; onAction: (key: string, action: { type: string; direction?: string; name?: string }) => Promise<void>; onStatus: (key: string, status: PaneStatus) => void; onClose: (key: string, value: Selection) => void }) {
   const mount = useRef<HTMLDivElement>(null);
   const reconnect = useRef<() => void>(() => {});
   const releaseQueue = useRef<() => void>(() => {});
@@ -156,6 +158,10 @@ function SessionPane({ paneKey, active, screenReader, name, confirmedRole, agent
   const wakeRead = useRef<() => void>(() => {});
   useLayoutEffect(() => { if (active) { setRestoring(true); wakeRead.current(); } }, [active]);
   useEffect(() => { if (terminal) terminal.options.screenReaderMode = screenReader; }, [terminal, screenReader]);
+  // A new font changes the cell size, so the columns are fitted again (T-175).
+  const refit = useRef<() => void>(() => {});
+  const initialFont = useRef(fontFamily);
+  useEffect(() => { if (terminal && terminal.options.fontFamily !== fontFamily) { terminal.options.fontFamily = fontFamily; refit.current(); } }, [terminal, fontFamily]);
   // The mount is hidden while its backlog replays (T-118) and a hidden element takes no focus, so a request made then
   // waits for this visibility's reveal. The previous visibility may still have restoring=false
   // during activation; its value must not consume the new focus request before replay hides the mount.
@@ -215,14 +221,18 @@ function SessionPane({ paneKey, active, screenReader, name, confirmedRole, agent
       setDeclarationReady(false); setReleaseError(null);
       void operation().catch(failInput).finally(() => { pendingInput--; });
     };
-    const term = new Terminal({ cols: 160, rows: 45, disableStdin: true, cursorBlink: true,
+    // T-175: CLIs measure CJK and symbols with Unicode 11+ widths, so the terminal uses the same table (proposed API).
+    const term = new Terminal({ cols: 160, rows: 45, disableStdin: true, cursorBlink: true, allowProposedApi: true,
       cursorInactiveStyle: 'none', screenReaderMode: screenReader, scrollback: 10000, fontSize: 12, lineHeight: 1.15,
-      fontFamily: '"SF Mono", "SFMono-Regular", Menlo, monospace',
-      theme: terminalPalettes[darkQuery.matches ? 'dark' : 'light'] });
+      fontFamily: initialFont.current, theme: terminalPalettes[darkQuery.matches ? 'dark' : 'light'] });
+    term.loadAddon(new Unicode11Addon()); term.unicode.activeVersion = '11';
     const followScheme = () => { term.options.theme = terminalPalettes[darkQuery.matches ? 'dark' : 'light']; };
     darkQuery.addEventListener('change', followScheme);
     const fit = new FitAddon(); term.loadAddon(fit);
     term.open(mount.current!);
+    // T-175: the WebGL renderer draws box drawing, block and powerline separators itself (customGlyphs), so a prompt
+    // like powerlevel10k lines up without a patched font. A lost GPU context drops back to xterm's DOM renderer.
+    const webgl = new WebglAddon(); webgl.onContextLoss(() => webgl.dispose()); term.loadAddon(webgl);
     let writable = false, dimensions = '';
     let ptySize: { cols: number; rows: number } | null = null;
     const resize = () => {
@@ -240,6 +250,7 @@ function SessionPane({ paneKey, active, screenReader, name, confirmedRole, agent
         void window.a2a.resize(paneKey, term.cols, term.rows).catch(failInput);
       }
     };
+    refit.current = resize;
     const observer = new ResizeObserver(resize); observer.observe(mount.current!);
     const failInput = (failure: unknown) => {
       inputFailed = true; term.options.disableStdin = true;
@@ -535,9 +546,9 @@ function ArchiveUsage() {
   return <p className="settings-note" data-archive-sessions={usage.sessions} data-archive-bytes={usage.bytes}>{usage.sessions} 个会话，占用 {size}</p>;
 }
 
-function SettingsDialog({ open, onClose, theme, onTheme, screenReader, onScreenReader, notifications, dockBadges, onNotification, gaps }: {
+function SettingsDialog({ open, onClose, theme, onTheme, screenReader, onScreenReader, terminalFont, onTerminalFont, notifications, dockBadges, onNotification, gaps }: {
   open: boolean; onClose: () => void; theme: Theme; onTheme: (theme: Theme) => void;
-  screenReader: boolean; onScreenReader: (enabled: boolean) => void;
+  screenReader: boolean; onScreenReader: (enabled: boolean) => void; terminalFont: string; onTerminalFont: (font: string) => void;
   notifications: boolean; dockBadges: boolean; onNotification: (enabled: boolean, preference: 'notifications' | 'dockBadges') => void; gaps: string[] }) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -561,6 +572,8 @@ function SettingsDialog({ open, onClose, theme, onTheme, screenReader, onScreenR
       <section aria-labelledby="settings-terminal-accessibility"><h3 id="settings-terminal-accessibility">终端辅助功能</h3>
         <label><input type="checkbox" checked={screenReader} onChange={event => onScreenReader(event.target.checked)} /> 启用屏幕阅读器支持</label>
         <p className="settings-note">使用读屏软件时开启。应用于本窗口的所有终端。</p></section>
+      <section aria-labelledby="settings-terminal-font"><h3 id="settings-terminal-font">终端字体</h3>
+        <TerminalFontField value={terminalFont} onChange={onTerminalFont} /></section>
       <section aria-labelledby="settings-models"><h3 id="settings-models">主控派发的默认模型</h3>
         <p className="settings-note">主控派发新会话时按角色取这里的模型和思考强度，主控也可以按你在对话里的要求临时改。只影响之后启动的会话；已经打开的终端、正在运行的会话，以及你在终端里自己启动的 claude / codex 都不受影响。</p>
         <ExecutionSettings /></section>
@@ -575,12 +588,31 @@ function SettingsDialog({ open, onClose, theme, onTheme, screenReader, onScreenR
   </dialog>;
 }
 
+const terminalFontKey = 'enchanted.terminalFont';
+// SF Mono for Latin, PingFang SC for Chinese; box drawing and powerline separators are drawn by the renderer.
+const defaultTerminalFont = '"SF Mono", Menlo, "PingFang SC", monospace';
+function readTerminalFont() {
+  try { return localStorage.getItem(terminalFontKey)?.trim() || defaultTerminalFont; } catch { return defaultTerminalFont; }
+}
+function TerminalFontField({ value, onChange }: { value: string; onChange: (font: string) => void }) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  const apply = () => onChange(draft.trim() || defaultTerminalFont);
+  return <form className="terminal-font" onSubmit={event => { event.preventDefault(); apply(); }}>
+    <label>字体列表 <input value={draft} spellCheck={false} onChange={event => setDraft(event.target.value)} onBlur={apply} data-terminal-font /></label>
+    <button type="button" onClick={() => onChange(defaultTerminalFont)} disabled={value === defaultTerminalFont}>恢复默认</button>
+    <p className="settings-note">用逗号分隔，前面的字体缺字时用后面的。立即应用于本窗口的所有终端，重启后保留。</p>
+  </form>;
+}
+
 function Workbench() {
   const [page, setPage] = useState<'terminal' | 'flow' | 'issues' | 'records' | 'metrics' | 'reflect'>('terminal');
   const [statuses, setStatuses] = useState<Record<string, PaneStatus>>({});
   const [paneKeys, setPaneKeys] = useState([...window.a2a.paneKeys]);
   const [connectedPaneKeys, setConnectedPaneKeys] = useState([...window.a2a.paneKeys]);
   const [screenReader, setScreenReader] = useState(false);
+  const [terminalFont, setTerminalFont] = useState(readTerminalFont);
+  useEffect(() => { try { localStorage.setItem(terminalFontKey, terminalFont); } catch { /* Per-viewer convenience only. */ } }, [terminalFont]);
   const [layout, setLayout] = useState<Layout | null>(null);
   const [names, setNames] = useState<Record<string, string>>({});
   const [zoom, setZoom] = useState<string | null>(null);
@@ -994,7 +1026,7 @@ function Workbench() {
             style={{ left: rect.x + '%', top: rect.y + '%', width: rect.w + '%', height: rect.h + '%' }}>
             {roleRequests.map((roleRequest, index) => roleRequest.launch === launches[key] &&
               <span className="role-request-tag" key={roleRequest.id}>申请 {index + 1} · {roleRequest.role_label}</span>)}
-            <SessionPane paneKey={key} active={active} screenReader={screenReader} name={names[key]} home={home} focusRequest={focusRequest.key === key ? focusRequest.version : 0} zoomed={zoom === key} onZoom={() => setZoom(value => value === key ? null : key)}
+            <SessionPane paneKey={key} active={active} screenReader={screenReader} fontFamily={terminalFont} name={names[key]} home={home} focusRequest={focusRequest.key === key ? focusRequest.version : 0} zoomed={zoom === key} onZoom={() => setZoom(value => value === key ? null : key)}
               confirmedRole={agents.find(agent => agent.id === launches[key] && agent.terminal && agent.role === 'controller')?.role_label}
               agentState={[...agents, ...ordinaryTerminals].find(agent => agent.id === launches[key])?.state}
               onAction={async (key, action) => { const value = await window.a2a.paneAction(key, action); setPaneKeys(value.paneKeys); setConnectedPaneKeys(value.connectedPaneKeys); setLayout(value.layout); setNames(value.names); setLaunches(value.launches ?? {}); setZoom(null); }} onStatus={onStatus} onClose={onClose} />
@@ -1017,7 +1049,7 @@ function Workbench() {
       </section>}
       </div>
     </main>
-    <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} theme={theme} onTheme={setTheme} screenReader={screenReader} onScreenReader={setScreenReader} gaps={gaps}
+    <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} theme={theme} onTheme={setTheme} screenReader={screenReader} onScreenReader={setScreenReader} terminalFont={terminalFont} onTerminalFont={setTerminalFont} gaps={gaps}
       notifications={notifications} dockBadges={dockBadges} onNotification={(enabled, preference) => {
         void window.a2a.notificationSetting(enabled, preference).then(value => {
           if (preference === 'notifications') { setNotifications(value); if (!value) setNotices([]); }
