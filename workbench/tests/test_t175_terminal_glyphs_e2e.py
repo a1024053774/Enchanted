@@ -61,8 +61,14 @@ def main():
                   runtime='real Electron/daemon/node-pty/zsh; cat of a fixture file, zero model calls')
     fixture = electron = None
 
-    def check(name, condition, detail=None):
+    failed = []
+
+    def check(name, condition, detail=None, soft=False):
+        # Pixel checks are soft: all three are recorded before the run stops, so a red run shows each of them.
         report['observed'][name] = detail
+        if not condition and soft:
+            failed.append(name)
+            return
         assert condition, f'{name}: {detail}'
         report['checks'].append(name)
 
@@ -137,10 +143,10 @@ def main():
         right = [rightmost_dark(row) for row in table_rows]
         expected = x0 + width(table()[0]) * cw
         check('table_right_border_aligned', None not in right and max(right) - min(right) <= 2 * scale and
-              expected - 1.5 * cw <= max(right) <= expected + 1, dict(right=right, expected=round(expected, 1), cell=round(cw, 2)))
+              expected - 1.5 * cw <= max(right) <= expected + 1, dict(right=right, expected=round(expected, 1), cell=round(cw, 2)), soft=True)
         cjk_end = rightmost_dark(rows[CJK_LINE])
         check('cjk_two_cells_each', cjk_end is not None and x0 + (width(CJK_LINE) - 2) * cw <= cjk_end <= x0 + width(CJK_LINE) * cw + 1,
-              dict(end=cjk_end, start=round(x0, 1), cells=width(CJK_LINE), cell=round(cw, 2)))
+              dict(end=cjk_end, start=round(x0, 1), cells=width(CJK_LINE), cell=round(cw, 2)), soft=True)
         # U+E0B0 is a solid right-pointing triangle: its cell's left edge is filled top to bottom, its right edge nearly empty.
         top, bottom = band(rows[lines[-2]])
 
@@ -148,9 +154,10 @@ def main():
             column = [image.getpixel((int(x), y)) for y in range(top, bottom)]
             return sum(1 for r, g, b in column if b > 120 and b > r + 50 and b > g + 30) / len(column)
         left_edge, right_edge = blue_fraction(x0 + cw * .12), blue_fraction(x0 + cw * .88)
-        check('powerline_triangle_drawn', left_edge > .7 and right_edge < .35, dict(left=round(left_edge, 2), right=round(right_edge, 2)))
+        check('powerline_triangle_drawn', left_edge > .7 and right_edge < .35, dict(left=round(left_edge, 2), right=round(right_edge, 2)), soft=True)
         image.crop((int(x0), int(y0), int(x0 + box['w'] * scale), int(y0 + (first + len(lines) + 2) * ch))).save(fixture.out / 'glyphs-crop.png')
         report['observed']['shot'] = str(fixture.out / 'glyphs-crop.png')
+        assert not failed, f'pixel checks failed: {failed}'
 
         before = cols()
         electron.evaluate('document.querySelector("[aria-label=\\"设置\\"]").click()')
