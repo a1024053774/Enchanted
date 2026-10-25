@@ -1,6 +1,6 @@
 # T-183 结果：被门禁拒绝的 create 不再留下后台新建的工作分支
 
-## 状态：INCOMPLETE（e2e 全过；待 agy 审查、合并）
+## 状态：PASS
 
 ## 依据
 
@@ -29,3 +29,7 @@ T-180 的 `createGate` 先建分支、再交门禁（门禁要求分支已存在
 
 - 分支被别人移动后的 `work_branch_cleanup_failed` 分支没有覆盖。
 - 没有用真实模型复跑。
+
+## 独立审查
+
+agy（gemini-3.8-flash-high，只读）审查候选 7efb5efd8：`T-183 REVIEW PASS`。两项 P3：分支被并发移动时的 `work_branch_cleanup_failed` 路径未覆盖（上面已写明）；`catch` 路径（门禁抛出而非返回失败）没有对应变异。均不改。全文 `review-agy-01.md`。
