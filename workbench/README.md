@@ -722,7 +722,7 @@ worker、reviewer、monitor 出厂选择为 Codex `gpt-6.1-sol` / `high` / Fast 
 两个主控沿用 Claude 入口的出厂选择 `claude-haiku-5-5` / `low` / Fast 关闭。
 逐字段优先级为派发覆盖参数 > 角色设置 > 对应角色的出厂默认。
 
-工作分支（T-180）：主控 `create` 不写 `branch` 时，后台定分支：本仓库已有任务就沿用它们的工作分支（门禁一个仓库一个）；否则用 `refs/heads/<前缀><项目名>`，同名分支已存在直接用，不存在就从仓库当前 HEAD 新建，不切换、不动 main/master、不 push。回执多一个 `work_branch`（`ref`、`created`、`reason`、`from`）。前缀在设置页“工作分支前缀”，默认 `enchanted/`，存为追加事件 `work_branch_prefix_saved`（仅操作员），`git check-ref-format` 不通过的前缀不保存；只影响之后还没有任务的项目。用户指定 `branch` 时照用，门禁照旧校验。
+工作分支（T-180）：主控 `create` 不写 `branch` 时，后台定分支：本仓库已有任务就沿用它们的工作分支（门禁一个仓库一个）；否则用 `refs/heads/<前缀><项目名>`，同名分支已存在直接用，不存在就从仓库当前 HEAD 新建，不切换、不动 main/master、不 push。回执多一个 `work_branch`（`ref`、`created`、`reason`、`from`）。前缀在设置页“工作分支前缀”，默认 `enchanted/`，存为追加事件 `work_branch_prefix_saved`（仅操作员），`git check-ref-format` 不通过的前缀不保存；只影响之后还没有任务的项目。用户指定 `branch` 时照用，门禁照旧校验。门禁拒绝这次 create 时，后台删掉本次新建的分支（仅当它仍指向新建时的提交），不留残留（T-183）。
 任务卡的 executor 仍记录任务信息和 CLI 身份，模型/强度字段不再作为启动选择或固定值门禁。
 
 ```sh

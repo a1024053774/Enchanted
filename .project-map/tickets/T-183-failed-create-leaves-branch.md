@@ -2,7 +2,7 @@
 id: T-183
 title: 不带 branch 的 create 被门禁拒绝时，后台新建的工作分支留在仓库里
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -21,9 +21,13 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 真实后台：不带 branch、卡版本不存在的 create 被拒后，仓库里没有新分支；之后正常 create 回执 `created: true, reason: default`。
-- [ ] T-180 原有场景不回归。
+- [x] 真实后台：不带 branch、卡版本不存在的 create 被拒后，仓库里没有新分支；之后正常 create 回执 `created: true, reason: default`。
+- [x] T-180 原有场景不回归。
 
 ## 不做
 
 不改门禁 create 的校验；用户指定 branch 的路径不变。
+
+## Resolution
+
+2026-10-25，PASS。记录见 [RESULTS.md](../../evidence/2026-10-25-batch25/T-183/RESULTS.md)。不带 branch 的 create 被门禁拒绝或抛出时，删掉本次新建的工作分支（git update-ref -d 带旧值，只在仍指向新建时的提交时删；被移动则拒绝 work_branch_cleanup_failed 并带原拒绝原因）；沿用已有分支时不删。红态复现真实复跑的现象（残留分支、下一次回执 existing），修后 PASS 15/15，变异被拒；agy 审查 PASS（两项 P3 未改）。
