@@ -2,7 +2,7 @@
 id: T-174
 title: L01：CLI 卡在系统授权弹窗时窗格空白无提示
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -21,9 +21,13 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 复现：让 CLI 阻塞在无输出状态（可用不输出的替身），修前窗格空白无提示，修后出现提示；有输出后提示消失。
-- [ ] 正常启动的 CLI 不出现提示。
+- [x] 复现：让 CLI 阻塞在无输出状态（可用不输出的替身），修前窗格空白无提示，修后出现提示；有输出后提示消失。
+- [x] 正常启动的 CLI 不出现提示。
 
 ## 不做
 
 范围外的问题经问题上报，不顺手改。
+
+## Resolution
+
+2026-10-25，PASS。记录见 [RESULTS.md](../../evidence/2026-10-25-batch25/T-174/RESULTS.md)。项目终端的前台程序在最后一次输出之后启动、且 6 秒没有输出时，窗格顶部提示它可能在等 macOS 权限弹窗；有输出即消失。真实 Electron 端到端：修前红、修后 6/6、变异被拒；agy 审查 PASS。没用真实 Claude 复现隐私弹窗（需要撤销系统授权）。

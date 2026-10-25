@@ -1,6 +1,6 @@
 # T-174 结果：CLI 启动后无输出时的窗格提示
 
-## 状态：INCOMPLETE（待 agy 审查）
+## 状态：PASS
 
 ## 根因与改动
 
@@ -36,3 +36,7 @@ python3 test_t174_silent_cli_hint_e2e.py --summary <新路径> [--revision <rev>
 ## 没做
 
 - 没用真实 Claude 复现隐私弹窗（需要撤销用户的系统授权，属于系统设置，不做）；替身只证明“无输出”这一机制。
+
+## 审查
+
+agy（gemini-3.8-flash-high）只读审查 PASS，见 `review-agy-01.md`。一个 P3：静默检测定时器没有 `unref()`；后台是常驻进程，终端退出时已清除定时器，不改。
