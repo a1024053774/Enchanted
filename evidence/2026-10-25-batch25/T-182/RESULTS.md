@@ -1,6 +1,6 @@
 # T-182 结果：产品页首屏演示、分功能展示与紫色连线
 
-## 状态：INCOMPLETE（待 agy 审查、push、线上 Pages 与 lcu 复看）
+## 状态：INCOMPLETE（agy 审查 PASS；待 push、线上 Pages 与 lcu 复看）
 
 ## 依据
 
@@ -88,6 +88,14 @@
 - touch: swipe down moves one step back
 
 其中“焦点在演示里时方向键留在演示里”在新结构里有对应的新检查（窗口里的方向键不换步）。
+
+## 审查
+
+agy（gemini-3.8-flash-high，只读）第 1 轮 PASS，见 `review-agy-01.md`：无 P0–P2；3 条 P3 都是观察，不需改动（外框高度依赖 aspect-ratio 占位；单步展示不显示导航；线止于最后一个展示底部）。
+
+## 本地 lcu 复看
+
+push 前在隔离的 Chrome for Testing 里用 lcu 打开本地页面：首屏有标题、下载与演示，“从这里开始”提示在；点“下一步”到第 2 步、提示收起；页面滚动时紫线画出、经过的站点亮起；鼠标在演示窗口上滚动时页面照常滚。
 
 ## 没做 / 未验证
 
