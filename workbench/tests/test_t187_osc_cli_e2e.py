@@ -13,7 +13,7 @@ CLI 的状态（运行中/空闲/等回答）在侧栏正确；做不到的信�
 3. 终端 C 先 `export CLAUDECODE=1`（如同在 Claude 会话里启动 opencode，继承了外层的变量），再直接敲 `opencode`，
    申请并批准（构思主控，另一个角色）。期望：角色记为 opencode（最近的那个 CLI），不是 claude；启动参数带 --standalone，
    本会话配置的 instructions 文件内容就是 Claude、Codex 开局拿到的同一段说明（a2a session-context）；分两段到达的
-   working 报告→“运行中”；拆在开头标记中间的报告也读出；提问→“等待用户回答”；退出 opencode 回到 shell 后（不再敲回车），不再沿用最后一条报告，显示“未知”。
+   working 报告→“运行中”；拆在开头标记中间的报告也读出；提问→“等待用户回答”；退出 opencode 回到 shell 后（不再敲回车），不再沿用最后一条报告，显示“未知”；再以 `opencode; sleep 30` 启动，opencode 退出、sleep 占着前台时也显示“未知”。
 4. 终端 D 用替身 opencode 的绝对路径启动。期望：窗格提示 opencode 没接入。
 
 失败方式（先列再写）：
@@ -51,7 +51,7 @@ def main():
     parser.add_argument('--claude', default=shutil.which('claude') or str(Path.home() / '.local/bin/claude'))
     target = parser.add_mutually_exclusive_group()
     target.add_argument('--revision')
-    target.add_argument('--mutant', choices=['no-carry', 'blocked-is-waiting', 'kept-after-exit', 'enter-only', 'env-order'])
+    target.add_argument('--mutant', choices=['no-carry', 'blocked-is-waiting', 'kept-after-exit', 'enter-only', 'env-order', 'other-in-front'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
     report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant, real_model_turns=0,
@@ -72,7 +72,9 @@ def main():
                        ('src/panes.ts', 'pane.cliTurn = reports.turns.at(-1); pane.wiringCheckAt ??= Date.now() + WIRING_RECHECK_MS; }',
                         'pane.cliTurn = reports.turns.at(-1); }')],
         # The first CLI in the register wins when an outer CLI's variable is inherited (review F1).
-        'env-order': [('src/terminalClis.ts', '  return ancestors().find(name => claimed.includes(name));', '  return claimed[0];')],
+        'env-order': [('src/terminalClis.ts', '  return ancestors().map(cliProgram).find(name => name !== undefined && claimed.includes(name));', '  return claimed[0];')],
+        # Another program in front after the CLI exits keeps its last report (review round 2, F2).
+        'other-in-front': [('src/panes.ts', '      if (cli?.turns !== "osc7501") pane.cliTurn = null;\n', '')],
     }.get(args.mutant, [])
 
     def check(name, condition, detail=None):
@@ -208,6 +210,12 @@ def main():
         type_in(c, 'leave\r')  # opencode ends by itself; nothing is typed at the shell prompt afterwards
         fixture.wait('C 回到 shell', lambda: screen(c).rstrip().endswith('%'), 30)
         settle('opencode_exit_unknown', c, 'unknown')
+        # Another program takes the foreground as opencode ends (`opencode; sleep 30`): its last report does not stand.
+        type_in(c, 'opencode; sleep 30\r')
+        fixture.wait('C 的第二个 opencode 启动', lambda: screen(c).count('opencodefakeready') >= 2, 30)
+        type_in(c, 'done\r'); settle('opencode_again_idle', c, 'idle')
+        type_in(c, 'leave\r')
+        settle('opencode_then_other_unknown', c, 'unknown')
 
         # 4. opencode by its real path.
         d = terminal('D')

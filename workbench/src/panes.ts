@@ -17,7 +17,7 @@ import { ClaudeLogin } from "./claudeLogin.ts";
 import { noticeText, SECURITY_NOTICE_TEXT } from "./claudeNotice.ts";
 import { resumeArgv, nativeSessionFile, codexSessionOrigin, codexSessionFileName } from "./paneRecovery.ts";
 import type { ExecutionOverrides } from './executionSettings.ts';
-import { terminalClis, readOsc7501, type CliTurn } from './terminalClis.ts';
+import { cliProgram, terminalClis, readOsc7501, type CliTurn } from './terminalClis.ts';
 
 const exec = promisify(execFile);
 const require = createRequire(import.meta.url);
@@ -335,11 +335,13 @@ export class Panes implements GateRuntime {
       if (!leader) { pane.unwiredCli = null; pane.cliTurn = null; return; }
       const { stdout } = await exec("/usr/bin/python3", ["-I", "-S", "-B", processArgs, String(leader.pid)], { timeout: 5000 });
       const launch = JSON.parse(stdout) as { argv: string[]; shim: string | null };
-      const command = basename(launch.argv[0] ?? "");
-      const cli = Object.hasOwn(terminalClis, command) ? terminalClis[command] : undefined;
+      const command = cliProgram(launch.argv);
+      const cli = command === undefined ? undefined : terminalClis[command];
+      // Reports belong to the CLI in front; another program in front (`opencode; sleep 60`) leaves none standing.
+      if (cli?.turns !== "osc7501") pane.cliTurn = null;
       const unwired = Boolean(cli) && !cli!.wired(launch);
       pane.unwiredCli = !unwired ? null : pane.unwiredCli?.pid === leader.pid ? pane.unwiredCli
-        : { command, pid: leader.pid, since: new Date().toISOString() };
+        : { command: command!, pid: leader.pid, since: new Date().toISOString() };
       if (unwired || pane.cliTurn) pane.wiringCheckAt = Date.now() + WIRING_RECHECK_MS;
     } catch (error) {
       // The process may have exited between the two reads; with no observation the terminal shows no warning.

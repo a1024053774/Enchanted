@@ -1,6 +1,5 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { requestAt } from "./transport.ts";
 import { commandCli } from "./terminalClis.ts";
@@ -57,13 +56,13 @@ const usage = `a2a：Enchanted 工作台的编排命令（在 Enchanted 的项�
 const orientation = readFileSync(fileURLToPath(new URL("../terminal/orientation.md", import.meta.url)), "utf8").trimEnd();
 
 // The program names (argv[0]) of this command's ancestor processes, nearest first (T-187: a CLI started inside another).
-function ancestors(): string[] {
+function ancestors(): string[][] {
   const rows = new Map(execFileSync("/bin/ps", ["-axo", "pid=,ppid=,args="], { encoding: "utf8" }).split("\n")
-    .map(line => line.trim().match(/^(\d+)\s+(\d+)\s+(\S+)/)).filter(match => match !== null)
-    .map(match => [Number(match![1]), { parent: Number(match![2]), program: basename(match![3]) }]));
-  const names: string[] = [];
-  for (let pid = process.ppid; rows.has(pid) && names.length < 64; pid = rows.get(pid)!.parent) names.push(rows.get(pid)!.program);
-  return names;
+    .map(line => line.trim().match(/^(\d+)\s+(\d+)\s+(.*)$/)).filter(match => match !== null)
+    .map(match => [Number(match![1]), { parent: Number(match![2]), argv: match![3].split(/\s+/) }]));
+  const chain: string[][] = [];
+  for (let pid = process.ppid; rows.has(pid) && chain.length < 64; pid = rows.get(pid)!.parent) chain.push(rows.get(pid)!.argv);
+  return chain;
 }
 
 // The terminal socket accepts only this identity (T-126); the daemon's data directory is not in the environment.

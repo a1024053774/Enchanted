@@ -20,11 +20,19 @@ export const terminalClis: Record<string, TerminalCli> = {
   agy: { turns: "osc7501", inCommand: env => env.A2A_SHIM === "agy", wired: ({ shim }) => shim === "agy" },
 };
 
-// ancestors: the program names of the command's ancestor processes, nearest first; read only when two CLIs claim it.
-export function commandCli(env: NodeJS.ProcessEnv, ancestors: () => string[]): string | undefined {
+// Which registered CLI a process runs, from its argv. A CLI installed as a script (npm) runs as `node <path>/<cli>`.
+const RUNTIMES = new Set(["node", "bun", "deno"]);
+export function cliProgram(argv: string[]): string | undefined {
+  const program = (index: number) => (argv[index] ?? "").split("/").at(-1)!;
+  const name = RUNTIMES.has(program(0)) ? program(1) : program(0);
+  return Object.hasOwn(terminalClis, name) ? name : undefined;
+}
+
+// ancestors: the argv of the command's ancestor processes, nearest first; read only when two CLIs claim it.
+export function commandCli(env: NodeJS.ProcessEnv, ancestors: () => string[][]): string | undefined {
   const claimed = Object.keys(terminalClis).filter(name => terminalClis[name].inCommand(env));
   if (claimed.length < 2) return claimed[0];
-  return ancestors().find(name => claimed.includes(name));
+  return ancestors().map(cliProgram).find(name => name !== undefined && claimed.includes(name));
 }
 
 // One OSC 7501 report: `ESC ] 7501 ; state=<s>[:id=..][:kind=<k>][:app=..][:msg=<base64>] (BEL | ESC \)`. A bare `?` is

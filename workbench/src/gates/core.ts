@@ -3,7 +3,7 @@
 // Copyright (c) 2026 Emanuele Di Pietro
 // See ../../LICENSE.synara for the full permission notice.
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1614,6 +1614,8 @@ export class A2AGates {
       this.save(task, "worktree_failed", { reason: String(error) });
       throw new Refusal("worktree_failed");
     }
+    attempt.git_metadata = await this.gitMetadata(taskId, attempt.workspace);
+    this.save(task, "git_metadata_read", attempt.git_metadata);
     if (args.command === "dispatch") {
       this.checkUserInputObserver();
       await this.runtime!.createThread(task, attempt, { ...(args.model === undefined ? {} : { model: args.model }),
@@ -1844,8 +1846,10 @@ export class A2AGates {
       await this.git(taskId, workspace, ["reset", "--hard", v.M]);
     }
     this.save(task, "merge_candidate", v);
+    requireGate(attempt.git_metadata, "git_metadata_unknown");
     let check: "path_boundary" | "oracle" = "path_boundary";
     try {
+      await this.checkGitMetadata(task, attempt, v);
       await this.checkPaths(task, attempt, v);
       check = "oracle";
       await this.checkOraclePaths(task, attempt, v);
@@ -2074,6 +2078,43 @@ export class A2AGates {
     if (attempt.rework?.state !== "submitted") return attempt.base_commit;
     requireGate(attempt.rework.candidate_commit === candidate, "stale_rework_candidate");
     return attempt.rework.base_commit;
+  }
+  // T-187: a worker without an OS sandbox (agy runs with --dangerously-skip-permissions) can write the repository's Git
+  // metadata, which the paths check does not see. Read what a worker must not change once its worktree exists, and compare
+  // before the paths check: the worktree's HEAD, the repository and worktree config, the hooks, and refs. The user keeps
+  // working in the same repository meanwhile, so a ref counts as the worker's only when it holds one of the worker's
+  // commits (base..candidate); the attempt's own branch and the gate's refs/a2a/ are expected to.
+  // Hashes stand in for the hook and config files themselves in the stored attempt.
+  private async gitMetadata(taskId: string, workspace: string) {
+    const gitDir = await this.git(taskId, workspace, ["rev-parse", "--path-format=absolute", "--git-dir"]);
+    const common = await this.git(taskId, workspace, ["rev-parse", "--path-format=absolute", "--git-common-dir"]);
+    const file = (path: string) => !existsSync(path) ? null : lstatSync(path).isFile()
+      ? `${lstatSync(path).mode.toString(8)}:${createHash("sha256").update(readFileSync(path)).digest("hex")}` : `${lstatSync(path).mode.toString(8)}:not-a-file`;
+    const hooks = join(common, "hooks");
+    return { head: readFileSync(join(gitDir, "HEAD"), "utf8").trim(), config: file(join(common, "config")),
+      worktree_config: file(join(gitDir, "config.worktree")),
+      hooks: Object.fromEntries((existsSync(hooks) ? readdirSync(hooks).sort() : []).map(name => [name, file(join(hooks, name))])) };
+  }
+  private async checkGitMetadata(task: A2ATask, attempt: A2AAttempt, v: A2AVerification) {
+    const before = attempt.git_metadata!, after = await this.gitMetadata(task.task_id, attempt.workspace);
+    const changed: string[] = [];
+    if (after.head !== before.head) changed.push("HEAD");
+    if (after.config !== before.config) changed.push("config");
+    if (after.worktree_config !== before.worktree_config) changed.push("config.worktree");
+    for (const name of new Set([...Object.keys(before.hooks), ...Object.keys(after.hooks)]))
+      if (before.hooks[name] !== after.hooks[name]) changed.push(`hooks/${name}`);
+    const own = `refs/heads/a2a/${this.attemptName(attempt)}`;
+    const commits = (await this.git(task.task_id, task.repo, ["rev-list", "--parents", `${attempt.base_commit}..${v.C}`]))
+      .split("\n").filter(Boolean).map(line => line.split(" "));
+    const worker = new Set(commits.map(([commit]) => commit));
+    // A ref that holds any worker commit holds one whose parents are not the worker's.
+    const first = commits.filter(([, ...parents]) => !parents.some(parent => worker.has(parent))).map(([commit]) => commit);
+    if (first.length) {
+      const refs = await this.git(task.task_id, task.repo, ["for-each-ref", "--format=%(refname)", ...first.flatMap(commit => ["--contains", commit])]);
+      changed.push(...refs.split("\n").filter(ref => ref && ref !== own && !ref.startsWith("refs/a2a/")));
+    }
+    this.event(task.task_id, "git_metadata_check", { verification_id: v.verification_id, before, after, changed, passed: changed.length === 0 });
+    requireGate(changed.length === 0, "git_metadata_changed", { changed });
   }
   private async checkPaths(task: A2ATask, attempt: A2AAttempt, v: A2AVerification) {
     const paths = new Set<string>();

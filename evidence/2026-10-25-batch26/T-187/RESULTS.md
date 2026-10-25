@@ -58,3 +58,30 @@ probe-01 把一个临时夹具目录写进了用户 agy 配置的 `trustedWorksp
 - F6（P3，成立）：替身 opencode 启动时补发探测信号 `?`（oc-01 实测有这一条）。
 
 修后：green-04 PASS 21/21；red-main-02 失败 18 项；变异 no-carry-02、blocked-is-waiting-02、kept-after-exit-03、enter-only-02、env-order-01 都被拒。red-main-02、blocked-is-waiting-02、env-order-01 是在改退出步骤之前跑的，与现行测试只差退出那一步。
+
+## 独立审查第二轮（`review-agy-02.md`，候选 680d59a10）：`T-187 REVIEW INCOMPLETE`
+
+- F1（P2，成立）：`a2a request` 沿父进程链找 CLI 时只看 `argv[0]` 的文件名。npm 安装的 CLI 在进程表里是 `node <路径>/<cli>`，认不出。T-184 的接入判断有同一个问题。修法：`terminalClis.ts` 新增 `cliProgram`，`argv[0]` 是 node、bun 或 deno 时看 `argv[1]`，两处都用它。单独检查 `check_cli_program.ts`：候选 6/6（`check-cli-program-green-01.txt`）；修前的 680d59a10 没有这个函数，直接报错（`check-cli-program-red-680d59a10.txt`）。本机四个 CLI 都是原生二进制，真实运行不受影响。
+- F2（P3，成立）：CLI 退出时如果另一个程序立刻占了前台（`opencode; sleep 60`），最后一条报告会一直留到那个程序结束。修法：前台程序不是会自报状态的 CLI 时清掉报告。测试：终端 C 再以 `opencode; sleep 30` 启动；变异 `other-in-front`（去掉这一行）被拒。
+- F3（P3，不成立）：`opencode --help` 写明唯一的位置参数是目录（`opencode <subcommand> [flags] [<directory>]`），非目录的首参数在 opencode 自己的语法里就是子命令，包装脚本原样转发是对的。核对时发现一个相关的真缺口：交互子命令 `mini` 经包装脚本原样转发，拿不到开局说明。它是否接受 `--standalone` 没有实测，记入已知限制。
+
+修后：green-05 PASS 23/23；变异 other-in-front-01、env-order-02（补丁随新代码更新）被拒；T-184 回归 regression-t184-02 PASS 8/8。
+
+## Git 元数据守护（ready_rev 2，验收第 1 条）
+
+用户 2026-10-25 选“C 两者都作 worker”，选项原文：“agy 用 --dangerously-skip-permissions 全放开，只靠门禁事后检查；Git 元数据可能被改，每次派发写一次 ~/.gemini”。
+
+- 门禁在认领建好 worktree 后读一次 Git 元数据（`core.ts` 的 `gitMetadata`），记在 attempt 上：worktree 的 HEAD、仓库 config、worktree config、hooks 目录里每个文件（权限位加内容的 sha256，代替把文件本身存进 attempt）。
+- verify 时在路径边界检查之前比对（`checkGitMetadata`）。有改动就以 `git_metadata_changed` 拒绝交付，点名改了什么，记为一次“路径边界”打回并回写 worker；不跑完成条件，不审查，不集成。
+- refs 的判定：用户在同一仓库里照常提交、建分支、切换，所以不能拿 refs 前后对比。规则是含有 worker 提交（`base..候选`）的 ref 算 worker 的改动；attempt 自己的分支和门禁的 `refs/a2a/` 本来就含，不算。
+- 所有 worker 都走这一检查，不按 CLI 区分。Codex、Claude worker 有操作系统沙箱，正常不会触发。
+
+| 运行（`test_t187_git_metadata_guard_e2e.py`） | 结果 | 说明 |
+| --- | --- | --- |
+| `guard-green-02` | PASS | 真实后台、门禁、终端主控、Claude Code worker 与审查员（脚本化模型）。交付后、验收前由测试从外面改动：放 hooks/post-merge、设 core.fsmonitor、分离 worktree HEAD、把候选挂到新分支并移动已有标签，四个都被拒并点名；正例中用户同时在主 checkout 建分支、提交、切换，照常通过审查并集成 |
+| `guard-red-main-01`（`--revision main`） | 16 项失败 | 修前四个反例都被验收 |
+| `guard-mutant-refs-ignored-01`、`-config-ignored-01`、`-head-ignored-01` | 各在自己的案例上被拒 | 只看一部分元数据 |
+| `guard-mutant-own-branch-counted-01` | 正例被拒 | 把 attempt 自己的分支也当成泄漏 |
+| `setup-error-01/guard-green-01-head-made-a-ref` | 测试自身的错误 | head 案例的篡改步骤顺手建了一个指向候选的分支，门禁把它也点了名（判断正确），期望写漏；改为只分离 HEAD |
+
+已知限制：worker 把别的 ref 删掉、回退，或挂到不在候选历史里的提交上，这一规则认不出（无法和用户自己的操作区分）。集成分支被动过时，集成本身的 CAS 会拒绝。

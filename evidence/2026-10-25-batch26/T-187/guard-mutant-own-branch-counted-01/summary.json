@@ -1,0 +1,54 @@
+{
+  "status": "INCOMPLETE",
+  "argv": [
+    "tests/test_t187_git_metadata_guard_e2e.py",
+    "--mutant",
+    "own-branch-counted",
+    "--case",
+    "clean",
+    "--summary",
+    "../evidence/2026-10-25-batch26/T-187/guard-mutant-own-branch-counted-01/summary.json"
+  ],
+  "revision": null,
+  "mutant": "own-branch-counted",
+  "real_model_turns": 0,
+  "failed": [
+    "clean:verify_started",
+    "clean:error"
+  ],
+  "cases": [
+    {
+      "case": "clean",
+      "status": "INCOMPLETE",
+      "checks": [],
+      "failed": [
+        {
+          "name": "verify_started",
+          "detail": {
+            "ok": false,
+            "error": "git_metadata_changed",
+            "details": {
+              "changed": [
+                "refs/heads/a2a/T-1-a1"
+              ]
+            }
+          }
+        }
+      ],
+      "observed": {
+        "verify": {
+          "ok": false,
+          "error": "git_metadata_changed",
+          "details": {
+            "changed": [
+              "refs/heads/a2a/T-1-a1"
+            ]
+          }
+        }
+      },
+      "fixture": "/private/tmp/t187g-ad_qusp6",
+      "error": "AssertionError: 超时：审查通过",
+      "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t187/workbench/tests/test_t187_git_metadata_guard_e2e.py\", line 131, in run_case\n    fixture.wait('审查通过', lambda: (lambda s: s['state'] == 'verified' and s.get('review', {}).get('state') == 'passed')(status()), 240)\n  File \"/Users/luckye/Documents/Code/a2a-wt-t187/workbench/tests/scripted_claude.py\", line 198, in wait\n    assert time.monotonic() < deadline, f'超时：{label}'\nAssertionError: 超时：审查通过\n"
+    }
+  ]
+}
