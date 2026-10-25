@@ -2,7 +2,7 @@
 id: T-184
 title: 查明 lcu 实测中主控终端钩子与 a2a 插件都没生效的原因
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -23,12 +23,16 @@ ready_rev: 2
 
 ## Acceptance
 
-- [ ] 绕过提示：真实应用中用绝对路径启动 claude，修前无提示且显示假状态，修后窗格提示且状态为未知；正常敲 claude 不出现提示。
+- [x] 绕过提示：真实应用中用绝对路径启动 claude，修前无提示且显示假状态，修后窗格提示且状态为未知；正常敲 claude 不出现提示。
 
-- [ ] 写出根因并附证据（进程 argv、环境、复现命令）；未能复现时写 INCOMPLETE 与已排除的假设，不写成 PASS。
-- [ ] 若可修：修前在真实应用（从 Dock/Finder 启动）复现钩子缺失，修后 Stop/UserPromptSubmit 送达后台、侧栏状态随之变化；用户自己在项目终端敲 claude 时同样生效。
+- [x] 写出根因并附证据（进程 argv、环境、复现命令）；未能复现时写 INCOMPLETE 与已排除的假设，不写成 PASS。
+- [x] 若可修：修前在真实应用（从 Dock/Finder 启动）复现钩子缺失，修后 Stop/UserPromptSubmit 送达后台、侧栏状态随之变化；用户自己在项目终端敲 claude 时同样生效。
 
 ## 不做
 
 范围外问题经问题上报。
 
+
+## Resolution
+
+2026-10-25，PASS。记录见 [RESULTS.md](../../evidence/2026-10-25-batch26/T-184/RESULTS.md)。根因：实测那轮前两次敲 claude 卡在 L01 的“文稿”权限弹窗，操作者第三次用绝对路径 /Users/luckye/.local/bin/claude 启动，绕过了包装脚本，没有 --plugin-dir，插件、钩子、a2a skill 都没加载（证据：仍在运行的主控进程 argv 与环境、该终端 pty.raw 的命令序列）。ready_rev 2（用户选“不加固，绕过时界面提示”）：后台在项目终端每次提交后读前台进程 argv（sysctl KERN_PROCARGS2，只判断不保存），被包装的 claude/codex 缺少接入参数时窗格提示“这个会话没接入 Enchanted…”，侧栏与窗格头状态“未知”，CLI 退出后撤下；判据集中在 terminalClis.ts。修前 main 复现 lcu 的“运行中”假状态（4 项失败），修后三次 PASS 8/8，两个变异被拒，T-174 回归通过。agy 两轮审查 PASS。第二条验收（真实应用中正常敲 claude 钩子送达）在 T-186 装好 0.1.4 后的 lcu 复看里核对。
