@@ -122,7 +122,7 @@ def main():
                     return x
             return None
 
-        # Rows of the cat output: `clear` puts the prompt line first, T175-BEGIN under it.
+        # Rows of the cat output: `clear` also clears its own command line, so T175-BEGIN is the first drawn row.
         lines = FIXTURE.splitlines()
         first = None
         for row in range(size['rows']):
@@ -132,7 +132,7 @@ def main():
                 break
         rows = {}
         for offset, text in enumerate(lines):
-            rows[text] = first + 1 + offset
+            rows[text] = first + offset
         table_rows = [rows[line] for line in table()]
         right = [rightmost_dark(row) for row in table_rows]
         expected = x0 + width(table()[0]) * cw
