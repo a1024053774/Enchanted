@@ -289,6 +289,8 @@ zsh；历史快照返回 `lifecycle: ended`。退出无法核对时保留 unknow
 有任何输出即撤下提示；不点按、不替用户回答弹窗。查询进程失败记 `silent_foreground_check_failed`，不显示提示。
 `pane_status` 的 `silent_foreground` 给出命令名与起始时间。
 
+项目终端里提交一行后约 1.5 秒，后台读前台进程的 argv（`src/processArgs.py`，sysctl KERN_PROCARGS2，只用于判断、不保存）。前台是包装脚本所包的 CLI（`claude`、`codex`，判据集中在 `src/terminalClis.ts`）却没有包装脚本加的接入参数（Claude 的 `--plugin-dir …/plugin/enchanted-a2a`，Codex 的 `$A2A_TERMINAL_BIN/a2a` 钩子）时，说明它是用绝对路径或别名绕过包装脚本启动的：没有插件和钩子，后台收不到它的回合。窗格提示“这个会话没接入 Enchanted，状态和主控命令不可用。退出后直接敲 claude 重启”，侧栏与窗格头的状态显示“未知”，不显示假状态；每 5 秒复查一次，CLI 退出后提示撤下。读进程失败记 `cli_wiring_check_failed`，不显示提示。`pane_status` 的 `unwired_cli` 给出命令名与起始时间（T-184）。
+
 每格右上角的“⋯”和右键菜单提供重命名、向右分屏、向下分屏、放大/还原、把右键发给窗格、关闭。
 分屏保留原窗格，按所选方向新建普通 zsh。普通终端沿用原启动目录；从任务 agent 分屏时，目录为任务仓库根，
 不使用 worker 的 worktree。用户可以自行在新终端启动 CLI 讨论任务；新终端标为“普通终端”，不计入 worker，
