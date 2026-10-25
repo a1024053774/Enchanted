@@ -24,6 +24,11 @@
 5. 分支行不显示或数字与 git 不一致。
 7. 有未答复的上报时 worker 不是“等待主控回答”，或答复之后仍是。
 6. 钩子往终端输出或改变回合（提示词被拦下、模型看到钩子输出）。
+（T-176，L03：同一会话各处同一状态、同一来源。）
+8. 主控回合结束后侧栏是“空闲”，它的窗格头却是别的（修前显示终端进程的“运行中”）。
+9. worker 窗格头与侧栏不一致，或底栏另写一个“执行：运行中”。
+10. worker 的上报等主控回答、而项目里没有主控在回合中时，项目行仍写“等待主控回答”，而不是等你。
+11. 已结束的会话时间列仍按启动时间显示，不写“结束”。
 --revision 在该版本源码上跑（修前没有钩子）；--mutant 跑已知坏实现。
 """
 import argparse
@@ -151,6 +156,17 @@ def main():
         return electron.evaluate(f"(()=>{{const r=document.querySelector('.agent-row[data-agent-launch=\"{launch}\"]');"
                                  "return r&&{state:r.dataset.agentState,parent:r.dataset.agentParent,level:r.dataset.agentLevel,role:r.querySelector('.agent-role').textContent}})()")
 
+    def pane_matches_row(launch):
+        # The pane's header and footer against the same session's sidebar row.
+        return electron.evaluate(f"(()=>{{const r=document.querySelector('.agent-row[data-agent-launch=\"{launch}\"]');"
+                                 f"const p=document.querySelector('.pane[data-launch-id=\"{launch}\"]');"
+                                 "return {row:r?.dataset.agentState??null,header:p?.querySelector('.pane-state')?.dataset.state??null,"
+                                 "headerText:p?.querySelector('.pane-state')?.textContent??null,footer:p?.querySelector('.pane-footer')?.innerText??null}})()")
+
+    def show(launch):
+        electron.evaluate(f"document.querySelector('.agent-row[data-agent-launch=\"{launch}\"]').click()")
+        electron.until('窗格出现', f"!!document.querySelector('.pane[data-launch-id=\"{launch}\"] .pane-state')", 30)
+
     def state_is(launch, value):
         return f"document.querySelector('.agent-row[data-agent-launch=\"{launch}\"]')?.dataset.agentState === {json.dumps(value)}"
 
@@ -173,6 +189,9 @@ def main():
         git(fixture.repo, 'add', 'NOTES.md')
         git(fixture.repo, 'commit', '-q', '-m', 'local change')
 
+        opened = fixture.request('window_open', fixture.operator, launch=fixture.terminal_launch, project='demo')
+        assert opened['ok'], opened
+        fixture_terminal = dict(identity=opened['identity'], sequence=0)
         electron = Electron(fixture, 't133t-' + fixture.dir.name[6:])
         electron.until('项目出现', "!!document.querySelector('[data-project-id=\"demo\"]')")
 
@@ -197,6 +216,11 @@ def main():
         check('ideation_running_after_answer', True)
         electron.until('回合结束：空闲', state_is(ideation['launch'], 'idle'), 60)
         check('ideation_idle_after_turn', True)
+        # T-176: the controller's own pane says the same.
+        show(ideation['launch'])
+        seen = fixture.wait('构思主控窗格头', lambda: (lambda v: v if v['header'] else None)(pane_matches_row(ideation['launch'])), 20)
+        report['observed']['ideation_pane'] = seen
+        check('controller_pane_header_matches_row', seen['row'] == 'idle' and seen['header'] == 'idle' and seen['headerText'] == '空闲', seen)
         report['observed']['ideation_results'] = fixture.api.results.get('ideation')
 
         executor = terminal('X')
@@ -248,6 +272,15 @@ def main():
         electron.until('问题面板列出这条上报', f"!!document.querySelector('[data-issue-id=\"{views[0]['issue']['id']}\"]')", 30)
         electron.screenshot(fixture.out / '05-issue-waiting.png')
         check('unanswered_issue_waits_for_controller', True)
+        # T-176: both controllers are out of a turn, so the project waits on the user, not on a controller.
+        project_state = electron.evaluate("document.querySelector('[data-project-id=\"demo\"]')?.dataset.projectState ?? null")
+        report['observed']['project_state_while_issue_waits'] = dict(project=project_state, ideation=agent(ideation['launch']), executor=agent(executor['launch']))
+        check('project_waits_on_user_when_no_controller_in_turn', project_state == 'waiting_user_answer', report['observed']['project_state_while_issue_waits'])
+        show(worker)
+        seen = pane_matches_row(worker)
+        report['observed']['worker_pane'] = seen
+        check('worker_pane_header_matches_row_without_second_state', seen['header'] == seen['row'] == 'waiting_controller_answer' and
+              '执行：' not in (seen['footer'] or ''), seen)
         # The gate's operation lock may be held by the worker's own call at that moment (operation_busy); only that is retried.
         def answer():
             result = fixture.request('answer_issue', fixture.operator, task='demo+T-1', issue=views[0]['issue']['id'], answer=ANSWER)
@@ -265,6 +298,13 @@ def main():
             assert fixture.request('window_input', pane['identity'], sequence=sequence, request_id=str(uuid.uuid4()), data=data)['ok']
             time.sleep(.5)
         fixture.wait('键入送到 worker', lambda: any(TYPED in json.dumps(b['messages'], ensure_ascii=False) for b in fixture.api.bodies if b['key'] == 'worker:T-1'), 120)
+
+        # T-176: a session that just ended says it ended, not how long ago it started.
+        type_in(fixture_terminal, 'exit\r')
+        ended_time = electron.until('结束的终端行', f"(()=>{{const r=document.querySelector('.agent-row[data-agent-launch=\"{fixture.terminal_launch}\"]');"
+                                    "return r&&r.dataset.agentState==='ended'?r.querySelector('.row-time').textContent.trim():null}})()", 30)
+        report['observed']['ended_row_time'] = ended_time
+        check('ended_row_time_says_ended', ended_time.startswith('结束'), ended_time)
 
         # The ideation controller gives its role back; what the user says after that is not a controller prompt.
         submit(ideation, RELEASE)

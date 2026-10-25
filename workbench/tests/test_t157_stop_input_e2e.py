@@ -226,7 +226,7 @@ def main():
                     event['type'] == 'pane_idle' and event['data'].get('stop', {}).get('prompt_id') == starts[0]['data']['prompt_id']
                     for event in trace))
         report['red_reproduced'] = bool(rejected and input_written and task_state['current_attempt']['attempt_id'] == attempt['attempt_id'] and
-                                        task_state['candidate_commit'] is None and agent['state'] == 'unknown' and report['observed']['dom']['header'] == '忙')
+                                        task_state['candidate_commit'] is None and agent['state'] == 'unknown' and report['observed']['dom']['header'] == '未知')
         report['status'] = 'PASS' if all(check['passed'] for check in report['checks']) else 'INCOMPLETE'
     except Exception as error:
         report['errors'].append(dict(error=str(error), traceback=traceback.format_exc()))
