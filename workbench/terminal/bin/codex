@@ -8,7 +8,9 @@ real=$(a2a_real_cli codex) || exit 127
 # the trust holds. The command names the a2a shim through the terminal's environment, not a path of this install.
 # No PostToolUse: Codex's ask tool returns before the user answers; the answer arrives as a submitted prompt.
 hook='{type="command",command="\"$A2A_TERMINAL_BIN/a2a\" hook",timeout=10}'
-set -- -c "hooks.UserPromptSubmit=[{hooks=[$hook]}]" -c "hooks.Stop=[{hooks=[$hook]}]" \
+# T-185: the same session-start orientation Claude's plugin gives (a2a session-context).
+start='{type="command",command="\"$A2A_TERMINAL_BIN/a2a\" session-context",timeout=10}'
+set -- -c "hooks.SessionStart=[{hooks=[$start]}]" -c "hooks.UserPromptSubmit=[{hooks=[$hook]}]" -c "hooks.Stop=[{hooks=[$hook]}]" \
   -c "hooks.PreToolUse=[{matcher=\"request_user_input_async\",hooks=[$hook]}]" "$@"
 # The user's own setting wins: a -c override, or the key in their Codex config file.
 for argument in "$@"; do

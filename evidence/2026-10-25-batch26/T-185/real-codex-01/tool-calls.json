@@ -1,0 +1,37 @@
+[
+  {
+    "name": "exec",
+    "command": "text(ALL_TOOLS.filter(x=>/exec|terminal|shell/i.test(x.name+\" \"+x.description)));\ntext(await tools.exec_command({cmd:\"a2a help\",max_output_tokens:6000}));\n",
+    "timestamp": "2026-10-25T13:35:55.864Z"
+  },
+  {
+    "name": "exec",
+    "command": "text(ALL_TOOLS.filter(x=>/exec|terminal|shell/i.test(x.name+\" \"+x.description)).map(x=>({name:x.name,description:x.description.slice(0,180)})));\ntext(await tools.exec_command({cmd:\"a2a request executor\",yield_time_ms:1000,max_output_tokens:3000}));\n",
+    "timestamp": "2026-10-25T13:36:02.519Z"
+  },
+  {
+    "name": "exec",
+    "command": "const results = await Promise.allSettled([\n  tools.exec_command({cmd:\"pwd; rg --files -g 'AGENTS.md' -g 'README*' -g 'stock.csv' -g '!node_modules' -g '!vendor'\",max_output_tokens:3000}),\n  tools.write_stdin({session_id:61966,chars:\"\",yield_time_ms:1000,max_output_tokens:3000})\n]);results.forEach(text);\n",
+    "timestamp": "2026-10-25T13:36:06.742Z"
+  },
+  {
+    "name": "exec",
+    "command": "const results = await Promise.allSettled([\ntools.exec_command({cmd:\"a2a call '{\\\"command\\\":\\\"card_template\\\"}'\",max_output_tokens:9000}),\ntools.exec_command({cmd:\"cat stock.csv README.md; rg --files --hidden -g '!\\\\.git/**'; git status --short\",max_output_tokens:5000}),\ntools.exec_command({cmd:\"a2a whoami\",max_output_tokens:3000})\n]);results.forEach(text);\n",
+    "timestamp": "2026-10-25T13:36:10.830Z"
+  },
+  {
+    "name": "exec",
+    "command": "text(await tools.exec_command({cmd:\"a2a call '{\\\"command\\\":\\\"card_template\\\",\\\"task\\\":\\\"demo-restock\\\"}'\",max_output_tokens:10000}));\n",
+    "timestamp": "2026-10-25T13:36:16.059Z"
+  },
+  {
+    "name": "exec",
+    "command": "text(await tools.exec_command({cmd:\"a2a call '{\\\"command\\\":\\\"card_template\\\",\\\"task\\\":\\\"/private/tmp/t185r-1yo2i9dk/demo/.a2a-tasks/restock\\\"}'\",max_output_tokens:10000}));\n",
+    "timestamp": "2026-10-25T13:36:20.252Z"
+  },
+  {
+    "name": "exec",
+    "command": "text(await tools.exec_command({cmd:\"a2a call '{\\\"command\\\":\\\"card_template\\\",\\\"task\\\":\\\"restock\\\",\\\"project\\\":\\\"demo\\\",\\\"repo\\\":\\\"/private/tmp/t185r-1yo2i9dk/demo\\\"}'\",max_output_tokens:10000}));\n",
+    "timestamp": "2026-10-25T13:36:23.571Z"
+  }
+]
