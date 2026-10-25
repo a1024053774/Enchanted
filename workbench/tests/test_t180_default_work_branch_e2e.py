@@ -17,6 +17,7 @@
 5. 设置页改前缀不生效，或新前缀只在重启后生效；非法前缀被存下；改前缀后已有任务的项目被换到新分支（门禁会以 project_branch_conflict 拒）。
 6. 用户指定的分支被忽略，仍建 enchanted/ 分支。
 7. 门禁不再校验：用户指定一个不存在的分支也被接受。
+8. （T-183）门禁拒绝了不带 branch 的 create，后台新建的分支却留下；下一次 create 回执写成“已存在”。
 --revision 在该版本源码上跑同一场景（修前应复现 1）；--mutant 跑已知坏实现。
 """
 import argparse
@@ -33,6 +34,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from scripted_claude import Electron, Fixture, prompt_text, quote, working_directory  # noqa: E402
 
 MUTANTS = {
+    # T-183: a refused create keeps the branch it made.
+    'keep-branch-on-refusal': [('src/daemon.ts', '    if (!result?.ok && made) await dropWorkBranch(repo, made, result?.error);\n', '')],
     # The saved prefix is ignored: always enchanted/.
     'prefix-ignored': [('src/daemon.ts', 'command.project, store.workBranchPrefix(),', "command.project, 'enchanted/',")],
     # Every create gets a fresh branch even when the repo's tasks already have one.
@@ -196,6 +199,18 @@ def main():
         report['observed']['other_T-9'] = {k: ninth.get(k) for k in ('ok', 'error', 'work_branch')}
         check('new_prefix_used_for_new_project', ninth.get('ok') and ninth['task']['integration_ref'] == 'refs/heads/team/other' and
               git(other, 'rev-parse', 'refs/heads/team/other') == git(other, 'rev-parse', 'refs/heads/main'), report['observed']['other_T-9'])
+
+        # 8 (T-183): a create the gate refuses (no saved card) leaves no branch; the next one reports it as new.
+        atom = repo('atom')
+        atom_controller = executor('atom', atom)
+        refused = fixture.request('create', atom_controller, task='T-7', project='atom', repo=str(atom), card_version=1)
+        left = git(atom, 'rev-parse', '--verify', '--quiet', 'refs/heads/team/atom')
+        report['observed']['atom_refused'] = dict(ok=refused.get('ok'), error=refused.get('error'), branch_left=left)
+        check('refused_create_leaves_no_branch', refused.get('ok') is not True and left is None, report['observed']['atom_refused'])
+        retried = create(atom_controller, 'atom', atom, 'T-7')
+        report['observed']['atom_T-7'] = {k: retried.get(k) for k in ('ok', 'error', 'work_branch')}
+        check('next_create_reports_new_branch', retried.get('ok') and (retried.get('work_branch') or {}).get('created') is True and
+              retried['work_branch'].get('reason') == 'default', report['observed']['atom_T-7'])
 
         # 6, 7: a branch the user named.
         spec = repo('spec')
