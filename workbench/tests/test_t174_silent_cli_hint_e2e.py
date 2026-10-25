@@ -77,7 +77,7 @@ def main():
             return not seen
 
         electron = Electron(fixture, 't174-' + fixture.dir.name[5:])
-        row = f'.project-terminals .agent-row[data-agent-launch="{launch}"]'
+        row = f'.agent-row[data-agent-launch="{launch}"]'
         electron.until('项目终端出现', f'!!document.querySelector({json.dumps(row)})', 30)
         electron.evaluate(f'document.querySelector({json.dumps(row)}).click()')
         electron.until('终端窗格出现', '!!document.querySelector(".xterm")', 30)
