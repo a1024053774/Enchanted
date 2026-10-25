@@ -21,10 +21,12 @@ L02（中文字间多空隙、中文表格边框不齐、p10k 分隔符成方块
 
 `red-main-01-first-check-only.json` 是改成“先记全部像素检查”之前的红态，只到第一项。`setup-error-01/`：测试环境问题（worktree 里新装的 node-pty 缺执行位、缺 Electron 二进制）和测试自身的行号偏移，均未到达断言，保留原样。
 
+回归：WebGL 画在 canvas 上，终端文字不再出现在 DOM 的 `.xterm-rows`。`test_t145_mouse_reports_e2e.py` 原来从 DOM 等就绪行，改为从 PTY 记录等、再确认窗格可见，回归 PASS（`regression-t145-01.json`）。`test_t167_codex_start_e2e.py` 只把 DOM 屏幕尾部记作观察、不参与判定，今后该字段为空。
+
 截图对照：`shots/red-glyphs.png`（边框断开、全角逗号后多空隙、分隔符成方块）、`shots/green-glyphs.png`。
 
 复跑：`cd workbench/tests && python3 test_t175_terminal_glyphs_e2e.py --summary <新路径> [--revision <rev>]`
 
 ## 没做
 
-- 没在用户真实的 p10k 提示符下复看（用户的 zsh 配置在其 HOME，测试用隔离 HOME）；分隔符与色块已覆盖。Nerd 图标（如分支图标 U+E0A0 之外的图标字形）仍取决于用户安装的字体，可在“终端字体”里加。
+- 没在用户真实的 p10k 提示符下复看（用户的 zsh 配置在其 HOME，测试用隔离 HOME）；分隔符与色块已覆盖。Nerd 图标（如分支图标 U+E0A0）仍取决于用户安装的字体，可在“终端字体”里加。
