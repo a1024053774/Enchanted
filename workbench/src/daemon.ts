@@ -17,6 +17,7 @@ import { randomUUID } from "node:crypto";
 import { createOperatorCredential, readOperatorCredential } from "./credentials.ts";
 import { sidebarSnapshot, projectCatalog } from './sidebar.ts';
 import { flowSnapshot } from './flow.ts';
+import { receiptLines } from './gateReceipts.ts';
 import { metricsSnapshot } from './metrics.ts';
 import { userInputRecords } from './userInputRecords.ts';
 import { reflectTree } from './reflect.ts';
@@ -117,8 +118,15 @@ export async function serve(
   const controllerOf = (initiator: { launch: string; role_request: string; role: string }): TerminalController => ({ ...initiator,
     state: () => roleRequests.approved(initiator.launch)?.id !== initiator.role_request ? "ended" : quota.exhausted(initiator.role_request) ? "quota_exhausted" : "active" });
   const terminalController = (launch: string, roleRequest: RoleRequest) => controllerOf({ launch, role_request: roleRequest.id, role: roleRequest.role });
-  const feedbackText = (receipts: unknown[]) =>
-    "本回合的异步请求处理结果如下。请仅确认收到并结束；不调用工具、不改文件、不新增请求。\n" + JSON.stringify(receipts, null, 2);
+  const feedbackText = (receipts: any[], role: string) => role === "worker"
+    // T-179: a worker's pane gets a short summary; the full receipt is in relay_results and on the records page.
+    ? "门禁回执（完整内容在记录页的“门禁回执”里）。请仅确认收到并结束；不调用工具、不改文件、不新增请求。\n" +
+      receipts.map(receipt => receiptLines(relayCommand(receipt.key), receipt.result).join("\n")).join("\n")
+    : "本回合的异步请求处理结果如下。请仅确认收到并结束；不调用工具、不改文件、不新增请求。\n" + JSON.stringify(receipts, null, 2);
+  const relayCommand = (key: string): string | null => {
+    const row = store.db.prepare("SELECT json_extract(input,'$.command') AS command FROM relay_requests WHERE key=?").get(key) as any;
+    return row?.command ?? null;
+  };
   const settleInboxFeedback = async () => {
     for (const receipt of relay.deferredInboxFeedback()) {
       const delivery = await gates.inboxDeliveryStatus(receipt.result.entry.id);
@@ -139,7 +147,7 @@ export async function serve(
       if (!relay.claimDeliveredFeedback(receipt.key, delivery)) continue;
       const { launch: _launch, ...original } = receipt;
       const final = { ...original, replayed: false, result: { ...receipt.result, delivery } };
-      const dispatch = await panes.dispatch(pane, feedbackText([final]), "gate");
+      const dispatch = await panes.dispatch(pane, feedbackText([final], pane.record.role), "gate");
       store.event("relay_feedback_registered", { key: receipt.key, request_id: receipt.request_id,
         entry_id: delivery.entry_id, delivery, dispatch: dispatch.id }, pane.record);
     }
@@ -162,7 +170,7 @@ export async function serve(
   };
   const catalogCommands = new Set(["projects_list", "tasks_list", "sidebar_snapshot", "flow_snapshot"]);
   const readOnly = new Set([...catalogCommands, "daemon_status", "orchestration_events", "pane_output", "workbench_snapshot",
-    "pane_layout", "pane_status", "pane_process_info", "launch_show", "status", "events", "issues", "card_show", "card_template", "card_validate", "execution_settings", "metrics", "user_input_records", "trajectory_archive", "retrospective_list", "reflect_tree"]);
+    "pane_layout", "pane_status", "pane_process_info", "launch_show", "status", "events", "issues", "card_show", "card_template", "card_validate", "execution_settings", "metrics", "user_input_records", "relay_receipts", "trajectory_archive", "retrospective_list", "reflect_tree"]);
   const authenticate = (identity: any): { source: string; kind: "operator" | "window" | "launch" | "terminal" | "anonymous";
       window?: WindowBinding; terminal?: { id: string; project: string | null; task: string | null } } => {
     if (!identity) return { source: "anonymous", kind: "anonymous" };
@@ -412,6 +420,17 @@ export async function serve(
     if (input.command === 'user_input_records') {
       if (typeof input.project !== 'string' || !input.project) throw new Refusal('invalid_project');
       return { ok: true, records: userInputRecords(store.db, input.project) };
+    }
+    // T-179: the gate's receipts to a project's sessions, newest first, each with its summary and the full result.
+    if (input.command === 'relay_receipts') {
+      if (typeof input.project !== 'string' || !input.project) throw new Refusal('invalid_project');
+      const rows = store.db.prepare(`SELECT q.key, q.task, q.attempt, q.launch, json_extract(q.input,'$.command') AS command,
+        r.data, r.created_at FROM relay_requests q JOIN relay_results r ON r.key=q.key ORDER BY r.created_at DESC`).all() as any[];
+      return { ok: true, receipts: rows.filter(row => String(row.task).startsWith(input.project + '+')).map(row => {
+        const result = JSON.parse(String(row.data));
+        return { key: row.key, task: row.task, attempt: row.attempt, launch: row.launch, role: store.launchRecord(row.launch)?.role ?? null,
+          command: row.command, created_at: row.created_at, ok: Boolean(result.ok), summary: receiptLines(row.command, result), result };
+      }) };
     }
     if (input.command === 'trajectory_archive') return { ok: true, ...archive.usage() };
     // T-137: the Reflect page's tree of every controller this project had and the sessions under it.
@@ -821,7 +840,7 @@ export async function serve(
             }
           }
         }
-        if (matched && receipts.length && ["worker", "controller"].includes(pane.record.role)) await panes.dispatch(pane, feedbackText(receipts), "gate");
+        if (matched && receipts.length && ["worker", "controller"].includes(pane.record.role)) await panes.dispatch(pane, feedbackText(receipts, pane.record.role), "gate");
       });
       const payload = JSON.parse(input.raw_stdin);
       if (payload.hook_event_name === "Stop") archiveSweep(input.launch);

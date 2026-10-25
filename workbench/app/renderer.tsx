@@ -21,7 +21,8 @@ import type { AppNotice } from './notificationCenter.ts';
 import { QuestionsPanel } from './QuestionsPanel';
 import { IssuesPage, type TaskIssues } from './IssuesPage';
 import { MetricsPage } from './MetricsPage';
-import { RecordsPage, type UserInputRecord } from './RecordsPage';
+import { RecordsPage, type GateReceipt, type UserInputRecord } from './RecordsPage';
+import { gateStateNames } from '../src/gateReceipts.ts';
 import { ReflectPage } from './ReflectPage';
 import type { NativeQuestion } from '../src/questions.ts';
 
@@ -105,7 +106,7 @@ declare global { interface Window { a2a: { readonly paneKeys: readonly string[];
   archiveUsage(): Promise<{ sessions: number; bytes: number }>;
   reflect(project: string): Promise<any>; retrospectives(project: string): Promise<any>; startRetrospective(project: string, selection: { cli: string; model: string; effort: string }): Promise<unknown>;
   saveRetrospectiveSchedule(change: Record<string, unknown>): Promise<unknown>; decideRetrospectiveSuggestion(suggestion: string, approved: boolean): Promise<void>;
-  records(project: string): Promise<UserInputRecord[]>; metrics(project: string, since: string | null, until: string | null): Promise<any>;
+  records(project: string): Promise<UserInputRecord[]>; receipts(project: string): Promise<GateReceipt[]>; metrics(project: string, since: string | null, until: string | null): Promise<any>;
   selection(): Promise<Selection>; selectTask(task: string | null): Promise<Selection>;
   openProject(): Promise<Selection | null>; removeProject(project: string): Promise<Selection>;
   projectSettings(project: string, directories?: string[]): Promise<{ repo: string; extra_directories: string[] }>;
@@ -120,8 +121,7 @@ declare global { interface Window { a2a: { readonly paneKeys: readonly string[];
   answer(key: string, question: string, answers: string[]): Promise<unknown>;
   releaseQueue(key: string, declaration: EmptyInputDeclaration): Promise<{ ok: boolean; error?: string }>;
   observeFocus(key: string, rawSequence: string): Promise<void> } } }
-const gateNames: Record<string, string> = { creating: '创建中', ready: '待认领', preparing: '准备中', claimed: '已认领', submitted: '已交付',
-  verifying: '验收中', verified: '验收通过', integrating: '集成中', accepted: '已集成', paused: '已暂停', revoked: '已撤销' };
+const gateNames = gateStateNames;
 const restoreErrors: Record<string, string> = {
   restore_managed_attempt_requires_reclaim: '受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领',
   restore_argv_missing: '启动记录缺少完整参数',
