@@ -124,7 +124,8 @@ def main():
             if approved and last and last.get('message', {}).get('stop_reason') == 'end_turn':
                 time.sleep(20)  # a turn that really ended stays ended
                 rows = native_rows(controller_home)
-                if next((r for r in reversed(rows) if r.get('type') == 'assistant'), None) is last:
+                # Rows are re-read from disk, so compare the row's identity (uuid), not the Python object.
+                if (next((r for r in reversed(rows) if r.get('type') == 'assistant'), None) or {}).get('uuid') == last.get('uuid'):
                     outcome = 'turn_ended'
                     break
             time.sleep(5)
