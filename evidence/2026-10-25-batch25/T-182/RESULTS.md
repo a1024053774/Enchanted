@@ -1,6 +1,6 @@
 # T-182 结果：产品页首屏演示、分功能展示与紫色连线
 
-## 状态：INCOMPLETE（agy 审查 PASS；待 push、线上 Pages 与 lcu 复看）
+## 状态：PASS
 
 ## 依据
 
@@ -97,8 +97,14 @@ agy（gemini-3.8-flash-high，只读）第 1 轮 PASS，见 `review-agy-01.md`�
 
 push 前在隔离的 Chrome for Testing 里用 lcu 打开本地页面：首屏有标题、下载与演示，“从这里开始”提示在；点“下一步”到第 2 步、提示收起；页面滚动时紫线画出、经过的站点亮起；鼠标在演示窗口上滚动时页面照常滚。
 
+## 上线
+
+合并 7484a5683，推前扫描 origin/main..main 共 31 个提交、157 个 blob：无凭据命中、无凭据文件名、无两个私人邮箱、无大于 1MB 的文件（扫描器为 `evidence/2026-10-23-batch21/release-0.1.2/credential_delta_scan.py`）。push `407a93b0f..7484a5683`；Pages 构建 7484a568 为 built，`/`、`assets/showcase.js`、`assets/demo.js`、`assets/site.css` 返回 200，`assets/tour.js` 返回 404（已删）。
+
+同一套检查对线上页（`PAGE_CHECK_URL=https://a1024053774.github.io/Enchanted/`）`live-01`：PASS 43/43。lcu 在隔离的 Chrome for Testing 打开线上页：首屏标题、下载、演示与“从这里开始”提示都在（新域名对浏览器是首次访问，提示照常出现）。复看后关闭该浏览器。
+
 ## 没做 / 未验证
 
-- 没在真机上看（手机只用 Chrome 的移动模拟）；线上页面与 lcu 复看在 push 之后做。
+- 没在真机上看（手机只用 Chrome 的移动模拟）。
 - 窄屏上演示窗口按桌面尺寸缩小，字很小，页面上写明“完整操作请用电脑打开”。
 - 不改产品代码，不发 Release。
