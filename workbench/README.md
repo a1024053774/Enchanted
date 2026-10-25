@@ -105,7 +105,7 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
 已结束或历史 attempt 的 agent 只读。
 在单 agent 视图中重命名或关闭，只修改该会话的名称或布局叶子，保留其余会话的分屏方向与名称。
 项目终端的布局保存只包含普通终端，项目查询中同属该项目的任务 agent 不进入终端布局。
-项目终端里由 Enchanted 插件启动的 Claude Code 在会话开始时经 SessionStart 钩子（`a2a session-context`）收到几行开局说明：`a2a` 在 PATH 上、`a2a help`、用户要它当主控就直接 `a2a request`、当主控前先读 a2a skill；只在有终端身份时输出（T-181）。
+项目终端里的 Claude Code（经插件）和 Codex（经包装脚本的 `-c hooks.SessionStart`）在会话开始时都经 SessionStart 钩子（`a2a session-context`，输出 `hookSpecificOutput.additionalContext`）收到同一份开局说明：`a2a` 在 PATH 上、`a2a help`、用户要它当主控就直接 `a2a request`、当主控前先读使用说明（Claude 是 a2a skill，其他 CLI 看 `a2a help`）；只在有终端身份时输出（T-181、T-185）。用户自己用 `-c hooks.SessionStart=…` 传的开局钩子优先，替换 Enchanted 的这一项；用户 hooks.json 里的开局钩子照常一起运行。新钩子第一次在用户自己的 Codex 里启动时，Codex 会弹一次钩子信任框，由用户本人确认，a2a 不写 Codex 配置。
 侧栏接口把普通终端放在 `terminals`；`agents` 包含 agent 会话和终端最近一次确认生效的主控角色。终端已结束时保留主控条目；交回角色而终端仍运行时恢复为普通终端，状态取终端生命周期。
 T-177：已结束的会话和被新 attempt 取代的会话折进每个任务下的“历史 N 个”，默认收起；子会话仍在用时父会话不折。“清理”只拿掉已结束的会话（追加 `sidebar_hidden` 事件，仅操作员；记录与门禁事件不删，运行中的会话拒绝 `session_not_ended`）。已集成任务仍空闲的当前 worker 显示“回收”，经门禁 `reclaim`。没有指定启动目标时，窗口打开最近活跃、未结束的会话。
 终端设 `minimumContrastRatio: 4.5`：按深色背景配色的 CLI（如 Claude Code 问答框正文用的 256 色纯白）在浅色配色下会被自动调深，不改 CLI 的配置（T-181）。
