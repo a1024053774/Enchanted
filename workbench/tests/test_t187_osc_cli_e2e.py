@@ -10,17 +10,19 @@ CLI 的状态（运行中/空闲/等回答）在侧栏正确；做不到的信�
 1. 终端 A 直接敲 `agy`，替身在 shell 里运行 `a2a request executor`，用户批准。期望：角色记为 agy；空闲报告→“空闲”，
    working→“运行中”，提问→“等待用户回答”，权限确认→“未知”，回合结束（done、idle）→“空闲”；窗格没有提示。
 2. 终端 B 用替身 agy 的绝对路径启动。期望：窗格提示 agy 没接入，状态未知。
-3. 终端 C 直接敲 `opencode`，申请并批准（构思主控，另一个角色）。期望：角色记为 opencode；启动参数带 --standalone，
+3. 终端 C 先 `export CLAUDECODE=1`（如同在 Claude 会话里启动 opencode，继承了外层的变量），再直接敲 `opencode`，
+   申请并批准（构思主控，另一个角色）。期望：角色记为 opencode（最近的那个 CLI），不是 claude；启动参数带 --standalone，
    本会话配置的 instructions 文件内容就是 Claude、Codex 开局拿到的同一段说明（a2a session-context）；分两段到达的
-   working 报告→“运行中”；提问→“等待用户回答”；退出 opencode 回到 shell 后，不再沿用最后一条报告，显示“未知”。
+   working 报告→“运行中”；拆在开头标记中间的报告也读出；提问→“等待用户回答”；退出 opencode 回到 shell 后（不再敲回车），不再沿用最后一条报告，显示“未知”。
 4. 终端 D 用替身 opencode 的绝对路径启动。期望：窗格提示 opencode 没接入。
 
 失败方式（先列再写）：
 1. 角色申请不认 agy、opencode，记成未知 CLI，状态一直未知（修前）。
 2. 不读 OSC 7501，状态一直未知；或只认 claude/codex 的钩子。
-3. 一条报告被拆在两次输出里时丢掉（只在单次输出里找完整序列）。
+3. 一条报告被拆在两次输出里时丢掉（只在单次输出里找完整序列，或拆在开头标记中间时丢掉）。
+8. 外层 CLI 的变量被继承时，按登记顺序认成外层的 CLI。
 4. 把权限确认、登录等也当成“等待用户回答”或“运行中”（猜）。
-5. CLI 退出后仍沿用最后一条报告。
+5. CLI 退出后仍沿用最后一条报告（包括退出后用户没在 shell 里再敲回车的情况）。
 6. 绕过包装脚本时不提示；或经包装脚本也提示。
 7. opencode 没有拿到开局说明，或拿到的是另一份文字。
 --revision 在该版本源码上跑；--mutant 跑已知坏实现。
@@ -49,14 +51,14 @@ def main():
     parser.add_argument('--claude', default=shutil.which('claude') or str(Path.home() / '.local/bin/claude'))
     target = parser.add_mutually_exclusive_group()
     target.add_argument('--revision')
-    target.add_argument('--mutant', choices=['no-carry', 'blocked-is-waiting', 'kept-after-exit'])
+    target.add_argument('--mutant', choices=['no-carry', 'blocked-is-waiting', 'kept-after-exit', 'enter-only', 'env-order'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
     report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant, real_model_turns=0,
                   checks=[], failed=[], observed={})
     patches = {
         # A report is looked for only inside one chunk of output.
-        'no-carry': [('src/terminalClis.ts', '  return { carry: open >= end && text.length - open < 4096 ? text.slice(open) : "", turns };',
+        'no-carry': [('src/terminalClis.ts', '  return { carry: from >= 0 && text.length - from < 4096 ? text.slice(from) : "", turns };',
                       '  return { carry: "", turns };')],
         # Any blocked report counts as waiting for the user's answer.
         'blocked-is-waiting': [('src/terminalClis.ts', '  return turn.state === "blocked" && turn.kind === "question" ? "waiting_user_answer" : "unknown";',
@@ -64,6 +66,13 @@ def main():
         # The last report stays after the CLI exits.
         'kept-after-exit': [('src/panes.ts', '      if (!leader) { pane.unwiredCli = null; pane.cliTurn = null; return; }',
                              '      if (!leader) { pane.unwiredCli = null; return; }')],
+        # The foreground is looked at again only after a line typed at the prompt (review F2).
+        'enter-only': [('src/panes.ts', '      if (unwired || pane.cliTurn) pane.wiringCheckAt = Date.now() + WIRING_RECHECK_MS;',
+                        '      if (unwired) pane.wiringCheckAt = Date.now() + WIRING_RECHECK_MS;'),
+                       ('src/panes.ts', 'pane.cliTurn = reports.turns.at(-1); pane.wiringCheckAt ??= Date.now() + WIRING_RECHECK_MS; }',
+                        'pane.cliTurn = reports.turns.at(-1); }')],
+        # The first CLI in the register wins when an outer CLI's variable is inherited (review F1).
+        'env-order': [('src/terminalClis.ts', '  return ancestors().find(name => claimed.includes(name));', '  return claimed[0];')],
     }.get(args.mutant, [])
 
     def check(name, condition, detail=None):
@@ -172,7 +181,7 @@ def main():
         # 3. opencode as typed, as the ideation controller.
         c = terminal('C')
         launch_out = fixture.dir / 'opencode-launch.txt'
-        type_in(c, f'export T187_LAUNCH_OUT={launch_out}; opencode\r')
+        type_in(c, f'export T187_LAUNCH_OUT={launch_out} CLAUDECODE=1; opencode\r')
         fixture.wait('C 的 opencode 启动', lambda: 'opencodefakeready' in screen(c), 30)
         type_in(c, 'launch\r')
         fixture.wait('C 的启动记录', lambda: launch_out.exists() and 'launchwritten' in screen(c), 30)
@@ -191,12 +200,13 @@ def main():
         check('opencode_request_cli', asked.get('cli') == 'opencode', asked)
         settle('opencode_idle_after_request', c, 'idle')
         type_in(c, 'split\r'); settle('opencode_split_report_running', c, 'running')
+        type_in(c, 'done\r'); settle('opencode_done_before_prefix', c, 'idle')
+        type_in(c, 'prefix\r'); settle('opencode_prefix_split_running', c, 'running')
         type_in(c, 'ask\r'); settle('opencode_question_waiting', c, 'waiting_user_answer')
         type_in(c, 'done\r'); settle('opencode_done_idle', c, 'idle')
         electron.screenshot(fixture.out / 'opencode-controller-idle.png')
-        type_in(c, 'exit\r')
+        type_in(c, 'leave\r')  # opencode ends by itself; nothing is typed at the shell prompt afterwards
         fixture.wait('C 回到 shell', lambda: screen(c).rstrip().endswith('%'), 30)
-        type_in(c, '\r')  # a submitted line at the prompt has the daemon look at the foreground again
         settle('opencode_exit_unknown', c, 'unknown')
 
         # 4. opencode by its real path.

@@ -4,8 +4,9 @@
 //   started by its real path or another alias lacks them: no orientation, no turn states, no role records.
 // - turns: where its turn states come from. "hooks": Enchanted's hooks report each turn (claude, codex). "osc7501": the
 //   CLI reports its own state to the terminal as OSC 7501 (T-187 facts: agy needs AGY_CLI_OSC7501=on, opencode always).
-// - inCommand: whether a command (`a2a request`) runs inside it, from the environment the CLI gives its commands. A
-//   variable the CLI sets itself comes before a shim's, so a CLI started inside another is told apart.
+// - inCommand: whether a command (`a2a request`) may run inside it, from the environment the CLI gives its commands. A
+//   CLI started inside another inherits the outer one's variable too; then the nearest one among the command's
+//   ancestor processes is the one that runs it (commandCli).
 export type LaunchFacts = { argv: string[]; shim: string | null };
 export type TerminalCli = { wired: (launch: LaunchFacts) => boolean; turns: "hooks" | "osc7501";
   inCommand: (env: NodeJS.ProcessEnv) => boolean };
@@ -19,24 +20,31 @@ export const terminalClis: Record<string, TerminalCli> = {
   agy: { turns: "osc7501", inCommand: env => env.A2A_SHIM === "agy", wired: ({ shim }) => shim === "agy" },
 };
 
-export const commandCli = (env: NodeJS.ProcessEnv): string | undefined =>
-  Object.keys(terminalClis).find(name => terminalClis[name].inCommand(env));
+// ancestors: the program names of the command's ancestor processes, nearest first; read only when two CLIs claim it.
+export function commandCli(env: NodeJS.ProcessEnv, ancestors: () => string[]): string | undefined {
+  const claimed = Object.keys(terminalClis).filter(name => terminalClis[name].inCommand(env));
+  if (claimed.length < 2) return claimed[0];
+  return ancestors().find(name => claimed.includes(name));
+}
 
 // One OSC 7501 report: `ESC ] 7501 ; state=<s>[:id=..][:kind=<k>][:app=..][:msg=<base64>] (BEL | ESC \)`. A bare `?` is
 // the CLI asking whether the terminal supports it, not a state.
 export type CliTurn = { state: string; kind: string | null };
-const OSC7501 = /\x1b\]7501;([^\x07\x1b]*)(?:\x07|\x1b\\)/g;
+const OSC7501 = /\x1b\]7501;([^\x07\x1b]*)(?:\x07|\x1b\\)/g, START = "\x1b]7501;";
 export function readOsc7501(carry: string, data: string): { carry: string; turns: CliTurn[] } {
   const text = carry + data, turns: CliTurn[] = [];
   let end = 0;
   for (const match of text.matchAll(OSC7501)) {
     end = match.index! + match[0].length;
-    const fields = new Map(match[1].split(":").map(field => [field.slice(0, field.indexOf("=")), field.slice(field.indexOf("=") + 1)]));
+    const fields = new Map(match[1].split(":").filter(field => field.includes("="))
+      .map(field => [field.slice(0, field.indexOf("=")), field.slice(field.indexOf("=") + 1)]));
     if (fields.get("state")) turns.push({ state: fields.get("state")!, kind: fields.get("kind") ?? null });
   }
-  // Keep an unfinished report for the next chunk; a report is short, so anything longer is not one.
-  const open = text.lastIndexOf("\x1b]7501;");
-  return { carry: open >= end && text.length - open < 4096 ? text.slice(open) : "", turns };
+  // Keep an unfinished report for the next chunk, or an output that stops inside a report's opening `ESC ] 7501 ;`.
+  // A report is short, so anything longer is not one.
+  const report = text.lastIndexOf(START), escape = text.lastIndexOf("\x1b");
+  const from = report >= end ? report : escape >= end && START.startsWith(text.slice(escape)) ? escape : -1;
+  return { carry: from >= 0 && text.length - from < 4096 ? text.slice(from) : "", turns };
 }
 
 // The sidebar's reading of the last report. A permission prompt, a sign-in or anything not listed is not guessed.

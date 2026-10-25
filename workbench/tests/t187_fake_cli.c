@@ -1,7 +1,9 @@
 // T-187 test double for agy and opencode in a project terminal: a native program (so the process's argv[0] and start
 // environment read like the real ones) that reports turn states the way the real CLIs do (T-187 facts.md):
 // agy only with AGY_CLI_OSC7501=on, opencode always; agy ends a turn with done then idle, opencode with clear then idle.
-// One line of input is one step: request <role>, work, ask, perm, done, split, launch, exit.
+// One line of input is one step: request <role>, work, ask, perm, done, split, prefix, launch, leave, exit.
+// leave: the CLI ends by itself a few seconds later, after the terminal looked at the line just typed.
+// opencode first asks the terminal whether it supports the reports (a bare `?`, oc-01); the terminal does not answer.
 // Build: cc -O2 -o <dir>/agy t187_fake_cli.c && ln <dir>/agy <dir>/opencode
 #include <libgen.h>
 #include <stdio.h>
@@ -24,6 +26,7 @@ int main(int argc, char **argv) {
   const char *osc = getenv("AGY_CLI_OSC7501");
   reports = agy ? osc && strcmp(osc, "on") == 0 : 1;
   printf("%s fake ready\n", agy ? "agy" : "opencode");
+  if (!agy) { printf("\033]7501;?\007"); fflush(stdout); }
   report("state=idle");
   char line[4096];
   while (fgets(line, sizeof line, stdin)) {
@@ -45,6 +48,9 @@ int main(int argc, char **argv) {
     else if (!strcmp(line, "split")) {
       // One report written in two pieces, some time apart: the terminal reads it in two chunks.
       if (reports) { printf("\033]7501;state=wor"); fflush(stdout); usleep(400000); printf("king:app=%s\007", app); fflush(stdout); }
+    } else if (!strcmp(line, "prefix")) {
+      // A report cut inside its opening sequence.
+      if (reports) { printf("\033]75"); fflush(stdout); usleep(400000); printf("01;state=working:app=%s\007", app); fflush(stdout); }
     } else if (!strcmp(line, "launch")) {
       const char *out = getenv("T187_LAUNCH_OUT");
       FILE *file = out ? fopen(out, "w") : NULL;
@@ -55,7 +61,8 @@ int main(int argc, char **argv) {
         fclose(file);
       }
       printf("launch written\n");
-    } else if (!strcmp(line, "exit")) break;
+    } else if (!strcmp(line, "leave")) { sleep(3); break; }
+    else if (!strcmp(line, "exit")) break;
     fflush(stdout);
   }
   return 0;

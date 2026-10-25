@@ -291,7 +291,8 @@ export class Panes implements GateRuntime {
       pane.outputAt = Date.now(); pane.silentForeground = null;
       const reports = readOsc7501(pane.oscCarry ?? "", data);
       pane.oscCarry = reports.carry;
-      if (reports.turns.length) pane.cliTurn = reports.turns.at(-1);
+      // While a CLI reports its state, look at the foreground every few seconds: it can exit without a line typed after.
+      if (reports.turns.length) { pane.cliTurn = reports.turns.at(-1); pane.wiringCheckAt ??= Date.now() + WIRING_RECHECK_MS; }
       try { appendFileSync(trace, data); }
       catch (error) { this.recordFailure(pane, "trace_write_failed", error); }
     });
@@ -339,7 +340,7 @@ export class Panes implements GateRuntime {
       const unwired = Boolean(cli) && !cli!.wired(launch);
       pane.unwiredCli = !unwired ? null : pane.unwiredCli?.pid === leader.pid ? pane.unwiredCli
         : { command, pid: leader.pid, since: new Date().toISOString() };
-      if (unwired) pane.wiringCheckAt = Date.now() + WIRING_RECHECK_MS;
+      if (unwired || pane.cliTurn) pane.wiringCheckAt = Date.now() + WIRING_RECHECK_MS;
     } catch (error) {
       // The process may have exited between the two reads; with no observation the terminal shows no warning.
       pane.unwiredCli = null;
