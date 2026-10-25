@@ -1,6 +1,6 @@
 # T-185 结果：Codex 项目终端装上开局钩子（SessionStart）
 
-## 状态：INCOMPLETE（机械检查、真实 Codex 复跑、回归均通过；待 agy 审查、合并）
+## 状态：PASS
 
 ## 依据
 
@@ -59,3 +59,7 @@ rollout 239 KB 已归档到外置盘（`real-codex-01/codex-rollout.archive.json
 
 - 没有在用户自己的 ~/.codex 里复跑；那里第一次启动会弹钩子信任框，要用户本人确认（构思主控要求写进 T-186 发版说明）。
 - 没有让真实 Codex 主控走完派发。
+
+## 独立审查
+
+agy（只读）审查候选 1ec0ab9ec：`T-185 REVIEW PASS`。唯一一项是观察：真实 Codex 主控批准后多次换参数调 `card_template`（即上面“观察”一节），不阻断。全文 `review-agy-01.md`。
