@@ -302,7 +302,7 @@ def main():
         # T-176: a session that just ended says it ended, not how long ago it started.
         type_in(fixture_terminal, 'exit\r')
         ended_time = electron.until('结束的终端行', f"(()=>{{const r=document.querySelector('.agent-row[data-agent-launch=\"{fixture.terminal_launch}\"]');"
-                                    "return r&&r.dataset.agentState==='ended'?r.querySelector('.row-time').textContent.trim():null}})()", 30)
+                                    "return r&&r.dataset.agentState==='ended'?r.querySelector('.row-time').textContent.trim():null})()", 30)
         report['observed']['ended_row_time'] = ended_time
         check('ended_row_time_says_ended', ended_time.startswith('结束'), ended_time)
 
