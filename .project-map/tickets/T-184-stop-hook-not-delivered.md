@@ -8,7 +8,7 @@ claimed_by:
 supersedes:
 ready: yes
 ready_by: ideation
-ready_rev: 1
+ready_rev: 2
 ---
 
 ## What to build
@@ -19,7 +19,11 @@ ready_rev: 1
 
 通用：先留真实入口的红态再修根因；真实 Claude 用 claude-haiku-5-5、尽量少；不写 ~/.claude、~/.codex 等全局配置，钩子只经每会话启动参数；agy 独立审查。
 
+补充（ready_rev 2）：根因已定位为操作者（构思主控）用绝对路径 `~/.local/bin/claude` 启动，绕过包装脚本（见 inbox 20261025T132703Z-executor-ack-001）。用户 2026-10-25 选：“不加固，绕过时界面提示 (Recommended)”。即：保持 T-120 包装脚本做法；后台发现项目终端里前台的 claude/codex 进程没有带 Enchanted 的接入参数时，在窗格里提示“这个会话没接入 Enchanted，状态和主控命令不可用，直接敲 claude（或 codex）重启”，该会话状态显示未知，不显示假状态。只依据进程 argv 这一机械事实。
+
 ## Acceptance
+
+- [ ] 绕过提示：真实应用中用绝对路径启动 claude，修前无提示且显示假状态，修后窗格提示且状态为未知；正常敲 claude 不出现提示。
 
 - [ ] 写出根因并附证据（进程 argv、环境、复现命令）；未能复现时写 INCOMPLETE 与已排除的假设，不写成 PASS。
 - [ ] 若可修：修前在真实应用（从 Dock/Finder 启动）复现钩子缺失，修后 Stop/UserPromptSubmit 送达后台、侧栏状态随之变化；用户自己在项目终端敲 claude 时同样生效。
