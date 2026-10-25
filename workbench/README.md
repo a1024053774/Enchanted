@@ -720,6 +720,8 @@ workspace-write、模型和思考强度默认见设置（可改）、显式 serv
 worker、reviewer、monitor 出厂选择为 Codex `gpt-6.1-sol` / `high` / Fast 关闭。
 两个主控沿用 Claude 入口的出厂选择 `claude-haiku-5-5` / `low` / Fast 关闭。
 逐字段优先级为派发覆盖参数 > 角色设置 > 对应角色的出厂默认。
+
+工作分支（T-180）：主控 `create` 不写 `branch` 时，后台定分支：本仓库已有任务就沿用它们的工作分支（门禁一个仓库一个）；否则用 `refs/heads/<前缀><项目名>`，同名分支已存在直接用，不存在就从仓库当前 HEAD 新建，不切换、不动 main/master、不 push。回执多一个 `work_branch`（`ref`、`created`、`reason`、`from`）。前缀在设置页“工作分支前缀”，默认 `enchanted/`，存为追加事件 `work_branch_prefix_saved`（仅操作员），`git check-ref-format` 不通过的前缀不保存；只影响之后还没有任务的项目。用户指定 `branch` 时照用，门禁照旧校验。
 任务卡的 executor 仍记录任务信息和 CLI 身份，模型/强度字段不再作为启动选择或固定值门禁。
 
 ```sh
@@ -1084,6 +1086,7 @@ worker 上报的问题仍未关闭、而它所在的 attempt 已因 `revise` 作
 可按任务、会话筛选；门禁派生了 `human_intervention` 的输入带“人工介入”标记，与门禁事件一一对应。项目终端里只记已批准的
 主控收到的整句和对它提问的答复：Claude Code 与 Codex 主控都记，Codex 主控要在用户信任 a2a 钩子之后才记（边界见“项目终端里的 a2a 与角色申请”）；
 终端里的其他键入只转发、不记录。
+记录页下方另有“门禁回执”（T-179，只读命令 `relay_receipts`）：worker、审查员等经中继发出的请求（submit、status、issue、review_submit）得到的门禁答复，按时间倒序，每条显示摘要，可展开完整 JSON（即 `relay_results` 原文）；不进用户输入记录。发回 worker 窗格的回执只有这几行摘要（命令是否受理；任务、状态、候选提交短号；下一步），发回主控的回执仍是完整 JSON。
 
 “指标”页（T-134）每次打开都从记录现算四个视图，不另存计数：模型使用（按实际观察到的模型与任务类型，看不到的记为 unknown；
 时间范围按回合发生时间截，范围前开始、范围内还在跑的会话也算，回合只数范围内的）、一次到位率与按八项检查分列的打回原因、
