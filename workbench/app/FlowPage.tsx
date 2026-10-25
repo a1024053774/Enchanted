@@ -84,7 +84,7 @@ export function FlowPage({ project }: { project: string | null }) {
           <p>各会话下方列出未归属原因。</p><Agents agents={unassigned} group="unassigned" /></section>}
         {(others.length > 0 || othersUnassigned.length > 0) && <section className="flow-others" data-flow-others={others.length} aria-label="其他项目的任务">
           <button className="flow-others-toggle" data-flow-others-toggle aria-expanded={othersOpen} aria-controls="flow-others-lanes"
-            onClick={() => setOthersOpen(value => !value)}><span aria-hidden="true">{othersOpen ? '⌄' : '›'}</span> 其他项目的任务 {others.length} 张</button>
+            onClick={() => setOthersOpen(value => !value)}><span aria-hidden="true">{othersOpen ? '⌄' : '›'}</span> {others.length > 0 ? `其他项目的任务 ${others.length} 张` : `其他项目未归属的会话 ${othersUnassigned.length} 个`}</button>
           <div id="flow-others-lanes" hidden={!othersOpen}>
             <div className="flow-scroll">{others.map(lane => <Lane key={lane.task} lane={lane} />)}</div>
             {othersUnassigned.length > 0 && <section className="flow-unassigned" aria-label="其他项目未归属"><h3>其他项目未归属</h3>

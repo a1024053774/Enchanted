@@ -36,4 +36,11 @@ ticket T-178（ready_rev 1），来源 `findings/2026-10-25-lcu-real-use.md` 的
 ## 没做 / 未验证
 
 - 没选项目时的流程页（独立终端区）行为没变，本票没有新增检查。
-- 只有未归属会话、没有泳道的其他项目，折叠按钮会写“其他项目的任务 0 张”；本场景没有覆盖。
+- 只有未归属会话、没有泳道的其他项目时，折叠按钮写“其他项目未归属的会话 N 个”（审查第一轮 P3 后改）；本场景没有覆盖这一分支。
+
+## 独立审查第一轮（`review-agy-01.md`，候选 8bd6de2a1）：`T-178 REVIEW INCOMPLETE`
+
+- P2 ×2：审查员认为 `shots/` 与 `setup-error-01/` 是空目录。核对：两者都在候选提交里（`git ls-tree exec/t178` 列出 5 张截图与 `setup-error-01/regression-t144-01-others-unassigned-dropped/summary.json`），审查副本目录里文件也在。判为审查员误读，不改。
+- P3：展开“其他项目”后截图前没有滚动，截图看不出变化。已改：截图前把 `#flow-others-lanes` 滚进视口。
+- P3：其他项目只有未归属会话时按钮写“0 张”。已改：此时写“其他项目未归属的会话 N 个”。
+- 修后 `green-04` PASS 8/8，回归 `regression-t144-03` PASS；截图 `shots/green-04-*`。

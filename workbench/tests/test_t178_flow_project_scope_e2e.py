@@ -138,6 +138,7 @@ def main():
             electron.evaluate("document.querySelector('[data-flow-others-toggle]').click()")
             shown = electron.until('展开其他项目', f"(() => {{ const l = {LANES}; return l.some(x => x.task === 'a2a+T-138') ? l : null; }})()", 10)
             check('other_project_expands', [lane['task'] for lane in shown][-1] == 'a2a+T-138', shown)
+            electron.evaluate("document.querySelector('#flow-others-lanes')?.scrollIntoView({ block: 'start' })")
             electron.screenshot(fixture.out / '02-demo-flow-others-open.png')
         # 4: switching project moves its own tickets to the top.
         lanes = open_flow('a2a')
