@@ -293,6 +293,20 @@ function registerHandlers() {
       throw new Error(reasons[result.error] ?? '门禁拒绝新开审查，请由执行主控核对：' + result.error);
     }
   });
+  // T-177: the user reclaims the idle worker of an integrated task. The gate's reclaim checks the session is idle and stops it.
+  ipcMain.handle('a2a:reclaim', async (event, task: unknown, attempt: unknown) => {
+    const context = windowTarget(event);
+    if (![task, attempt].every(value => typeof value === 'string' && value)) throw new Error('Invalid attempt');
+    const result = await request(context.options.state, { command: 'reclaim', task, attempt }, context.operator);
+    if (!result.ok) throw new Error(result.error);
+  });
+  // T-177: cleaning ended sessions out of the list; the daemon refuses a session that has not ended.
+  ipcMain.handle('a2a:hide-sessions', async (event, launches: unknown) => {
+    const context = windowTarget(event);
+    if (!Array.isArray(launches) || !launches.length || launches.some(launch => typeof launch !== 'string' || !launch)) throw new Error('Invalid sessions');
+    const result = await request(context.options.state, { command: 'sidebar_hide', launches }, context.operator);
+    if (!result.ok) throw new Error(result.error);
+  });
   ipcMain.handle('a2a:issue-answer', async (event, task: unknown, issue: unknown, answer: unknown) => {
     const context = windowTarget(event);
     if (![task, issue, answer].every(value => typeof value === 'string' && value.trim())) throw new Error('Invalid answer');
@@ -566,7 +580,20 @@ function registerHandlers() {
 
 function selection(context: WindowBinding) {
   return { task: context.task, project: context.task ? { project_id: context.task.project_id, repo: context.task.repo } : context.project, paneKeys: [...context.panes.keys()], connectedPaneKeys: [...context.panes.keys(), ...context.parked.keys()], layout: context.layout, names: context.names,
-    launches: Object.fromEntries([...context.panes.values()].filter(pane => pane.launch).map(pane => [pane.key, pane.launch!])) };
+    launches: Object.fromEntries([...context.panes.values()].filter(pane => pane.launch).map(pane => [pane.key, pane.launch!])),
+    focus: context.options.inspect && typeof context.options.launch === 'string' ? context.options.launch : null };
+}
+
+// T-177: with nothing asked for, the window opens on the most recently active session that is still current, or on a
+// project page when there is none; never on an ended terminal.
+async function startupView(state: string): Promise<Pick<Options, 'task' | 'project' | 'launch' | 'inspect'>> {
+  const catalog = await request(state, { command: 'sidebar_snapshot' });
+  if (!catalog.ok) throw new Error(catalog.error);
+  const latest = [...catalog.agents, ...catalog.terminals].filter((row: any) => !row.history && !['ended', 'unrestored'].includes(row.state))
+    .sort((a: any, b: any) => String(b.active_at ?? '').localeCompare(String(a.active_at ?? '')))[0];
+  if (latest?.terminal) return { project: latest.project ?? undefined, launch: latest.id, inspect: true };
+  if (latest?.task) return { task: latest.task, launch: latest.id, inspect: true };
+  return catalog.projects.length ? { project: catalog.projects[0].project_id } : {};
 }
 
 async function changeView(context: WindowBinding, view: { task?: string; project?: string; launch?: string }) {
@@ -749,6 +776,7 @@ async function prepareSelection(options: Options) {
 
 export async function run(options: Options) {
   if (!isAbsolute(options.state) || !isAbsolute(options.userData)) throw new Error('Absolute data paths are required');
+  if (options.task === undefined && options.project === undefined && options.launch === undefined) options = { ...options, ...await startupView(options.state) };
   const { task, project, saved, panes, layout, names } = await prepareSelection(options);
   const operator = readOperatorCredential(options.state);
   if (!operator) throw new Error('operator_credential_required');
