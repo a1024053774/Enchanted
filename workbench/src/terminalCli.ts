@@ -44,6 +44,13 @@ const usage = `a2a：Enchanted 工作台的编排命令（在 Enchanted 的项�
 
 只有用户本人要求时才申请身份；被拒绝或超时就停下告诉用户。申请命令被中断、被杀或超时，后台都会撤回申请。`;
 
+// T-181 (L08): a model that never picks the a2a skill still has to know the command exists. Claude Code adds a
+// SessionStart hook's stdout to the session's context; this is what it reads.
+const orientation = `你运行在 Enchanted 工作台的项目终端里。\`a2a\` 命令已经在 PATH 上，\`a2a help\` 列出全部命令；不用在文件系统里找它。
+- 用户让你担任主控（执行主控或构思主控）时，直接用 Bash 运行 \`a2a request executor\` 或 \`a2a request ideation\`（Bash 超时设 600000 毫秒），由用户在 Enchanted 界面里批准或拒绝。不要先用问答框问用户是否批准，那不能代替这一步。
+- 担任主控、派 worker 之前，先读 enchanted-a2a 插件的 a2a skill，按它的步骤做。
+用户没有要你做这些时，照常工作。`;
+
 // The terminal socket accepts only this identity (T-126); the daemon's data directory is not in the environment.
 const socket = process.env.A2A_TERMINAL_SOCKET, launch = process.env.A2A_TERMINAL, token = process.env.A2A_TERMINAL_TOKEN;
 const print = (value: unknown) => process.stdout.write(JSON.stringify(value, null, 2) + "\n");
@@ -63,6 +70,10 @@ async function main(argv: string[]) {
       if (socket && launch && token) await requestAt(socket, { command: "terminal_hook", raw_stdin: Buffer.concat(chunks).toString("utf8") },
         { kind: "terminal", launch, token });
     } catch { /* The daemon decides what to keep; a hook that cannot reach it leaves the turn alone. */ }
+    return 0;
+  }
+  if (command === "session-context" && !rest.length) {
+    if (socket && launch && token) process.stdout.write(orientation + "\n");
     return 0;
   }
   if (!socket || !launch || !token) {

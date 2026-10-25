@@ -1,0 +1,115 @@
+{
+  "status": "PASS",
+  "argv": [
+    "tests/test_t181_real_controller_e2e.py",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a-wt-t181/evidence/2026-10-25-batch25/T-181/real-haiku-01/summary.json"
+  ],
+  "revision": null,
+  "prompt": "请申请成为这个项目的执行主控（a2a request executor）。批准后：把 stock.csv 低于 min 的物品生成补货清单 restock.md，并另起一个任务在 README 里加一段用法说明；两件事分别派给两个 worker 并行做。",
+  "product_head": "1fda4f3697d50ab12869b0c42be529860f0e990e",
+  "real_model_turns": 1,
+  "checks": [
+    {
+      "name": "one_real_haiku_root_prompt",
+      "detail": {
+        "turns": 1,
+        "models": [
+          "claude-haiku-5-5"
+        ]
+      }
+    },
+    {
+      "name": "a2a_request_without_question_box",
+      "detail": {
+        "first_request": 2,
+        "asked": null
+      }
+    },
+    {
+      "name": "a2a_found_without_searching",
+      "detail": []
+    },
+    {
+      "name": "no_sleep_polling",
+      "detail": []
+    },
+    {
+      "name": "acceptance_without_repo_absolute_path",
+      "detail": {
+        "scripts": [
+          "/tmp/a2a-cards/check_restock.py",
+          "/tmp/a2a-cards/check_readme.py"
+        ],
+        "absolute": []
+      }
+    },
+    {
+      "name": "two_dispatched_without_branch_question",
+      "detail": {
+        "dispatched": [
+          "demo+T-1",
+          "demo+T-2"
+        ],
+        "outcome": "timeout_900s"
+      }
+    }
+  ],
+  "failed": [],
+  "observed": {
+    "outcome": "timeout_900s",
+    "bash_commands": [
+      "a2a whoami",
+      "a2a request executor",
+      "git status --short && git branch --show-current && ls -la && echo \"--- stock.csv\" && cat stock.csv && echo \"--- README.md\" && cat README.md 2>/dev/null",
+      "a2a call '{\"command\":\"card_template\",\"task\":\"T-1\",\"repo\":\"/private/tmp/t181r-sgqsfj5o/demo\"}'",
+      "set -u\nS=/tmp/a2a-samples; C=/tmp/a2a-cards/check_restock.py\nrm -rf \"$S\"; mkdir -p \"$S\"/{pos_min,pos_alt,neg_wrong_num,neg_missing,neg_extra,neg_no_num,neg_reversed}\nprintf '# 补货清单\\n- 苹果：库存 3，最低 5，需补 2\\n- 牛奶：库存 1，最低 4，需补 3\\n' > \"$S/pos_min/restock.md\"\nprintf '# 补货清单\\n\\n| 物品 | 库存 | 最低 | 需补 |\\n|---|---|---|---|\\n| 苹果 | 3 | 5 | 2 |\\n| 牛奶 | 1 | 4 | 3 |\\n' > \"$S/pos_alt/restock.md\"\nprintf '# 补货清单\\n- 苹果：需补 5\\n- 牛奶：需补 3\\n' > \"$S/neg_wrong_num/restock.md\"\nprintf '# 补货清单\\n- 苹果：需补 2\\n' > \"$S/neg_missing/restock.md\"\nprintf '# 补货清单\\n- 苹果：需补 2\\n- 牛奶：需补 3\\n- 香蕉：需补 1\\n' > \"$S/neg_extra/restock.md\"\nprintf '# 补货清单\\n- 苹果：库存 3，最低 5\\n- 牛奶：库存 1，最低 4\\n' > \"$S/neg_no_num/restock.md\"\nprintf '# 补货清单\\n- 苹果：库存充足，不需要补货，差额 2\\n- 牛奶：需补 3\\n' > \"$S/neg_reversed/restock.md\"\nfor d in pos_min pos_alt neg_wrong_num neg_missing neg_extra neg_no_num neg_reversed; do\n  (cd \"$S/$d\" && python3 -I \"$C\" >/tmp/a2a-out.txt 2>&1; rc=$?; echo \"$d rc=$rc $(cat /tmp/a2a-out.txt)\")\ndone",
+      "set -u\nS=/tmp/a2a-samples-readme; C=/tmp/a2a-cards/check_readme.py\nrm -rf \"$S\"; mkdir -p \"$S\"/{pos,neg_lost,neg_nokey}\nprintf '# 库存演示\\n\\n一次性测试仓库。\\n\\n## 用法\\n\\n读取 stock.csv，qty 低于 min 的物品写入 restock.md，每项写明应补货量。\\n' > \"$S/pos/README.md\"\nprintf '# 库存演示\\n\\n## 用法\\n\\n读取 stock.csv，生成 restock.md。\\n' > \"$S/neg_lost/README.md\"\nprintf '# 库存演示\\n\\n一次性测试仓库。\\n\\n## 用法\\n\\n生成一份清单即可。\\n' > \"$S/neg_nokey/README.md\"\nfor d in pos neg_lost neg_nokey; do\n  (cd \"$S/$d\" && python3 -I \"$C\" >/tmp/a2a-out2.txt 2>&1; rc=$?; echo \"$d rc=$rc $(cat /tmp/a2a-out2.txt)\")\ndone",
+      "a2a call '{\"command\":\"card_save\",\"task\":\"T-1\",\"card\":\"/tmp/a2a-cards/T-1.json\",\"expected_version\":0}'; echo \"=== T-1 create\"; a2a call '{\"command\":\"create\",\"task\":\"T-1\",\"project\":\"demo\",\"repo\":\"/private/tmp/t181r-sgqsfj5o/demo\",\"card_version\":1}'; echo \"=== T-2 save\"; a2a call '{\"command\":\"card_save\",\"task\":\"T-2\",\"card\":\"/tmp/a2a-cards/T-2.json\",\"expected_version\":0}'; echo \"=== T-2 create\"; a2a call '{\"command\":\"create\",\"task\":\"T-2\",\"project\":\"demo\",\"repo\":\"/private/tmp/t181r-sgqsfj5o/demo\",\"card_version\":1}'",
+      "a2a call '{\"command\":\"card_save\",\"task\":\"T-1\",\"card\":\"/tmp/a2a-cards/T-1.json\",\"expected_version\":0}' && a2a call '{\"command\":\"create\",\"task\":\"T-1\",\"project\":\"demo\",\"repo\":\"/private/tmp/t181r-sgqsfj5o/demo\",\"card_version\":1}'; echo \"=== T-2\"; a2a call '{\"command\":\"card_save\",\"task\":\"T-2\",\"card\":\"/tmp/a2a-cards/T-2.json\",\"expected_version\":0}' && a2a call '{\"command\":\"create\",\"task\":\"T-2\",\"project\":\"demo\",\"repo\":\"/private/tmp/t181r-sgqsfj5o/demo\",\"card_version\":1}'",
+      "a2a call '{\"command\":\"dispatch\",\"task\":\"T-1\",\"runtimeMode\":\"workspace-write\",\"model\":\"claude-sonnet-5-5\",\"effort\":\"medium\"}' & a2a call '{\"command\":\"dispatch\",\"task\":\"T-2\",\"runtimeMode\":\"workspace-write\",\"model\":\"claude-sonnet-5-5\",\"effort\":\"medium\"}' & wait",
+      "a2a call '{\"command\":\"status\",\"task\":\"T-1\"}' | head -c 1200",
+      "a2a call '{\"command\":\"status\",\"task\":\"T-1\"}' | grep -E '\"state\"|current_attempt' | head -5; echo \"--- retry dispatch T-1\"; a2a call '{\"command\":\"dispatch\",\"task\":\"T-1\",\"runtimeMode\":\"workspace-write\",\"model\":\"claude-sonnet-5-5\",\"effort\":\"medium\"}' | grep -E '\"ok\"|\"error\"|\"state\"|workspace\"' | head -8",
+      "for t in T-1 T-2; do echo \"== $t\"; a2a call \"{\\\"command\\\":\\\"status\\\",\\\"task\\\":\\\"$t\\\"}\" | grep -E '^    \"state\"|\"state\": \"(claimed|working|submitted|verified|integrated)' | head -3; done"
+    ],
+    "tasks": [
+      "demo+T-1",
+      "demo+T-2"
+    ],
+    "work_branches": {
+      "demo+T-1": "refs/heads/enchanted/demo",
+      "demo+T-2": "refs/heads/enchanted/demo"
+    }
+  },
+  "fixture": "/private/tmp/t181r-sgqsfj5o",
+  "versions": {
+    "node": "v26.5.0",
+    "claude": "2.1.310 (Claude Code)"
+  },
+  "fixture_permissions": {
+    "defaultMode": "dontAsk",
+    "allow": [
+      "Read",
+      "Write",
+      "Edit",
+      "Bash"
+    ],
+    "deny": [
+      "Task",
+      "Agent"
+    ],
+    "additionalDirectories": [
+      "/tmp",
+      "/private/tmp"
+    ]
+  },
+  "controller_launch": "unset ANTHROPIC_BASE_URL ANTHROPIC_AUTH_TOKEN ANTHROPIC_API_KEY CLAUDECODE; export HOME='/private/tmp/t181r-sgqsfj5o/controller-home' CLAUDE_CONFIG_DIR='/private/tmp/t181r-sgqsfj5o/controller-home/.claude' CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1; claude --model claude-haiku-5-5 --session-id 38026c30-6932-4343-84f3-0f04249705a2",
+  "assistant_models": [
+    "claude-haiku-5-5"
+  ],
+  "semantic_review_required": [
+    "两张卡是否把共用约定（文件名、格式、README 示例与 restock.md 格式一致）写进各自目标与完成条件",
+    "最终回复是否告诉用户工作分支与当前状态，是否如实"
+  ],
+  "out": "/private/tmp/t181r-sgqsfj5o/out"
+}
