@@ -124,7 +124,9 @@ def main():
         textarea = json.dumps(pane_selector + ' .xterm-helper-textarea')
         electron.until('终端可输入', f'(()=>{{const p=document.querySelector({json.dumps(pane_selector + "[data-input-enabled=true]")});return !!p?.getClientRects().length && !!p.querySelector("[data-restoring=false]") && !!p.querySelector(".xterm-helper-textarea")}})()')
         (home / 'enable-mouse').touch(exist_ok=False)
-        electron.until('鼠标模式输出已显示', f'[...document.querySelectorAll({json.dumps(pane_selector + " .xterm-rows > div")})].some(r=>r.getClientRects().length && getComputedStyle(r).visibility === "visible" && r.textContent.includes("T145_MOUSE_READY"))')
+        # T-175: the WebGL renderer draws on a canvas, so the ready line is read from the PTY record; the pane must be visible.
+        fixture.wait('鼠标模式输出已到终端', lambda: 'T145_MOUSE_READY' in (fixture.state / 'traces' / launch / 'pty.raw').read_text(encoding='utf-8', errors='replace'), 60)
+        electron.until('终端画面可见', f'!!document.querySelector({json.dumps(pane_selector + " .xterm-screen")})?.getClientRects().length')
         time.sleep(.5)
         rect = electron.evaluate(f'(()=>{{const r=document.querySelector({json.dumps(pane_selector + " .xterm-screen")}).getBoundingClientRect();return {{x:r.x,y:r.y,w:r.width,h:r.height}}}})()')
         x, y = round(rect['x'] + min(80, rect['w'] / 2)), round(rect['y'] + min(55, rect['h'] / 2))
