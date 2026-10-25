@@ -472,6 +472,16 @@ export async function serve(
       }));
       return { ok: true, ...snapshot, projects };
     }
+    // T-177: the user cleans ended sessions out of the sidebar. Only the list changes; a session still running cannot be hidden.
+    if (input.command === 'sidebar_hide') {
+      if (authority.kind !== 'operator') throw new Refusal('operator_required');
+      if (!Array.isArray(input.launches) || !input.launches.length || input.launches.some((launch: unknown) => typeof launch !== 'string' || !launch)) throw new Refusal('invalid_launches');
+      const snapshot = await sidebarSnapshot(gates, store, panes, roleRequests, quota.current());
+      const rows = input.launches.map((launch: string) => [...snapshot.agents, ...snapshot.terminals].find((row: any) => row.id === launch));
+      if (!rows.every(row => row?.state === 'ended')) throw new Refusal('session_not_ended');
+      store.event('sidebar_hidden', { launches: input.launches });
+      return { ok: true };
+    }
     const assertScope = (record: Record<string, any>) => {
       if (record.role === "shell") {
         if ((input.project ?? null) !== record.project) throw new Refusal("launch_project_mismatch");

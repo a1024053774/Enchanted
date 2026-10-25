@@ -109,7 +109,10 @@ export async function projectCatalog(gates: any, store: OrchestrationStore) {
 }
 
 export async function sidebarSnapshot(gates: any, store: OrchestrationStore, panes: any, roleRequests: RoleRequests, quota: QuotaState[] = []) {
-  const launches = store.launches().filter(record => record.role !== 'shell');
+  // T-177: sessions the user cleaned out of the list. Hidden from the list only; their records and gate events stay.
+  const hidden = new Set(store.db.prepare("SELECT data FROM orchestration_events WHERE type='sidebar_hidden' ORDER BY seq").all()
+    .flatMap((row: any) => JSON.parse(String(row.data)).launches as string[]));
+  const launches = store.launches().filter(record => record.role !== 'shell' && !hidden.has(record.id));
   const assignments = store.db.prepare(`SELECT d.launch,q.launch AS parent,q.input,r.data AS result
     FROM dispatch_records d JOIN relay_results r ON json_extract(r.data,'$.entry.id')=json_extract(d.data,'$.inbox_entry')
     JOIN relay_requests q ON q.key=r.key
@@ -129,6 +132,9 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
     WHERE type IN ('pane_exit','native_session_ended','pane_archived','shell_closed','pane_gone_confirmed') GROUP BY launch`).all()
     .map((row: any) => [String(row.launch), String(row.time)]));
   const ended = (id: string, state: AgentState) => state === 'ended' ? endedAt.get(id) ?? null : null;
+  // T-177: the last time anything was recorded for a session; the application opens on the most recently active one.
+  const activeAt = new Map(store.db.prepare('SELECT launch, MAX(time) AS time FROM orchestration_events WHERE launch IS NOT NULL GROUP BY launch').all()
+    .map((row: any) => [String(row.launch), String(row.time)]));
   // T-107 #3: a session whose issue report nobody has answered yet waits for its controller's answer. The same test the
   // gate applies before it takes an answer (open, no answer); a task whose issues cannot be read leaves its sessions unknown.
   const unanswered = new Map<string, Set<string> | null>();
@@ -136,6 +142,14 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
     const result = await gates.call({ command: 'issues', task });
     unanswered.set(task, result.ok ? new Set((result.issues ?? []).filter((view: any) => view.state !== '已关闭' && !view.answer)
       .map((view: any) => String(view.issue.thread_id))) : null);
+  }
+  // T-177: the gate's current attempt of each task. A session of another attempt is history; the current attempt's
+  // worker of an integrated task, still idle, can be reclaimed. A task whose status cannot be read stays as it is.
+  const currentAttempts = new Map<string, { attempt: string | null; integrated: boolean }>();
+  for (const task of new Set(launches.map(record => record.task).filter((task): task is string => typeof task === 'string'))) {
+    const result = await gates.call({ command: 'status', task });
+    if (result.ok) currentAttempts.set(task, { attempt: result.task.current_attempt?.attempt_id ?? null,
+      integrated: result.task.state === 'accepted' && result.task.integration_intent?.state === 'completed' && !result.task.current_attempt?.reclaimed });
   }
   const agents = launches.map(record => {
     // A role address or an ordinary reply is not delegation. Correlate the
@@ -158,6 +172,9 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
     const question_id = state === 'waiting_user_answer'
       ? projectQuestions(launchEvents).find(question => question.status === 'waiting' &&
         question.submission === statuses.get(record.id)?.active?.id)?.id ?? null : null;
+    const current = record.task ? currentAttempts.get(record.task) : undefined;
+    const superseded = Boolean(record.attempt && current !== undefined && current.attempt !== record.attempt);
+    const reclaimable = record.role === 'worker' && state === 'idle' && Boolean(current?.integrated) && current!.attempt === record.attempt;
     // T-123: `task` is the gate's id (`<project>+<name>`); `task_name` is what the sidebar shows.
     return { id: record.id, project: record.project, task: record.task, task_name: record.task ? record.task.slice(record.task.indexOf('+') + 1) : null,
       attempt: record.attempt, thread: record.thread, role: record.role, preset: record.preset ?? null, role_label: roleLabel(record),
@@ -166,7 +183,8 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
       parent: senders.size === 1 ? [...senders][0] : null, state, question_id, state_label: stateLabels[state],
       delivery: statuses.get(record.id)?.delivery ?? null,
       start_missing: Boolean(statuses.get(record.id)?.start_missing),
-      created_at: record.created_at ?? null, ended_at: ended(record.id, state) };
+      created_at: record.created_at ?? null, ended_at: ended(record.id, state), active_at: activeAt.get(record.id) ?? record.created_at ?? null,
+      history: state === 'ended' || superseded, reclaimable };
   });
   // T-121: a terminal whose CLI the user approved as a controller. Its state is the last turn event Enchanted's hooks
   // reported for this role (T-107). Claude Code loads them with the plugin, so it is running from the confirmation on,
@@ -180,7 +198,7 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
   const held = current.filter(row => row.confirmed_at);
   for (const roleRequest of held.filter((row, index) => !held.slice(index + 1).some(later => later.launch === row.launch))) {
     const record = store.launchRecord(roleRequest.launch);
-    if (!record) continue;
+    if (!record || hidden.has(record.id)) continue;
     const pane = panes.status(record.thread);
     if (roleRequest.state !== 'approved' && pane?.lifecycle !== 'ended') continue;
     const last = turns.findLast(row => row.role_request === roleRequest.id)?.state as AgentState | undefined;
@@ -188,19 +206,21 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
       : last ?? (roleRequest.cli === 'claude' && roleRequest.native_session ? 'running' : 'unknown');
     agents.push({ id: roleRequest.launch, project: roleRequest.project, task: null, task_name: null, attempt: null, thread: record.thread,
       role: 'controller', preset: roleRequest.role, role_label: roleLabel({ role: 'controller', preset: roleRequest.role }), cli: roleRequest.cli ?? '未知',
-      parent: roleRequest.parent_launch, state, question_id: null, state_label: stateLabels[state], created_at: roleRequest.decided_at, ended_at: ended(roleRequest.launch, state), terminal: true } as any);
+      parent: roleRequest.parent_launch, state, question_id: null, state_label: stateLabels[state], created_at: roleRequest.decided_at, ended_at: ended(roleRequest.launch, state),
+      active_at: activeAt.get(roleRequest.launch) ?? roleRequest.decided_at, history: state === 'ended', reclaimable: false, terminal: true } as any);
   }
   // Ordinary project terminals have their own selectable view too. A terminal
   // with a confirmed role is already represented by its controller row above.
   // Home-directory terminals (no project) are listed as well, so their pane header has the same source (T-176).
   const terminals: typeof agents = [];
-  for (const record of store.launches().filter(record => record.role === 'shell' && !agents.some(agent => agent.id === record.id))) {
+  for (const record of store.launches().filter(record => record.role === 'shell' && !hidden.has(record.id) && !agents.some(agent => agent.id === record.id))) {
     const pane = panes.status(record.thread);
     const state: AgentState = pane?.lifecycle === 'ended' ? 'ended' : pane?.lifecycle === 'running' ? 'running' : 'unknown';
     terminals.push({ id: record.id, project: record.project, task: null, task_name: null, attempt: null, thread: record.thread,
       role: 'shell', preset: null, role_label: '普通终端', cli: 'zsh', parent: null, state, question_id: null,
       descendants: { count: 0, state: 'unknown', state_label: stateLabels.unknown, counts: [] },
-      state_label: stateLabels[state], created_at: record.created_at, ended_at: ended(record.id, state), terminal: true } as any);
+      state_label: stateLabels[state], created_at: record.created_at, ended_at: ended(record.id, state),
+      active_at: activeAt.get(record.id) ?? record.created_at, history: state === 'ended', reclaimable: false, terminal: true } as any);
   }
   const recordedParents = new Map(agents.map(agent => [agent.id, agent.parent]));
   for (const agent of agents) {
@@ -221,7 +241,8 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
   const treeAgents = agents.map(agent => {
     const children = descendants(agent.id);
     const state = aggregate(children.map(child => child.state));
-    return { ...agent, descendants: { count: children.length, state, state_label: stateLabels[state],
+    // A session with a current one under it stays in view, so the current one is not folded away with it.
+    return { ...agent, history: agent.history && children.every(child => child.history), descendants: { count: children.length, state, state_label: stateLabels[state],
       counts: Object.keys(stateLabels).filter(key => children.some(child => child.state === key))
         .map(key => ({ state: key, label: stateLabels[key as AgentState], count: children.filter(child => child.state === key).length })) } };
   });

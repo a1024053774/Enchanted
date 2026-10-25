@@ -49,7 +49,7 @@ type ProjectItem = { project_id: string; repo: string | null; opened?: boolean; 
   git: { branch: string | null; upstream: string | null; ahead: number | null; behind: number | null; error: string | null } };
 type AgentItem = { id: string; project: string; task: string | null; task_name: string | null; attempt: string | null; parent: string | null;
   role: string; preset: string | null; role_label: string; cli: string; state: string; state_label: string; created_at?: string | null; ended_at?: string | null; terminal?: boolean;
-  delivery?: WorkerDeliveryStatus | null; start_missing?: boolean;
+  delivery?: WorkerDeliveryStatus | null; start_missing?: boolean; history?: boolean; reclaimable?: boolean;
   descendants: { count: number; state: string; state_label: string; counts: { state: string; label: string; count: number }[] } };
 type RoleRequest = { id: string; launch: string; project: string; role: string; role_label: string; cli: string | null; requested_at: string;
   terminal_cwd: string | null; terminal_opened_at: string | null };
@@ -94,13 +94,14 @@ const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
 type Layout = string | { direction: 'right' | 'down'; first: Layout; second: Layout };
 type ProjectView = { project_id: string; repo: string | null };
-type Selection = { task: Snapshot['task'] | null; project: ProjectView | null; paneKeys: string[]; connectedPaneKeys: string[]; layout: Layout | null; names: Record<string, string>; launches?: Record<string, string> };
+type Selection = { task: Snapshot['task'] | null; project: ProjectView | null; paneKeys: string[]; connectedPaneKeys: string[]; layout: Layout | null; names: Record<string, string>; launches?: Record<string, string>; focus?: string | null };
 declare global { interface Window { a2a: { readonly paneKeys: readonly string[]; readonly home: string;
   executionSettings(change?: ExecutionSelection & { role: ExecutionRole }): Promise<Record<ExecutionRole, ExecutionSelection>>;
   flow(): Promise<FlowSnapshot>; sidebar(): Promise<Sidebar>; selectAgent(launch: string): Promise<Selection & { focusKey: string }>; decideRoleRequest(roleRequest: string, approved: boolean, parentLaunch?: string | null): Promise<unknown>; notificationSetting(enabled?: boolean, preference?: 'notifications' | 'dockBadges'): Promise<boolean>;
   projects(): Promise<ProjectItem[]>; tasks(project: string): Promise<TaskItem[]>;
   issues(project: string): Promise<TaskIssues[]>; answerIssue(task: string, issue: string, answer: string): Promise<void>;
   restartReview(task: string, attempt: string, reviewId: string): Promise<void>;
+  reclaim(task: string, attempt: string): Promise<void>; hideSessions(launches: string[]): Promise<void>;
   disposeIssue(task: string, issue: string, action: 'close' | 'snooze', reason?: string, basis?: string): Promise<void>;
   archiveUsage(): Promise<{ sessions: number; bytes: number }>;
   reflect(project: string): Promise<any>; retrospectives(project: string): Promise<any>; startRetrospective(project: string, selection: { cli: string; model: string; effort: string }): Promise<unknown>;
@@ -680,6 +681,7 @@ function Workbench() {
     try {
       const current = await window.a2a.selection();
       setSelectedTask(current.task); setViewProject(current.project); setPaneKeys(current.paneKeys); setConnectedPaneKeys(current.connectedPaneKeys); setLayout(current.layout); setNames(current.names); setLaunches(current.launches ?? {});
+      setFocusedAgent(current.focus ?? null);
       const sidebar = await window.a2a.sidebar();
       applySidebar(sidebar);
       if (current.task && !sidebar.projects.some(project => project.tasks.some(task => task.task_id === current.task!.task_id))) {
@@ -808,9 +810,41 @@ function Workbench() {
     try { applySidebar(await window.a2a.sidebar()); } catch (error) { setCatalogError('列表未更新：' + String(error)); }
     finally { setDeciding(null); }
   };
+  // T-177: ended sessions and sessions of a replaced attempt fold into "历史 N 个" under their group.
+  const [openHistory, setOpenHistory] = useState<Set<string>>(new Set());
+  const [reclaiming, setReclaiming] = useState<string | null>(null);
+  const toggleHistory = (key: string) => setOpenHistory(previous => { const next = new Set(previous); if (next.has(key)) next.delete(key); else next.add(key); return next; });
+  const hideSessions = async (rows: AgentItem[]) => {
+    try { await window.a2a.hideSessions(rows.map(row => row.id)); }
+    catch (error) { setCatalogError('清理没有完成：' + String(error)); }
+    await reloadSidebar();
+  };
+  const reclaim = async (agent: AgentItem) => {
+    setReclaiming(agent.id);
+    try { await window.a2a.reclaim(agent.task!, agent.attempt!); }
+    catch (error) { setCatalogError('回收没有完成：' + String(error)); }
+    finally { setReclaiming(null); }
+    await reloadSidebar();
+  };
   const toggleAgent = (id: string) => setCollapsedAgents(previous => { const next = new Set(previous); if (next.has(id)) next.delete(id); else next.add(id); return next; });
-  const renderAgents = (rows: AgentItem[], level: number, scope: AgentItem[]): ReactNode => <ul className="agent-branches">
-    {rows.map(agent => <li key={agent.id}>
+  const renderAgents = (rows: AgentItem[], level: number, scope: AgentItem[]): ReactNode => {
+    const past = rows.filter(row => row.history);
+    const key = past.length ? (past[0].parent ?? 'root') + '|' + (past[0].task ?? past[0].role) + '|' + level : '';
+    const ended = past.filter(row => row.state === 'ended');
+    return <ul className="agent-branches">
+      {rows.filter(row => !row.history).map(agent => renderAgent(agent, level, scope))}
+      {past.length > 0 && <li className="agent-history" data-history-task={past[0].task ?? ''} data-history-count={past.length}>
+        <div className="agent-history-line" style={{ paddingLeft: level * 14 + 18 }}>
+          <button className="agent-history-toggle" data-history-toggle aria-expanded={openHistory.has(key)} aria-controls={'history-' + key}
+            onClick={() => toggleHistory(key)}>历史 {past.length} 个</button>
+          <button className="agent-history-clear" data-history-clear disabled={busy || !ended.length}
+            title="把已结束的会话从列表里拿掉；记录和门禁事件都保留" onClick={() => void hideSessions(ended)}>清理</button>
+        </div>
+        <ul className="agent-branches" id={'history-' + key} hidden={!openHistory.has(key)}>{past.map(agent => renderAgent(agent, level, scope))}</ul>
+      </li>}
+    </ul>;
+  };
+  const renderAgent = (agent: AgentItem, level: number, scope: AgentItem[]): ReactNode => <li key={agent.id}>
       <div className="agent-line" style={{ paddingLeft: level * 14 }}>
         {agent.descendants.count > 0 ? <button className="agent-toggle" data-agent-toggle={agent.id}
           aria-expanded={!collapsedAgents.has(agent.id)} aria-controls={'agent-children-' + agent.id}
@@ -837,6 +871,8 @@ function Workbench() {
             子会话 {agent.descendants.count} · {agent.descendants.counts.map(item => `${item.label} ${item.count}`).join(' · ')}
           </span>}
         </button>
+        {agent.reclaimable && <button className="agent-reclaim" data-reclaim-launch={agent.id} disabled={busy || reclaiming === agent.id}
+          title="任务已集成，这个 worker 还空着。经门禁回收：停止并归档这个会话。" onClick={() => void reclaim(agent)}>回收</button>}
       </div>
       <div id={'agent-children-' + agent.id} hidden={collapsedAgents.has(agent.id)}>{(() => {
         const children = scope.filter(child => child.parent === agent.id);
@@ -846,8 +882,7 @@ function Workbench() {
           {renderAgents(children.filter(child => child.task === task && child.role !== 'controller'), level + 1, scope)}
         </div>)}</>;
       })()}</div>
-    </li>)}
-  </ul>;
+    </li>;
   const renderProjectAgents = (scope: AgentItem[]) => {
     const roots = scope.filter(agent => !agent.parent && agent.role === 'controller' && agent.preset === 'ideation');
     const loose = scope.filter(agent => !agent.parent && !(agent.role === 'controller' && agent.preset === 'ideation'));
@@ -899,7 +934,7 @@ function Workbench() {
               }}>
               <span className="project-heading"><span className="project-title">{item.project_id}</span>
                 <span className="project-git" data-project-git={item.project_id}>{projectGit(item.git)}</span></span>
-              <span className="project-count">{scope.length || ''}</span>
+              <span className="project-count" title="不含折进“历史”的会话">{scope.filter(agent => !agent.history).length || ''}</span>
               {waiting > 0 ? <span className="project-needs">{waiting} 个等你</span>
                 : item.state === 'waiting_user_answer' && <span className="project-needs" data-project-needs-you title="有上报在等主控答复，但没有主控在回合中">等你处理</span>}
               {item.issues_waiting === null ? <span className="project-needs" data-project-issues="unknown" title="这个项目的问题列表读取失败">问题数未知</span>
