@@ -68,6 +68,7 @@ agy（只读）审查候选 cb8f002a8：`T-184 REVIEW PASS`。两项 P3：正常
 | --- | --- |
 | 修前 main（`red-main-01`） | 4 项失败：B 没有提示，主控行“运行中”（即 lcu L03 的假状态）；C 没有提示、“运行中”。截图 `shots/red-main-01-bypassed-claude.jpg` |
 | 修后 `green-04`、`green-05` | PASS 9/9：B 有提示（claude），状态“未知”；N 无提示，“运行中”；C 有提示（codex），“未知”；D 无提示；B 退出后提示撤下。截图 `shots/green-05-bypassed-claude.jpg` |
+| 合并 main（含 T-185 的 Codex SessionStart 参数）后 `green-06-after-main-merge` | PASS 9/9 |
 | 变异 `name-only`（只看进程名，不看接入参数） | 被拒：N、D 误报 |
 | 变异 `never-clears`（CLI 退出后不撤） | 被拒：`warning_clears_after_exit` |
 
