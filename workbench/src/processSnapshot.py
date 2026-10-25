@@ -84,7 +84,8 @@ class ProcReader:
         if isinstance(after,ShortInfo):
             # Its foreground group is not readable: tpgid -1 never names it the CLI's leader.
             return {'pid':pid,'ppid':after.ppid,'pgid':after.pgid,'tpgid':-1,'command':command,'privileged':True,'uid':after.uid}
-        return {'pid':pid,'ppid':after.ppid,'pgid':after.pgid,'tpgid':C.c_int32(after.tpgid).value,'command':command}
+        return {'pid':pid,'ppid':after.ppid,'pgid':after.pgid,'tpgid':C.c_int32(after.tpgid).value,'command':command,
+                'started':after.start_sec+after.start_usec/1e6}
 
     def children(self,pid):
         buffer=(C.c_int*(MAX_PROCESSES+1))();C.set_errno(0)
