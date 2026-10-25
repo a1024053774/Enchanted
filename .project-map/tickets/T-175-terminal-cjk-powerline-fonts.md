@@ -2,7 +2,7 @@
 id: T-175
 title: L02：终端中文字间距与对齐、powerline 字形
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -21,9 +21,13 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 真实 Electron：同一段中文与中文表格在修前错位、修后对齐（截图对照）；p10k 提示符显示正常。
-- [ ] 设置里改终端字体立即生效且重启保留。
+- [x] 真实 Electron：同一段中文与中文表格在修前错位、修后对齐（截图对照）；p10k 提示符显示正常。
+- [x] 设置里改终端字体立即生效且重启保留。
 
 ## 不做
 
 范围外的问题经问题上报，不顺手改。
+
+## Resolution
+
+2026-10-25，PASS。记录见 [RESULTS.md](../../evidence/2026-10-25-batch25/T-175/RESULTS.md)。终端改用 xterm 的 WebGL 渲染器（逐格绘制，制表符、色块与 powerline 分隔符由渲染器自绘）并启用 Unicode 11 宽度表；设置里加“终端字体”，立即生效、重启保留。真实 Electron 端到端：修前表格右边框漂移、分隔符成方块，修后 5/5；用户真实 p10k 提示符修前修后截图对照；T-145 回归 PASS。agy 审查 PASS（三条发现已处理或说明）。

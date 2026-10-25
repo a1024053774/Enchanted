@@ -1,6 +1,6 @@
 # T-175 结果：终端中文、表格与 powerline 字形
 
-## 状态：INCOMPLETE（待 agy 审查）
+## 状态：PASS（agy 审查 PASS，`review-agy-01.md`）
 
 ## 根因与改动
 
@@ -27,6 +27,19 @@ L02（中文字间多空隙、中文表格边框不齐、p10k 分隔符成方块
 
 复跑：`cd workbench/tests && python3 test_t175_terminal_glyphs_e2e.py --summary <新路径> [--revision <rev>]`
 
+## 用户真实的 p10k 提示符
+
+`--p10k`：在隔离 HOME 的 zsh 里只读 `source` 用户自己的 powerlevel10k 主题与 `~/.p10k.zsh`（关掉 gitstatus；p10k 仍在夹具 HOME 里取了一次 gitstatusd，随夹具删除），截图提示符。修前 `red-main-03-p10k.json` / `shots/red-p10k.png`，修后 `green-02-p10k.json` / `shots/green-p10k.png`（修后其余 5 项同样 PASS）。
+
+用户的配置是 `POWERLEVEL9K_MODE=powerline`，段落两端是 ░▒▓ 渐隐块、两行提示符左边是 ╭─/╰─ 框线、中间用“·”填充。L02 截图里的“方块和点线”大部分就是这些配置出来的字符：修前修后都按配置显示，修后由渲染器按格子画出、与段落对齐。真正缺字成方块的是 powerline 分隔符（U+E0B0 等），由像素检查 `powerline_triangle_drawn` 覆盖：修前左右缘填充都是 0.69（方块），修后为实心三角。`setup-error-01/green-02-p10k-gitstatus-download.json` 是没关 gitstatus 时截到“fetching gitstatusd”的那次。
+
+## 审查
+
+agy `review-agy-01.md`：PASS，三条发现。
+- P2 WebGL 后终端文字不在 DOM 里，今后的测试不能再从 `.xterm-rows` 取字：已写进 `workbench/README.md` 的测试说明。
+- P3 WebGL 上下文丢失后该窗格回到 DOM 渲染器、没有提示：审查认为按 xterm 文档卸载是合理的最小做法，不改。
+- P3 单行纯中文一项在修前也通过：上面红态表里已写明，修前变红的是表格边框与分隔符两项。
+
 ## 没做
 
-- 没在用户真实的 p10k 提示符下复看（用户的 zsh 配置在其 HOME，测试用隔离 HOME）；分隔符与色块已覆盖。Nerd 图标（如分支图标 U+E0A0）仍取决于用户安装的字体，可在“终端字体”里加。
+- Nerd 图标（如分支图标 U+E0A0）仍取决于用户安装的字体，可在“终端字体”里加。

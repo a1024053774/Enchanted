@@ -55,6 +55,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--summary', type=Path, required=True)
     parser.add_argument('--revision')
+    parser.add_argument('--p10k', action='store_true',
+                        help="also source the user's own powerlevel10k theme and ~/.p10k.zsh (read only) and screenshot the real prompt")
     args = parser.parse_args()
     assert not args.summary.exists(), '保留已有证据，使用新路径'
     report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, checks=[], observed={},
@@ -157,6 +159,18 @@ def main():
         check('powerline_triangle_drawn', left_edge > .7 and right_edge < .35, dict(left=round(left_edge, 2), right=round(right_edge, 2)), soft=True)
         image.crop((int(x0), int(y0), int(x0 + box['w'] * scale), int(y0 + (first + len(lines) + 2) * ch))).save(fixture.out / 'glyphs-crop.png')
         report['observed']['shot'] = str(fixture.out / 'glyphs-crop.png')
+        if args.p10k:
+            # The user's real prompt: their theme and config are only read; p10k's caches go to the fixture HOME.
+            # gitstatus is off so p10k does not download its daemon into the fixture HOME.
+            theme = Path.home() / '.oh-my-zsh/custom/themes/powerlevel10k/powerlevel10k.zsh-theme'
+            config = Path.home() / '.p10k.zsh'
+            type_in('clear; POWERLEVEL9K_DISABLE_GITSTATUS=true; source ' + quote(str(theme)) + ' && source ' + quote(str(config)) + '\r')
+            time.sleep(4)
+            type_in('\r')
+            time.sleep(2)
+            electron.screenshot(fixture.out / 'p10k.png')
+            Image.open(fixture.out / 'p10k.png').crop((int(x0), int(y0), int(x0 + box['w'] * scale), int(y0 + 6 * ch))).save(fixture.out / 'p10k-crop.png')
+            report['observed']['p10k_shot'] = str(fixture.out / 'p10k-crop.png')
         assert not failed, f'pixel checks failed: {failed}'
 
         before = cols()
