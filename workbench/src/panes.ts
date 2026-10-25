@@ -17,11 +17,13 @@ import { ClaudeLogin } from "./claudeLogin.ts";
 import { noticeText, SECURITY_NOTICE_TEXT } from "./claudeNotice.ts";
 import { resumeArgv, nativeSessionFile, codexSessionOrigin, codexSessionFileName } from "./paneRecovery.ts";
 import type { ExecutionOverrides } from './executionSettings.ts';
+import { shimWiring } from './terminalClis.ts';
 
 const exec = promisify(execFile);
 const require = createRequire(import.meta.url);
 const cli = fileURLToPath(new URL("./gates/cli.ts", import.meta.url));
 const processQuery = fileURLToPath(new URL("./processSnapshot.py", import.meta.url));
+const processArgs = fileURLToPath(new URL("./processArgs.py", import.meta.url));
 // T-120: ordinary terminals start zsh through Enchanted's ZDOTDIR bootstrap, which
 // loads the user's own startup files and then puts the a2a command and CLI shims first.
 const terminalResources = fileURLToPath(new URL("../terminal/", import.meta.url));
@@ -156,6 +158,7 @@ const TURN_START_DEADLINE_MS = 20_000;
 // A CLI started in a project terminal draws its screen within a couple of seconds; one that has written nothing for
 // this long may be waiting on a macOS privacy prompt hidden behind other windows (T-174, L01).
 const SILENT_FOREGROUND_MS = 6_000;
+const WIRING_CHECK_DELAY_MS = 1_500, WIRING_RECHECK_MS = 5_000;
 // The text a Claude prompt submitted. A long paste reaches UserPromptSubmit wrapped in Claude's
 // own pasted_content markers (seen with the user's login, T-122 GUI round 01); anything else
 // is compared as it is.
@@ -210,6 +213,8 @@ type Pane = {
   // Project terminal (T-174): when it last wrote output, whether input since then still needs a silence check, and the
   // foreground program that has written nothing since it started.
   outputAt?: number; silenceCheck?: boolean; silenceBusy?: boolean; silentForeground?: { command: string; since: string } | null;
+  // T-184: a wrapped CLI in the foreground without the shim's launch arguments, and when its argv is next read.
+  unwiredCli?: { command: string; pid: number; since: string } | null; wiringCheckAt?: number; wiringBusy?: boolean;
   claudePromptId?: string | null;
   claudePromptIds?: Set<string>;
   claudeQueuedPrompts?: { prompt: string; received_at: string;
@@ -285,7 +290,7 @@ export class Panes implements GateRuntime {
       try { appendFileSync(trace, data); }
       catch (error) { this.recordFailure(pane, "trace_write_failed", error); }
     });
-    const silence = setInterval(() => void this.watchSilence(pane), 1000);
+    const silence = setInterval(() => { void this.watchSilence(pane); void this.watchWiring(pane); }, 1000);
     terminal.onExit((event: unknown) => {
       clearInterval(silence);
       pane.stopped = true;
@@ -305,7 +310,36 @@ export class Panes implements GateRuntime {
       try { pane.pty.write(encoding === "binary" ? Buffer.from(data, "latin1") : data); }
       catch (error) { this.recordFailure(pane, "shell_input_write_unknown", error); throw error; }
       pane.silenceCheck = true;
+      // T-184: a submitted line may start a CLI; its argv is read once it has had time to exec.
+      if (data.includes("\r")) pane.wiringCheckAt = Date.now() + WIRING_CHECK_DELAY_MS;
     });
+  }
+  // T-184: the foreground program of a project terminal, when it is a CLI a shim wraps, must carry the shim's launch
+  // arguments; without them it runs without Enchanted's plugin and hooks, and the terminal says so instead of showing a
+  // turn state it cannot know. Read after a submitted line, and again while a warning stands so it clears when that
+  // CLI exits.
+  private async watchWiring(pane: Pane) {
+    const due = pane.wiringCheckAt;
+    if (due === undefined || Date.now() < due || pane.wiringBusy || pane.stopped) return;
+    pane.wiringBusy = true; pane.wiringCheckAt = undefined;
+    try {
+      const info = await this.processInfo(pane.record.thread);
+      const leader = (info.processes as { pid: number; pgid: number; tpgid: number }[])
+        .find(row => row.pid !== pane.pty.pid && row.pid === row.pgid && row.pgid === row.tpgid);
+      if (!leader) { pane.unwiredCli = null; return; }
+      const { stdout } = await exec("/usr/bin/python3", ["-I", "-S", "-B", processArgs, String(leader.pid)], { timeout: 5000 });
+      const argv = JSON.parse(stdout).argv as string[];
+      const command = basename(argv[0] ?? "");
+      const wired = shimWiring[command];
+      const unwired = Boolean(wired) && !wired(argv);
+      pane.unwiredCli = !unwired ? null : pane.unwiredCli?.pid === leader.pid ? pane.unwiredCli
+        : { command, pid: leader.pid, since: new Date().toISOString() };
+      if (unwired) pane.wiringCheckAt = Date.now() + WIRING_RECHECK_MS;
+    } catch (error) {
+      // The process may have exited between the two reads; with no observation the terminal shows no warning.
+      pane.unwiredCli = null;
+      this.store.event("cli_wiring_check_failed", { error: String(error) }, pane.record);
+    } finally { pane.wiringBusy = false; }
   }
   // T-174: only the mechanical fact is used: the terminal's foreground program started after the last output and has
   // written nothing for SILENT_FOREGROUND_MS. A new foreground program starts only from typed input, so the process
@@ -1526,6 +1560,7 @@ export class Panes implements GateRuntime {
         size: { cols: pane.pty.cols, rows: pane.pty.rows },
         state_source: pane.failed ? "runtime_failure" : "host_events", active: pane.active, native_session: pane.native,
         start_missing: this.startMissing(pane), silent_foreground: pane.silentForeground ?? null,
+        unwired_cli: pane.unwiredCli ? { command: pane.unwiredCli.command, since: pane.unwiredCli.since } : null,
         turn: pane.turn, writing: pane.writing, user_draft: pane.userDraft, interrupted: pane.interrupted,
         input_generation: pane.inputGeneration, interruption: pane.interruption,
         queued: pane.queue.map((item) => item.id), failed: pane.failed, stopped: pane.stopped, restoration,

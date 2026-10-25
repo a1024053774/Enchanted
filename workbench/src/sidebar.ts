@@ -202,7 +202,8 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
     const pane = panes.status(record.thread);
     if (roleRequest.state !== 'approved' && pane?.lifecycle !== 'ended') continue;
     const last = turns.findLast(row => row.role_request === roleRequest.id)?.state as AgentState | undefined;
-    const state: AgentState = pane?.lifecycle === 'ended' ? 'ended'
+    // T-184: a CLI started around the shim reports no turns; its state is not known.
+    const state: AgentState = pane?.lifecycle === 'ended' ? 'ended' : pane?.unwired_cli ? 'unknown'
       : last ?? (roleRequest.cli === 'claude' && roleRequest.native_session ? 'running' : 'unknown');
     agents.push({ id: roleRequest.launch, project: roleRequest.project, task: null, task_name: null, attempt: null, thread: record.thread,
       role: 'controller', preset: roleRequest.role, role_label: roleLabel({ role: 'controller', preset: roleRequest.role }), cli: roleRequest.cli ?? '未知',
@@ -215,7 +216,7 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
   const terminals: typeof agents = [];
   for (const record of store.launches().filter(record => record.role === 'shell' && !hidden.has(record.id) && !agents.some(agent => agent.id === record.id))) {
     const pane = panes.status(record.thread);
-    const state: AgentState = pane?.lifecycle === 'ended' ? 'ended' : pane?.lifecycle === 'running' ? 'running' : 'unknown';
+    const state: AgentState = pane?.lifecycle === 'ended' ? 'ended' : pane?.unwired_cli ? 'unknown' : pane?.lifecycle === 'running' ? 'running' : 'unknown';
     terminals.push({ id: record.id, project: record.project, task: null, task_name: null, attempt: null, thread: record.thread,
       role: 'shell', preset: null, role_label: '普通终端', cli: 'zsh', parent: null, state, question_id: null,
       descendants: { count: 0, state: 'unknown', state_label: stateLabels.unknown, counts: [] },

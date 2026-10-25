@@ -38,7 +38,7 @@ type Snapshot = {
   launch: { id: string; project: string; worktree?: string; thread: string; attempt: string | null; role: string;
     preset: string | null; cli_version: string; model_requested: string } | null;
   pane: { launch: string; state: string; lifecycle: string; state_source: string; historical?: boolean; failed: string | null;
-    delivery?: WorkerDeliveryStatus | null; start_missing?: boolean; silent_foreground?: { command: string; since: string } | null;
+    delivery?: WorkerDeliveryStatus | null; start_missing?: boolean; silent_foreground?: { command: string; since: string } | null; unwired_cli?: { command: string; since: string } | null;
     writing?: boolean; user_draft?: boolean; queued?: string[];
     restoration?: { status: string; error: string | null; details: string | null } | null;
     size?: { cols: number; rows: number }; interrupted?: boolean; interruption?: number | null; input_generation?: number; active?: { dispatch: string } | null } | null;
@@ -477,6 +477,9 @@ function SessionPane({ paneKey, active, screenReader, fontFamily, name, confirme
         </div>}
         {pane?.silent_foreground && <div className="connection-error" role="status" data-silent-foreground={pane.silent_foreground.command}>
           <p>{pane.silent_foreground.command} 启动后还没有任何输出。它可能在等 macOS 的权限弹窗（例如“想访问‘文稿’文件夹”），弹窗可能被其他窗口挡住了，请移开其他窗口找一找。有输出后这条提示自动消失。</p>
+        </div>}
+        {pane?.unwired_cli && <div className="connection-error" role="status" data-unwired-cli={pane.unwired_cli.command}>
+          <p>这个会话没接入 Enchanted，状态和主控命令不可用。退出后直接敲 {pane.unwired_cli.command} 重启（不要用绝对路径或别名启动）。</p>
         </div>}
         {turnRejection && <div className="connection-error" role="status" data-delivery-refusal={turnRejection.reason}>
           <div>
