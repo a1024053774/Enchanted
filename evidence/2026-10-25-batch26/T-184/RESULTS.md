@@ -1,6 +1,6 @@
 # T-184 结果：实测那轮主控终端没有钩子、没有 a2a 插件的原因
 
-## 状态：INCOMPLETE（根因部分已审查通过；ready_rev 2 的绕过提示已实现并通过 e2e，待 agy 审查、合并）
+## 状态：PASS
 
 ## 依据
 
@@ -67,8 +67,8 @@ agy（只读）审查候选 cb8f002a8：`T-184 REVIEW PASS`。两项 P3：正常
 | 运行 | 结果 |
 | --- | --- |
 | 修前 main（`red-main-01`） | 4 项失败：B 没有提示，主控行“运行中”（即 lcu L03 的假状态）；C 没有提示、“运行中”。截图 `shots/red-main-01-bypassed-claude.jpg` |
-| 修后 `green-04`、`green-05` | PASS 9/9：B 有提示（claude），状态“未知”；N 无提示，“运行中”；C 有提示（codex），“未知”；D 无提示；B 退出后提示撤下。截图 `shots/green-05-bypassed-claude.jpg` |
-| 合并 main（含 T-185 的 Codex SessionStart 参数）后 `green-06-after-main-merge` | PASS 9/9 |
+| 修后 `green-04`、`green-05` | PASS 8/8：B 有提示（claude），状态“未知”；N 无提示，“运行中”；C 有提示（codex），“未知”；D 无提示；B 退出后提示撤下。截图 `shots/green-05-bypassed-claude.jpg` |
+| 合并 main（含 T-185 的 Codex SessionStart 参数）后 `green-06-after-main-merge` | PASS 8/8 |
 | 变异 `name-only`（只看进程名，不看接入参数） | 被拒：N、D 误报 |
 | 变异 `never-clears`（CLI 退出后不撤） | 被拒：`warning_clears_after_exit` |
 
@@ -85,3 +85,9 @@ agy（只读）审查候选 cb8f002a8：`T-184 REVIEW PASS`。两项 P3：正常
 
 - 只认 argv[0] 文件名为 `claude`、`codex` 的进程。以 `node …/cli.js` 方式启动的 CLI 不会被认出来，也就不提示（不会误报）。
 - 用户从 Dock 启动的真实应用里复看，放在 T-186 装好 0.1.4 之后做。
+
+## 独立审查第二轮（ready_rev 2，`review-agy-02.md`，候选 85ddd951f）：`T-184 REVIEW PASS`
+
+- F01（P3）：通过项是 8 项，不是 9 项。终端 D 只断言了没有提示，状态只记录、没有断言。已把上表改为 8/8。
+- F02（P3）：说变异和 setup-error 的 summary 没有落盘。这一条与事实不符：`mutant-name-only-01`、`mutant-never-clears-01`、`setup-error-01/green-02-codex-marker-false-positive` 等的 summary.json 都已提交。不改。
+- F03（P3，观察）：Claude 的判据假定 `--plugin-dir <目录>` 分成两个参数，与包装脚本一致；以后包装脚本改写法时要同步改判据，判据集中在 `terminalClis.ts` 一处。
