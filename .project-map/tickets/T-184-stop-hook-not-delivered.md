@@ -2,7 +2,7 @@
 id: T-184
 title: 查明 lcu 实测中主控终端钩子与 a2a 插件都没生效的原因
 type: build
-status: closed
+status: open
 blocked_by: []
 claimed_by:
 supersedes:
@@ -32,6 +32,3 @@ ready_rev: 2
 
 范围外问题经问题上报。
 
-## Resolution
-
-2026-10-25，PASS。记录见 [RESULTS.md](../../evidence/2026-10-25-batch26/T-184/RESULTS.md)。根因：实测那轮前两次敲 claude 卡在 L01 的“文稿”权限弹窗，操作者第三次用绝对路径 /Users/luckye/.local/bin/claude 启动，绕过了包装脚本，没有 --plugin-dir，插件、钩子、a2a skill 都没加载（证据：仍在运行的主控进程 argv 与环境、该终端 pty.raw 的命令序列；已安装 0.1.3 的启动链与包装脚本复核正常）。产品不改；第二条验收（若可修）不适用，正常入口下真实送达放到 T-186 的复看里做。可选加固（绝对路径/别名启动也加载插件）交构思主控决定。agy 审查 PASS。
