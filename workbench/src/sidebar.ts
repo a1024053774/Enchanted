@@ -124,6 +124,11 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
       OR type='native_record' AND (json_extract(data,'$.record.type')='session_meta'
         OR json_extract(data,'$.record.payload.type') IN ('function_call','task_started'))
     ORDER BY seq`).all().map(row => ({ ...row, data: JSON.parse(String(row.data)) }));
+  // T-176: when each session ended, so a finished row says how long ago it ended rather than how long ago it started.
+  const endedAt = new Map(store.db.prepare(`SELECT launch, MAX(time) AS time FROM orchestration_events
+    WHERE type IN ('pane_exit','native_session_ended','pane_archived','shell_closed','pane_gone_confirmed') GROUP BY launch`).all()
+    .map((row: any) => [String(row.launch), String(row.time)]));
+  const ended = (id: string, state: AgentState) => state === 'ended' ? endedAt.get(id) ?? null : null;
   // T-107 #3: a session whose issue report nobody has answered yet waits for its controller's answer. The same test the
   // gate applies before it takes an answer (open, no answer); a task whose issues cannot be read leaves its sessions unknown.
   const unanswered = new Map<string, Set<string> | null>();
@@ -161,7 +166,7 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
       parent: senders.size === 1 ? [...senders][0] : null, state, question_id, state_label: stateLabels[state],
       delivery: statuses.get(record.id)?.delivery ?? null,
       start_missing: Boolean(statuses.get(record.id)?.start_missing),
-      created_at: record.created_at ?? null };
+      created_at: record.created_at ?? null, ended_at: ended(record.id, state) };
   });
   // T-121: a terminal whose CLI the user approved as a controller. Its state is the last turn event Enchanted's hooks
   // reported for this role (T-107). Claude Code loads them with the plugin, so it is running from the confirmation on,
@@ -183,19 +188,19 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
       : last ?? (roleRequest.cli === 'claude' && roleRequest.native_session ? 'running' : 'unknown');
     agents.push({ id: roleRequest.launch, project: roleRequest.project, task: null, task_name: null, attempt: null, thread: record.thread,
       role: 'controller', preset: roleRequest.role, role_label: roleLabel({ role: 'controller', preset: roleRequest.role }), cli: roleRequest.cli ?? '未知',
-      parent: roleRequest.parent_launch, state, question_id: null, state_label: stateLabels[state], created_at: roleRequest.decided_at, terminal: true } as any);
+      parent: roleRequest.parent_launch, state, question_id: null, state_label: stateLabels[state], created_at: roleRequest.decided_at, ended_at: ended(roleRequest.launch, state), terminal: true } as any);
   }
   // Ordinary project terminals have their own selectable view too. A terminal
   // with a confirmed role is already represented by its controller row above.
+  // Home-directory terminals (no project) are listed as well, so their pane header has the same source (T-176).
   const terminals: typeof agents = [];
-  for (const record of store.launches().filter(record => record.role === 'shell' && record.project !== null &&
-    !agents.some(agent => agent.id === record.id))) {
+  for (const record of store.launches().filter(record => record.role === 'shell' && !agents.some(agent => agent.id === record.id))) {
     const pane = panes.status(record.thread);
     const state: AgentState = pane?.lifecycle === 'ended' ? 'ended' : pane?.lifecycle === 'running' ? 'running' : 'unknown';
     terminals.push({ id: record.id, project: record.project, task: null, task_name: null, attempt: null, thread: record.thread,
       role: 'shell', preset: null, role_label: '普通终端', cli: 'zsh', parent: null, state, question_id: null,
       descendants: { count: 0, state: 'unknown', state_label: stateLabels.unknown, counts: [] },
-      state_label: stateLabels[state], created_at: record.created_at, terminal: true } as any);
+      state_label: stateLabels[state], created_at: record.created_at, ended_at: ended(record.id, state), terminal: true } as any);
   }
   const recordedParents = new Map(agents.map(agent => [agent.id, agent.parent]));
   for (const agent of agents) {
@@ -221,7 +226,11 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
         .map(key => ({ state: key, label: stateLabels[key as AgentState], count: children.filter(child => child.state === key).length })) } };
   });
   const projects = await Promise.all((await projectCatalog(gates, store)).map(async project => {
-    const state = aggregate(agents.filter(agent => agent.project === project.project_id).map(agent => agent.state));
+    const rows = agents.filter(agent => agent.project === project.project_id);
+    // T-176 (L03): a report that waits for the controller's answer while none of the project's controllers is in a turn
+    // waits on the user, who has to prompt a controller.
+    const controllerInTurn = rows.some(agent => agent.role === 'controller' && agent.state === 'running');
+    const state = aggregate(rows.map(agent => agent.state === 'waiting_controller_answer' && !controllerInTurn ? 'waiting_user_answer' : agent.state));
     return { ...project, git: project.repo ? await gitFacts(project.repo) :
       { branch: null, upstream: null, ahead: null, behind: null, error: '项目目录不唯一' }, state, state_label: stateLabels[state] };
   }));

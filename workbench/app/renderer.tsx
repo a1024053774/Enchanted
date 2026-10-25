@@ -46,7 +46,7 @@ type Theme = 'system' | 'light' | 'dark';
 type ProjectItem = { project_id: string; repo: string | null; opened?: boolean; tasks: TaskItem[]; state: string; state_label: string; issues_waiting: number | null;
   git: { branch: string | null; upstream: string | null; ahead: number | null; behind: number | null; error: string | null } };
 type AgentItem = { id: string; project: string; task: string | null; task_name: string | null; attempt: string | null; parent: string | null;
-  role: string; preset: string | null; role_label: string; cli: string; state: string; state_label: string; created_at?: string | null; terminal?: boolean;
+  role: string; preset: string | null; role_label: string; cli: string; state: string; state_label: string; created_at?: string | null; ended_at?: string | null; terminal?: boolean;
   delivery?: WorkerDeliveryStatus | null; start_missing?: boolean;
   descendants: { count: number; state: string; state_label: string; counts: { state: string; label: string; count: number }[] } };
 type RoleRequest = { id: string; launch: string; project: string; role: string; role_label: string; cli: string | null; requested_at: string;
@@ -70,7 +70,7 @@ function StatusIcon({ state }: { state: string }) {
     <svg viewBox="0 0 16 16" width="16" height="16">{glyphs[state] ?? glyphs.unknown}</svg></span>;
 }
 const stateNames: Record<string, string> = { running: '运行中', waiting_user_answer: '等你回答', waiting_controller_answer: '等主控回答', idle: '空闲', ended: '已结束', unrestored: '未恢复', unknown: '未知' };
-// Launch time, not last activity: the catalog has no per-turn timestamps.
+// Elapsed time from a launch or an end; the catalog has no per-turn timestamps.
 function since(iso: string | null | undefined, now: number) {
   const seconds = iso ? (now - Date.parse(iso)) / 1000 : NaN;
   if (!Number.isFinite(seconds)) return '';
@@ -120,8 +120,6 @@ declare global { interface Window { a2a: { readonly paneKeys: readonly string[];
   observeFocus(key: string, rawSequence: string): Promise<void> } } }
 const gateNames: Record<string, string> = { creating: '创建中', ready: '待认领', preparing: '准备中', claimed: '已认领', submitted: '已交付',
   verifying: '验收中', verified: '验收通过', integrating: '集成中', accepted: '已集成', paused: '已暂停', revoked: '已撤销' };
-const activityNames: Record<string, string> = { unknown: '未知', idle: '空闲', busy: '忙' };
-const lifecycleNames: Record<string, string> = { running: '运行中', interrupted: '已中断', unknown: '未知', ended: '已结束', not_started: '未启动' };
 const restoreErrors: Record<string, string> = {
   restore_managed_attempt_requires_reclaim: '受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领',
   restore_argv_missing: '启动记录缺少完整参数',
@@ -143,7 +141,7 @@ const canRequestDeliveryCheck = (value: Snapshot, delivery: WorkerDeliveryStatus
     value.pane.delivery.request_id === delivery.request_id;
 };
 
-function SessionPane({ paneKey, active, screenReader, name, confirmedRole, home, focusRequest, zoomed, onZoom, onAction, onStatus, onClose }: { paneKey: string; active: boolean; screenReader: boolean; name?: string; confirmedRole?: string; home: string | null; focusRequest: number; zoomed: boolean; onZoom: () => void; onAction: (key: string, action: { type: string; direction?: string; name?: string }) => Promise<void>; onStatus: (key: string, status: PaneStatus) => void; onClose: (key: string, value: Selection) => void }) {
+function SessionPane({ paneKey, active, screenReader, name, confirmedRole, agentState, home, focusRequest, zoomed, onZoom, onAction, onStatus, onClose }: { paneKey: string; active: boolean; screenReader: boolean; name?: string; confirmedRole?: string; agentState?: string; home: string | null; focusRequest: number; zoomed: boolean; onZoom: () => void; onAction: (key: string, action: { type: string; direction?: string; name?: string }) => Promise<void>; onStatus: (key: string, status: PaneStatus) => void; onClose: (key: string, value: Selection) => void }) {
   const mount = useRef<HTMLDivElement>(null);
   const reconnect = useRef<() => void>(() => {});
   const releaseQueue = useRef<() => void>(() => {});
@@ -444,8 +442,8 @@ function SessionPane({ paneKey, active, screenReader, name, confirmedRole, home,
           <span className="pane-badges" data-lifecycle={pane?.lifecycle ?? 'unknown'}>
             <span className="input-target">{inputTarget ? '正在输入' : shell && pane?.lifecycle === 'ended' ? '终端已结束 · 只读' : historical ? '历史 attempt · 只读' : ''}</span>
             {!inputEnabled && <span className="readonly">只读</span>}
-            <span className="pane-state" data-state={error ? 'unknown' : pane?.state ?? 'unknown'}>{error ? '未知' : shell
-              ? lifecycleNames[pane?.lifecycle ?? 'unknown'] ?? '未知' : activityNames[pane?.state ?? 'unknown'] ?? '未知'}</span>
+            {/* T-176: the sidebar's state of this session, so the header and the row never disagree. */}
+            <span className="pane-state" data-state={error ? 'unknown' : agentState ?? 'unknown'}>{error ? '未知' : stateNames[agentState ?? 'unknown'] ?? '未知'}</span>
             {turnRejection && <span className="pane-state" data-delivery-refusal>旧回合交付被拒</span>}
             {pane?.start_missing && <span className="pane-state" data-start-missing>回合未开始</span>}
           </span>
@@ -509,7 +507,7 @@ function SessionPane({ paneKey, active, screenReader, name, confirmedRole, home,
         <div className="terminal-scroll" data-output-offset={offset} data-restoring={restoring} data-readonly={Boolean(snapshot?.pane?.size && !snapshot.input_enabled)}>{restoring && <div className="terminal-restoring" role="status">正在恢复终端内容…</div>}<div className="terminal-mount" ref={mount} /></div>
         <TerminalScrollToBottom terminal={terminal} />
         {!shell && <div className="pane-footer"><span>{pane?.interrupted ? '请自行保留、修改或清空草稿；看到输入框空了再声明放行。'
-          : snapshot?.launch?.role === 'reviewer' ? '独立审查 · 只读' : snapshot?.launch?.role === 'worker' ? '在此窗格输入会记录为人工介入' : '在此窗格输入会记录为用户输入'}</span><span>执行：{lifecycleNames[pane?.lifecycle ?? 'unknown'] ?? '未知'}</span></div>}
+          : snapshot?.launch?.role === 'reviewer' ? '独立审查 · 只读' : snapshot?.launch?.role === 'worker' ? '在此窗格输入会记录为人工介入' : '在此窗格输入会记录为用户输入'}</span></div>}
       </section>;
 }
 
@@ -800,7 +798,8 @@ function Workbench() {
             {isTurnRejection(agent.delivery) && <span className="agent-state" data-delivery-refusal title={agent.delivery.reason ?? ''}>旧回合交付被拒</span>}
             {agent.start_missing && <span className="agent-state" data-start-missing>回合未开始</span>}
           </span>
-          <span className="row-time">{since(agent.created_at, now)}</span>
+          <span className="row-time" title={agent.state === 'ended' && agent.ended_at ? '结束于 ' + new Date(agent.ended_at).toLocaleString() : agent.created_at ? '启动于 ' + new Date(agent.created_at).toLocaleString() : undefined}>
+            {agent.state === 'ended' && agent.ended_at ? '结束 ' + since(agent.ended_at, now) : since(agent.created_at, now)}</span>
           <StatusIcon state={agent.state} />
           {collapsedAgents.has(agent.id) && <span className="agent-subtree" data-agent-summary={agent.id}>
             子会话 {agent.descendants.count} · {agent.descendants.counts.map(item => `${item.label} ${item.count}`).join(' · ')}
@@ -869,7 +868,8 @@ function Workbench() {
               <span className="project-heading"><span className="project-title">{item.project_id}</span>
                 <span className="project-git" data-project-git={item.project_id}>{projectGit(item.git)}</span></span>
               <span className="project-count">{scope.length || ''}</span>
-              {waiting > 0 && <span className="project-needs">{waiting} 个等你</span>}
+              {waiting > 0 ? <span className="project-needs">{waiting} 个等你</span>
+                : item.state === 'waiting_user_answer' && <span className="project-needs" data-project-needs-you title="有上报在等主控答复，但没有主控在回合中">等你处理</span>}
               {item.issues_waiting === null ? <span className="project-needs" data-project-issues="unknown" title="这个项目的问题列表读取失败">问题数未知</span>
                 : item.issues_waiting > 0 && <span className="project-needs" data-project-issues={item.issues_waiting}>{item.issues_waiting} 个问题</span>}
               <span className="sr-only project-state">{item.state_label}</span>
@@ -996,6 +996,7 @@ function Workbench() {
               <span className="role-request-tag" key={roleRequest.id}>申请 {index + 1} · {roleRequest.role_label}</span>)}
             <SessionPane paneKey={key} active={active} screenReader={screenReader} name={names[key]} home={home} focusRequest={focusRequest.key === key ? focusRequest.version : 0} zoomed={zoom === key} onZoom={() => setZoom(value => value === key ? null : key)}
               confirmedRole={agents.find(agent => agent.id === launches[key] && agent.terminal && agent.role === 'controller')?.role_label}
+              agentState={[...agents, ...ordinaryTerminals].find(agent => agent.id === launches[key])?.state}
               onAction={async (key, action) => { const value = await window.a2a.paneAction(key, action); setPaneKeys(value.paneKeys); setConnectedPaneKeys(value.connectedPaneKeys); setLayout(value.layout); setNames(value.names); setLaunches(value.launches ?? {}); setZoom(null); }} onStatus={onStatus} onClose={onClose} />
           </div>;
         })}
