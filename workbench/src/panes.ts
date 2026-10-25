@@ -153,6 +153,9 @@ async function claudeArgv(executable: string, signal: string, session: string,
 const STARTUP_DEADLINE_MS = 120_000;
 // A submitted prompt starts its native turn within a second when the CLI takes it (T-164: 0.1 s).
 const TURN_START_DEADLINE_MS = 20_000;
+// A CLI started in a project terminal draws its screen within a couple of seconds; one that has written nothing for
+// this long may be waiting on a macOS privacy prompt hidden behind other windows (T-174, L01).
+const SILENT_FOREGROUND_MS = 6_000;
 // The text a Claude prompt submitted. A long paste reaches UserPromptSubmit wrapped in Claude's
 // own pasted_content markers (seen with the user's login, T-122 GUI round 01); anything else
 // is compared as it is.
@@ -204,6 +207,9 @@ type Pane = {
   nativeFile?: string;
   // Claude worker start-up: the folder-trust screen as read so far, and whether it was answered.
   startupScreen?: string; trustAnswered?: boolean; startupOutputAt?: number; started?: boolean;
+  // Project terminal (T-174): when it last wrote output, whether input since then still needs a silence check, and the
+  // foreground program that has written nothing since it started.
+  outputAt?: number; silenceCheck?: boolean; silenceBusy?: boolean; silentForeground?: { command: string; since: string } | null;
   claudePromptId?: string | null;
   claudePromptIds?: Set<string>;
   claudeQueuedPrompts?: { prompt: string; received_at: string;
@@ -275,10 +281,13 @@ export class Panes implements GateRuntime {
       inputGeneration: 0, interruption: null, offsets: new Map(), model: "unknown", effort: "unknown", terminalBuffer: "" };
     this.panes.set(thread, pane);
     terminal.onData((data: string) => {
+      pane.outputAt = Date.now(); pane.silentForeground = null;
       try { appendFileSync(trace, data); }
       catch (error) { this.recordFailure(pane, "trace_write_failed", error); }
     });
+    const silence = setInterval(() => void this.watchSilence(pane), 1000);
     terminal.onExit((event: unknown) => {
+      clearInterval(silence);
       pane.stopped = true;
       try { this.store.event("shell_closed", { role: "shell", reason: "process_exit", event, shell_pid: terminal.pid }, record); }
       catch (error) { this.recordFailure(pane, "shell_close_write_failed", error); }
@@ -295,7 +304,30 @@ export class Panes implements GateRuntime {
       check(!pane.failed && !pane.stopped && !pane.archived && !pane.closing, "pane_unavailable");
       try { pane.pty.write(encoding === "binary" ? Buffer.from(data, "latin1") : data); }
       catch (error) { this.recordFailure(pane, "shell_input_write_unknown", error); throw error; }
+      pane.silenceCheck = true;
     });
+  }
+  // T-174: only the mechanical fact is used: the terminal's foreground program started after the last output and has
+  // written nothing for SILENT_FOREGROUND_MS. A new foreground program starts only from typed input, so the process
+  // tree is read once per quiet stretch after input, not on every tick.
+  private async watchSilence(pane: Pane) {
+    const outputAt = pane.outputAt ?? 0;
+    if (!pane.silenceCheck || pane.silenceBusy || pane.stopped || Date.now() - outputAt < SILENT_FOREGROUND_MS) return;
+    pane.silenceBusy = true;
+    try {
+      const info = await this.processInfo(pane.record.thread);
+      if (pane.outputAt !== outputAt || pane.stopped) return;
+      const leader = (info.processes as { pid: number; pgid: number; tpgid: number; command: string; started?: number }[])
+        .find(row => row.pid !== pane.pty.pid && row.pid === row.pgid && row.pgid === row.tpgid);
+      if (!leader || typeof leader.started !== "number" || leader.started * 1000 <= outputAt) { pane.silenceCheck = false; return; }
+      if (Date.now() - leader.started * 1000 < SILENT_FOREGROUND_MS) return;
+      pane.silenceCheck = false;
+      pane.silentForeground = { command: basename(leader.command), since: new Date(leader.started * 1000).toISOString() };
+    } catch (error) {
+      // No hint without an observation; the failure is kept and the next input checks again.
+      pane.silenceCheck = false;
+      this.store.event("silent_foreground_check_failed", { error: String(error) }, pane.record);
+    } finally { pane.silenceBusy = false; }
   }
   // A command the daemon starts in a project terminal it opened itself (a retrospective, T-136); the user sees it
   // there like their own and can keep using the terminal afterwards.
@@ -1493,7 +1525,7 @@ export class Panes implements GateRuntime {
         lifecycle: pane.archived || pane.nativeEnded || pane.record.role === "shell" && pane.stopped ? "ended" : pane.stopped ? "interrupted" : "running", shell_pid: pane.pty.pid,
         size: { cols: pane.pty.cols, rows: pane.pty.rows },
         state_source: pane.failed ? "runtime_failure" : "host_events", active: pane.active, native_session: pane.native,
-        start_missing: this.startMissing(pane),
+        start_missing: this.startMissing(pane), silent_foreground: pane.silentForeground ?? null,
         turn: pane.turn, writing: pane.writing, user_draft: pane.userDraft, interrupted: pane.interrupted,
         input_generation: pane.inputGeneration, interruption: pane.interruption,
         queued: pane.queue.map((item) => item.id), failed: pane.failed, stopped: pane.stopped, restoration,
