@@ -1019,7 +1019,7 @@ function Workbench() {
         <span className={'connection ' + (error || catalogError ? 'warning' : '')} role="status">{status}</span>
         <button className="primary-button" disabled={busy} title="新建终端（⌘T）" onClick={() => void newTerminal()}>新建终端</button>
       </header>
-      {page === 'flow' && <FlowPage />}
+      {page === 'flow' && <FlowPage key={selectedProject ?? ''} project={selectedProject} />}
       {/* Keyed by project: another project's page starts from "reading", never from this one's rows (T-132 review 02). */}
       {page === 'issues' && <IssuesPage key={selectedProject ?? ''} project={selectedProject} />}
       {page === 'records' && <RecordsPage key={selectedProject ?? ''} project={selectedProject} />}

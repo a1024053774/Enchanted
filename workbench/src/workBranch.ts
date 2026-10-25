@@ -31,7 +31,15 @@ export async function defaultWorkBranch(repo: string, project: string, prefix: s
   catch { throw new Refusal('invalid_work_branch', { ref }); }
   if (await exists(repo, ref)) return { branch: ref, work_branch: { ref, created: false, reason: 'existing' } };
   const from = await git(repo, ['rev-parse', '--abbrev-ref', 'HEAD']).catch(() => null);
-  try { await git(repo, ['branch', ref.slice('refs/heads/'.length), 'HEAD']); }
+  let sha: string;
+  try { sha = await git(repo, ['rev-parse', '--verify', 'HEAD^{commit}']); await git(repo, ['branch', ref.slice('refs/heads/'.length), sha]); }
   catch (error) { throw new Refusal('work_branch_create_failed', { ref, reason: String(error) }); }
-  return { branch: ref, work_branch: { ref, created: true, reason: 'default', from } };
+  return { branch: ref, work_branch: { ref, created: true, reason: 'default', from }, made: { ref, sha } };
+}
+
+// T-183: a create the gate refused must not leave the branch this call made. Deleted only while it still points at
+// the commit it was made from; if anything moved it, the refusal says so instead of deleting someone's work.
+export async function dropWorkBranch(repo: string, made: { ref: string; sha: string }, refusal: unknown) {
+  try { await git(repo, ['update-ref', '-d', made.ref, made.sha]); }
+  catch (error) { throw new Refusal('work_branch_cleanup_failed', { ref: made.ref, reason: String(error), refusal }); }
 }

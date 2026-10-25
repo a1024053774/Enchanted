@@ -15,6 +15,7 @@ reviewer 与 monitor 仍按角色卡做只读审查或观察。
 会话放“未归属”，逐项列出原因，不读窗格文字推断。执行主控按已核实的派发父关系，进入其当前
 worker 所在的任务泳道；不同任务分别展示。胶囊标题使用角色与任务名，启动记录号只放在悬停提示，
 并沿用侧栏的结构化状态。每条泳道逐行展示项目主目录与当前设置的额外目录。
+选了项目时（T-178），本项目的泳道与未归属会话在前；其他项目的泳道与未归属会话放进默认收起的“其他项目的任务 N 张”，展开可见。泳道标题与任务名相同时只写任务名。
 每组超过四个会话可展开，已集成的票默认折叠；窄窗中横向滚动查看阶段。
 `flow_snapshot` 和 Electron 的 `a2a:flow` 只读取，不采集原生日志、不写表或 trace。
 T-111 的真实 Electron 沙箱外复验 RUN-OUTSIDE-03 与独立审查复验 REVIEW-OUTSIDE-02
@@ -721,7 +722,7 @@ worker、reviewer、monitor 出厂选择为 Codex `gpt-6.1-sol` / `high` / Fast 
 两个主控沿用 Claude 入口的出厂选择 `claude-haiku-5-5` / `low` / Fast 关闭。
 逐字段优先级为派发覆盖参数 > 角色设置 > 对应角色的出厂默认。
 
-工作分支（T-180）：主控 `create` 不写 `branch` 时，后台定分支：本仓库已有任务就沿用它们的工作分支（门禁一个仓库一个）；否则用 `refs/heads/<前缀><项目名>`，同名分支已存在直接用，不存在就从仓库当前 HEAD 新建，不切换、不动 main/master、不 push。回执多一个 `work_branch`（`ref`、`created`、`reason`、`from`）。前缀在设置页“工作分支前缀”，默认 `enchanted/`，存为追加事件 `work_branch_prefix_saved`（仅操作员），`git check-ref-format` 不通过的前缀不保存；只影响之后还没有任务的项目。用户指定 `branch` 时照用，门禁照旧校验。
+工作分支（T-180）：主控 `create` 不写 `branch` 时，后台定分支：本仓库已有任务就沿用它们的工作分支（门禁一个仓库一个）；否则用 `refs/heads/<前缀><项目名>`，同名分支已存在直接用，不存在就从仓库当前 HEAD 新建，不切换、不动 main/master、不 push。回执多一个 `work_branch`（`ref`、`created`、`reason`、`from`）。前缀在设置页“工作分支前缀”，默认 `enchanted/`，存为追加事件 `work_branch_prefix_saved`（仅操作员），`git check-ref-format` 不通过的前缀不保存；只影响之后还没有任务的项目。用户指定 `branch` 时照用，门禁照旧校验。门禁拒绝这次 create 时，后台删掉本次新建的分支（仅当它仍指向新建时的提交），不留残留（T-183）。
 任务卡的 executor 仍记录任务信息和 CLI 身份，模型/强度字段不再作为启动选择或固定值门禁。
 
 ```sh
