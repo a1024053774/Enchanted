@@ -1,6 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
+import { defaultWorkBranchPrefix } from './workBranch.ts';
 import { executionRoles, executionRole, executionOverrides, factoryExecution, type ExecutionRole, type ExecutionOverrides, type ExecutionSelection } from './executionSettings.ts';
 // "user": the user's own answer from the UI, labelled as theirs in the pane (T-124).
 export type DispatchSource = "executor" | "gate" | "inbox" | "user";
@@ -25,6 +26,10 @@ export class OrchestrationStore {
     const effective = this.executionSelection(executionRole(role), selection);
     this.event('execution_settings_saved', { role, selection: effective });
     return this.executionSettings();
+  }
+  workBranchPrefix(): string {
+    const row = this.db.prepare("SELECT data FROM orchestration_events WHERE type='work_branch_prefix_saved' ORDER BY seq DESC LIMIT 1").get();
+    return row ? String(JSON.parse(String(row.data)).prefix) : defaultWorkBranchPrefix;
   }
   constructor(root: string) {
     this.db = new DatabaseSync(join(root, "state.sqlite3"));

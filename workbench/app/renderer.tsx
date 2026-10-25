@@ -98,6 +98,7 @@ type ProjectView = { project_id: string; repo: string | null };
 type Selection = { task: Snapshot['task'] | null; project: ProjectView | null; paneKeys: string[]; connectedPaneKeys: string[]; layout: Layout | null; names: Record<string, string>; launches?: Record<string, string>; focus?: string | null };
 declare global { interface Window { a2a: { readonly paneKeys: readonly string[]; readonly home: string;
   executionSettings(change?: ExecutionSelection & { role: ExecutionRole }): Promise<Record<ExecutionRole, ExecutionSelection>>;
+  workBranchPrefix(prefix?: string): Promise<string>;
   flow(): Promise<FlowSnapshot>; sidebar(): Promise<Sidebar>; selectAgent(launch: string): Promise<Selection & { focusKey: string }>; decideRoleRequest(roleRequest: string, approved: boolean, parentLaunch?: string | null): Promise<unknown>; notificationSetting(enabled?: boolean, preference?: 'notifications' | 'dockBadges'): Promise<boolean>;
   projects(): Promise<ProjectItem[]>; tasks(project: string): Promise<TaskItem[]>;
   issues(project: string): Promise<TaskIssues[]>; answerIssue(task: string, issue: string, answer: string): Promise<void>;
@@ -547,6 +548,27 @@ function ArchiveUsage() {
   return <p className="settings-note" data-archive-sessions={usage.sessions} data-archive-bytes={usage.bytes}>{usage.sessions} 个会话，占用 {size}</p>;
 }
 
+// T-180: the prefix of the work branch the backend makes when the controller names none.
+function WorkBranchPrefix() {
+  const [saved, setSaved] = useState<string | null>(null), [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(false), [message, setMessage] = useState('');
+  useEffect(() => { let live = true;
+    window.a2a.workBranchPrefix().then(value => { if (live) { setSaved(value); setDraft(value); } })
+      .catch(error => { if (live) setMessage('读取失败：' + String(error)); });
+    return () => { live = false; };
+  }, []);
+  return <form className="work-branch-prefix" data-work-branch-prefix onSubmit={event => {
+    event.preventDefault(); setBusy(true); setMessage('');
+    window.a2a.workBranchPrefix(draft).then(value => { setSaved(value); setDraft(value); setMessage('已保存，之后新建的工作分支用这个前缀'); })
+      .catch(error => setMessage(String(error).includes('invalid_work_branch_prefix') ? '这个前缀不能用作 Git 分支名的开头' : '保存失败：' + String(error)))
+      .finally(() => setBusy(false));
+  }}>
+    <label>前缀<input value={draft} required disabled={busy || saved === null} spellCheck={false} onChange={event => setDraft(event.target.value)} /></label>
+    <button disabled={busy || saved === null || draft === saved}>{busy ? '保存中…' : '保存'}</button>
+    {message && <p role="status">{message}</p>}
+  </form>;
+}
+
 function SettingsDialog({ open, onClose, theme, onTheme, screenReader, onScreenReader, terminalFont, onTerminalFont, notifications, dockBadges, onNotification, gaps }: {
   open: boolean; onClose: () => void; theme: Theme; onTheme: (theme: Theme) => void;
   screenReader: boolean; onScreenReader: (enabled: boolean) => void; terminalFont: string; onTerminalFont: (font: string) => void;
@@ -578,6 +600,9 @@ function SettingsDialog({ open, onClose, theme, onTheme, screenReader, onScreenR
       <section aria-labelledby="settings-models"><h3 id="settings-models">主控派发的默认模型</h3>
         <p className="settings-note">主控派发新会话时按角色取这里的模型和思考强度，主控也可以按你在对话里的要求临时改。只影响之后启动的会话；已经打开的终端、正在运行的会话，以及你在终端里自己启动的 claude / codex 都不受影响。</p>
         <ExecutionSettings /></section>
+      <section aria-labelledby="settings-work-branch"><h3 id="settings-work-branch">工作分支前缀</h3>
+        <p className="settings-note">你没有指定工作分支时，主控建任务会从项目当前分支新建“前缀 + 项目名”的分支（如 enchanted/demo），任务都集成到这里，不动 main，不 push。改了只影响之后还没有任务的项目：已有任务的项目继续用原来的工作分支。</p>
+        {open && <WorkBranchPrefix />}</section>
       <section aria-labelledby="settings-archive"><h3 id="settings-archive">轨迹归档</h3>
         <p className="settings-note">后台启动的会话和你批准过角色的终端主控，原生会话记录会增量复制、压缩到工作台数据目录，供复盘使用；CLI 自己清理记录后这里还在。不进 Git。</p>
         {open && <ArchiveUsage />}</section>
