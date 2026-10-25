@@ -8,7 +8,7 @@ claimed_by:
 supersedes:
 ready: yes
 ready_by: ideation
-ready_rev: 1
+ready_rev: 2
 ---
 
 ## What to build
@@ -22,9 +22,15 @@ ready_rev: 1
 - 按钮样式参考 https://uiarc.dev/components/button，用 lcu 在 Chrome 亲自看后挑选；只借鉴样式，许可证允许才搬代码并保留声明，否则自己实现同类效果。
 - 读 `frontend-production`，保持同一视觉家族，文案中文为主、不夸大。
 
+补充（ready_rev 2）：用户 2026-10-25 在执行主控会话里逐字（转述见 inbox 20261025T041923Z-executor-report-001）：“然后我在补一个,也不要把所有交互都加在一个展示里,应该分功能来展示,就是做多个展示.现在太空了,界面也不太美观,可以加一些抽象线条之类的,然后参考这篇文章来连接不同的展示https://x.com/olavlj/status/2096946777727369430?s=20,但是不要用和他一样的花和藤蔓,我们想一些其他的符合我们 enchanted 调性的,用紫色的最好.最后在编写 CSS 之前，请阅读 https://good-css.com”
+- 演示按功能拆成多个独立小展示（例如：项目→任务→agent 分屏、多 worker 并行、审查打回与重派、门禁集成、记录/问题面板），每个只讲一件事；首屏放第一个展示。
+- 用抽象线条把各展示连起来，连接方式参考上面那篇文章；图形不用花和藤蔓，换成符合 Enchanted 调性的（以紫色为主），深浅色都和谐。
+- 写 CSS 前先读 https://good-css.com，并在证据里记下采用了哪些做法。
+- 两个链接用 lcu 在 Chrome 亲自看；x.com 需登录时停下交用户，不代登录。
+
 ## Acceptance
 
-- [ ] 修前/修后截图（桌面宽与 390px）对照：演示在首屏、背景有层次、切换引导清楚。
+- [ ] 多个分功能展示由紫色抽象线条连接；修前/修后截图（桌面宽与 390px）对照：演示在首屏、背景有层次、切换引导清楚。
 - [ ] reduced-motion 下有静态替代；390px 无横向滚动；T-173 的 51 项页面检查（加本票新增检查）全过。
 - [ ] lcu 在 Chrome 复看线上页；agy 独立审查；push 后 Pages 返回 200。
 
