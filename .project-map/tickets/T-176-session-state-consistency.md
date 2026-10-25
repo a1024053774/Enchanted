@@ -2,7 +2,7 @@
 id: T-176
 title: L03：会话状态显示不一致（主控空闲仍转圈等）
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -21,9 +21,13 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 真实 Electron：主控回合结束后各处同时显示空闲；worker 窗格头与底栏一致；主控等用户时项目行写等你回答。
-- [ ] 红态截图对照。
+- [x] 真实 Electron：主控回合结束后各处同时显示空闲；worker 窗格头与底栏一致；主控等用户时项目行写等你回答。
+- [x] 红态截图对照。
 
 ## 不做
 
 范围外的问题经问题上报，不顺手改。
+
+## Resolution
+
+2026-10-25，PASS。记录见 [RESULTS.md](../../evidence/2026-10-25-batch25/T-176/RESULTS.md)。窗格头改为显示侧栏同一行的状态，删掉底栏的“执行：…”；已结束的行显示“结束 N 分”；没有主控在回合中、却有 worker 等主控答复时，项目行显示“等你处理”。真实 Electron 端到端：修前本票四项检查全红、修后 18 项 PASS，第一轮候选上复现了审查指出的两个缺陷；T-157 回归 PASS。agy 第一轮 INCOMPLETE（P1 家目录终端窗格头“未知”等三条，均已修），第二轮 PASS。未解：实测那一轮主控终端的钩子事件一条都没送到后台，各种组合都没能复现，已上报构思主控。

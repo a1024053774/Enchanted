@@ -1,6 +1,6 @@
 # T-176 结果：各处会话状态一致
 
-## 状态：INCOMPLETE（第二轮 agy 审查中）
+## 状态：PASS（agy 第二轮 PASS，`review-agy-02.md`）
 
 ## 根因与改动
 
