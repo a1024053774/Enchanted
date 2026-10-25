@@ -1,6 +1,7 @@
 {
   "description": "T-133, T-107: hand the controller's submitted prompts and turn states to the Enchanted daemon. The daemon keeps them only while this terminal holds a role the user approved.",
   "hooks": {
+    "SessionStart": [{ "hooks": [{ "type": "command", "command": "\"$A2A_TERMINAL_BIN/a2a\" session-context", "timeout": 10 }] }],
     "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "\"$A2A_TERMINAL_BIN/a2a\" hook", "timeout": 10 }] }],
     "Stop": [{ "hooks": [{ "type": "command", "command": "\"$A2A_TERMINAL_BIN/a2a\" hook", "timeout": 10 }] }],
     "Notification": [{ "matcher": "idle_prompt", "hooks": [{ "type": "command", "command": "\"$A2A_TERMINAL_BIN/a2a\" hook", "timeout": 10 }] }],

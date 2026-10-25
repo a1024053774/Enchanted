@@ -224,7 +224,9 @@ function SessionPane({ paneKey, active, screenReader, fontFamily, name, confirme
       void operation().catch(failInput).finally(() => { pendingInput--; });
     };
     // T-175: CLIs measure CJK and symbols with Unicode 11+ widths, so the terminal uses the same table (proposed API).
-    const term = new Terminal({ cols: 160, rows: 45, disableStdin: true, cursorBlink: true, allowProposedApi: true,
+    // T-181 (L09): Claude Code assumes a dark background and draws some text in palette white (38;5;231); on the light
+    // palette that vanished. minimumContrastRatio raises any foreground too close to its background, in both palettes.
+    const term = new Terminal({ cols: 160, rows: 45, disableStdin: true, cursorBlink: true, allowProposedApi: true, minimumContrastRatio: 4.5,
       cursorInactiveStyle: 'none', screenReaderMode: screenReader, scrollback: 10000, fontSize: 12, lineHeight: 1.15,
       fontFamily: initialFont.current, theme: terminalPalettes[darkQuery.matches ? 'dark' : 'light'] });
     term.loadAddon(new Unicode11Addon()); term.unicode.activeVersion = '11';
