@@ -9,7 +9,7 @@ import { OrchestrationStore } from "./store.ts";
 import { Panes, spawnHelper, claudeSubmittedText, codexQuestionReply, type LaunchConfig } from "./panes.ts";
 import { socketPath } from "./transport.ts";
 import { RequestRelay, isPendingInboxResult } from "./relay.ts";
-import { writeReviewRequest, writeControllerContext } from "./relayFiles.ts";
+import { readWorkerRequests, writeReviewRequest, writeControllerContext } from "./relayFiles.ts";
 
 type Asker = { gone?: () => void };
 import { reviewRequest, scoreRecords, QualityProtocolError } from "./gates/qualityProtocol.ts";
@@ -980,6 +980,26 @@ export async function serve(
         connection.once("close", () => shutdown().catch((error) => { console.error(error); process.exitCode = 1; }));
       }
     });
+  };
+  // T-187: an agy or opencode turn ends when the CLI reports it to its terminal (OSC 7501), not in a Stop hook. The
+  // backend ends it as a Stop hook would: the same signal command under the pane's own launch identity, with the
+  // worker's request files read the way the hook command reads them, then the same drain and review reclaim.
+  panes.reportedTurnEnd = async (pane, stop) => {
+    activeRequests++;
+    try {
+      const envelope = { id: randomUUID(), identity: { launch: pane.record.id, token: pane.token },
+        input: { command: "signal", launch: pane.record.id, raw_stdin: JSON.stringify(stop), received_at: new Date().toISOString(),
+          ...(pane.record.role === "reviewer" ? {} : { relay_files: readWorkerRequests(pane.record.request_dir) }) } };
+      const authority = authenticate(envelope.identity);
+      store.event("request_received", { id: envelope.id, input: eventInput(envelope.input), source: authority.source });
+      const result = await handle(envelope, authority, {});
+      store.event("request_result", { id: envelope.id, command: "signal", ok: result.ok, error: result.error, details: result.details });
+      await settleInboxFeedback();
+      if (stopping) return;
+      await panes.drain(pane);
+      await settleInboxFeedback();
+      if (result.completedReview) await gates.reclaimReview(result.completedReview.task, result.completedReview.id);
+    } finally { activityFinished(); }
   };
   const server = createServer(serveConnection(false));
   const terminalServer = createServer(serveConnection(true));

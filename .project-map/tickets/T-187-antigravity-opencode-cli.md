@@ -2,7 +2,7 @@
 id: T-187
 title: 增加 Antigravity（agy）与 opencode 两种原生 CLI 的支持并实测
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -27,12 +27,16 @@ ready_rev: 2
 
 ## Acceptance
 
-- [ ] Git 元数据守护：反例中 worker 改动 worktree 的 HEAD/refs/hooks，门禁拒绝交付；正例通过。
+- [x] Git 元数据守护：反例中 worker 改动 worktree 的 HEAD/refs/hooks，门禁拒绝交付；正例通过。
 
-- [ ] 真实 agy 与真实 opencode 各走一遍：项目终端启动 → 申请主控 → 批准 → 派一张卡给另一种 CLI 的 worker → 独立审查 → 门禁集成；各留截图与运行记录。
-- [ ] 两种 CLI 作 worker 时状态（运行中/空闲/等回答）在侧栏正确；做不到的信号在界面上显示“未知”而不是猜。
-- [ ] AGENTS.md 与 workbench/README 的支持范围同步更新。
+- [x] 真实 agy 与真实 opencode 各走一遍：项目终端启动 → 申请主控 → 批准 → 派一张卡给另一种 CLI 的 worker → 独立审查 → 门禁集成；各留截图与运行记录。
+- [x] 两种 CLI 作 worker 时状态（运行中/空闲/等回答）在侧栏正确；做不到的信号在界面上显示“未知”而不是猜。
+- [x] AGENTS.md 与 workbench/README 的支持范围同步更新。
 
 ## 不做
 
 范围外问题经问题上报。
+
+## Resolution
+
+2026-10-25 PASS，证据 `evidence/2026-10-25-batch26/T-187/RESULTS.md`，独立审查第五轮 `T-187 REVIEW PASS`。真实运行：opencode 主控 → agy worker 与 agy 主控 → opencode worker 都走完申请、批准、派发、交付、独立审查、集成。实跑暴露并修掉两处：agy 主控没有开局说明（包装脚本 `--add-dir` 开局说明目录）；opencode 首次 idle 时还不收输入（等光标显示再派发）。agy 主控须以 `agy --dangerously-skip-permissions` 启动（用户选定）。agy 信任写入用户 `~/.gemini` 共 2 条（只 `trustedWorkspaces`）。

@@ -153,12 +153,18 @@ class ScriptedApi:
 
 
 class Fixture:
-    def __init__(self, prefix, plan, source=None, revision=None, patches=()):
+    def __init__(self, prefix, plan, source=None, revision=None, patches=(), home=None, repo=None):
+        """home: run in this existing HOME instead of a fixture one, and write nothing into it (T-187: real agy and
+        opencode run in the user's own HOME). repo: where to make the project repository; its name is the project's."""
         self.dir = Path(tempfile.mkdtemp(prefix=prefix, dir='/private/tmp')).resolve()
-        self.state, self.home, self.repo, self.out = (self.dir / name for name in ('state', 'home', 'demo', 'out'))
-        for path in (self.state, self.home, self.repo, self.out):
+        self.state, self.out = self.dir / 'state', self.dir / 'out'
+        self.home = Path(home) if home else self.dir / 'home'
+        self.repo = Path(repo) if repo else self.dir / 'demo'
+        self.project = self.repo.name
+        for path in (self.state, self.out, self.repo) + (() if home else (self.home,)):
             path.mkdir()
-        (self.home / '.claude.json').write_text(json.dumps({'hasCompletedOnboarding': True, 'theme': 'dark'}), encoding='utf-8')
+        if not home:
+            (self.home / '.claude.json').write_text(json.dumps({'hasCompletedOnboarding': True, 'theme': 'dark'}), encoding='utf-8')
         self.source = source or source_tree(self.dir, revision, patches)
         self.cli = self.source / 'workbench/src/gates/cli.ts'
         self.api = ScriptedApi(plan, self.out)
@@ -201,12 +207,14 @@ class Fixture:
     def git(self, *arguments):
         return subprocess.check_output(['git', '-C', str(self.repo), *arguments], text=True).strip()
 
-    def start(self, claude, files):
-        """Start the daemon, make the demo repository with the given files, open it, and approve a terminal controller."""
+    def start(self, claude, files, launch_config=None):
+        """Start the daemon, make the demo repository with the given files, open it, and approve a terminal controller.
+        launch_config adds to the daemon's worker launch configuration (T-187: agy_bin, opencode_bin)."""
         config = dict(claude_bin=claude, role_card=str(self.source / 'workbench/roles/worker.md'), role_card_revision='fixture',
                       reviewer_role_card=str(self.source / 'workbench/roles/reviewer.md'), reviewer_role_card_revision='fixture',
                       monitor_role_card=str(self.source / 'workbench/roles/monitor.md'), monitor_role_card_revision='fixture',
-                      code_revision='fixture', hook_authorization='fixture: hooks only through launch arguments', turn_limit=6)
+                      code_revision='fixture', hook_authorization='fixture: hooks only through launch arguments', turn_limit=6,
+                      **(launch_config or {}))
         (self.dir / 'launch-config.json').write_text(json.dumps(config), encoding='utf-8')
         self.run_cli('daemon_start', '--launch-config', str(self.dir / 'launch-config.json'))
         self.running = True
@@ -218,8 +226,8 @@ class Fixture:
         subprocess.run(['git', '-C', str(self.repo), 'add', '.'], check=True, env=self.env)
         subprocess.run(['git', '-C', str(self.repo), 'commit', '-q', '-m', 'init'], check=True, env=self.env)
         assert self.request('project_open', self.operator, repo=str(self.repo))['ok']
-        launch = self.run_cli('shell_start', '--project', 'demo', '--cwd', str(self.repo))['launch']['id']
-        window = self.request('window_open', self.operator, launch=launch, project='demo')
+        launch = self.run_cli('shell_start', '--project', self.project, '--cwd', str(self.repo))['launch']['id']
+        window = self.request('window_open', self.operator, launch=launch, project=self.project)
         assert window['ok'], window
         sent = self.request('window_input', window['identity'], sequence=1, request_id=str(uuid.uuid4()),
                             data=f'print -r -- $A2A_TERMINAL_TOKEN > {self.out}/token.txt\r')
@@ -249,7 +257,7 @@ class Fixture:
             executor=dict(cli='Claude Code', model='claude-haiku-5-5', effort='low'), base_commit=None, writer=None), ensure_ascii=False), encoding='utf-8')
         saved = self.request('card_save', self.terminal, task=task, card=str(path), expected_version=0)
         assert saved['ok'], saved
-        created = self.request('create', self.terminal, task=task, project='demo', repo=str(self.repo), branch='refs/heads/main', card_version=1)
+        created = self.request('create', self.terminal, task=task, project=self.project, repo=str(self.repo), branch='refs/heads/main', card_version=1)
         assert created['ok'], created
 
     def stop(self):

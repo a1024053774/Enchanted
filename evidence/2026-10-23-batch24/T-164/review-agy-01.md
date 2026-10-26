@@ -16,7 +16,7 @@
   ▄▀▀      ▀▀▄
 
   Antigravity CLI 1.4.7
-  littledave950@gmail.com
+  <agy 账号邮箱，已删>
   ~/Documents/Code/a2a-review/T-164-r1
 
 ⚠ Warning

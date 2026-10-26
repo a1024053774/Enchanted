@@ -20,7 +20,7 @@
 
 ## 第三阶段：工作台约束
 
-- 方向：各家原生 CLI 以交互终端运行，不用无头模式；a2a 只做编排、门禁与记录，不用 Synara 的 provider 层与 MCP 网关（T-069）。终端由编排后台托管（node-pty、xterm.js），窗格里跑用户的 zsh；第一版只支持 Claude Code 与 Codex；2026-10-25 用户要求“增加 antigravity,opencode 的支持吧,按理说应该不限 cli 的,但应该还要实测一下”（T-187）；两者可作 worker（用户选 C）：agy 以 --dangerously-skip-permissions 运行，靠门禁事后检查（含 Git 元数据守护）兜底，agy 信任写入用户 ~/.gemini 的 trustedWorkspaces 是用户批准的唯一全局配置例外。
+- 方向：各家原生 CLI 以交互终端运行，不用无头模式；a2a 只做编排、门禁与记录，不用 Synara 的 provider 层与 MCP 网关（T-069）。终端由编排后台托管（node-pty、xterm.js），窗格里跑用户的 zsh；第一版只支持 Claude Code 与 Codex；2026-10-25 用户要求“增加 antigravity,opencode 的支持吧,按理说应该不限 cli 的,但应该还要实测一下”（T-187）；两者可作 worker（用户选 C）：agy 以 --dangerously-skip-permissions 运行，靠门禁事后检查（含 Git 元数据守护）兜底，agy 信任写入用户 ~/.gemini 的 trustedWorkspaces 是用户批准的唯一全局配置例外。已实现：agy、opencode 可作主控、worker 与审查员，回合状态取自它们报给终端的 OSC 7501；opencode worker 以 `--standalone --auto` 运行；两者报不出的模型与强度记 `unknown`；agy 信任只在后台核对信任框画面后确认，写入条数记入事件。
 - 工作台：本仓库新目录里的轻量 Electron 应用，借用 Synara 的前端组件与样式；fork（GitHub `a1024053774/synara`）只作组件来源，不再跟进上游，不删。界面按“项目 → 任务 → agent 会话”组织；任务与 agent 会话的归属由 a2a 自己保存（受管任务以门禁 task id 为身份）。编排后台常驻，界面关掉不影响 agent。
 - 主控身份（T-119～T-121，2026-10-21）：用户在项目终端里用自己的命令启动 CLI；用户让它做主控时，它经 `a2a request` 做角色申请，用户在 Enchanted 界面批准后生效，身份绑定该终端与项目，终端关闭即结束。没有已批准角色的会话不能用主控命令。worker 与 reviewer 不申请，由后台按主控所选 CLI 启动时定身份（T-122）。术语见 `CONTEXT.md`“角色申请”。
 - 提示词管判断，脚本管事实：能机械核对的由脚本和门禁保证，角色卡只写“用哪个命令”；要判断的交给提示词和人；不做策略引擎（T-070）。
@@ -30,7 +30,7 @@
 - `coop.py` 与 Muster 引擎已于 2026-10-08 删除（T-040 A），参考实现见 git 历史与 `evidence/2026-10-08-batch4/T-040-A/retired-source.tar.gz`。不得修改或重启用户正在使用的 Herdr server。
 - 切换：日常派发继续经 Herdr，直到切换条件满足（T-069）：用户输入记录、两层主控、问题面板，加上任务卡、门禁检查串与独立审查、worktree、提交尾注、面板收主控提问、验收打分、复盘、原始事件采集与四个指标视图都在新工作台里能用，用户按 spec 第 10 节试用后说“可用”。在此之前，新工作台的门禁只用于 ticket 明确要求的真实验证。
 - 主控是角色，不绑定层级，可以同时操作项目级与任务级对象；2026-10-09 起分为构思主控与执行主控两个角色实例，见下一节。
-- 权限只在工作台内：角色卡、任务卡路径加门禁检查、每会话的 CLI 启动参数、收件箱命令行四层（T-071）。a2a 系统不写 `~/.claude`、`~/.codex` 等全局配置，钩子与权限只经每会话的启动参数传入。
+- 权限只在工作台内：角色卡、任务卡路径加门禁检查、每会话的 CLI 启动参数、收件箱命令行四层（T-071）。a2a 系统不写 `~/.claude`、`~/.codex` 等全局配置，钩子与权限只经每会话的启动参数传入（agy 信任的例外见上，T-187）。
 - 构建：2026-10-19 起允许在内置盘构建（用户裁定：外置机械硬盘太慢）。构建缓存、依赖与中间产物放内置盘的临时构建目录，构建完自动清理，只保留安装产物；不再要求挂载 `/Volumes/WD-Elements`。Electron 二进制必须从内置盘运行（外置 USB 盘上会挂起，T-103 实测）。源码 checkout（本仓库、Synara fork）与工作台数据目录放内置盘。
 - 项目开源；搬用 Synara 的代码保留其 MIT 版权声明；允许直接复用 GPL 代码，并入后整体以 GPL-3.0 发布。复用不能改变已定方向。
 - 真实 Codex 验收使用 /tmp 下的隔离 CODEX_HOME：只复制 auth.json；只信任已核对的夹具根目录；只复现用户规则中的 `git add`、`git commit` 两条 allow prefix_rule；hook 只在主控逐次批准后安装。副本不入证据或 Git，结束后删除整个 home。不写用户 ~/.codex。Codex 沙箱专门保护 worktree 的 Git 元数据，额外可写目录不能替代这两条规则。

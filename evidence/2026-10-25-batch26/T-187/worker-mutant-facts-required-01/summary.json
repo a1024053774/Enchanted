@@ -1,0 +1,108 @@
+{
+  "status": "INCOMPLETE",
+  "argv": [
+    "tests/test_t187_managed_worker_e2e.py",
+    "--cli",
+    "opencode",
+    "--mutant",
+    "facts-required",
+    "--summary",
+    "../evidence/2026-10-25-batch26/T-187/worker-mutant-facts-required-01/summary.json"
+  ],
+  "cli": "opencode",
+  "case": "deliver",
+  "revision": null,
+  "mutant": "facts-required",
+  "real_model_turns": 0,
+  "checks": [
+    {
+      "name": "card_accepts_cli",
+      "detail": {
+        "ok": true,
+        "error": null,
+        "details": null
+      }
+    },
+    {
+      "name": "worker_argv",
+      "detail": {
+        "argv": [
+          "/private/tmp/t187w-35ul5kww/fake-bin/opencode",
+          "--standalone",
+          "--auto",
+          "/private/tmp/t187w-35ul5kww/state/worktrees/demo/T-1-a1"
+        ],
+        "cli": "opencode",
+        "sandbox": "none"
+      }
+    },
+    {
+      "name": "worker_env",
+      "detail": {
+        "AGY_CLI_OSC7501": null,
+        "OPENCODE_CONFIG_CONTENT": "{\"model\":\"fixture-model\"}"
+      }
+    },
+    {
+      "name": "sidebar_running_during_turn",
+      "detail": [
+        "running",
+        "unknown",
+        "running",
+        "idle"
+      ]
+    },
+    {
+      "name": "sidebar_idle_after_turn",
+      "detail": [
+        "idle"
+      ]
+    }
+  ],
+  "failed": [
+    {
+      "name": "submitted",
+      "detail": "claimed"
+    },
+    {
+      "name": "verify_started",
+      "detail": {
+        "ok": false,
+        "error": "not_submitted",
+        "details": null
+      }
+    }
+  ],
+  "observed": {
+    "card_save": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "dispatch": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "worker_argv": [
+      "/private/tmp/t187w-35ul5kww/fake-bin/opencode",
+      "--standalone",
+      "--auto",
+      "/private/tmp/t187w-35ul5kww/state/worktrees/demo/T-1-a1"
+    ],
+    "worker_states": [
+      "running",
+      "unknown",
+      "running",
+      "idle"
+    ],
+    "verify": {
+      "ok": false,
+      "error": "not_submitted",
+      "details": null
+    }
+  },
+  "fixture": "/private/tmp/t187w-35ul5kww",
+  "error": "AssertionError: {'ok': False, 'error': 'not_submitted', 'user_input_observer': {'state': 'healthy', 'updated_at': '2026-10-25T16:57:20.248Z'}}",
+  "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t187/workbench/tests/test_t187_managed_worker_e2e.py\", line 160, in main\n    assert verified.get('ok'), verified\nAssertionError: {'ok': False, 'error': 'not_submitted', 'user_input_observer': {'state': 'healthy', 'updated_at': '2026-10-25T16:57:20.248Z'}}\n"
+}

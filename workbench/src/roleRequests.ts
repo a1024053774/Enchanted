@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { isAbsolute } from "node:path";
 import { Refusal } from "./gates/core.ts";
 import type { OrchestrationStore } from "./store.ts";
+import { terminalClis } from "./terminalClis.ts";
 
 // T-119/T-121: a CLI the user starts in an ordinary project terminal asks for a
 // controller role; it takes effect only after the user approves it in the UI.
@@ -80,7 +81,7 @@ export class RoleRequests {
     refuse(!held, held?.state === "pending" ? "request_already_pending" : "role_already_held");
     refuse(!this.holder(terminal.project!, role as RequestRole), "role_taken");
     const roleRequest = randomUUID();
-    const reported = cli === "claude" || cli === "codex" ? cli : null;
+    const reported = typeof cli === "string" && Object.hasOwn(terminalClis, cli) ? cli : null;
     const session = typeof native?.session === "string" && /^[0-9A-Za-z][0-9A-Za-z-]{7,63}$/.test(native.session) ? native.session : null;
     const home = typeof native?.home === "string" && isAbsolute(native.home) ? native.home : null;
     this.store.event("role_requested", { role_request: roleRequest, role, project: terminal.project, cli: reported,

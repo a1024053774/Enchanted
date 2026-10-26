@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { codexSessionOrigin } from './paneRecovery.ts';
+import { terminalClis, osc7501State } from './terminalClis.ts';
 import type { OrchestrationStore } from './store.ts';
 import { questionState, projectQuestions } from './questions.ts';
 import type { RoleRequests } from './roleRequests.ts';
@@ -23,6 +24,9 @@ export function agentState(pane: any, events: any[], worktree: string | undefine
   if (!pane || pane.historical || pane.failed || pane.interrupted || pane.lifecycle !== 'running') return 'unknown';
   const waiting = questionState(pane, events);
   if (waiting) return waiting;
+  // T-187: an agy or opencode session that reports a question or a permission or sign-in wait is waiting on nobody the
+  // backend can name (a managed session asks through `issue`), as with a Codex worker's native question.
+  if (pane.cli_turn?.state === 'blocked') return 'unknown';
   const resolvedQuestions = new Set(projectQuestions(events).filter(q => ['answered', 'cancelled'].includes(q.status)).map(q => q.tool_use_id));
   const pending = new Set<string>();
   const files = new Map<string, { kind: ReturnType<typeof codexSessionOrigin>; turn: string | null }>();
@@ -203,8 +207,10 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
     if (roleRequest.state !== 'approved' && pane?.lifecycle !== 'ended') continue;
     const last = turns.findLast(row => row.role_request === roleRequest.id)?.state as AgentState | undefined;
     // T-184: a CLI started around the shim reports no turns; its state is not known.
+    // T-187: agy and opencode report their own state to the terminal (OSC 7501); none yet is unknown.
+    const reportsItself = roleRequest.cli !== null && terminalClis[roleRequest.cli]?.turns === 'osc7501';
     const state: AgentState = pane?.lifecycle === 'ended' ? 'ended' : pane?.unwired_cli ? 'unknown'
-      : last ?? (roleRequest.cli === 'claude' && roleRequest.native_session ? 'running' : 'unknown');
+      : reportsItself ? osc7501State(pane?.cli_turn) : last ?? (roleRequest.cli === 'claude' && roleRequest.native_session ? 'running' : 'unknown');
     agents.push({ id: roleRequest.launch, project: roleRequest.project, task: null, task_name: null, attempt: null, thread: record.thread,
       role: 'controller', preset: roleRequest.role, role_label: roleLabel({ role: 'controller', preset: roleRequest.role }), cli: roleRequest.cli ?? '未知',
       parent: roleRequest.parent_launch, state, question_id: null, state_label: stateLabels[state], created_at: roleRequest.decided_at, ended_at: ended(roleRequest.launch, state),
@@ -277,5 +283,6 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
     '未保存父 launch、父会话缺失或关系冲突时显示未归属；不回填旧会话。',
     '经角色申请成为主控的 Codex：用户在 Codex 里信任 Enchanted 的钩子之前状态显示未知（信任由 Codex 写进用户自己的配置）；Plan 模式下的同步提问（request_user_input）不显示等待用户回答，答复也不记；被 Esc 中断后 Codex 不发回合结束，一直显示运行中，直到下一次提交。',
     'Claude Code 主控被用户按 Esc 中断后，要等它空闲 60 秒的通知才显示空闲。',
+    'agy、opencode 主控：状态取自它们自己报给终端的 OSC 7501；在等权限确认或登录时显示未知。这两个 CLI 没有按会话的钩子，用户对它们说的话和对提问的答复不记入用户输入；agy 没有按会话的指令参数，拿不到开局说明，要先让它运行 a2a help。',
   ] };
 }

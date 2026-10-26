@@ -1,6 +1,11 @@
 import { accessSync, constants, readFileSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 
+// The CLIs a worker and its reviewer run on (T-187 adds agy and opencode, named as their commands are). The runtime's
+// provider name for each: the product name for the first two, the command for the rest.
+export const workerClis = ["Claude Code", "Codex", "agy", "opencode"] as const;
+export type WorkerCli = typeof workerClis[number];
+export const cliProvider = (cli: string) => cli === "Claude Code" ? "claude" : cli === "Codex" ? "codex" : cli;
 export interface TaskCard {
   id: string;
   source: { ticket: string; ready_rev: number } | null;
@@ -13,7 +18,7 @@ export interface TaskCard {
   task_type: string;
   repair_target: string | null;
   complexity: "S" | "M" | "L";
-  executor: { cli: "Claude Code" | "Codex"; model: string; effort: string };
+  executor: { cli: WorkerCli; model: string; effort: string };
   base_commit: string | null;
   writer: { task_id: string; attempt_id: string; session_id: string; fence: number; thread_id: string } | null;
 }
@@ -180,7 +185,7 @@ export function validateTaskCard(input: unknown, id: string): TaskCard {
   else check(card.repair_target === null || typeof card.repair_target === "string", "repair_target", "Text or null required.");
   check(["S", "M", "L"].includes(card.complexity), "complexity", "Complexity must be S, M or L.");
   object(card.executor, ["cli", "model", "effort"], "executor");
-  check(["Claude Code", "Codex"].includes(card.executor.cli), "executor.cli", "CLI must be Claude Code or Codex.");
+  check(workerClis.includes(card.executor.cli), "executor.cli", `CLI must be one of ${workerClis.join(", ")}.`);
   nonempty(card.executor.model, "executor.model");
   nonempty(card.executor.effort, "executor.effort");
   check(card.base_commit === null && card.writer === null, "writer", "The gate fills the base commit and writer during claim.");

@@ -9,7 +9,7 @@ import { performance } from "node:perf_hooks";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { validateHookEnvelope, questionFromHook, questionPermission, questionAnswerConfirmed, projectQuestions, nativeAnswerKeys, currentTurnBinding, noncurrentHook, currentTurnTrust } from './questions.ts';
 import type { A2AAttachment, A2AAttempt, A2ATask, A2AReview, A2ARepair } from "./contracts/a2aGates.ts";
-import { Refusal, type GateRuntime, type SubmitCaller } from "./gates/core.ts";
+import { Refusal, treeWritable, type GateRuntime, type SubmitCaller } from "./gates/core.ts";
 import { OrchestrationStore, type DispatchSource } from "./store.ts";
 import type { A2AInboxEntry } from "./contracts/a2aInbox.ts";
 import { claudeLaunch, type ClaudeLaunchInput } from "./claudeLaunch.ts";
@@ -17,7 +17,8 @@ import { ClaudeLogin } from "./claudeLogin.ts";
 import { noticeText, SECURITY_NOTICE_TEXT } from "./claudeNotice.ts";
 import { resumeArgv, nativeSessionFile, codexSessionOrigin, codexSessionFileName } from "./paneRecovery.ts";
 import type { ExecutionOverrides } from './executionSettings.ts';
-import { shimWiring } from './terminalClis.ts';
+import { cliProgram, terminalClis, readOsc7501, type CliTurn } from './terminalClis.ts';
+import { cliProvider } from './gates/taskCards.ts';
 
 const exec = promisify(execFile);
 const require = createRequire(import.meta.url);
@@ -100,6 +101,8 @@ export interface LaunchConfig {
   codex_bin?: string;
   codex_home?: string;
   claude_bin?: string;
+  // T-187: the user's own agy and opencode, found as their terminal finds them.
+  agy_bin?: string; opencode_bin?: string;
   // The reviewer role card. A reviewer runs on the worker's CLI (D24) in the same home.
   reviewer_role_card?: string; reviewer_role_card_revision?: string;
   // The role card of a read-only monitor a controller attaches to a task (T-124).
@@ -192,6 +195,15 @@ export type WorkerDeliveryStatus = {
   received_at: string; result_at: string | null; state: 'processing' | 'submitted' | 'rejected' | 'unknown'; reason: string | null;
   request_turn: string | null; current_turn: string | null; native_turn_changed: boolean; recovery_request_id: string;
 };
+// T-187: a managed agy or opencode session has no native session id the backend can check (agy reports none); the
+// backend names it after its launch.
+const reportedSession = (launch: string) => `osc7501:${launch}`;
+// An agy or opencode reviewer writes its result to this file: opencode's reports carry no last reply.
+export const REVIEW_RESULT_FILE = "review-result.json";
+function reviewResult(pane: { record: Record<string, any> }) {
+  const file = join(pane.record.request_dir, REVIEW_RESULT_FILE);
+  return existsSync(file) ? readFileSync(file, "utf8") : "";
+}
 type Pane = {
   record: Record<string, any> & { id: string; task: string | null; attempt: string | null };
   token: string; task: A2ATask | null; attempt: A2AAttempt | null; pty: any;
@@ -210,11 +222,17 @@ type Pane = {
   nativeFile?: string;
   // Claude worker start-up: the folder-trust screen as read so far, and whether it was answered.
   startupScreen?: string; trustAnswered?: boolean; startupOutputAt?: number; started?: boolean;
+  // T-187: output since the first idle report of a CLI that takes input only after it shows the cursor (inputAfterCursor).
+  afterIdle?: string;
   // Project terminal (T-174): when it last wrote output, whether input since then still needs a silence check, and the
   // foreground program that has written nothing since it started.
   outputAt?: number; silenceCheck?: boolean; silenceBusy?: boolean; silentForeground?: { command: string; since: string } | null;
   // T-184: a wrapped CLI in the foreground without the shim's launch arguments, and when its argv is next read.
   unwiredCli?: { command: string; pid: number; since: string } | null; wiringCheckAt?: number; wiringBusy?: boolean;
+  // T-187: the last OSC 7501 state report of the terminal's CLI (agy, opencode), until that CLI exits.
+  cliTurn?: CliTurn | null; oscCarry?: string;
+  // T-187: a managed agy or opencode session; its turns come from its OSC 7501 reports (reportedTurns).
+  reports?: boolean; reportedEnding?: boolean; trustWritten?: number;
   claudePromptId?: string | null;
   claudePromptIds?: Set<string>;
   claudeQueuedPrompts?: { prompt: string; received_at: string;
@@ -287,6 +305,10 @@ export class Panes implements GateRuntime {
     this.panes.set(thread, pane);
     terminal.onData((data: string) => {
       pane.outputAt = Date.now(); pane.silentForeground = null;
+      const reports = readOsc7501(pane.oscCarry ?? "", data);
+      pane.oscCarry = reports.carry;
+      // While a CLI reports its state, look at the foreground every few seconds: it can exit without a line typed after.
+      if (reports.turns.length) { pane.cliTurn = reports.turns.at(-1); pane.wiringCheckAt ??= Date.now() + WIRING_RECHECK_MS; }
       try { appendFileSync(trace, data); }
       catch (error) { this.recordFailure(pane, "trace_write_failed", error); }
     });
@@ -326,15 +348,17 @@ export class Panes implements GateRuntime {
       const info = await this.processInfo(pane.record.thread);
       const leader = (info.processes as { pid: number; pgid: number; tpgid: number }[])
         .find(row => row.pid !== pane.pty.pid && row.pid === row.pgid && row.pgid === row.tpgid);
-      if (!leader) { pane.unwiredCli = null; return; }
+      if (!leader) { pane.unwiredCli = null; pane.cliTurn = null; return; }
       const { stdout } = await exec("/usr/bin/python3", ["-I", "-S", "-B", processArgs, String(leader.pid)], { timeout: 5000 });
-      const argv = JSON.parse(stdout).argv as string[];
-      const command = basename(argv[0] ?? "");
-      const wired = shimWiring[command];
-      const unwired = Boolean(wired) && !wired(argv);
+      const launch = JSON.parse(stdout) as { argv: string[]; shim: string | null };
+      const command = cliProgram(launch.argv);
+      const cli = command === undefined ? undefined : terminalClis[command];
+      // Reports belong to the CLI in front; another program in front (`opencode; sleep 60`) leaves none standing.
+      if (cli?.turns !== "osc7501") pane.cliTurn = null;
+      const unwired = Boolean(cli) && !cli!.wired(launch);
       pane.unwiredCli = !unwired ? null : pane.unwiredCli?.pid === leader.pid ? pane.unwiredCli
-        : { command, pid: leader.pid, since: new Date().toISOString() };
-      if (unwired) pane.wiringCheckAt = Date.now() + WIRING_RECHECK_MS;
+        : { command: command!, pid: leader.pid, since: new Date().toISOString() };
+      if (unwired || pane.cliTurn) pane.wiringCheckAt = Date.now() + WIRING_RECHECK_MS;
     } catch (error) {
       // The process may have exited between the two reads; with no observation the terminal shows no warning.
       pane.unwiredCli = null;
@@ -726,13 +750,20 @@ export class Panes implements GateRuntime {
     check(this.config.reviewer_role_card && this.config.reviewer_role_card_revision, "review_launch_config_required");
     const reviewConfig = { ...this.config, role_card: this.config.reviewer_role_card,
       role_card_revision: this.config.reviewer_role_card_revision };
-    if (task.card.executor.cli === "Claude Code") {
+    if (task.card.executor.cli !== "Codex") {
       // D24: the reviewer defaults to the worker's CLI and model; it runs with the worker launch's selection.
       const worker = this.launchRecord(review.attempt.runtime_identity!.launch);
       await this.createPane(task, attempt, reviewConfig, review,
         { model: worker.model_requested, effort: worker.effort_requested, fast: worker.service_tier_requested === "fast" });
     } else await this.createPane(task, attempt, reviewConfig, review);
     const pane = this.get(review.thread_id);
+    // T-187: an agy or opencode reviewer has no OS sandbox. Its review checkout is read-only by file permissions (the
+    // candidate copy it works in stays writable for its mutation checks), and its result goes to a file.
+    if (pane.reports) {
+      treeWritable(review.workspace, false);
+      this.store.event("review_checkout_read_only", { workspace: review.workspace }, pane.record);
+      prompt += `\n\n本会话的最后一条回复不会被读取：把上面要求的 JSON 原样写入文件 ${join(pane.record.request_dir, REVIEW_RESULT_FILE)}，然后结束本回合。`;
+    }
     await this.dispatch(pane, `${pane.record.role_text}\n\n${prompt}`);
   }
   // A read-only monitor a controller attaches to a task (T-124): it belongs to no attempt, opens the
@@ -757,12 +788,16 @@ export class Panes implements GateRuntime {
     monitor?: A2AAttachment) {
     const role = review ? "reviewer" : monitor ? "monitor" : "worker";
     // The task card names the worker's CLI; its reviewer runs on the same CLI (D24). A monitor runs on its own.
-    const claude = monitor ? monitor.cli === "Claude Code" : task.card.executor.cli === "Claude Code";
-    check((claude ? c.claude_bin : c.codex_bin && c.codex_home) && c.role_card && c.hook_authorization && c.code_revision && c.role_card_revision, "launch_config_required");
+    const workerCli: string = monitor ? monitor.cli : task.card.executor.cli;
+    const claude = workerCli === "Claude Code";
+    // T-187: agy and opencode report their own turns to the terminal (OSC 7501); a monitor stays on Claude Code or Codex.
+    const managed = !monitor && Object.hasOwn(terminalClis, workerCli) ? terminalClis[workerCli].managed : undefined;
+    const bin = claude ? c.claude_bin : managed ? (workerCli === "agy" ? c.agy_bin : c.opencode_bin) : c.codex_home && c.codex_bin;
+    check(bin && c.role_card && c.hook_authorization && c.code_revision && c.role_card_revision, "launch_config_required");
     check(Number.isInteger(c.turn_limit) && c.turn_limit! > 0 && c.turn_limit! <= (claude ? 6 : 10), "invalid_turn_limit");
-    const executable = realpathSync(claude ? c.claude_bin! : c.codex_bin!);
+    const executable = realpathSync(bin!);
     // A Codex worker and its reviewer run in the user's own Codex home (user ruling 2026-10-21, T-127).
-    const home = claude ? null : realpathSync(c.codex_home!);
+    const home = claude || managed ? null : realpathSync(c.codex_home!);
     const environment: Record<string, string> = {};
     for (const key of ["PATH", "HOME", "LANG", "LC_ALL", "LC_CTYPE", "TMPDIR", "USER", "LOGNAME",
       "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL",
@@ -781,17 +816,19 @@ export class Panes implements GateRuntime {
     const hook = `[{hooks=[{type="command",command=${JSON.stringify(signalCommand)},timeout=10}]}]`;
     // Role settings hold one selection per role; a Claude Code card's own model and effort are its
     // defaults, since the factory worker selection is a Codex model (review finding 3).
-    const { model, effort, fast } = this.store.executionSelection(role, claude && !review && !monitor
+    const { model, effort, fast } = this.store.executionSelection(role, (claude || managed) && !review && !monitor
       ? { ...(task.card.executor.model.trim() ? { model: task.card.executor.model } : {}),
           ...(task.card.executor.effort.trim() ? { effort: task.card.executor.effort } : {}), ...overrides } : overrides);
     const launchWorkspace = review ? review.candidate_workspace : attempt.workspace;
     // A worker can put .codex config, hooks or exec policy in its candidate. Keep that
     // untrusted for the independent reviewer; worker/monitor inherit user trust (T-127, T-141).
-    const trustRoot = claude ? null : review ? realpathSync(launchWorkspace) : null;
+    const trustRoot = claude || managed ? null : review ? realpathSync(launchWorkspace) : null;
     const nativeSession = claude ? randomUUID() : null;
     const extraDirectories = (this.store.openedProjects().find(project => project.project_id === task.project_id)?.extra_directories ?? [])
       .map(path => realpathSync(path));
-    const sandboxMode = monitor && !extraDirectories.length ? "read-only" : "workspace-write";
+    // agy and opencode run without an OS sandbox; a reviewer's checkout is made read-only below instead.
+    const sandboxMode = managed ? "none" : monitor && !extraDirectories.length ? "read-only" : "workspace-write";
+    const reported = managed?.({ executable, workspace: launchWorkspace, model, effort, extraDirectories });
     // T-141: inherit the user's trust, tools and proxy configuration. Only the write
     // roots, open network, per-session instrumentation and execution selection are supplied.
     const writeRoots = [...(review || monitor ? [] : [requestDirectory]), ...extraDirectories];
@@ -800,7 +837,7 @@ export class Panes implements GateRuntime {
     const userConfig = claude && environment.HOME ? join(environment.HOME, ".claude.json") : null;
     const mcpConfig = userConfig && existsSync(userConfig) &&
       Object.keys(JSON.parse(readFileSync(userConfig, "utf8")).mcpServers ?? {}).length ? userConfig : null;
-    const argv = claude ? await claudeArgv(executable, signalCommand, nativeSession!, { model, effort, fast },
+    const argv = reported ? reported.argv : claude ? await claudeArgv(executable, signalCommand, nativeSession!, { model, effort, fast },
       [...(monitor ? [] : review ? [realpathSync(launchWorkspace)] : [realpathSync(launchWorkspace), requestDirectory]), ...extraDirectories],
       [...(review || monitor ? [] : [requestDirectory]), ...extraDirectories], review || monitor ? [] : await workerGitDenied(launchWorkspace), extraDirectories, mcpConfig) : [executable, "--no-daemon", "--no-alt-screen", "-C", launchWorkspace,
       "-a", "never", "--sandbox", sandboxMode, "-m", model,
@@ -815,7 +852,7 @@ export class Panes implements GateRuntime {
       ...extraDirectories.flatMap(path => ["--add-dir", path]),
       "-c", "sandbox_workspace_write.exclude_slash_tmp=true",
       "-c", "sandbox_workspace_write.exclude_tmpdir_env_var=true"];
-    if (!claude) {
+    if (!claude && !managed) {
       for (const event of ["UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse"]) argv.push("-c", `hooks.${event}=${hook}`);
       argv.push("--dangerously-bypass-hook-trust");
     }
@@ -828,9 +865,11 @@ export class Panes implements GateRuntime {
       A2A_FENCE: String(attempt.fence), A2A_SPEC_REV: String(attempt.spec_rev),
       A2A_TOOL: version, A2A_MODEL_REQUESTED: model, A2A_EFFORT_REQUESTED: effort,
       ...(claude ? { A2A_NATIVE_SESSION: nativeSession! } : {}),
+      // The commit hook reads no turn record for these CLIs (hooks/hook.py): model and effort trailers are unknown.
+      ...(managed ? { A2A_TURNS: "osc7501", A2A_NATIVE_SESSION: reportedSession(launch), ...reported!.env } : {}),
     });
     if (review) environment.A2A_REVIEW = review.review_id;
-    if (!claude) {
+    if (!claude && !managed) {
       // Exclude the shared temporary roots, but retain shell here-documents and tempfile.
       // Workers use their request directory; reviewers/monitors use their one-time copy.
       const temporary = join(review || monitor ? realpathSync(launchWorkspace) : requestDirectory, ".a2a-tmp");
@@ -844,7 +883,7 @@ export class Panes implements GateRuntime {
     const record = { id: launch, project: task.project_id, task: task.task_id, attempt: attempt.attempt_id,
       session: attempt.session_id, fence: attempt.fence, spec_rev: attempt.spec_rev, thread: attempt.thread_id,
       role, sandbox: sandboxMode, extra_directories: extraDirectories, parent_launch: this.parentLaunch.getStore() ?? null,
-      cli: claude ? "Claude Code" : "Codex", ...(claude ? { native_session: nativeSession } : {}),
+      cli: workerCli, ...(claude ? { native_session: nativeSession } : managed ? { native_session: reportedSession(launch) } : {}),
       ...(review ? { review_id: review.review_id, review_verification_id: review.verification_id,
         review_workspace: review.workspace, candidate_workspace: review.candidate_workspace } : {}),
       created_at: new Date().toISOString(), cli_version: version, argv, executable_path: executable, request_dir: requestDirectory,
@@ -860,7 +899,7 @@ export class Panes implements GateRuntime {
       name: "xterm-256color", cols: 160, rows: 45, cwd: attempt.workspace, env: environment, encoding: "utf8",
     });
     const pane: Pane = { record, token, task, attempt, pty: terminal, state: "unknown", stopped: false,
-      archived: false, failed: null, leader: null, native: nativeSession, turn: null, nativeEnded: false, active: null,
+      archived: false, failed: null, leader: null, native: managed ? reportedSession(launch) : nativeSession, turn: null, reports: Boolean(managed), nativeEnded: false, active: null,
       queue: [], writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0, userDraft: false, interrupted: false, inputGeneration: 0, interruption: null, sending: null,
       offsets: new Map(), model: "unknown", effort: "unknown", terminalBuffer: "",
       startupScreen: "", trustAnswered: false,
@@ -879,7 +918,8 @@ export class Panes implements GateRuntime {
       } catch (error) { this.recordFailure(pane, "trace_write_failed", error); return; }
       try { this.scan(pane); }
       catch (error) { this.recordFailure(pane, "native_read_failed", error); return; }
-      if (pane.state === "unknown") (claude ? this.confirmWorkerTrust(pane, data) : this.openCodexRestricted(pane, data));
+      if (pane.reports) this.reportedTurns(pane, data);
+      else if (pane.state === "unknown") (claude ? this.confirmWorkerTrust(pane, data) : this.openCodexRestricted(pane, data));
       try { this.terminalProtocol(pane, data); }
       catch (error) { this.recordFailure(pane, "terminal_protocol_failed", error); }
     });
@@ -1095,7 +1135,7 @@ export class Panes implements GateRuntime {
   }
 
   scan(pane: Pane, final = false) {
-    if (pane.stopped) return;
+    if (pane.stopped || pane.reports) return;
     if (pane.record.role === "shell") return;
     if (pane.record.cli === "Claude Code") {
       if (!pane.claudeQueuedPrompts?.length) return;
@@ -1561,6 +1601,7 @@ export class Panes implements GateRuntime {
         state_source: pane.failed ? "runtime_failure" : "host_events", active: pane.active, native_session: pane.native,
         start_missing: this.startMissing(pane), silent_foreground: pane.silentForeground ?? null,
         unwired_cli: pane.unwiredCli ? { command: pane.unwiredCli.command, since: pane.unwiredCli.since } : null,
+        cli_turn: pane.cliTurn ?? null,
         turn: pane.turn, writing: pane.writing, user_draft: pane.userDraft, interrupted: pane.interrupted,
         input_generation: pane.inputGeneration, interruption: pane.interruption,
         queued: pane.queue.map((item) => item.id), failed: pane.failed, stopped: pane.stopped, restoration,
@@ -1598,6 +1639,7 @@ export class Panes implements GateRuntime {
     try {
       value = JSON.parse(raw);
       check(value && typeof value === 'object' && !Array.isArray(value), 'hook_object_required');
+      if (pane.reports) return await this.reportedStop(pane, value, received_at, transfer);
       if (pane.record.cli === 'Claude Code') { this.scan(pane); binding = currentTurnBinding(pane); }
       // A new authenticated Claude UPS is the native CLI's turn transition.
       // Do not infer it from Enter, and do not let a reused old prompt replace it.
@@ -1773,6 +1815,120 @@ export class Panes implements GateRuntime {
       }, pane.record);
       throw error;
     }
+  }
+  // T-187: the end of an agy or opencode turn, sent by the daemon itself under the pane's launch identity when the CLI
+  // reports it (reportedTurns). The same transfer and completion as a Codex Stop, without a hook envelope to check.
+  private async reportedStop(pane: Pane, value: any, received_at: string,
+    transfer?: (pane: Pane, stop: any, matched: boolean) => Promise<void>) {
+    check(value.hook_event_name === "Stop" && value.source === "osc7501" && value.session_id === pane.native, "unsupported_hook");
+    check(Number.isFinite(Date.parse(received_at)), "hook_received_at_required");
+    this.store.event("turn_end_signal", value, pane.record);
+    const active = pane.active;
+    const matched = Boolean(!pane.failed && !pane.stopInProgress && active?.nativeTurn && value.turn_id === active.nativeTurn &&
+      Date.parse(received_at) >= Date.parse(active.at));
+    if (active) check(currentTurnTrust(pane, this.store.read().filter(e => e.launch === pane.record.id)) === "verified", "current_turn_untrusted");
+    if (matched) pane.stopInProgress = true;
+    try {
+      if (transfer) await transfer(pane, value, matched);
+      if (!matched) { this.store.event("stop_not_matched", value, pane.record); return; }
+      const protocolFailure = pane.record.role === "reviewer" && pane.failed === "invalid_review_result";
+      pane.active = null; pane.state = pane.failed && !protocolFailure ? "unknown" : pane.interrupted ? "busy" : "idle";
+      this.store.event(pane.state === "idle" ? "pane_idle" : "pane_completion_held", { submission: active!.id, state: pane.state, stop: value }, pane.record);
+    } catch (error) {
+      if (matched) this.recordFailure(pane, "stop_transfer_failed", error);
+      throw error;
+    } finally { if (matched) pane.stopInProgress = false; }
+  }
+  // Set by the daemon: ends a reported turn through the same signal command a Stop hook uses.
+  reportedTurnEnd?: (pane: Pane, stop: Record<string, unknown>) => Promise<void>;
+  // T-187: the turns of a managed agy or opencode session, from its OSC 7501 reports. The first idle report is its ready
+  // signal (opencode: the cursor shown after it, inputAfterCursor); a working report after a submitted task starts that turn (its id is the backend's); the next idle, done or
+  // clear ends it. agy asks to trust each new folder before it starts (agyTrust). A question is recorded and not shown
+  // as waiting (T-124 ruling 1a); a permission or sign-in wait is recorded and shown as it is, with no key pressed.
+  reportedTurns(pane: Pane, data: string) {
+    const read = readOsc7501(pane.oscCarry ?? "", data);
+    pane.oscCarry = read.carry;
+    let seeded: string | undefined;
+    if (!pane.started) pane.startupOutputAt = Date.now();
+    if (!pane.started) pane.startupScreen = (pane.startupScreen! + data.replace(/\x1b\[[0-?]*[ -\/]*[@-~]|\x1b\][^\x07]*?(?:\x07|\x1b\\)/g, "").replace(/\s+/g, "")).slice(-4096);
+    for (const turn of read.turns) {
+      pane.cliTurn = turn;
+      this.store.event("native_turn_report", turn, pane.record);
+      if (turn.state === "working") {
+        const active = pane.active;
+        if (pane.started && active && !active.nativeTurn) {
+          active.nativeTurn = pane.turn = `osc7501:${active.id}`;
+          this.store.event("turn_start_signal", { session_id: pane.native, submission: active.id, turn_id: active.nativeTurn, source: "osc7501" }, pane.record);
+        }
+      } else if (["idle", "done", "clear"].includes(turn.state)) {
+        // After a trust answer the session starts once the write is checked (agyTrust), whichever comes first.
+        if (!pane.started) {
+          if (!terminalClis[pane.record.cli]?.inputAfterCursor) { if (!pane.trustAnswered || pane.trustWritten !== undefined) this.reportedStart(pane); }
+          else if (pane.afterIdle === undefined) { const at = data.lastIndexOf("7501;state="); pane.afterIdle = ""; seeded = at < 0 ? data : data.slice(at); }
+        }
+        else if (pane.active?.nativeTurn && !pane.stopInProgress && !pane.reportedEnding) {
+          pane.reportedEnding = true;
+          const stop = { hook_event_name: "Stop", source: "osc7501", session_id: pane.native, turn_id: pane.active.nativeTurn,
+            report: turn.state, ...(pane.record.role === "reviewer" ? { last_assistant_message: reviewResult(pane) } : {}) };
+          void this.reportedTurnEnd!(pane, stop).catch(error => this.recordFailure(pane, "stop_transfer_failed", error))
+            .finally(() => { pane.reportedEnding = false; });
+        }
+      } else if (turn.state === "blocked") {
+        if (!pane.started && turn.kind === "permission" && pane.record.cli === "agy" && turn.msg === "Trust this folder?") this.agyTrust(pane);
+        else this.store.event(turn.kind === "question" ? "native_question_ignored" : "native_wait_reported",
+          { ...turn, submission: pane.active?.id ?? null }, pane.record);
+      }
+    }
+    if (!pane.started && pane.afterIdle !== undefined) {
+      const after = pane.afterIdle + (seeded ?? data);
+      if (after.includes("\x1b[?25h")) this.reportedStart(pane);
+      else pane.afterIdle = after.slice(-5);
+    }
+  }
+  private reportedStart(pane: Pane) {
+    if (pane.started || pane.failed || pane.stopped) return;
+    pane.started = true;
+    this.store.event("native_session_started", { native_session: pane.native, source: "osc7501", trust_written: pane.trustWritten ?? 0 }, pane.record);
+    pane.state = "idle";
+    void this.drain(pane).catch(error => this.recordFailure(pane, "dispatch_failed", error));
+  }
+  // T-187, ready_rev 2: agy asks once for every new folder, and a yes adds the folder to trustedWorkspaces in the user's
+  // ~/.gemini/antigravity-cli/settings.json. The user allowed exactly that write, through agy's own dialog: the dialog
+  // must name this session's folder with the yes choice drawn as selected, and afterwards the file may differ only by
+  // that one folder added to trustedWorkspaces. Anything else stops the session with the screen recorded; no key is
+  // pressed. The count of folders written is recorded with the session's start.
+  agyTrust(pane: Pane) {
+    if (pane.trustAnswered || pane.failed) return;
+    pane.trustAnswered = true;
+    const settings = join(pane.record.env.HOME, ".gemini/antigravity-cli/settings.json");
+    const folder = pane.record.worktree as string;
+    const read = () => JSON.parse(readFileSync(settings, "utf8")) as Record<string, unknown>;
+    const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+    void (async () => {
+      // Act once the dialog has been drawn completely and the output has been quiet for a moment.
+      for (const until = Date.now() + 5000; Date.now() - pane.startupOutputAt! < 800 && Date.now() < until;) await sleep(100);
+      const screen = pane.startupScreen!;
+      const dialog = screen.lastIndexOf("Accessingworkspace:" + folder.replace(/\s+/g, "") + "Doyoutrustthecontentsofthisproject?");
+      const yes = screen.lastIndexOf(">Yes,Itrustthisfolder"), no = screen.lastIndexOf(">No,exit");
+      if (dialog < 0 || yes < dialog || yes < no) throw new Refusal("agy_trust_dialog_unrecognised");
+      const before = read();
+      const listed = (value: unknown) => Array.isArray(value) ? value.map(String) : [];
+      if (listed(before.trustedWorkspaces).includes(folder)) throw new Refusal("agy_trust_already_listed");
+      this.store.event("agy_trust_confirm_intent", { folder, settings, screen }, pane.record);
+      await this.serializeWrite(pane, async () => { pane.pty.write("\r"); });
+      let after = before;
+      for (const until = Date.now() + 10_000; Date.now() < until; await sleep(200)) {
+        after = read();
+        if (listed(after.trustedWorkspaces).includes(folder)) break;
+      }
+      const { trustedWorkspaces: was, ...rest } = before, { trustedWorkspaces: now, ...restAfter } = after;
+      const added = listed(now).filter(entry => !listed(was).includes(entry));
+      if (JSON.stringify(rest) !== JSON.stringify(restAfter) || listed(was).some(entry => !listed(now).includes(entry)) ||
+        JSON.stringify(added) !== JSON.stringify([folder])) throw new Refusal("agy_trust_write_unexpected", { added, settings });
+      pane.trustWritten = added.length;
+      this.store.event("agy_trust_written", { folder, settings, entries_written: added.length }, pane.record);
+      if (pane.cliTurn && ["idle", "done", "clear"].includes(pane.cliTurn.state)) this.reportedStart(pane);
+    })().catch(error => this.recordFailure(pane, "agy_trust_failed", error, { screen: pane.startupScreen }));
   }
   async claudeStop(pane: Pane, value: any, received_at: string,
     transfer?: (pane: Pane, stop: any, matched: boolean) => Promise<void>) {
@@ -1979,7 +2135,7 @@ export class Panes implements GateRuntime {
     const pane = this.get(thread);
     check(pane.attempt, "worker_attempt_required");
     if (!pane.stopped) await this.processInfo(thread);
-    return { workspace: pane.attempt.workspace, provider: pane.record.cli === "Claude Code" ? "claude" : "codex",
+    return { workspace: pane.attempt.workspace, provider: cliProvider(pane.record.cli),
       turn: pane.record.cli === "Claude Code" ? pane.claudePromptId ?? null : pane.turn,
       runtime_identity: { launch: pane.record.id, thread, shell_pid: pane.pty.pid,
         leader_pid: pane.leader, native_session: pane.native },

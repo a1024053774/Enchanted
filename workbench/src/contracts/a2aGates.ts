@@ -113,6 +113,8 @@ export interface A2AAttempt {
   workspace: string;
   base_commit: string;
   card_snapshot_id: string;
+  // T-187: the Git metadata read once the worktree existed (core.ts gitMetadata).
+  git_metadata?: { head: string; config: string | null; worktree_config: string | null; hooks: Record<string, string | null> };
   reclaimed: boolean;
   reclaimed_at?: string;
   owner?: string;

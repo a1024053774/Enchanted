@@ -105,7 +105,7 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
 已结束或历史 attempt 的 agent 只读。
 在单 agent 视图中重命名或关闭，只修改该会话的名称或布局叶子，保留其余会话的分屏方向与名称。
 项目终端的布局保存只包含普通终端，项目查询中同属该项目的任务 agent 不进入终端布局。
-项目终端里的 Claude Code（经插件）和 Codex（经包装脚本的 `-c hooks.SessionStart`）在会话开始时都经 SessionStart 钩子（`a2a session-context`，输出 `hookSpecificOutput.additionalContext`）收到同一份开局说明：`a2a` 在 PATH 上、`a2a help`、用户要它当主控就直接 `a2a request`、当主控前先读使用说明（Claude 是 a2a skill，其他 CLI 看 `a2a help`）；只在有终端身份时输出（T-181、T-185）。用户自己用 `-c hooks.SessionStart=…` 传的开局钩子优先，替换 Enchanted 的这一项；用户 hooks.json 里的开局钩子照常一起运行。新钩子第一次在用户自己的 Codex 里启动时，Codex 会弹一次钩子信任框，由用户本人确认，a2a 不写 Codex 配置。
+项目终端里的 Claude Code（经插件）和 Codex（经包装脚本的 `-c hooks.SessionStart`）在会话开始时都经 SessionStart 钩子（`a2a session-context`，输出 `hookSpecificOutput.additionalContext`）收到同一份开局说明（文字只在 `terminal/orientation/AGENTS.md` 一处；opencode 把这个文件作为 instructions 读入，agy 经包装脚本的 `--add-dir` 把这个目录加进工作区、读其中的 AGENTS.md，T-187）：`a2a` 在 PATH 上、`a2a help`、用户要它当主控就直接 `a2a request`、当主控前先读使用说明（Claude 是 a2a skill，其他 CLI 看 `a2a help`）；只在有终端身份时输出（T-181、T-185）。用户自己用 `-c hooks.SessionStart=…` 传的开局钩子优先，替换 Enchanted 的这一项；用户 hooks.json 里的开局钩子照常一起运行。新钩子第一次在用户自己的 Codex 里启动时，Codex 会弹一次钩子信任框，由用户本人确认，a2a 不写 Codex 配置。
 侧栏接口把普通终端放在 `terminals`；`agents` 包含 agent 会话和终端最近一次确认生效的主控角色。终端已结束时保留主控条目；交回角色而终端仍运行时恢复为普通终端，状态取终端生命周期。
 T-177：已结束的会话和被新 attempt 取代的会话折进每个任务下的“历史 N 个”，默认收起；子会话仍在用时父会话不折。“清理”只拿掉已结束的会话（追加 `sidebar_hidden` 事件，仅操作员；记录与门禁事件不删，运行中的会话拒绝 `session_not_ended`）。已集成任务仍空闲的当前 worker 显示“回收”，经门禁 `reclaim`。没有指定启动目标时，窗口打开最近活跃、未结束的会话。
 终端设 `minimumContrastRatio: 4.5`：按深色背景配色的 CLI（如 Claude Code 问答框正文用的 256 色纯白）在浅色配色下会被自动调深，不改 CLI 的配置（T-181）。
@@ -127,7 +127,7 @@ T-177：已结束的会话和被新 attempt 取代的会话折进每个任务下
 不改用户的任何文件，不写 `~/.claude`、`~/.codex`，也不往项目仓库写文件。终端环境里去掉打包版后台的
 `ELECTRON_RUN_AS_NODE`。
 
-`terminal/bin` 里有三个命令：
+`terminal/bin` 里有五个命令：
 
 - `a2a`：本终端的编排命令。`a2a help` 列出用法；`a2a whoami` 报项目与身份；`a2a request executor|ideation`
   申请成为执行主控或构思主控，并等用户在界面批准或拒绝（最多 10 分钟）。`role_request` 必须带 `wait_seconds`（1～600），
@@ -148,6 +148,13 @@ T-177：已结束的会话和被新 attempt 取代的会话折进每个任务下
 - `claude`、`codex`：同名包装。在 PATH 里跳过自己找到用户真正的 CLI，原样转发参数，只多加一个按会话生效的参数：
   Claude 加 `--plugin-dir`（`terminal/plugin/enchanted-a2a`，含 a2a skill），Codex 加 `-c developer_instructions=…`
   指向 `a2a help`（用户用 `-c developer_instructions=…` 传了，或自己的 Codex 配置文件里设了这一项时不加）。挂法的实测依据见 T-120。
+- `agy`、`opencode`（T-187）：同样跳过自己找到用户的 CLI、原样转发参数，并在环境里设 `A2A_SHIM=<名字>` 标明经过了包装脚本。
+  `agy` 另设 `AGY_CLI_OSC7501=on`（用户自己设了就用用户的），让 agy 把自己的回合状态用 OSC 7501 报给终端；agy 没有按会话的
+  指令参数，交互启动时包装脚本用 `--add-dir` 加入开局说明所在目录，agy 读其中的 AGENTS.md（带子命令时原样转发）。`opencode` 用 `OPENCODE_CONFIG_CONTENT` 把开局说明文件（`terminal/orientation/AGENTS.md`）作为本会话的
+  instructions 传入，并加 `--standalone`：只有私有服务读本会话的环境，连到共享后台服务时这份配置不生效；带子命令、用户自己传
+  `--server`/`--standalone` 或自己设了 `OPENCODE_CONFIG_CONTENT` 时原样转发、不加。实测依据见 `evidence/2026-10-25-batch26/T-187/facts.md`。
+- 支持哪些 CLI、怎样判断经过了包装脚本、回合状态从哪里来、怎样认出 `a2a request` 是哪个 CLI 发的，集中在 `src/terminalClis.ts`；
+  新增 CLI 在这里登记并加包装脚本。
 
 终端身份是终端本身：后台为每个普通终端生成令牌，只放在该终端的环境（`A2A_TERMINAL`、`A2A_TERMINAL_TOKEN`）
 和后台内存里，不写进启动记录。终端经后台另开的专用 socket 连接（T-126，环境变量 `A2A_TERMINAL_SOCKET`）：
@@ -289,7 +296,18 @@ zsh；历史快照返回 `lifecycle: ended`。退出无法核对时保留 unknow
 有任何输出即撤下提示；不点按、不替用户回答弹窗。查询进程失败记 `silent_foreground_check_failed`，不显示提示。
 `pane_status` 的 `silent_foreground` 给出命令名与起始时间。
 
-项目终端里提交一行后约 1.5 秒，后台读前台进程的 argv（`src/processArgs.py`，sysctl KERN_PROCARGS2，只用于判断、不保存）。前台是包装脚本所包的 CLI（`claude`、`codex`，判据集中在 `src/terminalClis.ts`）却没有包装脚本加的接入参数（Claude 的 `--plugin-dir …/plugin/enchanted-a2a`，Codex 的 `$A2A_TERMINAL_BIN/a2a` 钩子）时，说明它是用绝对路径或别名绕过包装脚本启动的：没有插件和钩子，后台收不到它的回合。窗格提示“这个会话没接入 Enchanted，状态和主控命令不可用。退出后直接敲 claude 重启”，侧栏与窗格头的状态显示“未知”，不显示假状态；每 5 秒复查一次，CLI 退出后提示撤下。读进程失败记 `cli_wiring_check_failed`，不显示提示。`pane_status` 的 `unwired_cli` 给出命令名与起始时间（T-184）。
+项目终端里提交一行后约 1.5 秒，后台读前台进程的 argv 和启动环境里的 `A2A_SHIM`（`src/processArgs.py`，sysctl KERN_PROCARGS2，只用于判断、不保存；macOS 不给出系统自带程序的启动环境，agy、opencode 是第三方程序，读得到）。前台是包装脚本所包的 CLI（`claude`、`codex`、`agy`、`opencode`，判据集中在 `src/terminalClis.ts`）却没有包装脚本加的接入参数（Claude 的 `--plugin-dir …/plugin/enchanted-a2a`，Codex 的 `$A2A_TERMINAL_BIN/a2a` 钩子，agy、opencode 的 `A2A_SHIM`）时，说明它是用绝对路径或别名绕过包装脚本启动的：没有插件和钩子，后台收不到它的回合。窗格提示“这个会话没接入 Enchanted，状态和主控命令不可用。退出后直接敲 claude 重启”，侧栏与窗格头的状态显示“未知”，不显示假状态；每 5 秒复查一次，CLI 退出后提示撤下。读进程失败记 `cli_wiring_check_failed`，不显示提示。`pane_status` 的 `unwired_cli` 给出命令名与起始时间（T-184）。
+
+agy 与 opencode 的回合状态不经钩子，取自它们自己报给终端的 OSC 7501（`ESC ] 7501 ; state=…[:kind=…] BEL`，T-187）：后台从项目终端的输出里读出最后一条报告（`pane_status` 的 `cli_turn`；一条报告被拆在两段输出里也能读出），前台程序退出后清掉。经角色申请成为主控的 agy、opencode 终端，侧栏与窗格头按它取状态：`working` 为运行中，`idle`、`done`、`clear` 为空闲，`blocked` 且 `kind=question` 为等待用户回答；`blocked` 的权限确认、登录和还没有报告时显示未知，不猜。`a2a request` 按运行它的 CLI 给子进程的环境认出是哪个 CLI（`CLAUDECODE`、`CODEX_THREAD_ID`、`OPENCODE_SESSION_ID`，agy 用包装脚本的 `A2A_SHIM=agy`），CLI 自己设的变量优先于包装脚本的。
+
+agy、opencode 也可作 worker 与审查员（任务卡 `executor.cli` 为 `agy` 或 `opencode`；T-187 ready_rev 2，用户选 C）。没有按会话的钩子，回合同样取自 OSC 7501：派发写入后的 `working` 是回合开始，之后的 `idle`、`done`、`clear` 是回合结束，worker 写在请求目录里的交付请求在这里转交门禁（与 Stop 钩子同一条路径）；审查员把结论 JSON 写进请求目录的 `review-result.json`，回合结束时读取。
+
+- 启动参数：agy 为 `agy --dangerously-skip-permissions --model <卡上模型> --effort <卡上强度>`，环境 `AGY_CLI_OSC7501=on`；opencode 为 `opencode --standalone --auto <worktree>`，模型经 `OPENCODE_CONFIG_CONTENT` 传入。两者都在用户自己的 HOME 运行（登录在那里，不复制凭据），没有操作系统沙箱；门禁核对完整 argv。它们报不出本回合的模型与强度，交付与提交尾注记为 `unknown`。
+- agy 的目录信任：agy 对每个新目录弹一次“Trust this folder?”。后台核对屏幕上选中的是 “Yes, I trust this folder”、目录是本会话的 worktree 后才按回车，再核对 `~/.gemini/antigravity-cli/settings.json` 只有 `trustedWorkspaces` 多了这一个目录、其他键不变；写入条数记在 `agy_trust_written` 事件里。对不上就记 `agy_trust_failed`，不按键。每次派发（worker 与审查员各一个新目录）写一条。
+- 审查员只读：审查 checkout 在启动前 chmod 去掉写权限（`review_checkout_read_only`），门禁的审查启动检查核对它不可写；回收前恢复。
+- Git 元数据：门禁在认领后记下 worktree 的 HEAD、仓库与 worktree config、hooks 目录，交付验收时比对，并检查含有 worker 提交的 ref；有改动以 `git_metadata_changed` 拒绝（对所有 worker 生效）。
+- agy 作主控：`--mode auto` 下 agy 对每条 shell 命令（含 `a2a help`、`a2a request`）都弹权限框，又没有按会话的命令白名单，所以用户在项目终端里用 `agy --dangerously-skip-permissions` 启动它（用户 2026-10-25 选定）；不这样启动，就要每条命令都由用户在终端里确认。主控能做的事仍只经角色申请与门禁。opencode 主控照常用 `opencode`。
+- 限制：后台重启后不恢复 agy、opencode 的受管窗格；回合内的工具调用不逐条记录；agy worker 没有开局说明，角色卡照常作为首条提示的开头；`blocked`（权限、登录）显示未知。
 
 每格右上角的“⋯”和右键菜单提供重命名、向右分屏、向下分屏、放大/还原、把右键发给窗格、关闭。
 分屏保留原窗格，按所选方向新建普通 zsh。普通终端沿用原启动目录；从任务 agent 分屏时，目录为任务仓库根，

@@ -10,7 +10,7 @@
 ```text
 
       ▄▀▀▄        Antigravity CLI 1.4.7
-     ▀▀▀▀▀▀       littledave950@gmail.com (Google AI Pro)
+     ▀▀▀▀▀▀       <agy 账号邮箱，已删> (Google AI Pro)
     ▀▀▀▀▀▀▀▀      Gemini 3.8 Flash (High)
    ▄▀▀    ▀▀▄     ~/Documents/Code/a2a-review/T-159-r1
   ▄▀▀      ▀▀▄
