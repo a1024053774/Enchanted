@@ -2,7 +2,7 @@
 id: T-188
 title: 发 0.1.5（含 agy、opencode 支持），补齐产品页、GitHub 各处，替换 /Applications
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -22,11 +22,15 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] Release 0.1.5 为 Latest，附件下载回来与构建产物一致，签名核对通过。
-- [ ] 产品页线上 200，页面检查全过，lcu 在 Chrome 复看；无过时版本号或 CLI 说法（grep 核对 docs 与 README）。
-- [ ] 仓库 About/topics 与 README 更新；push 前扫描凭据、用户邮箱、agy 账号邮箱、大文件 0 命中，不 force push。
-- [ ] /Applications 中为 0.1.5，从 Dock 启动正常，后台已连接。
+- [x] Release 0.1.5 为 Latest，附件下载回来与构建产物一致，签名核对通过。
+- [x] 产品页线上 200，页面检查全过，lcu 在 Chrome 复看；无过时版本号或 CLI 说法（grep 核对 docs 与 README）。
+- [x] 仓库 About/topics 与 README 更新；push 前扫描凭据、用户邮箱、agy 账号邮箱、大文件 0 命中，不 force push。
+- [x] /Applications 中为 0.1.5，从 Dock 启动正常，后台已连接。
 
 ## 不做
 
 不改写 Git 历史；不开签名票。
+
+## Resolution
+
+2026-10-26 PASS，证据 `evidence/2026-10-26-batch27/T-188/RESULTS.md`，agy 审查第二轮 `T-188 REVIEW PASS`。Release v0.1.5 为 Latest（目标 d68a5d50e，附件下载回来逐字节相同，ad-hoc）；产品页线上 43/43、Chrome 复看；README、工作台说明、About、topics 更新；/Applications 为 0.1.5，后台已连接。与字面不同的一处：lcu 选不到 Dock，改用干净环境经 LaunchServices 启动，并核对进程环境。
