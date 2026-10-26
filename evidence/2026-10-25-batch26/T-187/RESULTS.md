@@ -1,6 +1,6 @@
 # T-187 结果：增加 agy 与 opencode 的支持并实测
 
-## 状态：INCOMPLETE（实现与两条真实运行都已通过；等第五轮独立审查）
+## 状态：PASS（四条验收都有真实入口证据；第五轮独立审查 `T-187 REVIEW PASS`）
 
 ## 依据
 
@@ -33,7 +33,7 @@ ticket T-187（ready_rev 1；2026-10-25 起 ready_rev 2）。用户 2026-10-25 �
 
 ## 还没做
 
-- 第五轮独立审查（本轮改动：agy 开局说明、opencode 等光标再派发、真实运行测试）。
+- 无。
 
 ## 已知限制
 
@@ -146,3 +146,20 @@ INCOMPLETE 的理由只是真实 worker 运行还没做；没有 P0–P2。两�
 - `real-worker-agy-opencode-04`：**产品缺陷**。真实 opencode worker 的首个任务丢了（`turn_start_missing`，停在 claimed）：后台在 opencode 第一次报 idle 时就粘贴，opencode 那时还不收输入。探针 `opencode_paste_probe.py`（`opencode-paste-probe-01.txt`）：idle 时粘贴 3/3 丢失；idle 后第一次显示光标（ESC[?25h，约 0.36 s 后）时粘贴 3/3 进入回合。修法：`terminalClis.ts` 给 opencode 登记 `inputAfterCursor`，`panes.ts` 的 `reportedTurns` 对它在首次 idle 之后看到光标显示才算会话已启动、才派发。替身按真实行为改为 idle 后 1 秒、显示光标前丢弃输入：`worker-green-opencode-03` PASS，`worker-red-head-cursor-01`（`--revision HEAD`，修前）失败于 `submitted`，`worker-green-agy-03` PASS（agy 不受影响）。
 
 清理：每次运行的夹具与 `/private/tmp/t187-probe/repo` 归档外置盘后删除；一次运行残留的测试后台进程已结束。
+
+## 独立审查第五轮（`review-agy-05.md`，候选 cee251cda）：`T-187 REVIEW PASS`
+
+没有 P0–P2。一条 P3 记为限制：包装脚本只在没有参数或第一个参数以 `-` 开头时加开局说明目录；以后 agy 若支持把路径作为第一个参数启动，这种启动拿不到开局说明。当前 agy 1.4.7 没有这种用法。
+
+回归（本轮最终源码）：`regression-t184-05` PASS、`regression-t185-02` PASS（开局说明改路径后 Claude、Codex 照常读到）。
+
+## 验收对照
+
+| 验收 | 结论 | 证据 |
+| --- | --- | --- |
+| Git 元数据守护 | PASS | `guard-green-05`；反例 `guard-red-main-merged-03` 与变异 base-only、hooks-ignored 等被拒（见“Git 元数据守护”一节） |
+| 真实 agy、opencode 各走一遍 | PASS | `real-worker-opencode-agy-03`、`real-worker-agy-opencode-05`；截图在外置盘 |
+| worker 状态在侧栏正确，做不到的显示未知 | PASS | 真实运行侧栏 worker 未知 → 运行中 → 空闲；替身 `worker-green-*`、`green-08` 覆盖等待回答（主控）、权限与登录显示未知。按 T-124 裁定 1a，worker 的提问记录不显示为等待 |
+| AGENTS.md 与 README 同步 | PASS | AGENTS.md 第 23、33 行；README agy/opencode 各节 |
+
+agy 信任写入用户 `~/.gemini/antigravity-cli/settings.json` 的条数：本 ticket 的真实运行共写入 2 条（`real-worker-opencode-agy-03` 的 worker worktree 与审查 checkout），只动 `trustedWorkspaces`；此外是 facts.md 记录的探针误写 1 条（用户选择保留）。替身测试都用夹具 HOME，不写用户配置。
