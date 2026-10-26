@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Enchanted</title>
-  <meta name="description" content="Enchanted 是 macOS 上的多 agent 协作工作台：Claude Code 与 Codex 在交互终端里分工，认领、交付、检查、审查和集成都经过同一道门禁。a2a 是它的编排内核。">
+  <meta name="description" content="Enchanted 是 macOS 上的多 agent 协作工作台：Claude Code、Codex、agy 和 opencode 在交互终端里分工，认领、交付、检查、审查和集成都经过同一道门禁。a2a 是它的编排内核。">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#f2f3f6" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#141417" media="(prefers-color-scheme: dark)">
@@ -33,7 +33,7 @@
       <div class="intro-grid">
         <div class="intro-copy">
           <h1 id="hero-title">Enchanted</h1>
-          <p class="lede">让 Claude Code 和 Codex 在同一个工作台里分工。活干没干完，由门禁说了算，不由模型自己说。</p>
+          <p class="lede">让 Claude Code、Codex、agy 和 opencode 在同一个工作台里分工。活干没干完，由门禁说了算，不由模型自己说。</p>
           <div class="actions">
             <a class="button primary" href="https://github.com/a1024053774/Enchanted/releases/latest"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M8 2v8.5M4.5 7 8 10.5 11.5 7M3 13.5h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>下载 macOS 版</a>
             <a class="button" href="#features">分功能看<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9.5M8.5 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
@@ -72,7 +72,7 @@
         <div class="show-guide">
           <p class="show-count" aria-live="polite">第 <span data-show-index>1</span> / 2 步</p>
           <ol class="show-steps" data-show-steps>
-            <li data-scene="role"><h3>主控要你批准</h3><p>在项目终端里用自己的命令启动 claude，让它当主控，它会经 <code>a2a request</code> 申请。你批准了才算数，身份跟着这个终端，终端关了就结束。</p><p class="try">试试：选好“上级”，点“批准”。</p></li>
+            <li data-scene="role"><h3>主控要你批准</h3><p>在项目终端里用自己的命令启动 claude、codex、agy 或 opencode，让它当主控，它会经 <code>a2a request</code> 申请。你批准了才算数，身份跟着这个终端，终端关了就结束。</p><p class="try">试试：选好“上级”，点“批准”。</p></li>
             <li data-scene="question"><h3>agent 在等你回答</h3><p>agent 用原生提问工具问你时，侧栏标黄、右上角弹通知。在界面里点选项作答，答复写回原来的终端。</p><p class="try">试试：选一个选项，再点“发送答复到窗格”。</p></li>
           </ol>
           <div class="show-nav" data-show-nav hidden><button class="button ghost" type="button" data-show-prev><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M13 8H3.5M7.5 4l-4 4 4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>上一步</button><button class="button" type="button" data-show-next>下一步<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9.5M8.5 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
@@ -144,22 +144,22 @@
           <p>使用前在本机装好并登录至少一种支持的 CLI。Enchanted 不写你的 <code>~/.claude</code>、<code>~/.codex</code>，每个会话的权限和钩子都经启动参数传入。从源码构建见<a href="https://github.com/a1024053774/Enchanted/blob/main/workbench/README.md">工作台说明</a>。</p>
           <h2 id="clis-title">目前支持的 CLI</h2>
           <ul class="plain">
-            <li>Claude Code、Codex：可当主控、worker 和审查员，0.1.4 已带。</li>
-            <li>Antigravity CLI（<code>agy</code>）、opencode：可当主控、worker 和审查员。源码的 main 分支已支持，下一个版本带上。它们没有按会话的钩子，状态取自它们自己报给终端的信号，报不出来的显示“未知”；交付里的模型和思考强度记为“未知”。</li>
+            <li>Claude Code、Codex、Antigravity CLI（<code>agy</code>）、opencode：四种都可当主控、worker 和审查员，0.1.5 已带。</li>
+            <li>agy 和 opencode 没有按会话的钩子，状态取自它们自己报给终端的信号，报不出来的显示“未知”；交付里的模型和思考强度记为“未知”。</li>
             <li>agy 作主控时，请用 <code>agy --dangerously-skip-permissions</code> 启动，否则每条命令都要你在终端里确认。agy 作 worker 时同样全放开，靠门禁事后检查；它对每个新目录的信任会写进你的 <code>~/.gemini</code>。</li>
           </ul>
-          <h2 id="changes-title">0.1.4 更新</h2>
+          <h2 id="changes-title">0.1.5 更新</h2>
           <ul class="plain">
-            <li>窗格头和侧栏用同一个状态；用绝对路径或别名启动、没接入 Enchanted 的 CLI 会被标出来，状态显示“未知”，不再显示假的“运行中”。</li>
-            <li>侧栏把已结束的会话收进“历史”，流程页把本项目的任务排在前面；worker 窗格里的门禁回执改成几行中文摘要。</li>
-            <li>Claude Code 与 Codex 开局就知道 <code>a2a</code> 怎么用；不指定工作分支时自动用 <code>enchanted/项目名</code>。Codex 第一次启动新版会弹一次钩子信任框，需要你确认。</li>
+            <li>支持 agy 与 opencode：在项目终端里直接敲 <code>agy</code> 或 <code>opencode</code> 就接入，可以申请当主控，也可以被派去当 worker 和审查员。</li>
+            <li>门禁在交付时核对 worktree 的 HEAD、分支、Git 配置和钩子没有被 worker 改动，改了就拒收，对所有 CLI 都生效。</li>
           </ul>
-          <p>终端字体与中文对齐、权限弹窗提示等其余改动见 <a href="https://github.com/a1024053774/Enchanted/releases/tag/v0.1.4">0.1.4 发行说明</a>。</p>
+          <p>升级提醒和其余改动见 <a href="https://github.com/a1024053774/Enchanted/releases/tag/v0.1.5">0.1.5 发行说明</a>。</p>
         </div>
         <div class="prose">
           <h2>已知限制</h2>
           <ul class="plain">
             <li>只支持 macOS（Apple 芯片）；CLI 只支持上面列出的四种。</li>
+            <li>安装包是 ad-hoc 签名：每次换版后 macOS 会收回 Enchanted 访问“文稿”等文件夹的授权，终端里的 CLI 会停下来等系统弹窗，需要你本人允许一次。</li>
             <li>门禁约束的是互相信任的协作者，不是安全沙箱。</li>
             <li>没有做过可靠性、吞吐或成本的对照实验，本页不做这类承诺。</li>
             <li>应用内主控写的完成条件仍可能偏弱或写错；门禁会如实拒收，需要主控修卡重派。</li>

@@ -688,7 +688,7 @@ T-126 之前的安装把描述文件和每次启动的凭据都放在数据目�
 ## 运行时边界
 
 `GateRuntime` 由 `panes.ts` 实现每个后台实例一个 worker 及每次交付新开的 reviewer 窗格；
-worker 的 CLI 取任务卡 `executor.cli`（Claude Code 或 Codex，T-122），reviewer 默认与 worker 同 CLI 同模型（D24）。
+worker 的 CLI 取任务卡 `executor.cli`（Claude Code、Codex、agy 或 opencode；T-122、T-187），reviewer 默认与 worker 同 CLI 同模型（D24）。
 没有普通 attach 会话。生产 CLI 没有直接开库的运行时替代入口。
 
 Claude Code worker 的启动参数（证据 `evidence/2026-10-21-batch19/T-122/probe-01`～`05`）：`--session-id`、
