@@ -91,3 +91,10 @@ agy（只读）审查候选 cb8f002a8：`T-184 REVIEW PASS`。两项 P3：正常
 - F01（P3）：通过项是 8 项，不是 9 项。终端 D 只断言了没有提示，状态只记录、没有断言。已把上表改为 8/8。
 - F02（P3）：说变异和 setup-error 的 summary 没有落盘。这一条与事实不符：`mutant-name-only-01`、`mutant-never-clears-01`、`setup-error-01/green-02-codex-marker-false-positive` 等的 summary.json 都已提交。不改。
 - F03（P3，观察）：Claude 的判据假定 `--plugin-dir <目录>` 分成两个参数，与包装脚本一致；以后包装脚本改写法时要同步改判据，判据集中在 `terminalClis.ts` 一处。
+
+## 第三条验收：真实应用复看（T-186，2026-10-25 21:22）：PASS
+
+0.1.4 从 /Applications 以干净环境启动（核对过不带我会话的环境变量），在测试项目 a2a-lcu-demo 的项目终端里：
+- 用绝对路径启动 claude：窗格提示“这个会话没接入 Enchanted……”，状态“未知”。
+- 正常敲 `claude --model claude-haiku-5-5`：申请执行主控并由界面批准后，UserPromptSubmit、Stop 都送达后台（`terminal_turn`，seq 30977 running、30978 idle），侧栏与窗格头同时由空闲 → 运行中 → 空闲。
+- 途中 claude 卡在 macOS“文稿”授权（用户的 skill 链接到 ~/Documents；0.1.4 是新的 ad-hoc 签名二进制，旧授权不沿用），由用户本人允许。详见 T-186 RESULTS。

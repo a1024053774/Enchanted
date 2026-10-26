@@ -2,7 +2,7 @@
 id: T-186
 title: 发新 Release（含 T-174～T-185）并更新产品页
 type: build
-status: open
+status: closed
 blocked_by: [T-184, T-185]
 claimed_by:
 supersedes:
@@ -21,9 +21,13 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] GitHub Release 0.1.4 可下载，签名核对通过；产品页显示新版本与链接，Pages 200，lcu 在 Chrome 复看。
-- [ ] push 前凭据与私有数据扫描 0 命中；不 force push。
+- [x] GitHub Release 0.1.4 可下载，签名核对通过；产品页显示新版本与链接，Pages 200，lcu 在 Chrome 复看。
+- [x] push 前凭据与私有数据扫描 0 命中；不 force push。
 
 ## 不做
 
 范围外问题经问题上报。
+
+## Resolution
+
+2026-10-25 21:22 关闭：Release、Pages、Chrome 复看、替换 /Applications、真实应用复看全部完成，PASS。途中 claude 卡在 macOS“文稿”授权，由用户本人允许。见 evidence/2026-10-25-batch26/T-186/RESULTS.md。
