@@ -296,7 +296,7 @@ zsh；历史快照返回 `lifecycle: ended`。退出无法核对时保留 unknow
 有任何输出即撤下提示；不点按、不替用户回答弹窗。查询进程失败记 `silent_foreground_check_failed`，不显示提示。
 `pane_status` 的 `silent_foreground` 给出命令名与起始时间。
 
-项目终端里提交一行后约 1.5 秒，后台读前台进程的 argv 和启动环境里的 `A2A_SHIM`（`src/processArgs.py`，sysctl KERN_PROCARGS2，只用于判断、不保存；macOS 不给出系统自带程序的启动环境，agy、opencode 是第三方程序，读得到）。前台是包装脚本所包的 CLI（`claude`、`codex`、`agy`、`opencode`，判据集中在 `src/terminalClis.ts`）却没有包装脚本加的接入参数（Claude 的 `--plugin-dir …/plugin/enchanted-a2a`，Codex 的 `$A2A_TERMINAL_BIN/a2a` 钩子，agy、opencode 的 `A2A_SHIM`）时，说明它是用绝对路径或别名绕过包装脚本启动的：没有插件和钩子，后台收不到它的回合。窗格提示“这个会话没接入 Enchanted，状态和主控命令不可用。退出后直接敲 claude 重启”，侧栏与窗格头的状态显示“未知”，不显示假状态；每 5 秒复查一次，CLI 退出后提示撤下。读进程失败记 `cli_wiring_check_failed`，不显示提示。`pane_status` 的 `unwired_cli` 给出命令名与起始时间（T-184）。
+项目终端里提交一行后约 1.5 秒，后台读前台进程的 argv 和启动环境里的 `A2A_SHIM`（`src/processArgs.py`，sysctl KERN_PROCARGS2，只用于判断、不保存；macOS 不给出系统自带程序的启动环境，agy、opencode 是第三方程序，读得到）。前台是包装脚本所包的 CLI（`claude`、`codex`、`agy`、`opencode`，判据集中在 `src/terminalClis.ts`）却没有包装脚本加的接入参数（Claude 的 `--plugin-dir …/plugin/enchanted-a2a`，Codex 的 `$A2A_TERMINAL_BIN/a2a` 钩子，agy、opencode 的 `A2A_SHIM`）时，说明它是用绝对路径或别名绕过包装脚本启动的：没有插件和钩子，后台收不到它的回合。窗格提示“这个会话没接入 Enchanted，状态和主控命令不可用。退出后直接敲 <命令名> 重启”（命令名取前台 CLI，如 claude、agy），侧栏与窗格头的状态显示“未知”，不显示假状态；每 5 秒复查一次，CLI 退出后提示撤下。读进程失败记 `cli_wiring_check_failed`，不显示提示。`pane_status` 的 `unwired_cli` 给出命令名与起始时间（T-184）。
 
 agy 与 opencode 的回合状态不经钩子，取自它们自己报给终端的 OSC 7501（`ESC ] 7501 ; state=…[:kind=…] BEL`，T-187）：后台从项目终端的输出里读出最后一条报告（`pane_status` 的 `cli_turn`；一条报告被拆在两段输出里也能读出），前台程序退出后清掉。经角色申请成为主控的 agy、opencode 终端，侧栏与窗格头按它取状态：`working` 为运行中，`idle`、`done`、`clear` 为空闲，`blocked` 且 `kind=question` 为等待用户回答；`blocked` 的权限确认、登录和还没有报告时显示未知，不猜。`a2a request` 按运行它的 CLI 给子进程的环境认出是哪个 CLI（`CLAUDECODE`、`CODEX_THREAD_ID`、`OPENCODE_SESSION_ID`，agy 用包装脚本的 `A2A_SHIM=agy`），CLI 自己设的变量优先于包装脚本的。
 
@@ -372,7 +372,7 @@ B 在 T-075 的旧候选上通过隔离真实 Codex 的显式交付、机械检�
 也没有打开窗格的项目生效。侧栏的项目列表是“用户打开的目录”与“有门禁任务的项目”的并集；
 用户打开的项目以登记目录为仓库，否则要求各任务的仓库一致。
 
-任务详情不在界面填写。用户在项目终端里启动 claude 或 codex、告诉它身份是主控并发送要做的事；
+任务详情不在界面填写。用户在项目终端里启动 claude、codex、agy 或 opencode，告诉它身份是主控并发送要做的事；
 主控经角色申请（见“项目终端里的 a2a 与角色申请”）取得身份后，经门禁注册任务卡，任务随后出现在项目的任务栏和侧栏会话树中。
 
 使用同一个 CLI 生成模板，填写目标、非目标、路径、验收文件、argv 完成条件等字段后校验并保存：
@@ -394,7 +394,7 @@ node workbench/src/gates/cli.ts --state /绝对路径/state create --task a2a+T-
 旧库在新版后台启动时迁移一次：各表（含 JSON 列里的 task 引用）与成员资格里的旧 id 改为 `<原项目>+<原 id>`，行数不变；两个库分开提交，中途中断的迁移在下次启动时接着做完；已有的 `card_draft_owned` 事件原样保留，只用来给草稿定项目；没有归属项目的卡草稿使迁移失败
 （`task_migration_unowned_drafts`），不猜测归属。
 
-模板含 14 个字段。CLI 值精确为 `Claude Code` 或 `Codex`；任务类型为规格中的八个值。
+模板含 14 个字段。CLI 值精确为 `Claude Code`、`Codex`、`agy` 或 `opencode`；任务类型为规格中的八个值。
 完成条件格式为 `{"argv":["python3","acceptance/check.py","{worktree}"]}`，
 `{worktree}` 只能占据完整的一个参数，在独立 M worktree 中运行。完成条件非零退出仍
 返回 `oracle_failed`，这个名字只为保持已有公开错误预期，不存在旧 oracle 注册入口。
@@ -728,7 +728,8 @@ Claude reviewer 的整串 argv 由门禁逐位核对，settings 只能含 permis
 打包的工作台以产品启动配置起后台（`workbench/app/desktop.mjs`）：经用户的登录 shell 找到 `claude`，角色卡为
 打包的 `roles/worker.md` 与 `roles/reviewer.md`，版本为打包时的源码提交。登录 shell 里找得到 `codex` 时，
 产品配置同时给出它和用户自己的 `~/.codex`（T-127，用户裁定“直接用我的~/.codex”）；找不到就不配 Codex，
-派 Codex worker 会被拒绝（`launch_config_required`）。
+派 Codex worker 会被拒绝（`launch_config_required`）。`agy`、`opencode` 同样经登录 shell 查找，找到才配（用户自己的
+安装与 HOME，T-187）；找不到时派这两种 worker 也会被拒绝。
 后台同时可以跑多个 worker（T-131 去掉了 S1 的 `single_worker_slice` 限制），不设并发上限；同一项目里允许路径有交集的派发，仍须主控给出 `overlap-reason`。
 旧 `native-runtime.ts` 是隔离测试边界；它的旧证据不能证明新后台或真实窗格可用。
 
@@ -1107,7 +1108,7 @@ worker 上报的问题仍未关闭、而它所在的 attempt 已因 `revise` 作
 用户亲自批准/拒绝角色申请也写入统一用户输入记录（T-162），与角色决定事件在同一事务提交；记录页显示申请 id 与事件序号。
 同角色其他申请的自动拒绝、批准过期不是用户输入，已发生的用户批准仍保留。
 可按任务、会话筛选；门禁派生了 `human_intervention` 的输入带“人工介入”标记，与门禁事件一一对应。项目终端里只记已批准的
-主控收到的整句和对它提问的答复：Claude Code 与 Codex 主控都记，Codex 主控要在用户信任 a2a 钩子之后才记（边界见“项目终端里的 a2a 与角色申请”）；
+主控收到的整句和对它提问的答复：Claude Code 与 Codex 主控都记，Codex 主控要在用户信任 a2a 钩子之后才记；agy、opencode 主控不记（没有按会话的钩子，T-187）（边界见“项目终端里的 a2a 与角色申请”）；
 终端里的其他键入只转发、不记录。
 记录页下方另有“门禁回执”（T-179，只读命令 `relay_receipts`）：worker、审查员等经中继发出的请求（submit、status、issue、review_submit）得到的门禁答复，按时间倒序，每条显示摘要，可展开完整 JSON（即 `relay_results` 原文）；不进用户输入记录。发回 worker 窗格的回执只有这几行摘要（命令是否受理；任务、状态、候选提交短号；下一步），发回主控的回执仍是完整 JSON。
 

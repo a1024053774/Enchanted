@@ -3771,7 +3771,7 @@ export class A2AGates {
         }
         const card = validateTaskCard(source, taskName(taskId));
         if (args.command === "card_validate") return { ok: true, card,
-          details: { rules: "13 个字段；非目标与允许路径非空；完成条件为 argv；任务类型八选一；CLI 为 Claude Code 或 Codex。" } };
+          details: { rules: `14 个字段；非目标与允许路径非空；完成条件为 argv；任务类型八选一；CLI 为 ${workerClis.join("、")} 之一。` } };
         requireGate(Number.isSafeInteger(args.expected_version) && args.expected_version! >= 0, "invalid_card_version");
         this.db.exec("BEGIN IMMEDIATE");
         try {

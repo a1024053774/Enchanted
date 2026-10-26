@@ -310,7 +310,7 @@
           <label><input type="checkbox" data-setting="notifications" data-fk="setting:notifications" ${ui.notifications ? 'checked' : ''}>等待用户回答时提醒</label>
           <label><input type="checkbox" data-setting="dockBadges" data-fk="setting:dockBadges" ${ui.dockBadges ? 'checked' : ''}>后台时显示 Dock 待答数量</label></fieldset></section>
         <section><h3>主控派发的默认模型</h3>
-          <p class="settings-note">主控派发新会话时按角色取这里的模型和思考强度，主控也可以按你在对话里的要求临时改。只影响之后启动的会话；已经打开的终端、正在运行的会话，以及你在终端里自己启动的 claude / codex 都不受影响。</p>
+          <p class="settings-note">主控派发新会话时按角色取这里的模型和思考强度，主控也可以按你在对话里的要求临时改。只影响之后启动的会话；已经打开的终端、正在运行的会话，以及你在终端里自己启动的 claude、codex、agy、opencode 都不受影响。</p>
           <form class="execution-settings" aria-label="主控派发的默认模型" data-execution>
             <label>角色<select data-exec-role data-fk="exec:role">${Object.entries(executionLabels).map(([key, label]) =>
               `<option value="${key}" ${ui.execRole === key ? 'selected' : ''}>${label}</option>`).join('')}</select></label>

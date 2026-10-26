@@ -33,6 +33,8 @@ Enchanted 是面向 macOS 的多 agent 协作工作台，a2a 是它的编排内�
 xattr -dr com.apple.quarantine /Applications/Enchanted.app
 ```
 
+因为是 ad-hoc 签名，每次换版后 macOS 都会把它当成新应用，收回它访问“文稿”等文件夹的授权。终端里的 CLI 读这些目录时会停下来等系统弹窗（弹窗可能被别的窗口挡住），需要你本人允许一次。
+
 产品显示名为 Enchanted，bundle id 保持 `org.a2a.workbench`。后台数据目录仍为 `~/Library/Application Support/a2a-orchestrator`，默认界面数据在其 `ui/` 子目录；改名不迁移数据。
 
 ## 从源码构建
