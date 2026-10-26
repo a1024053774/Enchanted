@@ -11,10 +11,12 @@
 //   turns; the gate rebuilds a reviewer's launch with it to compare. Neither has an OS sandbox: agy approves every tool
 //   itself (the user's choice C, 2026-10-25), opencode approves what its configuration does not deny; the gate checks
 //   afterwards. opencode takes its model through per-session configuration and has no effort setting.
+// - inputAfterCursor: the first idle report comes before the CLI takes input; it takes input once it shows the cursor
+//   (ESC [ ? 25 h) after that report (T-187 RESULTS, opencode paste probe). The backend's first task waits for it.
 export type LaunchFacts = { argv: string[]; shim: string | null };
 export type ManagedLaunch = { executable: string; workspace: string; model: string; effort: string; extraDirectories: string[] };
 export type TerminalCli = { wired: (launch: LaunchFacts) => boolean; turns: "hooks" | "osc7501";
-  inCommand: (env: NodeJS.ProcessEnv) => boolean;
+  inCommand: (env: NodeJS.ProcessEnv) => boolean; inputAfterCursor?: boolean;
   managed?: (launch: ManagedLaunch) => { argv: string[]; env: Record<string, string> } };
 
 export const terminalClis: Record<string, TerminalCli> = {
@@ -22,7 +24,7 @@ export const terminalClis: Record<string, TerminalCli> = {
     wired: ({ argv }) => argv.some((arg, index) => arg === "--plugin-dir" && (argv[index + 1] ?? "").endsWith("/plugin/enchanted-a2a")) },
   // The hook commands name the a2a shim through the terminal's environment, unexpanded in the argument itself.
   codex: { turns: "hooks", inCommand: env => Boolean(env.CODEX_THREAD_ID), wired: ({ argv }) => argv.some(arg => arg.includes('$A2A_TERMINAL_BIN/a2a')) },
-  opencode: { turns: "osc7501", inCommand: env => Boolean(env.OPENCODE_SESSION_ID), wired: ({ shim }) => shim === "opencode",
+  opencode: { turns: "osc7501", inputAfterCursor: true, inCommand: env => Boolean(env.OPENCODE_SESSION_ID), wired: ({ shim }) => shim === "opencode",
     managed: ({ executable, workspace, model }) => ({ argv: [executable, "--standalone", "--auto", workspace],
       env: { OPENCODE_CONFIG_CONTENT: JSON.stringify({ model }) } }) },
   agy: { turns: "osc7501", inCommand: env => env.A2A_SHIM === "agy", wired: ({ shim }) => shim === "agy",

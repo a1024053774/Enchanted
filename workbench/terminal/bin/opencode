@@ -12,7 +12,7 @@ case ${1:-} in ''|-*) ;; *) [ -d "$1" ] || exec "$real" "$@" ;; esac
 for argument in "$@"; do
   case $argument in --server|--server=*|--standalone) exec "$real" "$@" ;; esac
 done
-orientation=$(cd "$(dirname "$0")/.." && pwd -P)/orientation.md
+orientation=$(cd "$(dirname "$0")/.." && pwd -P)/orientation/AGENTS.md
 OPENCODE_CONFIG_CONTENT=$(printf '{"instructions":["%s"]}' "$(printf '%s' "$orientation" | sed 's/[\\"]/\\&/g')")
 export OPENCODE_CONFIG_CONTENT
 exec "$real" --standalone "$@"

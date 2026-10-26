@@ -1,6 +1,6 @@
 # T-187 结果：增加 agy 与 opencode 的支持并实测
 
-## 状态：INCOMPLETE（终端侧、Git 元数据守护、agy/opencode 作 worker 与审查员已实现并通过替身端到端测试；真实 agy、opencode 的 worker 运行与第四轮审查还没做）
+## 状态：INCOMPLETE（实现与两条真实运行都已通过；等第五轮独立审查）
 
 ## 依据
 
@@ -9,9 +9,9 @@ ticket T-187（ready_rev 1；2026-10-25 起 ready_rev 2）。用户 2026-10-25 �
 ## 做了什么（终端侧：作主控与普通终端）
 
 - `src/terminalClis.ts` 是唯一的 CLI 登记处。每个 CLI 登记三件事：怎样判断它经过了包装脚本、回合状态从哪里来（钩子还是 OSC 7501）、怎样从命令的环境认出它。新增 agy、opencode。这里还有 OSC 7501 的解析，一条报告被拆在两段输出里也能读出。
-- 包装脚本 `terminal/bin/agy`：设 `A2A_SHIM=agy` 和 `AGY_CLI_OSC7501=on`（用户自己设了就用用户的）。agy 没有按会话的指令参数，所以拿不到开局说明。
+- 包装脚本 `terminal/bin/agy`：设 `A2A_SHIM=agy` 和 `AGY_CLI_OSC7501=on`（用户自己设了就用用户的）。agy 没有按会话的指令参数；第五轮起交互启动时加 `--add-dir <开局说明目录>`，agy 读其中的 AGENTS.md（见下“真实运行”）。
 - 包装脚本 `terminal/bin/opencode`：设 `A2A_SHIM=opencode`，用 `OPENCODE_CONFIG_CONTENT` 把开局说明作为 instructions 传入，并加 `--standalone`。有子命令、用户自己传了 `--server`/`--standalone`、或用户自己设了 `OPENCODE_CONFIG_CONTENT` 时原样转发。
-- 开局说明挪到 `terminal/orientation.md`，只此一份：Claude、Codex 通过 `a2a session-context` 读它，opencode 作为 instructions 读它。
+- 开局说明挪到 `terminal/orientation/AGENTS.md`（第五轮从 `terminal/orientation.md` 再挪一次，好让 agy 按目录读入），只此一份：Claude、Codex 通过 `a2a session-context` 读它，opencode 作为 instructions 读它，agy 作为工作区目录的 AGENTS.md 读它。
 - `processArgs.py` 增加读取启动环境里的 `A2A_SHIM`，只读这一个变量。绕过包装脚本启动的 agy、opencode 也会得到 T-184 的“没接入”提示。
 - 后台读出项目终端里最后一条 OSC 7501 报告，前台程序退出后清掉。agy、opencode 主控的侧栏与窗格头状态按报告取：working → 运行中；idle、done、clear → 空闲；提问 → 等待用户回答；权限确认、登录、还没有报告 → 未知。
 - `a2a request` 改为按 `terminalClis.ts` 认出 CLI：`CLAUDECODE`、`CODEX_THREAD_ID`、`OPENCODE_SESSION_ID`、`A2A_SHIM=agy`，CLI 自己设的变量优先于包装脚本的。角色申请接受登记过的全部 CLI。
@@ -33,13 +33,13 @@ ticket T-187（ready_rev 1；2026-10-25 起 ready_rev 2）。用户 2026-10-25 �
 
 ## 还没做
 
-- 真实运行（验收第 2 条）：agy 主控派卡给 opencode worker、opencode 主控派卡给 agy worker，各自独立审查后集成。用户 2026-10-25 已选 C，信任写入经 agy 自身流程写用户的 `~/.gemini`，条数在完成报告里列出。
-- 第四轮独立审查。
+- 第五轮独立审查（本轮改动：agy 开局说明、opencode 等光标再派发、真实运行测试）。
 
 ## 已知限制
 
 - agy、opencode 主控：用户对它们说的话和对提问的答复不记入用户输入（这两个 CLI 没有按会话的钩子）。
-- agy 没有开局说明。
+- agy 作主控须以 `agy --dangerously-skip-permissions` 启动（用户 2026-10-25 选定）；`--mode auto` 下每条命令都要用户在终端确认。
+- agy 受管 worker、审查员不经包装脚本，没有开局说明；角色卡照常是首条提示的开头。
 - 权限确认、登录时状态显示未知。
 - 一个终端里先后运行两个 CLI 且中间没在 shell 提示符下提交过一行时，后一个 CLI 发出第一条报告之前，会短暂沿用前一个 CLI 的最后一条报告。
 
@@ -123,3 +123,26 @@ probe-01 把一个临时夹具目录写进了用户 agy 配置的 `trustedWorksp
 - 另有一次回归：`panes.ts` 里新加的局部变量 `cli` 遮住了模块级的 gate CLI 路径，Claude worker 的钩子命令变成 `node 'Claude Code' …`，会话开始钩子报 `MODULE_NOT_FOUND`。修前的 main 上同一案例通过，改名后通过。`superseded/` 是修这些之前的一批运行。
 
 已知限制：后台重启后不恢复 agy、opencode 的受管窗格；回合内工具调用不逐条记录；agy worker 没有开局说明；opencode 没有按会话的思考强度参数。
+
+## 独立审查第四轮（`review-agy-04.md`，候选 0a56efa44）：`T-187 REVIEW INCOMPLETE`
+
+INCOMPLETE 的理由只是真实 worker 运行还没做；没有 P0–P2。两条 P3 记为限制，不改：
+- F1：`agyTrust` 要求 `~/.gemini/antigravity-cli/settings.json` 已存在。没登录过 agy 的 HOME 没有这个文件，也跑不了无人值守的 agy；这时记 `agy_trust_failed`、不按键。
+- F2：opencode 受管启动不传额外目录。opencode 没有对应的放行参数，`--auto` 下也没有 OS 沙箱；建窗格与门禁复核用同一个构造，两边一致。
+
+## 真实运行（验收第 2 条）
+
+`test_t187_real_worker_e2e.py`：隔离后台与 Electron，CLI 用用户本机安装与真实 HOME（用户 2026-10-25：“用我电脑原生的就行,隔离 HOME 可能不太行”），不登录、不复制凭据。项目终端里启动一种 CLI → 让它申请执行主控 → 测试代用户在界面批准 → 主控运行测试写好的 dispatch.sh、verify.sh、integrate.sh（命令仍以主控自己的终端身份执行，脚本只免去模型手抄 JSON）→ 另一种 CLI 的 worker 交付 → 同 CLI 的审查员只读审查 → 门禁集成。每次 4 条真实提示。截图与屏幕文本含 agy 账号邮箱，只在外置盘（各目录 `fixture.archive.json`）。
+
+| 运行 | 结果 | 说明 |
+| --- | --- | --- |
+| `real-worker-opencode-agy-03` | PASS 8/8 | opencode 主控（申请记 opencode）→ agy worker（`gemini-3.8-flash-high`、high）。侧栏 worker 未知 → 运行中 → 空闲；审查员 agy 只读审查“可合并”（4 个变异全被完成条件拒绝）；集成后 main 有 done.txt；尾注 `A2A-Tool: 1.4.7`、`A2A-Model: unknown`、`A2A-Effort: unknown`。**agy 信任写入用户 `~/.gemini/antigravity-cli/settings.json` 共 2 条**：worker worktree 与审查 checkout 各一条（都在已删除的 /private/tmp 夹具下），其他键不变 |
+| `real-worker-agy-opencode-05` | PASS 8/8 | agy 主控（`agy --dangerously-skip-permissions`，项目目录在已信任的 `/private/tmp/t187-probe/repo`）自己读开局说明、运行 `a2a request executor`，申请记 agy → opencode worker（`opencode/big-pickle`）→ opencode 审查员“通过” → 集成；尾注 `A2A-Tool: opencode v2.1.4`、模型强度 unknown。信任写入 0 条 |
+
+本组开发中的失败（现场保留）：
+- `setup-error-01/real-worker-opencode-agy-01-idle-wait-mark`、`-02-pane-not-yet`、`-03-done-not-end`（agy 那条在 `setup-error-01/real-worker-agy-opencode-03-done-not-end`）：测试自身问题（等回合结束的起点、窗格尚未建好就查、agy 以 done 结束未再报 idle）。
+- `real-worker-agy-opencode-01`：**产品缺口**。agy 主控没有开局说明，不知道 `a2a request`，只回复“已就绪”，角色申请超时。修法：包装脚本交互启动时 `--add-dir terminal/orientation`，开局说明改名为该目录下的 AGENTS.md。实测：`agy --print` 加 `--add-dir <只含 AGENTS.md 的目录>` 能按其中的指令作答，信任列表条数不变。替身测试 `green-08` PASS（新检查 `agy_orientation_same`）；`red-head-orientation-01`（`--revision HEAD`，修前）只有 `agy_orientation_same` 失败。
+- `real-worker-agy-opencode-02`：开局说明生效（agy 自己运行了 `a2a help`），但 `--mode auto` 下 agy 对每条 shell 命令弹权限框，测试不代批，申请超时。agy 没有按会话的命令白名单；用户选“主控也用全放开”，README 写明。
+- `real-worker-agy-opencode-04`：**产品缺陷**。真实 opencode worker 的首个任务丢了（`turn_start_missing`，停在 claimed）：后台在 opencode 第一次报 idle 时就粘贴，opencode 那时还不收输入。探针 `opencode_paste_probe.py`（`opencode-paste-probe-01.txt`）：idle 时粘贴 3/3 丢失；idle 后第一次显示光标（ESC[?25h，约 0.36 s 后）时粘贴 3/3 进入回合。修法：`terminalClis.ts` 给 opencode 登记 `inputAfterCursor`，`panes.ts` 的 `reportedTurns` 对它在首次 idle 之后看到光标显示才算会话已启动、才派发。替身按真实行为改为 idle 后 1 秒、显示光标前丢弃输入：`worker-green-opencode-03` PASS，`worker-red-head-cursor-01`（`--revision HEAD`，修前）失败于 `submitted`，`worker-green-agy-03` PASS（agy 不受影响）。
+
+清理：每次运行的夹具与 `/private/tmp/t187-probe/repo` 归档外置盘后删除；一次运行残留的测试后台进程已结束。

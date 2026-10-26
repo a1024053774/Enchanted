@@ -105,7 +105,7 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
 已结束或历史 attempt 的 agent 只读。
 在单 agent 视图中重命名或关闭，只修改该会话的名称或布局叶子，保留其余会话的分屏方向与名称。
 项目终端的布局保存只包含普通终端，项目查询中同属该项目的任务 agent 不进入终端布局。
-项目终端里的 Claude Code（经插件）和 Codex（经包装脚本的 `-c hooks.SessionStart`）在会话开始时都经 SessionStart 钩子（`a2a session-context`，输出 `hookSpecificOutput.additionalContext`）收到同一份开局说明（文字只在 `terminal/orientation.md` 一处，opencode 把这个文件作为 instructions 读入，T-187）：`a2a` 在 PATH 上、`a2a help`、用户要它当主控就直接 `a2a request`、当主控前先读使用说明（Claude 是 a2a skill，其他 CLI 看 `a2a help`）；只在有终端身份时输出（T-181、T-185）。用户自己用 `-c hooks.SessionStart=…` 传的开局钩子优先，替换 Enchanted 的这一项；用户 hooks.json 里的开局钩子照常一起运行。新钩子第一次在用户自己的 Codex 里启动时，Codex 会弹一次钩子信任框，由用户本人确认，a2a 不写 Codex 配置。
+项目终端里的 Claude Code（经插件）和 Codex（经包装脚本的 `-c hooks.SessionStart`）在会话开始时都经 SessionStart 钩子（`a2a session-context`，输出 `hookSpecificOutput.additionalContext`）收到同一份开局说明（文字只在 `terminal/orientation/AGENTS.md` 一处；opencode 把这个文件作为 instructions 读入，agy 经包装脚本的 `--add-dir` 把这个目录加进工作区、读其中的 AGENTS.md，T-187）：`a2a` 在 PATH 上、`a2a help`、用户要它当主控就直接 `a2a request`、当主控前先读使用说明（Claude 是 a2a skill，其他 CLI 看 `a2a help`）；只在有终端身份时输出（T-181、T-185）。用户自己用 `-c hooks.SessionStart=…` 传的开局钩子优先，替换 Enchanted 的这一项；用户 hooks.json 里的开局钩子照常一起运行。新钩子第一次在用户自己的 Codex 里启动时，Codex 会弹一次钩子信任框，由用户本人确认，a2a 不写 Codex 配置。
 侧栏接口把普通终端放在 `terminals`；`agents` 包含 agent 会话和终端最近一次确认生效的主控角色。终端已结束时保留主控条目；交回角色而终端仍运行时恢复为普通终端，状态取终端生命周期。
 T-177：已结束的会话和被新 attempt 取代的会话折进每个任务下的“历史 N 个”，默认收起；子会话仍在用时父会话不折。“清理”只拿掉已结束的会话（追加 `sidebar_hidden` 事件，仅操作员；记录与门禁事件不删，运行中的会话拒绝 `session_not_ended`）。已集成任务仍空闲的当前 worker 显示“回收”，经门禁 `reclaim`。没有指定启动目标时，窗口打开最近活跃、未结束的会话。
 终端设 `minimumContrastRatio: 4.5`：按深色背景配色的 CLI（如 Claude Code 问答框正文用的 256 色纯白）在浅色配色下会被自动调深，不改 CLI 的配置（T-181）。
@@ -150,7 +150,7 @@ T-177：已结束的会话和被新 attempt 取代的会话折进每个任务下
   指向 `a2a help`（用户用 `-c developer_instructions=…` 传了，或自己的 Codex 配置文件里设了这一项时不加）。挂法的实测依据见 T-120。
 - `agy`、`opencode`（T-187）：同样跳过自己找到用户的 CLI、原样转发参数，并在环境里设 `A2A_SHIM=<名字>` 标明经过了包装脚本。
   `agy` 另设 `AGY_CLI_OSC7501=on`（用户自己设了就用用户的），让 agy 把自己的回合状态用 OSC 7501 报给终端；agy 没有按会话的
-  指令参数，拿不到开局说明。`opencode` 用 `OPENCODE_CONFIG_CONTENT` 把开局说明文件（`terminal/orientation.md`）作为本会话的
+  指令参数，交互启动时包装脚本用 `--add-dir` 加入开局说明所在目录，agy 读其中的 AGENTS.md（带子命令时原样转发）。`opencode` 用 `OPENCODE_CONFIG_CONTENT` 把开局说明文件（`terminal/orientation/AGENTS.md`）作为本会话的
   instructions 传入，并加 `--standalone`：只有私有服务读本会话的环境，连到共享后台服务时这份配置不生效；带子命令、用户自己传
   `--server`/`--standalone` 或自己设了 `OPENCODE_CONFIG_CONTENT` 时原样转发、不加。实测依据见 `evidence/2026-10-25-batch26/T-187/facts.md`。
 - 支持哪些 CLI、怎样判断经过了包装脚本、回合状态从哪里来、怎样认出 `a2a request` 是哪个 CLI 发的，集中在 `src/terminalClis.ts`；
@@ -306,6 +306,7 @@ agy、opencode 也可作 worker 与审查员（任务卡 `executor.cli` 为 `agy
 - agy 的目录信任：agy 对每个新目录弹一次“Trust this folder?”。后台核对屏幕上选中的是 “Yes, I trust this folder”、目录是本会话的 worktree 后才按回车，再核对 `~/.gemini/antigravity-cli/settings.json` 只有 `trustedWorkspaces` 多了这一个目录、其他键不变；写入条数记在 `agy_trust_written` 事件里。对不上就记 `agy_trust_failed`，不按键。每次派发（worker 与审查员各一个新目录）写一条。
 - 审查员只读：审查 checkout 在启动前 chmod 去掉写权限（`review_checkout_read_only`），门禁的审查启动检查核对它不可写；回收前恢复。
 - Git 元数据：门禁在认领后记下 worktree 的 HEAD、仓库与 worktree config、hooks 目录，交付验收时比对，并检查含有 worker 提交的 ref；有改动以 `git_metadata_changed` 拒绝（对所有 worker 生效）。
+- agy 作主控：`--mode auto` 下 agy 对每条 shell 命令（含 `a2a help`、`a2a request`）都弹权限框，又没有按会话的命令白名单，所以用户在项目终端里用 `agy --dangerously-skip-permissions` 启动它（用户 2026-10-25 选定）；不这样启动，就要每条命令都由用户在终端里确认。主控能做的事仍只经角色申请与门禁。opencode 主控照常用 `opencode`。
 - 限制：后台重启后不恢复 agy、opencode 的受管窗格；回合内的工具调用不逐条记录；agy worker 没有开局说明，角色卡照常作为首条提示的开头；`blocked`（权限、登录）显示未知。
 
 每格右上角的“⋯”和右键菜单提供重命名、向右分屏、向下分屏、放大/还原、把右键发给窗格、关闭。

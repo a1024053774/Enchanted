@@ -222,6 +222,8 @@ type Pane = {
   nativeFile?: string;
   // Claude worker start-up: the folder-trust screen as read so far, and whether it was answered.
   startupScreen?: string; trustAnswered?: boolean; startupOutputAt?: number; started?: boolean;
+  // T-187: output since the first idle report of a CLI that takes input only after it shows the cursor (inputAfterCursor).
+  afterIdle?: string;
   // Project terminal (T-174): when it last wrote output, whether input since then still needs a silence check, and the
   // foreground program that has written nothing since it started.
   outputAt?: number; silenceCheck?: boolean; silenceBusy?: boolean; silentForeground?: { command: string; since: string } | null;
@@ -1840,12 +1842,13 @@ export class Panes implements GateRuntime {
   // Set by the daemon: ends a reported turn through the same signal command a Stop hook uses.
   reportedTurnEnd?: (pane: Pane, stop: Record<string, unknown>) => Promise<void>;
   // T-187: the turns of a managed agy or opencode session, from its OSC 7501 reports. The first idle report is its ready
-  // signal; a working report after a submitted task starts that turn (its id is the backend's); the next idle, done or
+  // signal (opencode: the cursor shown after it, inputAfterCursor); a working report after a submitted task starts that turn (its id is the backend's); the next idle, done or
   // clear ends it. agy asks to trust each new folder before it starts (agyTrust). A question is recorded and not shown
   // as waiting (T-124 ruling 1a); a permission or sign-in wait is recorded and shown as it is, with no key pressed.
   reportedTurns(pane: Pane, data: string) {
     const read = readOsc7501(pane.oscCarry ?? "", data);
     pane.oscCarry = read.carry;
+    let seeded: string | undefined;
     if (!pane.started) pane.startupOutputAt = Date.now();
     if (!pane.started) pane.startupScreen = (pane.startupScreen! + data.replace(/\x1b\[[0-?]*[ -\/]*[@-~]|\x1b\][^\x07]*?(?:\x07|\x1b\\)/g, "").replace(/\s+/g, "")).slice(-4096);
     for (const turn of read.turns) {
@@ -1859,7 +1862,10 @@ export class Panes implements GateRuntime {
         }
       } else if (["idle", "done", "clear"].includes(turn.state)) {
         // After a trust answer the session starts once the write is checked (agyTrust), whichever comes first.
-        if (!pane.started) { if (!pane.trustAnswered || pane.trustWritten !== undefined) this.reportedStart(pane); }
+        if (!pane.started) {
+          if (!terminalClis[pane.record.cli]?.inputAfterCursor) { if (!pane.trustAnswered || pane.trustWritten !== undefined) this.reportedStart(pane); }
+          else if (pane.afterIdle === undefined) { const at = data.lastIndexOf("7501;state="); pane.afterIdle = ""; seeded = at < 0 ? data : data.slice(at); }
+        }
         else if (pane.active?.nativeTurn && !pane.stopInProgress && !pane.reportedEnding) {
           pane.reportedEnding = true;
           const stop = { hook_event_name: "Stop", source: "osc7501", session_id: pane.native, turn_id: pane.active.nativeTurn,
@@ -1872,6 +1878,11 @@ export class Panes implements GateRuntime {
         else this.store.event(turn.kind === "question" ? "native_question_ignored" : "native_wait_reported",
           { ...turn, submission: pane.active?.id ?? null }, pane.record);
       }
+    }
+    if (!pane.started && pane.afterIdle !== undefined) {
+      const after = pane.afterIdle + (seeded ?? data);
+      if (after.includes("\x1b[?25h")) this.reportedStart(pane);
+      else pane.afterIdle = after.slice(-5);
     }
   }
   private reportedStart(pane: Pane) {

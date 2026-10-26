@@ -1,0 +1,14 @@
+真实 opencode 2.1.4（--standalone --auto，模型 opencode/big-pickle），PTY 140x40，探针 opencode_paste_probe.py。
+在首次 OSC 7501 idle 报告之后写入 bracketed paste + 回车，看 20 秒内是否出现 working 报告。
+
+命令                                              结果
+python3 opencode_paste_probe.py 0 oc-delay0.raw    no_working_20s（idle 后 0.31 s 粘贴）
+python3 opencode_paste_probe.py 0 oc-delay0-2.raw  no_working_20s
+python3 opencode_paste_probe.py 0 oc-delay0-3.raw  no_working_20s
+python3 opencode_paste_probe.py 3 oc-delay3.raw    working（idle 后 3 s）
+python3 opencode_paste_probe.py 0 oc-cursor-1.raw cursor  working（idle 之后第一次 ESC[?25h 时粘贴，距 idle 0.36 s）
+python3 opencode_paste_probe.py 0 oc-cursor-2.raw cursor  working（0.36 s）
+python3 opencode_paste_probe.py 0 oc-cursor-3.raw cursor  working（0.37 s）
+
+结论（事实）：opencode 的首次 idle 报告早于输入框可收输入；idle 之后第一次显示光标（ESC[?25h）时它已收输入。
+opencode 不开 bracketed paste 模式（输出中没有 ESC[?2004h）。原始输出在 /Volumes/WD-Elements/a2a-evidence/2026-10-25-batch26/T-187/opencode-paste-probe/。

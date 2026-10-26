@@ -52,6 +52,14 @@ static int managed_main(int agy, const char *self) {
     if (system(command) != 0) return 1;
   }
   report("state=idle");
+  // Real opencode reports its first idle before its input box takes keys: what arrives until it shows the cursor is
+  // lost (T-187 RESULTS, opencode paste probe: 3 of 3 pastes at the idle report lost, 3 of 3 at the cursor taken).
+  if (!agy) {
+    usleep(1000000);
+    tcflush(0, TCIFLUSH);
+    printf("\033[?25h");
+    fflush(stdout);
+  }
   for (;;) {
     size_t size = 0, capacity = 65536;
     char *text = malloc(capacity);

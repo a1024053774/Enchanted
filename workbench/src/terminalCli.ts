@@ -52,8 +52,9 @@ const usage = `a2a：Enchanted 工作台的编排命令（在 Enchanted 的项�
 // plugin) and Codex (the shim's -c hooks.SessionStart) both run this at session start and add additionalContext to
 // the session's context, so the text holds for either CLI.
 // T-185, T-187: one orientation for every terminal CLI: Claude and Codex get it from their session-start hook, opencode
-// reads the file as its instructions (terminal/bin/opencode).
-const orientation = readFileSync(fileURLToPath(new URL("../terminal/orientation.md", import.meta.url)), "utf8").trimEnd();
+// reads the file as its instructions (terminal/bin/opencode), agy reads it as the AGENTS.md of a directory the shim adds
+// to its workspace (terminal/bin/agy).
+const orientation = readFileSync(fileURLToPath(new URL("../terminal/orientation/AGENTS.md", import.meta.url)), "utf8").trimEnd();
 
 // The program names (argv[0]) of this command's ancestor processes, nearest first (T-187: a CLI started inside another).
 function ancestors(): string[][] {

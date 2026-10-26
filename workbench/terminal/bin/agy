@@ -1,8 +1,11 @@
 #!/bin/sh
 # Enchanted shim (T-187): run the user's own agy with its terminal state reports (OSC 7501) on, which Enchanted reads for
 # this terminal's turn states; agy asks the terminal first and Enchanted's does not answer. A2A_SHIM marks the launch
-# (src/terminalClis.ts). The user's own AGY_CLI_OSC7501 wins. agy takes no per-session instructions: no orientation.
+# (src/terminalClis.ts). The user's own AGY_CLI_OSC7501 wins. agy has no per-session instruction option, but it reads the
+# AGENTS.md of each workspace directory: an interactive start gets the orientation's directory as one (--add-dir;
+# probe in T-187 RESULTS). A subcommand passes through unchanged.
 . "$(dirname "$0")/real-cli.sh"
 real=$(a2a_real_cli agy) || exit 127
 export A2A_SHIM=agy AGY_CLI_OSC7501="${AGY_CLI_OSC7501:-on}"
-exec "$real" "$@"
+case ${1:-} in ''|-*) ;; *) exec "$real" "$@" ;; esac
+exec "$real" --add-dir "$(cd "$(dirname "$0")/.." && pwd -P)/orientation" "$@"

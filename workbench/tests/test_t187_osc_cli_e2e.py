@@ -160,8 +160,20 @@ def main():
 
         # 1. agy as typed.
         a = terminal('A')
-        type_in(a, 'agy\r')
+        agy_launch_out = fixture.dir / 'agy-launch.txt'
+        type_in(a, f'export T187_LAUNCH_OUT={agy_launch_out}; agy\r')
         fixture.wait('A 的 agy 启动', lambda: 'agyfakeready' in screen(a), 30)
+        type_in(a, 'launch\r')
+        fixture.wait('A 的启动记录', lambda: agy_launch_out.exists() and 'launchwritten' in screen(a), 30)
+        agy_argv = [v for k, v in (l.split('\t', 1) for l in agy_launch_out.read_text(encoding='utf-8').splitlines()) if k == 'argv']
+        # agy reads the AGENTS.md of each workspace directory; the shim adds the orientation's directory (real probe in RESULTS).
+        added = agy_argv[agy_argv.index('--add-dir') + 1] if '--add-dir' in agy_argv[:-1] else None
+        given = (Path(added) / 'AGENTS.md').read_text(encoding='utf-8').strip() if added and (Path(added) / 'AGENTS.md').is_file() else None
+        context = subprocess.run([shutil.which('node'), str(Path(fixture.source) / 'workbench/src/terminalCli.ts'), 'session-context'], capture_output=True, text=True,
+                                 env={**os.environ, 'A2A_TERMINAL_SOCKET': 'x', 'A2A_TERMINAL': 'x', 'A2A_TERMINAL_TOKEN': 'x'})
+        expected = json.loads(context.stdout)['hookSpecificOutput']['additionalContext'] if context.stdout.strip() else None
+        report['observed']['agy_launch'] = agy_argv
+        check('agy_orientation_same', expected is not None and given == expected.strip(), dict(argv=agy_argv, given=given))
         asked = request_role(a, 'executor')
         check('agy_request_cli', asked.get('cli') == 'agy', asked)
         settle('agy_idle_after_request', a, 'idle')

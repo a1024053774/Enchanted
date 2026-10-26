@@ -1,0 +1,282 @@
+{
+  "status": "PASS",
+  "argv": [
+    "tests/test_t187_real_worker_e2e.py",
+    "--controller",
+    "opencode",
+    "--summary",
+    "../evidence/2026-10-25-batch26/T-187/real-worker-opencode-agy-03/summary.json"
+  ],
+  "controller": "opencode",
+  "worker": "agy",
+  "real_prompts": 4,
+  "checks": [
+    {
+      "name": "request_cli",
+      "detail": {
+        "id": "6cc8bde6-f8b5-4fcf-aaf2-16263e8ecb6c",
+        "launch": "1aa32d42-bfca-4edd-b203-a350df60f75b",
+        "project": "demo",
+        "role": "executor",
+        "role_label": "执行主控",
+        "cli": "opencode",
+        "requested_at": "2026-10-26T01:36:37.837Z",
+        "terminal_cwd": "/private/tmp/t187x-fhvw66ro/demo",
+        "terminal_opened_at": "2026-10-26T01:36:20.281Z"
+      }
+    },
+    {
+      "name": "worker_running_seen",
+      "detail": [
+        {
+          "phase": "worker",
+          "t": 1792978612.0,
+          "task": "preparing",
+          "worker": null
+        },
+        {
+          "phase": "worker",
+          "t": 1792978613.0,
+          "task": "claimed",
+          "worker": "unknown"
+        },
+        {
+          "phase": "worker",
+          "t": 1792978620.2,
+          "task": "claimed",
+          "worker": "running"
+        },
+        {
+          "phase": "worker",
+          "t": 1792978679.5,
+          "task": "submitted",
+          "worker": "running"
+        },
+        {
+          "phase": "review",
+          "t": 1792978684.5,
+          "task": "submitted",
+          "worker": "idle"
+        },
+        {
+          "phase": "review",
+          "t": 1792978692.6,
+          "task": "reviewing",
+          "worker": "idle"
+        },
+        {
+          "phase": "review",
+          "t": 1792978828.8,
+          "task": "verified",
+          "worker": "idle"
+        }
+      ]
+    },
+    {
+      "name": "worker_idle_after_turn",
+      "detail": {
+        "id": "821ff5f9-3ba4-4cff-b93c-b556e42831a1",
+        "project": "demo",
+        "task": "demo+T-1",
+        "task_name": "T-1",
+        "attempt": "e3c63793-fd10-42e4-9f3d-b3926c704687",
+        "thread": "86e72492-f33a-4043-9ad9-63c7d2c94463",
+        "role": "worker",
+        "preset": null,
+        "role_label": "worker",
+        "cli": "未知",
+        "parent": "1aa32d42-bfca-4edd-b203-a350df60f75b",
+        "state": "idle",
+        "question_id": null,
+        "state_label": "空闲",
+        "delivery": {
+          "task": "demo+T-1",
+          "attempt": "e3c63793-fd10-42e4-9f3d-b3926c704687",
+          "session": "14e41e47-a721-4a12-b52d-c243e22b3c5b",
+          "fence": 1,
+          "spec_rev": 1,
+          "request_id": "d99e02fe-8c56-455b-a39b-b452e4a27d84",
+          "commit": "4c8bd15e5661ca37ca5ef5ef8ae6e21cf65bfbe4",
+          "received_at": "2026-10-26T01:37:58.698Z",
+          "result_at": "2026-10-26T01:37:58.973Z",
+          "state": "submitted",
+          "reason": null,
+          "request_turn": "osc7501:2fec6fa8-8ca7-4a8e-83c0-64ca861b60d0",
+          "current_turn": "osc7501:2fec6fa8-8ca7-4a8e-83c0-64ca861b60d0",
+          "native_turn_changed": false,
+          "recovery_request_id": "recover-470"
+        },
+        "start_missing": false,
+        "created_at": "2026-10-26T01:36:52.296Z",
+        "ended_at": null,
+        "active_at": "2026-10-26T01:38:03.191Z",
+        "history": false,
+        "reclaimable": false,
+        "descendants": {
+          "count": 0,
+          "state": "unknown",
+          "state_label": "未知",
+          "counts": []
+        }
+      }
+    },
+    {
+      "name": "review_passed",
+      "detail": {
+        "state": "passed",
+        "result": {
+          "verdict": "可合并",
+          "findings": [],
+          "review_requirements": {
+            "completion_conditions_sufficiency": true,
+            "mutation_checks": {
+              "min": 2,
+              "max": 5,
+              "workspace": "/private/tmp/t187x-fhvw66ro/state/review-copies/9e5c765c-9376-4967-b53a-fa0a3c08f6ce",
+              "report_section": "完成条件与变异检查"
+            }
+          },
+          "report": {
+            "完成条件与变异检查": "完成条件通过 check.py 严格断言 Path('done.txt').read_text() == 'done\\n'，足以拒绝错误或缺失的实现。变异检查共执行4项：\n1. 变异1（空文件）：执行 echo -n '' > done.txt，运行 /usr/bin/python3 check.py，结果抛出 AssertionError，退出码 1 失败。\n2. 变异2（末尾缺失换行符）：执行 echo -n 'done' > done.txt，运行 /usr/bin/python3 check.py，结果抛出 AssertionError，退出码 1 失败。\n3. 变异3（内容错误）：执行 echo 'not done' > done.txt，运行 /usr/bin/python3 check.py，结果抛出 AssertionError，退出码 1 失败。\n4. 变异4（文件缺失）：执行 rm -f done.txt，运行 /usr/bin/python3 check.py，结果抛出 FileNotFoundError，退出码 1 失败。\n所有变异均失败，完成条件充分有效。"
+          },
+          "turn_id": "osc7501:f2e77c7d-0aee-4f1a-95f5-a3484a55c09d",
+          "received_at": "2026-10-26T01:40:27.939Z"
+        },
+        "failure": null
+      }
+    },
+    {
+      "name": "integrated",
+      "detail": "accepted"
+    },
+    {
+      "name": "trailers",
+      "detail": "feat: add done.txt\n\nA2A-Task: demo+T-1\nA2A-Attempt: e3c63793-fd10-42e4-9f3d-b3926c704687\nA2A-Session: 14e41e47-a721-4a12-b52d-c243e22b3c5b\nA2A-Role: worker\nA2A-Tool: 1.4.7\nA2A-Model: unknown\nA2A-Effort: unknown\nA2A-Native-Session: osc7501:821ff5f9-3ba4-4cff-b93c-b556e42831a1\nA2A-Launch: 821ff5f9-3ba4-4cff-b93c-b556e42831a1"
+    },
+    {
+      "name": "trust_entries",
+      "detail": {
+        "written": [
+          {
+            "folder": "/private/tmp/t187x-fhvw66ro/state/worktrees/demo/T-1-a1",
+            "settings": "/Users/luckye/.gemini/antigravity-cli/settings.json",
+            "entries_written": 1
+          },
+          {
+            "folder": "/private/tmp/t187x-fhvw66ro/state/review-copies/9e5c765c-9376-4967-b53a-fa0a3c08f6ce",
+            "settings": "/Users/luckye/.gemini/antigravity-cli/settings.json",
+            "entries_written": 1
+          }
+        ],
+        "added": [
+          "/private/tmp/t187x-fhvw66ro/state/worktrees/demo/T-1-a1",
+          "/private/tmp/t187x-fhvw66ro/state/review-copies/9e5c765c-9376-4967-b53a-fa0a3c08f6ce"
+        ],
+        "entries_written": 2
+      }
+    },
+    {
+      "name": "review_checkout_read_only",
+      "detail": null
+    }
+  ],
+  "failed": [],
+  "observed": {
+    "request_cli": "opencode",
+    "review": {
+      "state": "passed",
+      "result": {
+        "verdict": "可合并",
+        "findings": [],
+        "review_requirements": {
+          "completion_conditions_sufficiency": true,
+          "mutation_checks": {
+            "min": 2,
+            "max": 5,
+            "workspace": "/private/tmp/t187x-fhvw66ro/state/review-copies/9e5c765c-9376-4967-b53a-fa0a3c08f6ce",
+            "report_section": "完成条件与变异检查"
+          }
+        },
+        "report": {
+          "完成条件与变异检查": "完成条件通过 check.py 严格断言 Path('done.txt').read_text() == 'done\\n'，足以拒绝错误或缺失的实现。变异检查共执行4项：\n1. 变异1（空文件）：执行 echo -n '' > done.txt，运行 /usr/bin/python3 check.py，结果抛出 AssertionError，退出码 1 失败。\n2. 变异2（末尾缺失换行符）：执行 echo -n 'done' > done.txt，运行 /usr/bin/python3 check.py，结果抛出 AssertionError，退出码 1 失败。\n3. 变异3（内容错误）：执行 echo 'not done' > done.txt，运行 /usr/bin/python3 check.py，结果抛出 AssertionError，退出码 1 失败。\n4. 变异4（文件缺失）：执行 rm -f done.txt，运行 /usr/bin/python3 check.py，结果抛出 FileNotFoundError，退出码 1 失败。\n所有变异均失败，完成条件充分有效。"
+        },
+        "turn_id": "osc7501:f2e77c7d-0aee-4f1a-95f5-a3484a55c09d",
+        "received_at": "2026-10-26T01:40:27.939Z"
+      },
+      "failure": null
+    },
+    "trailers": "feat: add done.txt\n\nA2A-Task: demo+T-1\nA2A-Attempt: e3c63793-fd10-42e4-9f3d-b3926c704687\nA2A-Session: 14e41e47-a721-4a12-b52d-c243e22b3c5b\nA2A-Role: worker\nA2A-Tool: 1.4.7\nA2A-Model: unknown\nA2A-Effort: unknown\nA2A-Native-Session: osc7501:821ff5f9-3ba4-4cff-b93c-b556e42831a1\nA2A-Launch: 821ff5f9-3ba4-4cff-b93c-b556e42831a1",
+    "worker_argv": [
+      "/Users/luckye/.local/bin/agy",
+      "--dangerously-skip-permissions",
+      "--model",
+      "gemini-3.8-flash-high",
+      "--effort",
+      "high"
+    ],
+    "trust": {
+      "written": [
+        {
+          "folder": "/private/tmp/t187x-fhvw66ro/state/worktrees/demo/T-1-a1",
+          "settings": "/Users/luckye/.gemini/antigravity-cli/settings.json",
+          "entries_written": 1
+        },
+        {
+          "folder": "/private/tmp/t187x-fhvw66ro/state/review-copies/9e5c765c-9376-4967-b53a-fa0a3c08f6ce",
+          "settings": "/Users/luckye/.gemini/antigravity-cli/settings.json",
+          "entries_written": 1
+        }
+      ],
+      "added": [
+        "/private/tmp/t187x-fhvw66ro/state/worktrees/demo/T-1-a1",
+        "/private/tmp/t187x-fhvw66ro/state/review-copies/9e5c765c-9376-4967-b53a-fa0a3c08f6ce"
+      ],
+      "entries_written": 2
+    }
+  },
+  "states": [
+    {
+      "phase": "worker",
+      "t": 1792978612.0,
+      "task": "preparing",
+      "worker": null
+    },
+    {
+      "phase": "worker",
+      "t": 1792978613.0,
+      "task": "claimed",
+      "worker": "unknown"
+    },
+    {
+      "phase": "worker",
+      "t": 1792978620.2,
+      "task": "claimed",
+      "worker": "running"
+    },
+    {
+      "phase": "worker",
+      "t": 1792978679.5,
+      "task": "submitted",
+      "worker": "running"
+    },
+    {
+      "phase": "review",
+      "t": 1792978684.5,
+      "task": "submitted",
+      "worker": "idle"
+    },
+    {
+      "phase": "review",
+      "t": 1792978692.6,
+      "task": "reviewing",
+      "worker": "idle"
+    },
+    {
+      "phase": "review",
+      "t": 1792978828.8,
+      "task": "verified",
+      "worker": "idle"
+    }
+  ],
+  "fixture": "/private/tmp/t187x-fhvw66ro"
+}

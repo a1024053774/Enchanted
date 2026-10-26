@@ -1,0 +1,256 @@
+{
+  "status": "PASS",
+  "argv": [
+    "tests/test_t187_real_worker_e2e.py",
+    "--controller",
+    "agy",
+    "--summary",
+    "../evidence/2026-10-25-batch26/T-187/real-worker-agy-opencode-05/summary.json"
+  ],
+  "controller": "agy",
+  "worker": "opencode",
+  "real_prompts": 4,
+  "checks": [
+    {
+      "name": "request_cli",
+      "detail": {
+        "id": "1d0f8ba9-84ab-4cf7-ad04-9ec58563706e",
+        "launch": "5de4047d-7cd7-484b-b498-492109a3a619",
+        "project": "repo",
+        "role": "executor",
+        "role_label": "执行主控",
+        "cli": "agy",
+        "requested_at": "2026-10-26T02:16:57.807Z",
+        "terminal_cwd": "/private/tmp/t187-probe/repo",
+        "terminal_opened_at": "2026-10-26T02:16:25.849Z"
+      }
+    },
+    {
+      "name": "worker_running_seen",
+      "detail": [
+        {
+          "phase": "worker",
+          "t": 1792981031.6,
+          "task": "preparing",
+          "worker": null
+        },
+        {
+          "phase": "worker",
+          "t": 1792981032.6,
+          "task": "claimed",
+          "worker": "unknown"
+        },
+        {
+          "phase": "worker",
+          "t": 1792981033.6,
+          "task": "claimed",
+          "worker": "running"
+        },
+        {
+          "phase": "worker",
+          "t": 1792981059.1,
+          "task": "submitted",
+          "worker": "unknown"
+        },
+        {
+          "phase": "review",
+          "t": 1792981064.4,
+          "task": "submitted",
+          "worker": "idle"
+        },
+        {
+          "phase": "review",
+          "t": 1792981083.8,
+          "task": "reviewing",
+          "worker": "idle"
+        },
+        {
+          "phase": "review",
+          "t": 1792981239.8,
+          "task": "verified",
+          "worker": "idle"
+        }
+      ]
+    },
+    {
+      "name": "worker_idle_after_turn",
+      "detail": {
+        "id": "b9f7825f-1ed7-46c0-b5c2-14293bff4f9e",
+        "project": "repo",
+        "task": "repo+T-1",
+        "task_name": "T-1",
+        "attempt": "1ed9ce65-054d-4230-99f4-bc6eaae30a69",
+        "thread": "654187fd-73ad-4528-b41a-b3f1a4b81d47",
+        "role": "worker",
+        "preset": null,
+        "role_label": "worker",
+        "cli": "未知",
+        "parent": "5de4047d-7cd7-484b-b498-492109a3a619",
+        "state": "idle",
+        "question_id": null,
+        "state_label": "空闲",
+        "delivery": {
+          "task": "repo+T-1",
+          "attempt": "1ed9ce65-054d-4230-99f4-bc6eaae30a69",
+          "session": "f9489afc-bff0-461f-9955-fe8eca9d82d1",
+          "fence": 1,
+          "spec_rev": 1,
+          "request_id": "baaae95c-edb9-41df-85a4-ef6e79dc3480",
+          "commit": "a6a286efff507beac101887b7c331d9f8c6137ac",
+          "received_at": "2026-10-26T02:17:38.445Z",
+          "result_at": "2026-10-26T02:17:38.781Z",
+          "state": "submitted",
+          "reason": null,
+          "request_turn": "osc7501:a2641fa9-4748-446a-93c8-1c31aecb337c",
+          "current_turn": "osc7501:a2641fa9-4748-446a-93c8-1c31aecb337c",
+          "native_turn_changed": false,
+          "recovery_request_id": "recover-280"
+        },
+        "start_missing": false,
+        "created_at": "2026-10-26T02:17:11.584Z",
+        "ended_at": null,
+        "active_at": "2026-10-26T02:17:43.139Z",
+        "history": false,
+        "reclaimable": false,
+        "descendants": {
+          "count": 0,
+          "state": "unknown",
+          "state_label": "未知",
+          "counts": []
+        }
+      }
+    },
+    {
+      "name": "review_passed",
+      "detail": {
+        "state": "passed",
+        "result": {
+          "verdict": "可合并",
+          "findings": [],
+          "review_requirements": {
+            "completion_conditions_sufficiency": true,
+            "mutation_checks": {
+              "min": 2,
+              "max": 5,
+              "workspace": "/private/tmp/t187x-hi5catbw/state/review-copies/ea1799fd-117e-4bcc-9065-70a0cce164a8",
+              "report_section": "完成条件与变异检查"
+            }
+          },
+          "report": {
+            "完成条件与变异检查": "完成条件充分性：check.py 唯一断言为 assert Path('done.txt').read_text() == 'done\\n'，对目标文件做精确字节级校验（含唯一一行与尾随换行），能拒绝缺文件、空文件、缺换行、多余空行、大小写错误等明显错误实现。候选仅新增 done.txt（内容 done\\n），diff 名称为 A done.txt，候选树为 README.md、check.py、done.txt；候选 check.py 与基线 blob 均为 991dc4b19737d0587c70b1a6c7c743f7315452f3，未被篡改。变异检查均在一次性副本 /private/tmp/t187x-hi5catbw/state/review-copies/ea1799fd-117e-4bcc-9065-70a0cce164a8 内进行，命令均为 /usr/bin/python3 check.py：M1 把 done.txt 写成 'done'（去掉尾部换行）→ AssertionError，exit 1；M2 写成 'Done\\n'（大小写错误）→ AssertionError，exit 1；M3 写成 'done\\n\\n'（多一个空行）→ AssertionError，exit 1；M4 清空 done.txt → AssertionError，exit 1；M5 删除 done.txt → FileNotFoundError，exit 1。5 个变异全部按预期失败；恢复原文件后 check.py exit 0。补充范围探测：单独修改 README.md 或新增 extra.txt 时 check.py 仍 exit 0，即 oracle 本身不校验 non_goal『不改别的文件』；该项由任务卡 paths.allow（仅 done.txt）与门禁 diff 约束覆盖，候选实际 diff 无越界，因此不影响本次交付，但若希望 oracle 自证范围，可增加对仓库文件集合的断言。",
+            "候选审查": "候选与任务卡一致：根目录新增 done.txt，内容恰好为 done 加换行，无其他文件改动；未发现越权路径、未发现对 check.py 或 README.md 的修改。",
+            "结论": "完成条件足以拒绝明显错误的 done.txt 实现，变异检查全部失败，候选满足任务卡，可合并。"
+          },
+          "turn_id": "osc7501:676b9b9d-b84e-4b09-996c-190984cc2c7e",
+          "received_at": "2026-10-26T02:20:39.186Z"
+        },
+        "failure": null
+      }
+    },
+    {
+      "name": "integrated",
+      "detail": "accepted"
+    },
+    {
+      "name": "trailers",
+      "detail": "Add done.txt\n\nA2A-Task: repo+T-1\nA2A-Attempt: 1ed9ce65-054d-4230-99f4-bc6eaae30a69\nA2A-Session: f9489afc-bff0-461f-9955-fe8eca9d82d1\nA2A-Role: worker\nA2A-Tool: opencode v2.1.4\nA2A-Model: unknown\nA2A-Effort: unknown\nA2A-Native-Session: osc7501:b9f7825f-1ed7-46c0-b5c2-14293bff4f9e\nA2A-Launch: b9f7825f-1ed7-46c0-b5c2-14293bff4f9e"
+    },
+    {
+      "name": "trust_entries",
+      "detail": {
+        "written": [],
+        "added": [],
+        "entries_written": 0
+      }
+    },
+    {
+      "name": "review_checkout_read_only",
+      "detail": null
+    }
+  ],
+  "failed": [],
+  "observed": {
+    "request_cli": "agy",
+    "review": {
+      "state": "passed",
+      "result": {
+        "verdict": "可合并",
+        "findings": [],
+        "review_requirements": {
+          "completion_conditions_sufficiency": true,
+          "mutation_checks": {
+            "min": 2,
+            "max": 5,
+            "workspace": "/private/tmp/t187x-hi5catbw/state/review-copies/ea1799fd-117e-4bcc-9065-70a0cce164a8",
+            "report_section": "完成条件与变异检查"
+          }
+        },
+        "report": {
+          "完成条件与变异检查": "完成条件充分性：check.py 唯一断言为 assert Path('done.txt').read_text() == 'done\\n'，对目标文件做精确字节级校验（含唯一一行与尾随换行），能拒绝缺文件、空文件、缺换行、多余空行、大小写错误等明显错误实现。候选仅新增 done.txt（内容 done\\n），diff 名称为 A done.txt，候选树为 README.md、check.py、done.txt；候选 check.py 与基线 blob 均为 991dc4b19737d0587c70b1a6c7c743f7315452f3，未被篡改。变异检查均在一次性副本 /private/tmp/t187x-hi5catbw/state/review-copies/ea1799fd-117e-4bcc-9065-70a0cce164a8 内进行，命令均为 /usr/bin/python3 check.py：M1 把 done.txt 写成 'done'（去掉尾部换行）→ AssertionError，exit 1；M2 写成 'Done\\n'（大小写错误）→ AssertionError，exit 1；M3 写成 'done\\n\\n'（多一个空行）→ AssertionError，exit 1；M4 清空 done.txt → AssertionError，exit 1；M5 删除 done.txt → FileNotFoundError，exit 1。5 个变异全部按预期失败；恢复原文件后 check.py exit 0。补充范围探测：单独修改 README.md 或新增 extra.txt 时 check.py 仍 exit 0，即 oracle 本身不校验 non_goal『不改别的文件』；该项由任务卡 paths.allow（仅 done.txt）与门禁 diff 约束覆盖，候选实际 diff 无越界，因此不影响本次交付，但若希望 oracle 自证范围，可增加对仓库文件集合的断言。",
+          "候选审查": "候选与任务卡一致：根目录新增 done.txt，内容恰好为 done 加换行，无其他文件改动；未发现越权路径、未发现对 check.py 或 README.md 的修改。",
+          "结论": "完成条件足以拒绝明显错误的 done.txt 实现，变异检查全部失败，候选满足任务卡，可合并。"
+        },
+        "turn_id": "osc7501:676b9b9d-b84e-4b09-996c-190984cc2c7e",
+        "received_at": "2026-10-26T02:20:39.186Z"
+      },
+      "failure": null
+    },
+    "trailers": "Add done.txt\n\nA2A-Task: repo+T-1\nA2A-Attempt: 1ed9ce65-054d-4230-99f4-bc6eaae30a69\nA2A-Session: f9489afc-bff0-461f-9955-fe8eca9d82d1\nA2A-Role: worker\nA2A-Tool: opencode v2.1.4\nA2A-Model: unknown\nA2A-Effort: unknown\nA2A-Native-Session: osc7501:b9f7825f-1ed7-46c0-b5c2-14293bff4f9e\nA2A-Launch: b9f7825f-1ed7-46c0-b5c2-14293bff4f9e",
+    "worker_argv": [
+      "/Users/luckye/.opencode/bin/opencode",
+      "--standalone",
+      "--auto",
+      "/private/tmp/t187x-hi5catbw/state/worktrees/repo/T-1-a1"
+    ],
+    "trust": {
+      "written": [],
+      "added": [],
+      "entries_written": 0
+    }
+  },
+  "states": [
+    {
+      "phase": "worker",
+      "t": 1792981031.6,
+      "task": "preparing",
+      "worker": null
+    },
+    {
+      "phase": "worker",
+      "t": 1792981032.6,
+      "task": "claimed",
+      "worker": "unknown"
+    },
+    {
+      "phase": "worker",
+      "t": 1792981033.6,
+      "task": "claimed",
+      "worker": "running"
+    },
+    {
+      "phase": "worker",
+      "t": 1792981059.1,
+      "task": "submitted",
+      "worker": "unknown"
+    },
+    {
+      "phase": "review",
+      "t": 1792981064.4,
+      "task": "submitted",
+      "worker": "idle"
+    },
+    {
+      "phase": "review",
+      "t": 1792981083.8,
+      "task": "reviewing",
+      "worker": "idle"
+    },
+    {
+      "phase": "review",
+      "t": 1792981239.8,
+      "task": "verified",
+      "worker": "idle"
+    }
+  ],
+  "fixture": "/private/tmp/t187x-hi5catbw"
+}
