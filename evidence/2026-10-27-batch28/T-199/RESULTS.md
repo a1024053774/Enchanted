@@ -53,3 +53,10 @@ cd workbench && python3 tests/test_t124_controller_e2e.py --end restart-working 
 
 - 最终复验时，被测 Claude Code worker（haiku）在后台 SIGTERM 退出后仍在运行，SIGTERM 也没能结束它。因此每次重启都记为 `pane_gone_unconfirmed`；我用 SIGKILL 结束这个测试进程后，才得到 `pane_gone_confirmed`。第一次红态复现时同一流程下 worker 正常退出了。原因没有查。
 - `pane_gone_unconfirmed` 的窗格走历史分支，本来就没有 size，不受本缺陷影响。
+
+## 安装到 /Applications（2026-10-27，用户要求）
+
+- `python3 evidence/2026-10-27-batch28/T-199/build.py r1` 从 HEAD 79e95702a 浅克隆构建，报告与日志在 `/Volumes/WD-Elements/a2a-evidence/2026-10-27-batch28/T-199/build-r1*`，状态 PASS。
+- 停止前的进程见 `install-before-ps.txt`（后台 code_revision 为 5356611d8）。SIGTERM 应用与后台后均在 30 秒内退出；旧 .app 移到 `/private/tmp/t199-old-Enchanted-1793097869.app`，新 .app 经 `ditto` 装入，`codesign --verify --deep --strict` 通过。
+- 重新打开后，后台 argv 的 code_revision 为 `79e95702abbcb026df1da994dc68b73638dc3896`。
+- 在用户真实状态里打开 a1024053774.github.io / T-1：受管 worker 窗格标“只读 · 未知”，显示原有输出，没有再出现 “This API only accepts integers”。截图可能含 agy 账户信息，只存 WD：`installed-github-io-T-1.jpg`。
