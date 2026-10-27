@@ -102,6 +102,14 @@ S1 判已修：替换成功、替换建立 B 后失败、建立 B 前失败三�
 
 隔离测试应用、它的后台和构建目录已清理；T-190 留下的空闲界面检查 codex（pid 16018）也已结束。T-191 早先留下的三个构建目录一并删除。夹具 `/private/tmp/t190` 保留，供复跑。
 
+## 装进 /Applications（2026-10-27，用户："装 T-192 新版到 /Applications、重启后台，然后点开 a2a T-138 看记录页。正在跑的会话被打断没关系。"）
+
+- 构建：`python3 build.py r1`（复制自 T-190，只改临时与证据路径），浅克隆已提交的 `5356611d8`，`npm ci` + `npm run package:mac`，PASS；`build-r1.json` 与日志在 `/Volumes/WD-Elements/a2a-evidence/2026-10-27-batch28/T-192/`。版本号仍是 0.1.5，未发 Release。
+- 替换前：`install-before-ps.txt` 是 Enchanted 的进程树，只有应用（51734）、后台（51900）与 Electron 辅助进程，没有终端会话在跑。SIGTERM 两者后结束。
+- 替换：旧包（`e39357ae6`）移到 `/private/tmp/Enchanted-0.1.5-e39357ae6.app` 暂存，可回退；新包 ditto 进 `/Applications`，`codesign --verify --deep --strict` 通过（ad-hoc）。`env -i /usr/bin/open -a` 启动，新后台 argv 的 `code_revision` 为 `5356611d8…`。
+- 用户真实状态：从 a2a 任务格点进 T-138，整页显示任务卡与时间线（`ui/14`、`ui/15`）。第 1 次执行尝试依次为认领、启动 worker、交付 2880105788、路径检查通过、验收文件未改动通过、完成条件 1 通过、完成条件 2 未通过（check.mjs）、验收未通过、打回 oracle_failed、撤销执行尝试（controller reclaim）、回收。与 findings U07 的记录一致：回收、未集成。T-138 没走到审查与集成，所以页面没有审查、打分、集成三段。
+- 顺带看到（不属于 T-192）：应用启动时停在 a1024053774.github.io 的 T-1，其 agy worker 窗格显示 “Error: This API only accepts integers”（`ui/16`）。报错来自 xterm 的 `term.resize`，在只读窗格按 PTY 记录尺寸重绘的分支（`app/renderer.tsx:260`，尺寸取自 `src/panes.ts:1602`）。没有查是否新版才出现，也没有修。
+
 ## 没有验证
 
 - 停在记录页时派发新 worker 不会自动切到窗格，需要点“打开 worker 会话”；这是第 2 轮后有意的取舍。
