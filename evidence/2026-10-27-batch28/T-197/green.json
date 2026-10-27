@@ -1,0 +1,249 @@
+{
+  "status": "PASS",
+  "argv": [
+    "tests/test_t131_parallel_workers_e2e.py",
+    "--summary",
+    "../evidence/2026-10-27-batch28/T-197/green.json"
+  ],
+  "revision": null,
+  "mutant": null,
+  "foreign_ref": null,
+  "retained_ref": false,
+  "fixture": "/private/tmp/t131-q0bu86jj",
+  "claude": "/Users/luckye/.local/bin/claude",
+  "real_model_turns": 0,
+  "checks": [
+    "dispatch_T-1_starts_worker",
+    "dispatch_T-2_starts_worker",
+    "overlapping_card_refused_without_reason",
+    "both_workers_ran_at_once",
+    "T-1_delivery_is_its_own",
+    "T-2_delivery_is_its_own",
+    "t2_review_still_running_when_t1_integrates",
+    "both_reviews_passed_on_their_own_task",
+    "second_integration_reverified_on_new_head",
+    "sidebar_both_workers_under_controller",
+    "accepted_attempt_holds_no_paths",
+    "accepted_attempt_recorded_as_not_counted",
+    "in_progress_overlap_refused_with_list",
+    "blank_reason_is_no_reason",
+    "reason_lets_overlap_through_and_is_recorded"
+  ],
+  "dispatch": {
+    "T-1": {
+      "ok": true,
+      "error": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null
+    }
+  },
+  "overlap_dispatch": {
+    "ok": false,
+    "error": "path_overlap",
+    "details": {
+      "conflicts": [
+        {
+          "task": "demo+T-1",
+          "attempt": "41c714e7-1928-4e39-a1f5-88293db21554",
+          "snapshot": "cbda15d1-602e-4c5f-aa3f-28e27177c5fd",
+          "paths": [
+            "a.txt"
+          ]
+        }
+      ],
+      "next": "看清单判断：要并行就在 dispatch 里带 overlap_reason 写明理由；否则等这些执行尝试验收或回收"
+    }
+  },
+  "first_request": {
+    "worker:T-1": 1793099639.614,
+    "worker:T-2": 1793099639.704
+  },
+  "deliveries": {
+    "T-1": {
+      "state": "submitted",
+      "files": [
+        "a.txt"
+      ],
+      "trailers": {
+        "Task": "demo+T-1",
+        "Attempt": "41c714e7-1928-4e39-a1f5-88293db21554",
+        "Session": "736d9b95-95e3-4ce7-9e6b-1d2c07eac640",
+        "Role": "worker",
+        "Tool": "2.1.311 (Claude Code)",
+        "Model": "claude-haiku-5-5-t131-served",
+        "Effort": "low",
+        "Native-Session": "27aef292-80d0-4ea7-aa29-6adca6fddbb1",
+        "Launch": "65e31c7b-41af-40de-adf3-2cf3fda8a628"
+      },
+      "workspace": "/private/tmp/t131-q0bu86jj/state/worktrees/demo/T-1-a1",
+      "delivery_model": "claude-haiku-5-5-t131-served"
+    },
+    "T-2": {
+      "state": "submitted",
+      "files": [
+        "b.txt"
+      ],
+      "trailers": {
+        "Task": "demo+T-2",
+        "Attempt": "e3ad10f3-cac9-46ca-9a4d-08804da15579",
+        "Session": "686789d9-2a5b-4751-a634-88b56f8a11aa",
+        "Role": "worker",
+        "Tool": "2.1.311 (Claude Code)",
+        "Model": "claude-haiku-5-5-t131-served",
+        "Effort": "low",
+        "Native-Session": "77e688b8-4431-4ade-87c0-66eb3158f394",
+        "Launch": "40e19261-c571-4deb-8e03-06f64a5fa0c2"
+      },
+      "workspace": "/private/tmp/t131-q0bu86jj/state/worktrees/demo/T-2-a1",
+      "delivery_model": "claude-haiku-5-5-t131-served"
+    }
+  },
+  "verify": {
+    "T-1": {
+      "ok": true,
+      "error": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null
+    }
+  },
+  "integrate": {
+    "T-1": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null,
+      "details": null
+    }
+  },
+  "reviews": {
+    "T-1": {
+      "task_state": "verified",
+      "review": "passed",
+      "launch": "82cabe4e-42b0-427d-84ae-116435c5228c",
+      "mutation": "mutation rc=1"
+    },
+    "T-2": {
+      "task_state": "verified",
+      "review": "passed",
+      "launch": "ad1338ce-0c5e-4f8b-8ca5-08da21f4f816",
+      "mutation": "mutation rc=1"
+    }
+  },
+  "main_files": [
+    "README.md",
+    "a.txt",
+    "b.txt",
+    "check_T-1.py",
+    "check_T-2.py"
+  ],
+  "finals": {
+    "T-1": "accepted",
+    "T-2": "accepted"
+  },
+  "revalidated": [
+    {
+      "expected": "83e049e7c1bfb2a1358e291a05c9176d75736c1e",
+      "actual": "f476ef88ecc0f74b2efccb99d6ebf553a9fde5c8"
+    }
+  ],
+  "sidebar": {
+    "T-1": {
+      "role": "worker",
+      "cli": "claude",
+      "parent": "ed714259-e3e3-4df0-afd3-483dc898a9b8",
+      "task": "demo+T-1"
+    },
+    "T-2": {
+      "role": "worker",
+      "cli": "claude",
+      "parent": "ed714259-e3e3-4df0-afd3-483dc898a9b8",
+      "task": "demo+T-2"
+    }
+  },
+  "t197": {
+    "after_accept": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "after_accept_event": {
+      "common_dir": "/private/tmp/t131-q0bu86jj/demo/.git",
+      "card_snapshot_id": "c09a0b06-2e5b-4668-8381-271d2ff67d93",
+      "conflicts": [],
+      "not_counted": [
+        {
+          "task": "demo+T-1",
+          "attempt": "41c714e7-1928-4e39-a1f5-88293db21554",
+          "state": "accepted",
+          "paths": [
+            "a.txt"
+          ]
+        }
+      ],
+      "reason": null,
+      "actor": "executor",
+      "passed": true
+    },
+    "plain": {
+      "ok": false,
+      "error": "path_overlap",
+      "details": {
+        "conflicts": [
+          {
+            "task": "demo+T-4",
+            "attempt": "47b587ae-9afb-4865-a039-cb2d74e96ce8",
+            "snapshot": "a181de9d-1fc2-4373-93ff-d197991fc4e3",
+            "paths": [
+              "a.txt"
+            ]
+          }
+        ],
+        "next": "看清单判断：要并行就在 dispatch 里带 overlap_reason 写明理由；否则等这些执行尝试验收或回收"
+      }
+    },
+    "blank": {
+      "ok": false,
+      "error": "invalid_text",
+      "details": null
+    },
+    "allowed": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "allowed_event": {
+      "common_dir": "/private/tmp/t131-q0bu86jj/demo/.git",
+      "card_snapshot_id": "a5c910da-4a4c-4575-bcf1-47b53b5b6f7a",
+      "conflicts": [
+        {
+          "task": "demo+T-4",
+          "attempt": "47b587ae-9afb-4865-a039-cb2d74e96ce8",
+          "snapshot": "a181de9d-1fc2-4373-93ff-d197991fc4e3",
+          "paths": [
+            "a.txt"
+          ]
+        }
+      ],
+      "not_counted": [
+        {
+          "task": "demo+T-1",
+          "attempt": "41c714e7-1928-4e39-a1f5-88293db21554",
+          "state": "accepted",
+          "paths": [
+            "a.txt"
+          ]
+        }
+      ],
+      "reason": "T-5 与 T-4 都写 a.txt，由集成时的合并处理",
+      "actor": "executor",
+      "passed": true
+    }
+  }
+}

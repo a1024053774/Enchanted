@@ -40,6 +40,8 @@ const usage = `a2a：Enchanted 工作台的编排命令（在 Enchanted 的项�
                               a2a call '{"command":"dispatch","task":"<任务>","runtimeMode":"workspace-write","model":"<模型>","effort":"<强度>"}'
                               spec_rev 须递增；card_save 只存版本，revise 才采用新卡并撤销旧交付。
                               旧会话回收成功才释放路径；未回收仍会 path_overlap，不用交叠参数绕过。
+                              与别的任务路径重叠（path_overlap）时看返回的 conflicts 判断：能并行就在 dispatch
+                              里加 overlap_reason 写明理由（空白不算），否则等对方验收或回收；已验收的不占路径。
                               worker_working 时先核对旧回合与输入队列，停止或归档未确认时保留现场并上报。
                               回收后脏工作区仍保留、上报；保留证据不继续占用路径。
                               回答 worker 上报的问题：issues / answer_issue，记为主控的回答。

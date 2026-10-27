@@ -1,0 +1,405 @@
+{
+  "status": "INCOMPLETE",
+  "argv": [
+    "tests/test_t131_parallel_workers_e2e.py",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a/evidence/2026-10-27-batch28/T-197/red-head.json"
+  ],
+  "revision": null,
+  "mutant": null,
+  "foreign_ref": null,
+  "retained_ref": false,
+  "fixture": "/private/tmp/t131-iaiomxgn",
+  "claude": "/Users/luckye/.local/bin/claude",
+  "real_model_turns": 0,
+  "checks": [
+    "dispatch_T-1_starts_worker",
+    "dispatch_T-2_starts_worker",
+    "overlapping_card_refused_without_reason",
+    "both_workers_ran_at_once",
+    "T-1_delivery_is_its_own",
+    "T-2_delivery_is_its_own",
+    "t2_review_still_running_when_t1_integrates",
+    "both_reviews_passed_on_their_own_task",
+    "second_integration_reverified_on_new_head",
+    "sidebar_both_workers_under_controller"
+  ],
+  "dispatch": {
+    "T-1": {
+      "ok": true,
+      "error": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null
+    }
+  },
+  "overlap_dispatch": {
+    "ok": false,
+    "error": "path_overlap",
+    "details": {
+      "conflicts": [
+        {
+          "task": "demo+T-1",
+          "attempt": "3d17a66c-359c-400a-8558-ed6153c546ea",
+          "snapshot": "61689e8b-5256-4f23-919b-101450079314",
+          "paths": [
+            "a.txt"
+          ]
+        }
+      ]
+    }
+  },
+  "first_request": {
+    "worker:T-1": 1793099549.529,
+    "worker:T-2": 1793099549.689
+  },
+  "deliveries": {
+    "T-1": {
+      "state": "submitted",
+      "files": [
+        "a.txt"
+      ],
+      "trailers": {
+        "Task": "demo+T-1",
+        "Attempt": "3d17a66c-359c-400a-8558-ed6153c546ea",
+        "Session": "86fa8ea9-54ea-43b5-b0c8-2a399680e580",
+        "Role": "worker",
+        "Tool": "2.1.311 (Claude Code)",
+        "Model": "claude-haiku-5-5-t131-served",
+        "Effort": "low",
+        "Native-Session": "3efd1d85-e374-4f41-a3e6-44fbd28dc9b4",
+        "Launch": "de58bb7b-4fd6-4093-8f64-4307e5aeed04"
+      },
+      "workspace": "/private/tmp/t131-iaiomxgn/state/worktrees/demo/T-1-a1",
+      "delivery_model": "claude-haiku-5-5-t131-served"
+    },
+    "T-2": {
+      "state": "submitted",
+      "files": [
+        "b.txt"
+      ],
+      "trailers": {
+        "Task": "demo+T-2",
+        "Attempt": "7e8d62b4-7a7b-4fe7-9237-9cfb6a6bc452",
+        "Session": "430668d6-d26d-4658-8158-7360b0c551df",
+        "Role": "worker",
+        "Tool": "2.1.311 (Claude Code)",
+        "Model": "claude-haiku-5-5-t131-served",
+        "Effort": "low",
+        "Native-Session": "1c7ad2db-2d1a-4019-b503-1403f8fedd91",
+        "Launch": "fcd98e4c-2b6a-47c1-9097-c9633aff492e"
+      },
+      "workspace": "/private/tmp/t131-iaiomxgn/state/worktrees/demo/T-2-a1",
+      "delivery_model": "claude-haiku-5-5-t131-served"
+    }
+  },
+  "verify": {
+    "T-1": {
+      "ok": true,
+      "error": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null
+    }
+  },
+  "integrate": {
+    "T-1": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null,
+      "details": null
+    }
+  },
+  "reviews": {
+    "T-1": {
+      "task_state": "verified",
+      "review": "passed",
+      "launch": "3e597cb7-a74d-4749-ba64-342f414d4707",
+      "mutation": "mutation rc=1"
+    },
+    "T-2": {
+      "task_state": "verified",
+      "review": "passed",
+      "launch": "00304d91-4595-40c9-8f1e-78f2fe11d229",
+      "mutation": "mutation rc=1"
+    }
+  },
+  "main_files": [
+    "README.md",
+    "a.txt",
+    "b.txt",
+    "check_T-1.py",
+    "check_T-2.py"
+  ],
+  "finals": {
+    "T-1": "accepted",
+    "T-2": "accepted"
+  },
+  "revalidated": [
+    {
+      "expected": "b537346229022cd781d0e24f1cd56cfa9a5afbe0",
+      "actual": "939376fe4e0efcacf262e76a94f99dc215fea96f"
+    }
+  ],
+  "sidebar": {
+    "T-1": {
+      "role": "worker",
+      "cli": "claude",
+      "parent": "4e8b14d8-257e-42bf-80aa-e86b4982062c",
+      "task": "demo+T-1"
+    },
+    "T-2": {
+      "role": "worker",
+      "cli": "claude",
+      "parent": "4e8b14d8-257e-42bf-80aa-e86b4982062c",
+      "task": "demo+T-2"
+    }
+  },
+  "t197": {
+    "after_accept": {
+      "ok": false,
+      "error": "path_overlap",
+      "details": {
+        "conflicts": [
+          {
+            "task": "demo+T-1",
+            "attempt": "3d17a66c-359c-400a-8558-ed6153c546ea",
+            "snapshot": "61689e8b-5256-4f23-919b-101450079314",
+            "paths": [
+              "a.txt"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "error": "AssertionError: accepted_attempt_holds_no_paths: {'after_accept': {'ok': False, 'error': 'path_overlap', 'details': {'conflicts': [{'task': 'demo+T-1', 'attempt': '3d17a66c-359c-400a-8558-ed6153c546ea', 'snapshot': '61689e8b-5256-4f23-919b-101450079314', 'paths': ['a.txt']}]}}}",
+  "api_snapshot": {
+    "requests": 22,
+    "main": 16,
+    "first_request": {
+      "worker:T-1": 1793099549.5288908,
+      "worker:T-2": 1793099549.689142,
+      "reviewer:T-1": 1793099554.5846112,
+      "reviewer:T-2": 1793099554.887757
+    },
+    "results": {
+      "worker:T-2": [
+        {
+          "is_error": false,
+          "text": "File created successfully at: /private/tmp/t131-iaiomxgn/state/worktrees/demo/T-2-a1/b.txt (file state is current in your context — no need to Read it back)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "{\"ok\":true,\"queued\":true,\"delivered\":false,\"request_id\":\"a855d7d0-403f-4dce-b63e-0ab37e2187ac\",\"path\":\"/private/tmp/a2a-requests-18D0rc/a855d7d0-403f-4dce-b63e-0ab37e2187ac.json\"}"
+        }
+      ],
+      "worker:T-1": [
+        {
+          "is_error": false,
+          "text": "File created successfully at: /private/tmp/t131-iaiomxgn/state/worktrees/demo/T-1-a1/a.txt (file state is current in your context — no need to Read it back)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "{\"ok\":true,\"queued\":true,\"delivered\":false,\"request_id\":\"21b390dd-5e82-4384-be2d-aab3973a78eb\",\"path\":\"/private/tmp/a2a-requests-WV78D4/21b390dd-5e82-4384-be2d-aab3973a78eb.json\"}"
+        }
+      ],
+      "reviewer:T-1": [
+        {
+          "is_error": false,
+          "text": "mutation rc=1"
+        }
+      ],
+      "reviewer:T-2": [
+        {
+          "is_error": false,
+          "text": "mutation rc=1"
+        }
+      ]
+    }
+  },
+  "events_tail": [
+    {
+      "type": "native_turn_facts",
+      "launch": "00304d91-4595-40c9-8f1e-78f2fe11d229"
+    },
+    {
+      "type": "relay_received",
+      "launch": "00304d91-4595-40c9-8f1e-78f2fe11d229"
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "relay_processed",
+      "launch": "00304d91-4595-40c9-8f1e-78f2fe11d229"
+    },
+    {
+      "type": "pane_idle",
+      "launch": "00304d91-4595-40c9-8f1e-78f2fe11d229"
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "pane_stop_intent",
+      "launch": "00304d91-4595-40c9-8f1e-78f2fe11d229"
+    },
+    {
+      "type": "pane_exit",
+      "launch": "00304d91-4595-40c9-8f1e-78f2fe11d229"
+    },
+    {
+      "type": "pane_layout_closed",
+      "launch": "00304d91-4595-40c9-8f1e-78f2fe11d229"
+    },
+    {
+      "type": "pane_archived",
+      "launch": "00304d91-4595-40c9-8f1e-78f2fe11d229"
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "hook_received",
+      "launch": "00304d91-4595-40c9-8f1e-78f2fe11d229"
+    },
+    {
+      "type": "native_session_ended",
+      "launch": "00304d91-4595-40c9-8f1e-78f2fe11d229"
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    }
+  ]
+}

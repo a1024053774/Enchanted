@@ -43,7 +43,7 @@ def main():
     parser.add_argument('--claude', default=shutil.which('claude') or str(Path.home() / '.local/bin/claude'))
     target = parser.add_mutually_exclusive_group()
     target.add_argument('--revision')
-    target.add_argument('--mutant', choices=['strict-ref-equality', 'integration-chain-ignored', 'any-ref-accepted', 'other-namespace-prefix-only'])
+    target.add_argument('--mutant', choices=['strict-ref-equality', 'integration-chain-ignored', 'any-ref-accepted', 'other-namespace-prefix-only', 'accepted-still-counted'])
     # A ref no gate operation wrote appears while T-2's review runs: the review boundary must refuse it.
     # other-task: a name under another task's attempt namespace that the gate never gives (review 01 P2).
     parser.add_argument('--foreign-ref', choices=['plain', 'other-task'])
@@ -82,6 +82,8 @@ def main():
             # Candidate 1: any ref under another task's namespace was accepted.
             'other-namespace-prefix-only': ('src/gates/core.ts', 'return fence !== null && fence >= 1 && fence <= other.fence;',
                                             "return fence !== null || ref.startsWith(`refs/a2a/attempts/${other.task_id}/`);"),
+            # T-197: before the fix an accepted, unreclaimed attempt still held its paths.
+            'accepted-still-counted': ('src/gates/core.ts', 'if (paths.length && a.state === "accepted") notCounted', 'if (paths.length && false) notCounted'),
         }[args.mutant]
         path = source / 'workbench' / path
         text = path.read_text(encoding='utf-8')
@@ -408,6 +410,35 @@ def main():
         report['sidebar'] = {task: row and {key: row[key] for key in ('role', 'cli', 'parent', 'task')} for task, row in rows.items()}
         check('sidebar_both_workers_under_controller', all(row and row['parent'] == launch and row['role'] == 'worker' and row['task'] == f'demo+{task}'
                                                            for task, row in rows.items()), report['sidebar'])
+
+        # T-197: T-1 is accepted but its worker is not reclaimed; it no longer holds a.txt. Claims start no worker.
+        def claim_check(task):
+            return [e['details'] for e in request('events', operator, task=task)['events'] if e['type'] == 'claim_path_check'][-1]
+        card('T-4', TASKS['T-1'], 'check_T-1.py')
+        after_accept = request('claim', operator, task='demo+T-4', owner='t197-probe')
+        report['t197'] = dict(after_accept={key: after_accept.get(key) for key in ('ok', 'error', 'details')})
+        check('accepted_attempt_holds_no_paths', after_accept.get('ok') and
+              not request('status', operator, task='demo+T-1')['task']['current_attempt'].get('reclaimed'), report['t197'])
+        recorded = claim_check('demo+T-4')
+        report['t197']['after_accept_event'] = recorded
+        check('accepted_attempt_recorded_as_not_counted', recorded['conflicts'] == [] and
+              {(item['task'], item['state']) for item in recorded.get('not_counted', [])} >= {('demo+T-1', 'accepted')}, recorded)
+        # T-4 is claimed and T-5 meets it: refused with the list, a blank reason is no reason, a reason lets it through.
+        card('T-5', TASKS['T-1'], 'check_T-1.py')
+        plain = request('claim', operator, task='demo+T-5', owner='t197-probe')
+        blank = request('claim', operator, task='demo+T-5', owner='t197-probe', overlap_reason=' 　 ')
+        reason = 'T-5 与 T-4 都写 a.txt，由集成时的合并处理'
+        allowed = request('claim', operator, task='demo+T-5', owner='t197-probe', overlap_reason=reason)
+        report['t197'].update({name: {key: value.get(key) for key in ('ok', 'error', 'details')} for name, value in
+                               dict(plain=plain, blank=blank, allowed=allowed).items()})
+        conflicts = (plain.get('details') or {}).get('conflicts') or []
+        check('in_progress_overlap_refused_with_list', plain.get('error') == 'path_overlap' and [item['task'] for item in conflicts] == ['demo+T-4'] and
+              conflicts[0]['paths'] and conflicts[0]['attempt'] == request('status', operator, task='demo+T-4')['task']['current_attempt']['attempt_id'], report['t197']['plain'])
+        check('blank_reason_is_no_reason', not blank.get('ok') and blank.get('error') == 'invalid_text', report['t197']['blank'])
+        recorded = claim_check('demo+T-5')
+        report['t197']['allowed_event'] = recorded
+        check('reason_lets_overlap_through_and_is_recorded', allowed.get('ok') and recorded['reason'] == reason and recorded['passed'] and
+              [item['task'] for item in recorded['conflicts']] == ['demo+T-4'], report['t197'])
         report['status'] = 'PASS'
     except BaseException as error:
         report['error'] = f'{type(error).__name__}: {error}'

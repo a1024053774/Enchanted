@@ -1,0 +1,409 @@
+{
+  "status": "INCOMPLETE",
+  "argv": [
+    "tests/test_t131_parallel_workers_e2e.py",
+    "--mutant",
+    "accepted-still-counted",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a/evidence/2026-10-27-batch28/T-197/frozen-mutant.json"
+  ],
+  "revision": null,
+  "mutant": "accepted-still-counted",
+  "foreign_ref": null,
+  "retained_ref": false,
+  "fixture": "/private/tmp/t131-d7txtzbb",
+  "claude": "/Users/luckye/.local/bin/claude",
+  "real_model_turns": 0,
+  "checks": [
+    "dispatch_T-1_starts_worker",
+    "dispatch_T-2_starts_worker",
+    "overlapping_card_refused_without_reason",
+    "both_workers_ran_at_once",
+    "T-1_delivery_is_its_own",
+    "T-2_delivery_is_its_own",
+    "t2_review_still_running_when_t1_integrates",
+    "both_reviews_passed_on_their_own_task",
+    "second_integration_reverified_on_new_head",
+    "sidebar_both_workers_under_controller"
+  ],
+  "dispatch": {
+    "T-1": {
+      "ok": true,
+      "error": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null
+    }
+  },
+  "overlap_dispatch": {
+    "ok": false,
+    "error": "path_overlap",
+    "details": {
+      "conflicts": [
+        {
+          "task": "demo+T-1",
+          "attempt": "75d43839-d5f7-4f66-a539-f8c468850aaa",
+          "snapshot": "19744eb8-ebe0-424d-9f08-2d9a8c12a4a1",
+          "paths": [
+            "a.txt"
+          ]
+        }
+      ],
+      "next": "看清单判断：要并行就在 dispatch 里带 overlap_reason 写明理由；否则等这些执行尝试验收或回收"
+    }
+  },
+  "first_request": {
+    "worker:T-1": 1793100520.582,
+    "worker:T-2": 1793100520.973
+  },
+  "deliveries": {
+    "T-1": {
+      "state": "submitted",
+      "files": [
+        "a.txt"
+      ],
+      "trailers": {
+        "Task": "demo+T-1",
+        "Attempt": "75d43839-d5f7-4f66-a539-f8c468850aaa",
+        "Session": "fe6f7462-d66d-49c5-b53d-17f72dc0d7a2",
+        "Role": "worker",
+        "Tool": "2.1.311 (Claude Code)",
+        "Model": "claude-haiku-5-5-t131-served",
+        "Effort": "low",
+        "Native-Session": "a4216c3f-38da-4334-b94a-51b4f8fb3552",
+        "Launch": "57e6f634-d8ee-492f-9598-a803766536a2"
+      },
+      "workspace": "/private/tmp/t131-d7txtzbb/state/worktrees/demo/T-1-a1",
+      "delivery_model": "claude-haiku-5-5-t131-served"
+    },
+    "T-2": {
+      "state": "submitted",
+      "files": [
+        "b.txt"
+      ],
+      "trailers": {
+        "Task": "demo+T-2",
+        "Attempt": "41252318-4383-415f-ac54-298e458ab08d",
+        "Session": "d2f6d4da-f5b2-4643-82ab-bc0dd3a0b6c6",
+        "Role": "worker",
+        "Tool": "2.1.311 (Claude Code)",
+        "Model": "claude-haiku-5-5-t131-served",
+        "Effort": "low",
+        "Native-Session": "a0575c34-db6f-45df-96cf-ce7044c635cc",
+        "Launch": "37f845fd-9e0c-4850-b4c2-361f3a74eef8"
+      },
+      "workspace": "/private/tmp/t131-d7txtzbb/state/worktrees/demo/T-2-a1",
+      "delivery_model": "claude-haiku-5-5-t131-served"
+    }
+  },
+  "verify": {
+    "T-1": {
+      "ok": true,
+      "error": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null
+    }
+  },
+  "integrate": {
+    "T-1": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null,
+      "details": null
+    }
+  },
+  "reviews": {
+    "T-1": {
+      "task_state": "verified",
+      "review": "passed",
+      "launch": "f6829d30-9fba-4960-bdf4-94257bf6fd68",
+      "mutation": "mutation rc=1"
+    },
+    "T-2": {
+      "task_state": "verified",
+      "review": "passed",
+      "launch": "e133db40-4297-4540-a53e-8fe5aa127017",
+      "mutation": "mutation rc=1"
+    }
+  },
+  "main_files": [
+    "README.md",
+    "a.txt",
+    "b.txt",
+    "check_T-1.py",
+    "check_T-2.py"
+  ],
+  "finals": {
+    "T-1": "accepted",
+    "T-2": "accepted"
+  },
+  "revalidated": [
+    {
+      "expected": "be5ca45f209aee428f16d38723d984623574c944",
+      "actual": "2fb0de0356c7580a8c353c0064cf43ec5db7fa76"
+    }
+  ],
+  "sidebar": {
+    "T-1": {
+      "role": "worker",
+      "cli": "claude",
+      "parent": "0249c81c-1710-4ad4-9e91-d5a89dfa9cb4",
+      "task": "demo+T-1"
+    },
+    "T-2": {
+      "role": "worker",
+      "cli": "claude",
+      "parent": "0249c81c-1710-4ad4-9e91-d5a89dfa9cb4",
+      "task": "demo+T-2"
+    }
+  },
+  "t197": {
+    "after_accept": {
+      "ok": false,
+      "error": "path_overlap",
+      "details": {
+        "conflicts": [
+          {
+            "task": "demo+T-1",
+            "attempt": "75d43839-d5f7-4f66-a539-f8c468850aaa",
+            "snapshot": "19744eb8-ebe0-424d-9f08-2d9a8c12a4a1",
+            "paths": [
+              "a.txt"
+            ]
+          }
+        ],
+        "next": "看清单判断：要并行就在 dispatch 里带 overlap_reason 写明理由；否则等这些执行尝试验收或回收"
+      }
+    }
+  },
+  "error": "AssertionError: accepted_attempt_holds_no_paths: {'after_accept': {'ok': False, 'error': 'path_overlap', 'details': {'conflicts': [{'task': 'demo+T-1', 'attempt': '75d43839-d5f7-4f66-a539-f8c468850aaa', 'snapshot': '19744eb8-ebe0-424d-9f08-2d9a8c12a4a1', 'paths': ['a.txt']}], 'next': '看清单判断：要并行就在 dispatch 里带 overlap_reason 写明理由；否则等这些执行尝试验收或回收'}}}",
+  "api_snapshot": {
+    "requests": 22,
+    "main": 16,
+    "first_request": {
+      "worker:T-1": 1793100520.5816572,
+      "worker:T-2": 1793100520.9730859,
+      "reviewer:T-1": 1793100527.296316,
+      "reviewer:T-2": 1793100527.677289
+    },
+    "results": {
+      "worker:T-1": [
+        {
+          "is_error": false,
+          "text": "File created successfully at: /private/tmp/t131-d7txtzbb/state/worktrees/demo/T-1-a1/a.txt (file state is current in your context — no need to Read it back)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "{\"ok\":true,\"queued\":true,\"delivered\":false,\"request_id\":\"cc17bfc3-7da8-4720-b955-2feaa58df9c9\",\"path\":\"/private/tmp/a2a-requests-yu9UO5/cc17bfc3-7da8-4720-b955-2feaa58df9c9.json\"}"
+        }
+      ],
+      "worker:T-2": [
+        {
+          "is_error": false,
+          "text": "File created successfully at: /private/tmp/t131-d7txtzbb/state/worktrees/demo/T-2-a1/b.txt (file state is current in your context — no need to Read it back)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "{\"ok\":true,\"queued\":true,\"delivered\":false,\"request_id\":\"e83a7289-c1be-4b2d-891b-5d044bc84303\",\"path\":\"/private/tmp/a2a-requests-UcmY9C/e83a7289-c1be-4b2d-891b-5d044bc84303.json\"}"
+        }
+      ],
+      "reviewer:T-1": [
+        {
+          "is_error": false,
+          "text": "mutation rc=1"
+        }
+      ],
+      "reviewer:T-2": [
+        {
+          "is_error": false,
+          "text": "mutation rc=1"
+        }
+      ]
+    }
+  },
+  "events_tail": [
+    {
+      "type": "native_turn_facts",
+      "launch": "e133db40-4297-4540-a53e-8fe5aa127017"
+    },
+    {
+      "type": "relay_received",
+      "launch": "e133db40-4297-4540-a53e-8fe5aa127017"
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "relay_processed",
+      "launch": "e133db40-4297-4540-a53e-8fe5aa127017"
+    },
+    {
+      "type": "pane_idle",
+      "launch": "e133db40-4297-4540-a53e-8fe5aa127017"
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "pane_stop_intent",
+      "launch": "e133db40-4297-4540-a53e-8fe5aa127017"
+    },
+    {
+      "type": "pane_exit",
+      "launch": "e133db40-4297-4540-a53e-8fe5aa127017"
+    },
+    {
+      "type": "pane_layout_closed",
+      "launch": "e133db40-4297-4540-a53e-8fe5aa127017"
+    },
+    {
+      "type": "pane_archived",
+      "launch": "e133db40-4297-4540-a53e-8fe5aa127017"
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "hook_received",
+      "launch": "e133db40-4297-4540-a53e-8fe5aa127017"
+    },
+    {
+      "type": "native_session_ended",
+      "launch": "e133db40-4297-4540-a53e-8fe5aa127017"
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    }
+  ]
+}

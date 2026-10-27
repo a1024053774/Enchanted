@@ -1,0 +1,409 @@
+{
+  "status": "INCOMPLETE",
+  "argv": [
+    "tests/test_t131_parallel_workers_e2e.py",
+    "--mutant",
+    "accepted-still-counted",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a/evidence/2026-10-27-batch28/T-197/mutant.json"
+  ],
+  "revision": null,
+  "mutant": "accepted-still-counted",
+  "foreign_ref": null,
+  "retained_ref": false,
+  "fixture": "/private/tmp/t131-i93s5us7",
+  "claude": "/Users/luckye/.local/bin/claude",
+  "real_model_turns": 0,
+  "checks": [
+    "dispatch_T-1_starts_worker",
+    "dispatch_T-2_starts_worker",
+    "overlapping_card_refused_without_reason",
+    "both_workers_ran_at_once",
+    "T-1_delivery_is_its_own",
+    "T-2_delivery_is_its_own",
+    "t2_review_still_running_when_t1_integrates",
+    "both_reviews_passed_on_their_own_task",
+    "second_integration_reverified_on_new_head",
+    "sidebar_both_workers_under_controller"
+  ],
+  "dispatch": {
+    "T-1": {
+      "ok": true,
+      "error": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null
+    }
+  },
+  "overlap_dispatch": {
+    "ok": false,
+    "error": "path_overlap",
+    "details": {
+      "conflicts": [
+        {
+          "task": "demo+T-1",
+          "attempt": "3618dfdc-d9d8-4c75-93a0-5e628b19255c",
+          "snapshot": "d6b7539e-f329-4f24-a203-78bd7023819c",
+          "paths": [
+            "a.txt"
+          ]
+        }
+      ],
+      "next": "看清单判断：要并行就在 dispatch 里带 overlap_reason 写明理由；否则等这些执行尝试验收或回收"
+    }
+  },
+  "first_request": {
+    "worker:T-1": 1793099614.804,
+    "worker:T-2": 1793099615.087
+  },
+  "deliveries": {
+    "T-1": {
+      "state": "submitted",
+      "files": [
+        "a.txt"
+      ],
+      "trailers": {
+        "Task": "demo+T-1",
+        "Attempt": "3618dfdc-d9d8-4c75-93a0-5e628b19255c",
+        "Session": "953ed091-8c3c-4f97-82a4-e392bbc50e7e",
+        "Role": "worker",
+        "Tool": "2.1.311 (Claude Code)",
+        "Model": "claude-haiku-5-5-t131-served",
+        "Effort": "low",
+        "Native-Session": "188c5044-889f-4503-9d42-1288e6570980",
+        "Launch": "f665cb34-2917-4e37-9cb5-bcdb73aa67b6"
+      },
+      "workspace": "/private/tmp/t131-i93s5us7/state/worktrees/demo/T-1-a1",
+      "delivery_model": "claude-haiku-5-5-t131-served"
+    },
+    "T-2": {
+      "state": "submitted",
+      "files": [
+        "b.txt"
+      ],
+      "trailers": {
+        "Task": "demo+T-2",
+        "Attempt": "24ba5e0b-50f0-487c-a26e-70129cf9e2b5",
+        "Session": "04a69171-7306-4078-9041-821174d1c450",
+        "Role": "worker",
+        "Tool": "2.1.311 (Claude Code)",
+        "Model": "claude-haiku-5-5-t131-served",
+        "Effort": "low",
+        "Native-Session": "1160415d-f309-42f3-a1e9-f2da67c1841f",
+        "Launch": "b10c6989-f56c-45b6-b145-f5d0bc6c3c6a"
+      },
+      "workspace": "/private/tmp/t131-i93s5us7/state/worktrees/demo/T-2-a1",
+      "delivery_model": "claude-haiku-5-5-t131-served"
+    }
+  },
+  "verify": {
+    "T-1": {
+      "ok": true,
+      "error": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null
+    }
+  },
+  "integrate": {
+    "T-1": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null,
+      "details": null
+    }
+  },
+  "reviews": {
+    "T-1": {
+      "task_state": "verified",
+      "review": "passed",
+      "launch": "f90982ca-0bc2-4089-8c45-ed563c296f4b",
+      "mutation": "mutation rc=1"
+    },
+    "T-2": {
+      "task_state": "verified",
+      "review": "passed",
+      "launch": "f497a1e9-b1fd-4ad3-8aff-0473485fa642",
+      "mutation": "mutation rc=1"
+    }
+  },
+  "main_files": [
+    "README.md",
+    "a.txt",
+    "b.txt",
+    "check_T-1.py",
+    "check_T-2.py"
+  ],
+  "finals": {
+    "T-1": "accepted",
+    "T-2": "accepted"
+  },
+  "revalidated": [
+    {
+      "expected": "f47aa0cd4c006826b783b960eb00ce2809e9f2f9",
+      "actual": "a18defe4ddbbdaa65d70e27c2b7fb14ca2f8d465"
+    }
+  ],
+  "sidebar": {
+    "T-1": {
+      "role": "worker",
+      "cli": "claude",
+      "parent": "48b6c20c-19af-47e4-8c89-cdccfab3c325",
+      "task": "demo+T-1"
+    },
+    "T-2": {
+      "role": "worker",
+      "cli": "claude",
+      "parent": "48b6c20c-19af-47e4-8c89-cdccfab3c325",
+      "task": "demo+T-2"
+    }
+  },
+  "t197": {
+    "after_accept": {
+      "ok": false,
+      "error": "path_overlap",
+      "details": {
+        "conflicts": [
+          {
+            "task": "demo+T-1",
+            "attempt": "3618dfdc-d9d8-4c75-93a0-5e628b19255c",
+            "snapshot": "d6b7539e-f329-4f24-a203-78bd7023819c",
+            "paths": [
+              "a.txt"
+            ]
+          }
+        ],
+        "next": "看清单判断：要并行就在 dispatch 里带 overlap_reason 写明理由；否则等这些执行尝试验收或回收"
+      }
+    }
+  },
+  "error": "AssertionError: accepted_attempt_holds_no_paths: {'after_accept': {'ok': False, 'error': 'path_overlap', 'details': {'conflicts': [{'task': 'demo+T-1', 'attempt': '3618dfdc-d9d8-4c75-93a0-5e628b19255c', 'snapshot': 'd6b7539e-f329-4f24-a203-78bd7023819c', 'paths': ['a.txt']}], 'next': '看清单判断：要并行就在 dispatch 里带 overlap_reason 写明理由；否则等这些执行尝试验收或回收'}}}",
+  "api_snapshot": {
+    "requests": 22,
+    "main": 16,
+    "first_request": {
+      "worker:T-1": 1793099614.80438,
+      "worker:T-2": 1793099615.086713,
+      "reviewer:T-1": 1793099621.0548859,
+      "reviewer:T-2": 1793099621.350098
+    },
+    "results": {
+      "worker:T-1": [
+        {
+          "is_error": false,
+          "text": "File created successfully at: /private/tmp/t131-i93s5us7/state/worktrees/demo/T-1-a1/a.txt (file state is current in your context — no need to Read it back)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "{\"ok\":true,\"queued\":true,\"delivered\":false,\"request_id\":\"dba08ddd-7090-46cd-8fc4-555e93d1583d\",\"path\":\"/private/tmp/a2a-requests-Si1Yq2/dba08ddd-7090-46cd-8fc4-555e93d1583d.json\"}"
+        }
+      ],
+      "worker:T-2": [
+        {
+          "is_error": false,
+          "text": "File created successfully at: /private/tmp/t131-i93s5us7/state/worktrees/demo/T-2-a1/b.txt (file state is current in your context — no need to Read it back)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "{\"ok\":true,\"queued\":true,\"delivered\":false,\"request_id\":\"33b7fc4b-766d-460f-8990-0d3be0226671\",\"path\":\"/private/tmp/a2a-requests-VRorH2/33b7fc4b-766d-460f-8990-0d3be0226671.json\"}"
+        }
+      ],
+      "reviewer:T-1": [
+        {
+          "is_error": false,
+          "text": "mutation rc=1"
+        }
+      ],
+      "reviewer:T-2": [
+        {
+          "is_error": false,
+          "text": "mutation rc=1"
+        }
+      ]
+    }
+  },
+  "events_tail": [
+    {
+      "type": "native_turn_facts",
+      "launch": "f497a1e9-b1fd-4ad3-8aff-0473485fa642"
+    },
+    {
+      "type": "relay_received",
+      "launch": "f497a1e9-b1fd-4ad3-8aff-0473485fa642"
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "relay_processed",
+      "launch": "f497a1e9-b1fd-4ad3-8aff-0473485fa642"
+    },
+    {
+      "type": "pane_idle",
+      "launch": "f497a1e9-b1fd-4ad3-8aff-0473485fa642"
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "pane_stop_intent",
+      "launch": "f497a1e9-b1fd-4ad3-8aff-0473485fa642"
+    },
+    {
+      "type": "pane_exit",
+      "launch": "f497a1e9-b1fd-4ad3-8aff-0473485fa642"
+    },
+    {
+      "type": "pane_layout_closed",
+      "launch": "f497a1e9-b1fd-4ad3-8aff-0473485fa642"
+    },
+    {
+      "type": "pane_archived",
+      "launch": "f497a1e9-b1fd-4ad3-8aff-0473485fa642"
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "hook_received",
+      "launch": "f497a1e9-b1fd-4ad3-8aff-0473485fa642"
+    },
+    {
+      "type": "native_session_ended",
+      "launch": "f497a1e9-b1fd-4ad3-8aff-0473485fa642"
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    }
+  ]
+}

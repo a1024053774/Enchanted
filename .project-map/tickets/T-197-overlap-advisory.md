@@ -2,13 +2,13 @@
 id: T-197
 title: 认领时的路径重叠交主控判断；已验收的 attempt 不再占路径
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
-ready: no
-ready_by:
-ready_rev:
+ready: yes
+ready_by: ideation
+ready_rev: 1
 ---
 
 ## What to build
@@ -21,9 +21,9 @@ ready_rev:
 
 ## Acceptance
 
-- [ ] 红态：同仓库 A 已验收未回收，派 B（路径与 A 重叠）被 `path_overlap` 拒。修后通过，事件记录 A 不计入。
-- [ ] 两个进行中的任务重叠：不带理由仍拒并返回清单；带理由通过，理由在事件里。
-- [ ] 空字符串或纯空白理由不算理由。
+- [x] 红态：同仓库 A 已验收未回收，派 B（路径与 A 重叠）被 `path_overlap` 拒。修后通过，事件记录 A 不计入。
+- [x] 两个进行中的任务重叠：不带理由仍拒并返回清单；带理由通过，理由在事件里。
+- [x] 空字符串或纯空白理由不算理由。
 
 通用：先在真实入口留红态再修根因；独立审查。
 
@@ -32,3 +32,5 @@ ready_rev:
 不在认领时判断语义冲突；真正冲突交给集成时的 Git 合并。
 
 ## Resolution
+
+2026-10-27 PASS。见 [RESULTS](../../evidence/2026-10-27-batch28/T-197/RESULTS.md)：真实入口红态（`bb447be50` 上 `path_overlap`）、冻结候选绿态 15 项、变异失败；独立审查第 2 轮 PASS。未做 Electron 实机检查。

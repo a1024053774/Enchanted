@@ -27,6 +27,9 @@ function step(event: HistoryEvent): Omit<HistoryStep, 'seq' | 'time' | 'attempt'
     case 'created': return { label: '创建任务', passed: null, detail: null };
     case 'rejected': return quietRefusals.has(d.input?.command) ? null : { label: '门禁拒绝', passed: false,
       detail: `${d.input?.command ?? '请求'}：${d.error ?? '原因未知'}${d.details?.reason ? `（${d.details.reason}）` : ''}` };
+    // T-197: a clean check is noise; an overlap let through shows the reason the controller wrote.
+    case 'claim_path_check': return Array.isArray(d.conflicts) && d.conflicts.length ? { label: '路径重叠', passed: Boolean(d.passed),
+      detail: `与 ${d.conflicts.map((c: any) => `${c.task}（${list(c.paths) ?? '路径'}）`).join('、')}${d.reason ? `；放行理由：${d.reason}` : ''}` } : null;
     case 'claimed': return { label: '认领', passed: null, detail: null };
     case 'dispatched': return { label: '启动 worker', passed: null, detail: null };
     case 'submitted': return { label: '交付', passed: null, detail: short(d.commit) && `候选提交 ${short(d.commit)}` };

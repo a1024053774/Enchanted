@@ -1290,6 +1290,9 @@ export class A2AGates {
     const active = this.db.prepare("SELECT data FROM attempts").all()
       .map((row) => JSON.parse(String(row.data)) as A2AAttempt)
       .filter((a) => !a.reclaimed && a.cleanup?.state !== "removed" && (a.state !== "revoked" || Boolean(a.thread_id)));
+    // T-197: an accepted attempt's work is decided (integration settles it in Git), so it holds no paths;
+    // the check names the ones it would have met, so a reader sees why they did not count.
+    const notCounted: { task: string; attempt: string; state: string; paths: string[] }[] = [];
     for (const a of active) {
       const owner = this.load(a.task_id);
       // T-190: a repository that no longer exists cannot share this task's (existing) common dir; running git
@@ -1298,13 +1301,15 @@ export class A2AGates {
       const otherCommon = await this.git(task.task_id, owner.repo, ["rev-parse", "--path-format=absolute", "--git-common-dir"]);
       if (common !== otherCommon) continue;
       const paths = pathIntersection(task.card.paths, this.boundCard(a).paths);
-      if (paths.length) conflicts.push({ task: owner.task_id, attempt: a.attempt_id, snapshot: a.card_snapshot_id, paths });
+      if (paths.length && a.state === "accepted") notCounted.push({ task: owner.task_id, attempt: a.attempt_id, state: a.state, paths });
+      else if (paths.length) conflicts.push({ task: owner.task_id, attempt: a.attempt_id, snapshot: a.card_snapshot_id, paths });
     }
     this.event(task.task_id, "claim_path_check", {
-      common_dir: common, card_snapshot_id: task.card_snapshot_id, conflicts,
+      common_dir: common, card_snapshot_id: task.card_snapshot_id, conflicts, not_counted: notCounted,
       reason: reason ?? null, actor: "executor", passed: !conflicts.length || Boolean(reason),
     }, null);
-    requireGate(!conflicts.length || reason, "path_overlap", { conflicts });
+    requireGate(!conflicts.length || reason, "path_overlap", { conflicts,
+      next: "看清单判断：要并行就在 dispatch 里带 overlap_reason 写明理由；否则等这些执行尝试验收或回收" });
   }
   private async retainCommit(task: A2ATask, ref: string, commit: string) {
     const previous = await this.git(task.task_id, task.repo, ["rev-parse", "--verify", "--quiet", ref], [0, 1]);
