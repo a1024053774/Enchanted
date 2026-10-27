@@ -59,6 +59,8 @@ type TaskItem = { task_id: string; project_id: string; title: string; state: str
 type Theme = 'system' | 'light' | 'dark';
 type ProjectItem = { project_id: string; repo: string | null; repo_missing?: boolean; opened?: boolean; tasks: TaskItem[]; state: string; state_label: string; issues_waiting: number | null;
   git: { branch: string | null; upstream: string | null; ahead: number | null; behind: number | null; error: string | null } };
+// T-195: what the daemon's native_link answers for a session.
+type NativeLink = { available: true; cli: string; session: string; record: string; text: string } | { available: false; cli: string | null; reason: string };
 type AgentItem = { id: string; project: string; task: string | null; task_name: string | null; attempt: string | null; parent: string | null;
   role: string; preset: string | null; role_label: string; cli: string; state: string; state_label: string; created_at?: string | null; ended_at?: string | null; terminal?: boolean;
   delivery?: WorkerDeliveryStatus | null; start_missing?: boolean; history?: boolean; reclaimable?: boolean;
@@ -117,6 +119,7 @@ declare global { interface Window { a2a: { readonly paneKeys: readonly string[];
   issues(project: string): Promise<TaskIssues[]>; answerIssue(task: string, issue: string, answer: string): Promise<void>;
   restartReview(task: string, attempt: string, reviewId: string): Promise<void>;
   reclaim(task: string, attempt: string): Promise<void>; hideSessions(launches: string[]): Promise<void>;
+  nativeLink(launch: string): Promise<NativeLink>; copyText(text: string): Promise<void>;
   disposeIssue(task: string, issue: string, action: 'close' | 'snooze', reason?: string, basis?: string): Promise<void>;
   archiveUsage(): Promise<{ sessions: number; bytes: number }>;
   reflect(project: string): Promise<any>; retrospectives(project: string): Promise<any>; startRetrospective(project: string, selection: { cli: string; model: string; effort: string }): Promise<unknown>;
@@ -694,6 +697,28 @@ function Workbench() {
   const [removeAsk, setRemoveAsk] = useState<(RemoveRefusal & { project: string }) | null>(null);
   const [projectMenu, setProjectMenu] = useState<{ project: ProjectItem; x: number; y: number; opener: HTMLElement } | null>(null);
   const projectMenuRef = useRef<HTMLDivElement>(null);
+  // T-195: a session row's menu; the link is looked up when it opens.
+  const [agentMenu, setAgentMenu] = useState<{ agent: AgentItem; x: number; y: number; opener: HTMLElement; link: NativeLink | null; error: string | null; copied: boolean } | null>(null);
+  const agentMenuRef = useRef<HTMLDivElement>(null);
+  const openAgentMenu = (agent: AgentItem, x: number, y: number, opener: HTMLElement) => {
+    setAgentMenu({ agent, x, y, opener, link: null, error: null, copied: false });
+    void window.a2a.nativeLink(agent.id).then(link => setAgentMenu(menu => menu?.agent.id === agent.id ? { ...menu, link } : menu),
+      error => setAgentMenu(menu => menu?.agent.id === agent.id ? { ...menu, error: String(error) } : menu));
+  };
+  // The pane may have moved to another session since the menu opened: look again, and copy only what is still shown.
+  const copyLink = async () => {
+    if (!agentMenu?.link?.available) return;
+    const { agent, link: shown } = agentMenu;
+    try {
+      const link = await window.a2a.nativeLink(agent.id);
+      if (!link.available || link.text !== shown.text) {
+        setAgentMenu(menu => menu?.agent.id === agent.id ? { ...menu, link, copied: false } : menu);
+        return;
+      }
+      await window.a2a.copyText(link.text);
+      setAgentMenu(menu => menu?.agent.id === agent.id ? { ...menu, copied: true } : menu);
+    } catch (error) { setAgentMenu(menu => menu && { ...menu, error: '没有复制：' + String(error) }); }
+  };
   const [editingProject, setEditingProject] = useState<string | null>(null);
   const dismissProjectMenu = () => { projectMenu?.opener.focus(); setProjectMenu(null); };
   const [now, setNow] = useState(Date.now());
@@ -824,6 +849,13 @@ function Workbench() {
     return () => window.removeEventListener('keydown', shortcut, true);
   });
   useEffect(() => {
+    if (!agentMenu) return;
+    agentMenuRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    const dismiss = () => setAgentMenu(null);
+    window.addEventListener('mousedown', dismiss);
+    return () => window.removeEventListener('mousedown', dismiss);
+  }, [agentMenu?.agent.id, agentMenu?.x, agentMenu?.y]);
+  useEffect(() => {
     if (!projectMenu) return;
     projectMenuRef.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
     const dismiss = () => setProjectMenu(null);
@@ -902,7 +934,11 @@ function Workbench() {
           data-agent-state={agent.state} aria-current={focusedAgent === agent.id ? 'true' : undefined}
           data-descendant-state={collapsedAgents.has(agent.id) ? agent.descendants.state : undefined}
           title={`${agent.role_label} · ${agent.task ?? '任务未知'} · ${agent.attempt ? 'attempt ' + agent.attempt : '无 attempt'} · ${agent.cli}`}
-          disabled={busy} onClick={() => void selectAgent(agent)}>
+          disabled={busy} onClick={() => void selectAgent(agent)} onContextMenu={event => {
+            event.preventDefault();
+            const box = event.currentTarget.getBoundingClientRect(), pointer = event.clientX || event.clientY;
+            openAgentMenu(agent, pointer ? event.clientX : box.left + 12, pointer ? event.clientY : box.bottom, event.currentTarget);
+          }}>
           <span className="agent-main">
             <span className="agent-role"><CliIcon cli={agent.cli} />{agent.role_label}</span>
             {/* A terminal row's role already says it is a terminal; its meta is the CLI alone so the name is not cut off. */}
@@ -1017,6 +1053,17 @@ function Workbench() {
       <button role="menuitem" data-edit-project disabled={busy || !projectMenu.project.opened} onClick={() => { setEditingProject(projectMenu.project.project_id); setProjectMenu(null); }}>编辑项目</button>
       <button role="menuitem" disabled={busy} title="只从列表隐藏；任务和记录保留，重新打开这个目录就回来"
         onClick={() => removeProject(projectMenu.project.project_id)}>从列表移除</button>
+    </div>}
+    {agentMenu && <div ref={agentMenuRef} className="pane-menu" role="menu" aria-label="会话操作" data-agent-menu={agentMenu.agent.id}
+      style={{ left: Math.min(agentMenu.x, window.innerWidth - 300), top: Math.min(agentMenu.y, window.innerHeight - 120) }}
+      onMouseDown={event => event.stopPropagation()} onKeyDown={event => {
+        if (event.key === 'Escape' || event.key === 'Tab') { if (event.key === 'Escape') event.preventDefault(); agentMenu.opener.focus(); setAgentMenu(null); }
+      }}>
+      <button role="menuitem" data-copy-native-link aria-disabled={!agentMenu.link?.available}
+        title={agentMenu.link?.available ? agentMenu.link.text : agentMenu.link ? agentMenu.link.reason : '正在查找…'}
+        onClick={() => void copyLink()}>复制深度链接</button>
+      <p className="pane-menu-note" data-native-link-note role="status">{agentMenu.error ?? (agentMenu.copied ? '已复制' : agentMenu.link
+        ? agentMenu.link.available ? `${agentMenu.link.cli} · ${agentMenu.link.session}` : agentMenu.link.reason : '正在查找会话记录…')}</p>
     </div>}
     <AppNotifications notices={notices} disabled={busy} onSelect={launch => {
       const agent = agents.find(row => row.id === launch); if (agent) void selectAgent(agent);

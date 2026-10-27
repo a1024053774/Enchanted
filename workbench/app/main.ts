@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, nativeTheme } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, nativeTheme, clipboard } from 'electron';
 import { mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
@@ -393,6 +393,18 @@ function registerHandlers() {
     if (typeof suggestion !== 'string' || typeof approved !== 'boolean') throw new Error('Invalid decision');
     const result = await request(context.options.state, { command: 'retrospective_decide', suggestion, approved }, context.operator);
     if (!result.ok) throw new Error(result.error);
+  });
+  ipcMain.handle('a2a:native-link', async (event, launch: unknown) => {
+    const context = windowTarget(event);
+    if (typeof launch !== 'string') throw new Error('Invalid launch');
+    const result = await request(context.options.state, { command: 'native_link', launch }, context.operator);
+    if (!result.ok) throw new Error(result.error);
+    return result.link;
+  });
+  ipcMain.handle('a2a:copy-text', (event, text: unknown) => {
+    windowTarget(event);
+    if (typeof text !== 'string') throw new Error('Invalid text');
+    clipboard.writeText(text);
   });
   ipcMain.handle('a2a:archive-usage', async event => {
     const context = windowTarget(event);

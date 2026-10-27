@@ -316,6 +316,18 @@ agy、opencode 也可作 worker 与审查员（任务卡 `executor.cli` 为 `agy
 - 限制：后台重启后不恢复 agy、opencode 的受管窗格；回合内的工具调用不逐条记录；agy worker 没有开局说明，角色卡照常作为首条提示的开头；`blocked`（权限、登录）显示未知。
 
 每格右上角的“⋯”和右键菜单提供重命名、向右分屏、向下分屏、放大/还原、把右键发给窗格、关闭。
+
+侧栏会话行的右键菜单有“复制深度链接”（T-195）：复制“<CLI 名> 会话 <CLI 自己的会话号>，记录 <记录文件路径>”。后台命令
+`native_link`（`src/nativeLink.ts`）按 CLI 取，只给“现在这个会话”的号：受管 Claude Code 用后台启动时指定、窗格绑定的
+会话号，这个 CLI 的钩子报过别的会话号（窗格里打了 `/clear` 等）就置灰；受管 Codex 用窗格从 rollout 首行 `session_meta` 绑定的
+线程号，Codex 自己的记录里这个工作区出现别的根线程、或有记录读不了就置灰；记录文件须确实存在。项目终端里跑的是用户自己敲的命令：
+Claude Code、Codex 的会话号由 Enchanted 的钩子连同报告它的 CLI 进程号报来（提交一句话后才有，Codex 须先信任钩子），前台换了
+进程就不再用。opencode 的会话号取自它写给终端的 OSC 7501，报告里没有进程号：受管 opencode worker 一个窗格只跑一个进程，
+可以给出；终端里分不出报告来自哪一次运行，一律置灰（T-195 第 3 轮审查 F1）。opencode 的记录是
+`~/.local/share/opencode/opencode.db` 的 `session_v2` 表。agy 不报会话号：受管 agy worker 按它独占的工作区在
+`~/.gemini/antigravity-cli/conversations` 里找唯一的会话文件，有文件读不了时不猜；终端里的 agy 一律置灰。
+拿不到（还没报来、找不到文件、同一目录有多个 agy 会话、记录读不了、终端里的 agy 或 opencode、终端前台没有这四家 CLI）时菜单项置灰，
+悬停与菜单下方写明原因；a2a 自造的 `osc7501:<launch>` 不当会话号给出。事实见 `findings/2026-10-27-native-session-ids.zh-CN.md`。
 分屏保留原窗格，按所选方向新建普通 zsh。普通终端沿用原启动目录；从任务 agent 分屏时，目录为任务仓库根，
 不使用 worker 的 worktree。用户可以自行在新终端启动 CLI 讨论任务；新终端标为“普通终端”，不计入 worker，
 不认领任务路径，其输入不记为 worker 的人工介入。普通终端只在布局中关联该任务，仍沿用项目普通终端的输入与关闭通道。

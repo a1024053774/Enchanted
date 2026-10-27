@@ -2,13 +2,13 @@
 id: T-195
 title: 右键复制会话的 CLI 名、原生会话 ID 与记录路径
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
-ready: no
-ready_by:
-ready_rev:
+ready: yes
+ready_by: ideation
+ready_rev: 1
 ---
 
 ## What to build
@@ -20,8 +20,8 @@ ready_rev:
 
 ## Acceptance
 
-- [ ] Claude Code 与 Codex 会话复制出的 ID 与路径能直接打开对应记录文件。
-- [ ] agy、opencode 的实测结论写进 findings；拿不到时菜单置灰。
+- [x] Claude Code 与 Codex 会话复制出的 ID 与路径能直接打开对应记录文件。
+- [x] agy、opencode 的实测结论写进 findings；拿不到时菜单置灰。
 
 通用：先在真实入口留红态再修根因；不写 ~/.claude、~/.codex 等全局配置；独立审查。
 
@@ -30,3 +30,5 @@ ready_rev:
 范围外问题经问题上报。
 
 ## Resolution
+
+2026-10-27 PASS。侧栏会话右键“复制深度链接”，后台 `native_link` 只给“现在这个会话”的原生号与记录路径：受管 Claude、Codex 核对窗格里没换会话或线程，Codex 记录读不了即置灰；终端里 Claude、Codex 按报告它的进程，agy、opencode 一律置灰并说明原因。真实 Claude Code 与真实 Codex 的记录独立核对、红态、变异与回归，独立审查 5 轮（前 4 轮 NO_GO，已修；第 5 轮无发现，审查沙箱内完整 e2e 超时已归因于环境），见 [RESULTS](../../evidence/2026-10-27-batch28/T-195/RESULTS.md)。T-104 回归的既有失败与本票无关，归因见同文件。

@@ -17,7 +17,7 @@ import { ClaudeLogin } from "./claudeLogin.ts";
 import { noticeText, SECURITY_NOTICE_TEXT } from "./claudeNotice.ts";
 import { resumeArgv, nativeSessionFile, codexSessionOrigin, codexSessionFileName } from "./paneRecovery.ts";
 import type { ExecutionOverrides } from './executionSettings.ts';
-import { cliProgram, terminalClis, readOsc7501, type CliTurn } from './terminalClis.ts';
+import { cliProgram, terminalClis, readOsc7501, type CliTurn, type LaunchFacts } from './terminalClis.ts';
 import { cliProvider } from './gates/taskCards.ts';
 
 const exec = promisify(execFile);
@@ -198,6 +198,8 @@ export type WorkerDeliveryStatus = {
 // T-187: a managed agy or opencode session has no native session id the backend can check (agy reports none); the
 // backend names it after its launch.
 const reportedSession = (launch: string) => `osc7501:${launch}`;
+// T-195: a session id a terminal's Claude Code or Codex reported through its hook, with that CLI's process.
+export type ShellNativeReport = { cli: string; pid: number; session: string; home: string | null };
 // An agy or opencode reviewer writes its result to this file: opencode's reports carry no last reply.
 export const REVIEW_RESULT_FILE = "review-result.json";
 function reviewResult(pane: { record: Record<string, any> }) {
@@ -233,6 +235,9 @@ type Pane = {
   unwiredCli?: { command: string; pid: number; since: string } | null; wiringCheckAt?: number; wiringBusy?: boolean;
   // T-187: the last OSC 7501 state report of the terminal's CLI (agy, opencode), until that CLI exits.
   cliTurn?: CliTurn | null; oscCarry?: string; foregroundCli?: string | null;
+  // T-195: the native session a terminal's Claude Code or Codex last reported through its hook, bound to the reporting
+  // CLI's process: a later CLI in the same terminal is never given it.
+  nativeReport?: ShellNativeReport | null;
   // T-187: a managed agy or opencode session; its turns come from its OSC 7501 reports (reportedTurns).
   reports?: boolean; reportedEnding?: boolean; trustWritten?: number;
   claudePromptId?: string | null;
@@ -338,6 +343,36 @@ export class Panes implements GateRuntime {
       if (data.includes("\r")) pane.wiringCheckAt = Date.now() + WIRING_CHECK_DELAY_MS;
     });
   }
+  // The program in front of a project terminal: its process, launch facts, and which registered CLI it runs, if any.
+  private async foreground(pane: Pane): Promise<{ pid: number; launch: LaunchFacts; cli: string | undefined } | null> {
+    const info = await this.processInfo(pane.record.thread);
+    const leader = (info.processes as { pid: number; pgid: number; tpgid: number }[])
+      .find(row => row.pid !== pane.pty.pid && row.pid === row.pgid && row.pgid === row.tpgid);
+    if (!leader) return null;
+    const { stdout } = await exec("/usr/bin/python3", ["-I", "-S", "-B", processArgs, String(leader.pid)], { timeout: 5000 });
+    const launch = JSON.parse(stdout) as LaunchFacts;
+    return { pid: leader.pid, launch, cli: cliProgram(launch.argv) };
+  }
+  private noteNativeReport(pane: Pane, report: ShellNativeReport) {
+    const last = pane.nativeReport;
+    if (last && JSON.stringify(last) === JSON.stringify(report)) return;
+    pane.nativeReport = report;
+    this.store.event("shell_native_session", report, pane.record);
+  }
+  // T-195: a Claude Code or Codex hook in this terminal named its session; pid is that CLI's process (terminalCli.ts).
+  noteShellHook(launch: string, report: ShellNativeReport) {
+    const pane = this.byLaunch(launch);
+    check(pane.record.role === "shell", "shell_required");
+    this.noteNativeReport(pane, report);
+  }
+  // T-195: the CLI in front of this terminal now, and the session it reported, if the same process reported one.
+  async shellNative(launch: string): Promise<{ cli: string | null; report: ShellNativeReport | null }> {
+    const pane = this.byLaunch(launch);
+    check(pane.record.role === "shell", "shell_required");
+    const front = pane.stopped ? null : await this.foreground(pane);
+    const cli = front?.cli ?? null, report = pane.nativeReport ?? null;
+    return { cli, report: cli && report && report.cli === cli && report.pid === front!.pid ? report : null };
+  }
   // T-184: the foreground program of a project terminal, when it is a CLI a shim wraps, must carry the shim's launch
   // arguments; without them it runs without Enchanted's plugin and hooks, and the terminal says so instead of showing a
   // turn state it cannot know. Read after a submitted line, and again while a warning stands so it clears when that
@@ -347,21 +382,17 @@ export class Panes implements GateRuntime {
     if (due === undefined || Date.now() < due || pane.wiringBusy || pane.stopped) return;
     pane.wiringBusy = true; pane.wiringCheckAt = undefined;
     try {
-      const info = await this.processInfo(pane.record.thread);
-      const leader = (info.processes as { pid: number; pgid: number; tpgid: number }[])
-        .find(row => row.pid !== pane.pty.pid && row.pid === row.pgid && row.pgid === row.tpgid);
-      if (!leader) { pane.unwiredCli = null; pane.cliTurn = null; pane.foregroundCli = null; return; }
-      const { stdout } = await exec("/usr/bin/python3", ["-I", "-S", "-B", processArgs, String(leader.pid)], { timeout: 5000 });
-      const launch = JSON.parse(stdout) as { argv: string[]; shim: string | null };
-      const command = cliProgram(launch.argv);
+      const front = await this.foreground(pane);
+      if (!front) { pane.unwiredCli = null; pane.cliTurn = null; pane.foregroundCli = null; return; }
+      const { pid, launch, cli: command } = front;
       const cli = command === undefined ? undefined : terminalClis[command];
       // Reports belong to the CLI in front; another program in front (`opencode; sleep 60`) leaves none standing.
       if (cli?.turns !== "osc7501") pane.cliTurn = null;
       // T-191: the sidebar shows the state of the CLI in front; recheck while one is there so it clears when it exits.
       pane.foregroundCli = cli ? command! : null;
       const unwired = Boolean(cli) && !cli!.wired(launch);
-      pane.unwiredCli = !unwired ? null : pane.unwiredCli?.pid === leader.pid ? pane.unwiredCli
-        : { command: command!, pid: leader.pid, since: new Date().toISOString() };
+      pane.unwiredCli = !unwired ? null : pane.unwiredCli?.pid === pid ? pane.unwiredCli
+        : { command: command!, pid, since: new Date().toISOString() };
       if (unwired || pane.cliTurn || pane.foregroundCli) pane.wiringCheckAt = Date.now() + WIRING_RECHECK_MS;
     } catch (error) {
       // The process may have exited between the two reads; with no observation the terminal shows no warning.
@@ -522,6 +553,7 @@ export class Panes implements GateRuntime {
     return record;
   }
   get(thread: string) { const pane = this.panes.get(thread); check(pane, "unknown_pane"); return pane; }
+  hasLaunch(id: string) { return [...this.panes.values()].some((value) => value.record.id === id && !value.stopped); }
   byLaunch(id: string) {
     const pane = [...this.panes.values()].find((value) => value.record.id === id);
     check(pane, "unknown_launch"); return pane;

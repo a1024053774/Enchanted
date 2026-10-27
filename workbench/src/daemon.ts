@@ -1,6 +1,6 @@
 import { createServer } from "node:net";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmdirSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { basename, isAbsolute, join } from "node:path";
 import { A2AGates, Refusal, type TerminalController } from "./gates/core.ts";
 import { ControllerQuota, type QuotaState } from "./controllerQuota.ts";
@@ -23,6 +23,7 @@ import { metricsSnapshot } from './metrics.ts';
 import { userInputRecords } from './userInputRecords.ts';
 import { reflectTree } from './reflect.ts';
 import { TrajectoryArchive } from './trajectoryArchive.ts';
+import { nativeLink } from './nativeLink.ts';
 import { Retrospectives, retrospectiveArgv, retrospectivePrompt } from './retrospective.ts';
 import { RoleRequests, confirmWindowMs, type RoleRequest } from './roleRequests.ts';
 import { executionRole, executionOverrides } from './executionSettings.ts';
@@ -171,7 +172,7 @@ export async function serve(
   };
   const catalogCommands = new Set(["projects_list", "tasks_list", "sidebar_snapshot", "flow_snapshot"]);
   const readOnly = new Set([...catalogCommands, "daemon_status", "orchestration_events", "pane_output", "workbench_snapshot",
-    "pane_layout", "pane_status", "pane_process_info", "launch_show", "status", "events", "task_history", "issues", "card_show", "card_template", "card_validate", "execution_settings", "work_branch_prefix", "metrics", "user_input_records", "relay_receipts", "trajectory_archive", "retrospective_list", "reflect_tree"]);
+    "pane_layout", "pane_status", "pane_process_info", "launch_show", "status", "events", "task_history", "issues", "card_show", "card_template", "card_validate", "execution_settings", "work_branch_prefix", "metrics", "user_input_records", "relay_receipts", "trajectory_archive", "native_link", "retrospective_list", "reflect_tree"]);
   const authenticate = (identity: any): { source: string; kind: "operator" | "window" | "launch" | "terminal" | "anonymous";
       window?: WindowBinding; terminal?: { id: string; project: string | null; task: string | null } } => {
     if (!identity) return { source: "anonymous", kind: "anonymous" };
@@ -311,6 +312,10 @@ export async function serve(
       const held = roleRequests.approved(terminal.id);
       let payload: any;
       try { payload = JSON.parse(String(input.raw_stdin)); } catch { return { ok: true, kept: false }; }
+      // T-195: the session this terminal's CLI process names in its hooks, with or without a role, for the copied link.
+      if ((input.cli === "claude" || input.cli === "codex") && Number.isSafeInteger(input.cli_pid) && typeof payload?.session_id === "string" && payload.session_id)
+        panes.noteShellHook(terminal.id, { cli: input.cli, pid: input.cli_pid, session: payload.session_id,
+          home: typeof input.native_home === "string" ? input.native_home : null });
       if (!held || !held.native_session || payload?.session_id !== held.native_session) return { ok: true, kept: false };
       // Claude Code asks with AskUserQuestion and reports the answer when the tool returns. Codex asks with
       // request_user_input_async, which returns at once ({"accepted":true}); the user's reply comes back later as a
@@ -453,6 +458,12 @@ export async function serve(
       }) };
     }
     if (input.command === 'trajectory_archive') return { ok: true, ...archive.usage() };
+    // T-195: a session's CLI, its own session id and record file, for the sidebar's "复制深度链接".
+    if (input.command === 'native_link') {
+      if (typeof input.launch !== 'string') throw new Refusal('invalid_launch');
+      const shell = store.launchRecord(input.launch)?.role === 'shell' && panes.hasLaunch(input.launch) ? await panes.shellNative(input.launch) : null;
+      return { ok: true, link: nativeLink(store.db, root, archive, input.launch, homedir(), shell) };
+    }
     // T-137: the Reflect page's tree of every controller this project had and the sessions under it.
     if (input.command === 'reflect_tree') {
       if (typeof input.project !== 'string' || !input.project) throw new Refusal('invalid_project');

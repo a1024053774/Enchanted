@@ -50,7 +50,8 @@ export function commandCli(env: NodeJS.ProcessEnv, ancestors: () => string[][]):
 // One OSC 7501 report: `ESC ] 7501 ; state=<s>[:id=..][:kind=<k>][:app=..][:msg=<base64>] (BEL | ESC \)`. A bare `?` is
 // the CLI asking whether the terminal supports it, not a state.
 // msg: the decoded text a report carries (agy: the question, the permission asked, the last reply).
-export type CliTurn = { state: string; kind: string | null; msg: string | null };
+// app, id: the CLI's name and (opencode) its own session id, when the report carries them (T-195).
+export type CliTurn = { state: string; kind: string | null; msg: string | null; app: string | null; id: string | null };
 const OSC7501 = /\x1b\]7501;([^\x07\x1b]*)(?:\x07|\x1b\\)/g, START = "\x1b]7501;";
 export function readOsc7501(carry: string, data: string): { carry: string; turns: CliTurn[] } {
   const text = carry + data, turns: CliTurn[] = [];
@@ -60,7 +61,8 @@ export function readOsc7501(carry: string, data: string): { carry: string; turns
     const fields = new Map(match[1].split(":").filter(field => field.includes("="))
       .map(field => [field.slice(0, field.indexOf("=")), field.slice(field.indexOf("=") + 1)]));
     if (fields.get("state")) turns.push({ state: fields.get("state")!, kind: fields.get("kind") ?? null,
-      msg: fields.has("msg") ? Buffer.from(fields.get("msg")!, "base64").toString("utf8") : null });
+      msg: fields.has("msg") ? Buffer.from(fields.get("msg")!, "base64").toString("utf8") : null,
+      app: fields.get("app") || null, id: fields.get("id") || null });
   }
   // Keep an unfinished report for the next chunk, or an output that stops inside a report's opening `ESC ] 7501 ;`.
   // A report is short, so anything longer is not one.

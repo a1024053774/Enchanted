@@ -25,6 +25,8 @@ contextBridge.exposeInMainWorld('a2a', Object.freeze({
   restartReview: (task: string, attempt: string, reviewId: string) => ipcRenderer.invoke('a2a:review-restart', task, attempt, reviewId),
   reclaim: (task: string, attempt: string) => ipcRenderer.invoke('a2a:reclaim', task, attempt),
   hideSessions: (launches: string[]) => ipcRenderer.invoke('a2a:hide-sessions', launches),
+  nativeLink: (launch: string) => ipcRenderer.invoke('a2a:native-link', launch),
+  copyText: (text: string) => ipcRenderer.invoke('a2a:copy-text', text),
   answerIssue: (task: string, issue: string, answer: string) => ipcRenderer.invoke('a2a:issue-answer', task, issue, answer),
   disposeIssue: (task: string, issue: string, action: 'close' | 'snooze', reason?: string, basis?: string) =>
     ipcRenderer.invoke('a2a:issue-dispose', task, issue, action, reason, basis),

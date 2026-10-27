@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { requestAt } from "./transport.ts";
-import { commandCli } from "./terminalClis.ts";
+import { cliProgram, commandCli } from "./terminalClis.ts";
 
 // The `a2a` command inside an Enchanted project terminal (T-121). Its identity is
 // the terminal itself; controller commands need a role the user approved in the UI.
@@ -63,18 +63,22 @@ const usage = `a2a：Enchanted 工作台的编排命令（在 Enchanted 的项�
 // to its workspace (terminal/bin/agy).
 const orientation = readFileSync(fileURLToPath(new URL("../terminal/orientation/AGENTS.md", import.meta.url)), "utf8").trimEnd();
 
-// The program names (argv[0]) of this command's ancestor processes, nearest first (T-187: a CLI started inside another).
-function ancestors(): string[][] {
+// This command's ancestor processes and their argv, nearest first (T-187: a CLI started inside another).
+function ancestors(): { pid: number; argv: string[] }[] {
   const rows = new Map(execFileSync("/bin/ps", ["-axo", "pid=,ppid=,args="], { encoding: "utf8" }).split("\n")
     .map(line => line.trim().match(/^(\d+)\s+(\d+)\s+(.*)$/)).filter(match => match !== null)
     .map(match => [Number(match![1]), { parent: Number(match![2]), argv: match![3].split(/\s+/) }]));
-  const chain: string[][] = [];
-  for (let pid = process.ppid; rows.has(pid) && chain.length < 64; pid = rows.get(pid)!.parent) chain.push(rows.get(pid)!.argv);
+  const chain: { pid: number; argv: string[] }[] = [];
+  for (let pid = process.ppid; rows.has(pid) && chain.length < 64; pid = rows.get(pid)!.parent) chain.push({ pid, argv: rows.get(pid)!.argv });
   return chain;
 }
+const ancestorArgv = () => ancestors().map(row => row.argv);
 
 // The terminal socket accepts only this identity (T-126); the daemon's data directory is not in the environment.
 const socket = process.env.A2A_TERMINAL_SOCKET, launch = process.env.A2A_TERMINAL, token = process.env.A2A_TERMINAL_TOKEN;
+// Where the CLI keeps its records, from the environment it gives its commands.
+const nativeHome = (cli: string | undefined) => cli === "claude" ? process.env.CLAUDE_CONFIG_DIR || (process.env.HOME && process.env.HOME + "/.claude") :
+  cli === "codex" ? process.env.CODEX_HOME || (process.env.HOME && process.env.HOME + "/.codex") : undefined;
 const print = (value: unknown) => process.stdout.write(JSON.stringify(value, null, 2) + "\n");
 
 async function main(argv: string[]) {
@@ -89,8 +93,11 @@ async function main(argv: string[]) {
     try {
       const chunks: Buffer[] = [];
       for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
-      if (socket && launch && token) await requestAt(socket, { command: "terminal_hook", raw_stdin: Buffer.concat(chunks).toString("utf8") },
-        { kind: "terminal", launch, token });
+      // T-195: which CLI process runs this hook, so the session it names is bound to that process.
+      const cli = commandCli(process.env, ancestorArgv);
+      const pid = ancestors().find(row => cliProgram(row.argv) === cli)?.pid;
+      if (socket && launch && token) await requestAt(socket, { command: "terminal_hook", raw_stdin: Buffer.concat(chunks).toString("utf8"),
+        ...(cli && pid ? { cli, cli_pid: pid, native_home: nativeHome(cli) } : {}) }, { kind: "terminal", launch, token });
     } catch { /* The daemon decides what to keep; a hook that cannot reach it leaves the turn alone. */ }
     return 0;
   }
@@ -108,13 +115,11 @@ async function main(argv: string[]) {
   if (command === "whoami" && !rest.length) return finish(await send({ command: "terminal_whoami" }));
   if (command === "release" && !rest.length) return finish(await send({ command: "role_release" }));
   if (command === "request" && rest.length === 1) {
-    const cli = commandCli(process.env, ancestors);
+    const cli = commandCli(process.env, ancestorArgv);
     // The CLI's own session and home, from the environment it gives its commands (T-124 probe 01): the
     // daemon reads only that session's usage-limit records, to tell the user when this controller runs out.
-    const native = cli === "claude" ? { native_session: process.env.CLAUDE_CODE_SESSION_ID,
-      native_home: process.env.CLAUDE_CONFIG_DIR || (process.env.HOME && process.env.HOME + "/.claude") } :
-      cli === "codex" ? { native_session: process.env.CODEX_THREAD_ID,
-        native_home: process.env.CODEX_HOME || (process.env.HOME && process.env.HOME + "/.codex") } : {};
+    const native = cli === "claude" ? { native_session: process.env.CLAUDE_CODE_SESSION_ID, native_home: nativeHome(cli) } :
+      cli === "codex" ? { native_session: process.env.CODEX_THREAD_ID, native_home: nativeHome(cli) } : {};
     process.stderr.write(`申请成为${rest[0] === "executor" ? "执行主控" : rest[0] === "ideation" ? "构思主控" : rest[0]}，等用户在 Enchanted 里批准…\n`);
     // The daemon holds this call until the user decides. If this process stops
     // waiting for any reason, the daemon sees the connection close and withdraws it.
