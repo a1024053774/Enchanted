@@ -2,7 +2,7 @@
 id: T-190
 title: 项目随时可移除；失效项目不拖累其他项目的认领
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -21,9 +21,9 @@ ready_rev:
 
 ## Acceptance
 
-- [ ] 反例：某项目的仓库目录被删且有未回收 attempt，另一个项目照常认领成功（修前同场景报 spawn git ENOENT）。
-- [ ] 有门禁任务的项目能从列表移除，重新打开同一目录后任务与记录回来。
-- [ ] 有未回收 attempt 时移除会询问，选回收则经门禁回收。
+- [x] 反例：某项目的仓库目录被删且有未回收 attempt，另一个项目照常认领成功（修前同场景报 spawn git ENOENT）。
+- [x] 有门禁任务的项目能从列表移除，重新打开同一目录后任务与记录回来。
+- [x] 有未回收 attempt 时移除会询问，选回收则经门禁回收。
 
 通用：先在真实入口留红态再修根因；不写 ~/.claude、~/.codex 等全局配置；独立审查。
 
@@ -37,3 +37,5 @@ ready_rev:
 未完成：“回收并移除”的真实正例；新版本未装到 /Applications；`/private/tmp/a2a-lcu-demo` 空仓库要等装上新版再删（现在删会让 0.1.5 的认领再次全部失败）。
 
 2026-10-27 安装：用户让装新版并删空仓库。`e39357ae6` 已装进 /Applications，后台已重启，新后台以该版本运行；`/private/tmp/a2a-lcu-demo` 已删除，界面显示“目录不存在”。仍 INCOMPLETE：“回收并移除”真实正例、普通终端回合状态切换未验证。证据同上 RESULTS.md“装进 /Applications”节。
+
+2026-10-27 关闭：用户“真实验证,用 codex”。第 4 轮在真实后台入口和测试版界面上，带两个未回收 attempt（agy、opencode worker）的 zeta 经“回收并移除”经门禁回收并移除；三条验收已勾。证据见 [RESULTS.md](../../evidence/2026-10-27-batch28/T-190/RESULTS.md) 第 4 轮。

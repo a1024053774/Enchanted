@@ -28,3 +28,31 @@
 - 删空仓库：删前核对 `/private/tmp/a2a-lcu-demo` 只有 `.git`、无提交、无 worktree（80K），然后删除。界面中 a2a-lcu-demo 行随即显示“目录不存在”。
 
 没有做：在用户真实状态里发起认领来复验“已删仓库不再拖垮认领”（会在用户项目里留下真实任务）；这一点只有隔离后台的红态、绿态证据。
+
+## 第 4 轮：真实验收（2026-10-27，用户：“真实验证,用 codex,然后开工后面的”）
+
+测试版 Enchanted Test 从 c754067a1 打包（后台 argv 的 code_revision 相同），状态目录仍是 `/private/tmp/t190/state`。新夹具仓库 `/private/tmp/t190/zeta`，三张卡分别派给真实 worker：
+
+- T-5 Codex（gpt-6.1-sol high，用户自己的 `~/.codex`）：Codex 0.164 对未信任的 zeta 显示“Trust this folder?”，后台按 T-141 不代答，记 `codex_folder_trust_requested`（事件 6805），worker 停在信任框。属设计行为，不是缺陷；我撤销（`round4-probe/T5-revoke.json`）、结束这个测试进程后经门禁回收（`T5-reclaim.json`）。
+- T-6 agy、T-7 opencode（`opencode/glm-5.3-flash-free`）：都交付到 `submitted`，后台记 `pane_idle`。
+
+界面验收由 Codex `gpt-6.1-terra` high 用 Computer Use 操作（`ui-check-round4/BRIEF.md`、`REPORT.md`；截图可能含 agy 账户信息，只存 WD，见 `ui-check-round4.archive.json`）：
+
+| 项 | 结果 |
+| --- | --- |
+| 四家 CLI 的 worker 行图标与名称（T-5 Codex、T-6 agy、T-7 opencode、lcu T-2 Claude Code） | PASS |
+| agy、opencode worker 交付后侧栏为空闲 | PASS |
+| zeta 带两个未回收 attempt 移除：弹窗列出 T-6、T-7，选“回收并移除”后 zeta 离开侧栏 | PASS |
+| 普通终端里 agy、opencode 回合进行中转圈 | Codex 未截到（回合约 3～4 秒）；opencode 的 `-m` 是 opencode 自己不认的参数，说明写错 |
+
+门禁核对：T-6、T-7 各有 `reclaim_intent` → `reclaimed`，任务回到 `ready`、current_attempt 为空；`project_removed` 的 `kept_attempts` 为空。
+
+普通终端回合状态改用后台入口探针补证（`round4-probe/probe.py`：开项目终端 → 启动 CLI → 发问 → 每 0.3 秒读 `sidebar_snapshot` 的终端行与 `pane_status`；原始采样只存 WD，见 `round4-probe.archive.json`）：
+
+- agy：发问后终端行 `running`（cli_turn `working`）13 个采样，随后 `idle`（`done`）。
+- opencode：`running` 10 个采样，随后 `idle`。
+- 长回合（agy，五段话）：`running` 89 个采样后 `idle`；回合进行中给 Enchanted Test 截图，侧栏为“普通终端 agy 运行中”并转圈（WD `round4-probe/ui-agy-running.jpg`）。
+
+旁证：探针第一次在 beta 跑 agy 时，beta 还没被 agy 信任，我发的回车答了 agy 的信任框（写入用户 `~/.gemini` 的 trustedWorkspaces，属 T-187 用户批准的唯一全局配置例外）；那次采样只有信任框与空闲，未计入结论。
+
+结论：T-190 三条验收 PASS；T-191 两条验收 PASS，普通终端回合状态 PASS。
