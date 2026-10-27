@@ -19,3 +19,12 @@
 - 第 3 轮（`ui-check-round3/`）：BLOCKED。名称完整显示 PASS；深色下 opencode 图标可见。opencode 本轮没有可用模型（“Connect an integration”），没能发出回合，所以“运行中 → 空闲”的切换没有验证。
 
 未验证：普通终端里 agy、opencode 回合进行中时侧栏转圈、结束后回到空闲；真实会话绑定的 attempt 经“回收并移除”成功的正例。
+
+## 装进 /Applications（2026-10-27，用户："装新版到 /Applications、重启后台，然后删掉 /private/tmp/a2a-lcu-demo 空仓库。正在跑的会话被打断没关系。"）
+
+- 构建：`python3 build.py r1`（复制自 T-188，浅克隆已提交的 `e39357ae6`，`npm ci` + `npm run package:mac`），PASS；日志与 `build-r1.json` 在 `/Volumes/WD-Elements/a2a-evidence/2026-10-27-batch28/T-190/`。版本号仍是 0.1.5，未发 Release；包内 `a2a.revision` 为 `e39357ae6…`。
+- 替换前运行情况：`install-before-ps.txt`。Enchanted 下有两个 Claude Code 终端（pid 6476、87938）和一个 agy worker（pid 91293）；按用户原话 SIGTERM 应用（6012）与后台（6142），它们随之结束。
+- 替换：旧包移到 `/private/tmp/Enchanted-0.1.5-d68a5d50e.app` 暂存（可回退），新包 ditto 进 `/Applications`；`codesign --verify --deep --strict` 通过（ad-hoc）。`env -i /usr/bin/open -a` 启动，新后台 argv 的 `code_revision` 为 `e39357ae6…`，安装包内 `gates/core.ts` 含 T-190 的跳过。窗口显示“后台已连接”，原有项目都在。
+- 删空仓库：删前核对 `/private/tmp/a2a-lcu-demo` 只有 `.git`、无提交、无 worktree（80K），然后删除。界面中 a2a-lcu-demo 行随即显示“目录不存在”。
+
+没有做：在用户真实状态里发起认领来复验“已删仓库不再拖垮认领”（会在用户项目里留下真实任务）；这一点只有隔离后台的红态、绿态证据。
