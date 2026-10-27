@@ -1561,7 +1561,9 @@ export class A2AGates {
     );
   }
   /** The caller holds the task lock; all attempt creation uses this path. */
-  private async claim(task: A2ATask, args: A2AGateRequest, run?: A2ARun, conflict?: A2AVerification): Promise<A2AGateResult> {
+  // approved: the extra directories an earlier attempt of this work was granted (a run's redispatch, a conflict
+  // replacement); kept as they are, never resolved again (T-193 review R1).
+  private async claim(task: A2ATask, args: A2AGateRequest, run?: A2ARun, conflict?: A2AVerification, approved?: string[]): Promise<A2AGateResult> {
     const taskId = task.task_id;
     if (args.command === "dispatch") {
       requireGate(this.runtime, "runtime_required");
@@ -1595,6 +1597,7 @@ export class A2AGates {
         owner,
         state: "preparing",
         ...(conflict ? { conflict_source: conflict.verification_id } : {}),
+        ...(args.command === "dispatch" ? { extra_directories: this.extraDirectories(task, approved ?? args.extra_directories, approved !== undefined) } : {}),
       };
       const boundCard: TaskCard = { ...structuredClone(task.card), base_commit: base,
         writer: { task_id: taskId, attempt_id: attempt.attempt_id, session_id: attempt.session_id,
@@ -1616,6 +1619,9 @@ export class A2AGates {
       if (run) {
         run.attempt_id = attempt.attempt_id;
         run.thread_id = attempt.thread_id;
+        // T-193 review R2: saved with the binding, before any worker starts, so a restart redispatches with what this
+        // dispatch approved, not whatever the controller's names point to then.
+        run.dispatch!.extra_directories = attempt.extra_directories ?? [];
         this.saveRun(run, "run_bound");
       }
     } finally { reservation.close(); }
@@ -1729,7 +1735,9 @@ export class A2AGates {
         await this.cleanupAttempt(task, attempt);
         // No inherited overlap exception: every new attempt must check the
         // current set of path owners through the same claim implementation.
-        const next = await this.claim(task, { command: "dispatch", task: task.task_id, runtimeMode: attempt.runtime_mode }, undefined, v);
+        // The replacement keeps the extra directories the controller chose for this task's work (T-193).
+        const next = await this.claim(task, { command: "dispatch", task: task.task_id, runtimeMode: attempt.runtime_mode },
+          undefined, v, attempt.extra_directories ?? []);
         repair.state = "replaced";
         repair.replacement_attempt = next.attempt!.attempt_id;
         this.save(task, "conflict_worker_replaced", { repair, original_attempt: attempt.attempt_id }, attempt);
@@ -2139,6 +2147,25 @@ export class A2AGates {
     this.event(task.task_id, "git_metadata_check", { verification_id: v.verification_id, before, after, changed, passed: changed.length === 0 });
     requireGate(changed.length === 0, "git_metadata_changed", { changed });
   }
+  // T-193: what extra directories a worker may write is the controller's call per dispatch (none unless named). The
+  // gate checks only facts: absolute, an existing directory, and not the task's repository or the gate's own data, whose
+  // changes would skip review and integration without anyone choosing that. approved: real paths granted before, which
+  // must still resolve to themselves; a name that now points elsewhere is refused, not followed.
+  private extraDirectories(task: A2ATask, value: unknown, approved = false): string[] {
+    if (value === undefined) return [];
+    requireGate(Array.isArray(value) && value.every((path) => typeof path === "string" && isAbsolute(path) && existsSync(path) &&
+      statSync(path).isDirectory()), approved ? "extra_directory_changed" : "invalid_extra_directories", { extra_directories: value });
+    for (const path of approved ? value as string[] : [])
+      requireGate(realpathSync(path) === path, "extra_directory_changed", { path });
+    const inside = (path: string, root: string) => path === root || path.startsWith(root.endsWith("/") ? root : root + "/") ||
+      root.startsWith(path.endsWith("/") ? path : path + "/");
+    // Approved ones are kept as they are: resolving them again could name another directory (T-193 review 3 F1).
+    const directories = [...new Set(approved ? value as string[] : (value as string[]).map((path) => realpathSync(path)))];
+    const guarded = [realpathSync(task.repo), realpathSync(this.root)];
+    const refused = directories.filter((path) => guarded.some((root) => inside(path, root)));
+    requireGate(!refused.length, "extra_directory_guarded", { refused, guarded });
+    return directories;
+  }
   private outOfCardJudged(task: A2ATask, v: A2AVerification) {
     const judged = task.out_of_card_judgement;
     return !v.out_of_card?.length || Boolean(judged && judged.candidate_commit === v.C && v.out_of_card.every((path) => judged.out_of_card.includes(path)));
@@ -2461,8 +2488,9 @@ export class A2AGates {
     const extraDirectories: string[] = launch?.extra_directories ?? [];
     const mcp = Array.isArray(argv) && argv[15] === "--mcp-config";
     const extraStart = mcp ? 17 : 15;
-    requireGate(Array.isArray(extraDirectories) && extraDirectories.every(path => typeof path === 'string' && isAbsolute(path)),
-      "review_extra_directories", { extraDirectories });
+    requireGate(Array.isArray(extraDirectories) && extraDirectories.every(path => typeof path === 'string' && isAbsolute(path)) &&
+      JSON.stringify(extraDirectories) === JSON.stringify(review.attempt.extra_directories ?? []),
+      "review_extra_directories", { extraDirectories, approved: review.attempt.extra_directories ?? [] });
     // T-187: an agy or opencode reviewer's launch is the one the register builds from the worker launch's model and
     // effort, as a whole; its review checkout is read-only, since the CLI has no sandbox.
     const expected = managed && worker ? managed({ executable: String(argv?.[0]), workspace: review.candidate_workspace,
@@ -3023,7 +3051,8 @@ export class A2AGates {
         wait_seconds: args.wait_seconds!,
         phase: "dispatching",
         outcome: "running",
-        dispatch: { runtimeMode: args.runtimeMode!, overlap_reason: args.overlap_reason, model: args.model, effort: args.effort, fast: args.fast },
+        dispatch: { runtimeMode: args.runtimeMode!, overlap_reason: args.overlap_reason, model: args.model, effort: args.effort, fast: args.fast,
+          extra_directories: args.extra_directories },
         ...(controller ? { initiator: { launch: controller.launch, role_request: controller.role_request, role: controller.role } } : {}),
       };
       this.saveRun(run, "run_started");
@@ -4016,7 +4045,9 @@ export class A2AGates {
         await this.rejectDelivery(task, attempt, "path_boundary", { error: "out_of_card_rejected", out_of_card: v.out_of_card, reason });
         return { ok: true, task: this.load(taskId) };
       }
-      if (args.command === "dispatch" || args.command === "claim") return await this.claim(task, args, run);
+      // A run bound before (its redispatch after a restart) holds the real paths its first dispatch approved.
+      if (args.command === "dispatch" || args.command === "claim")
+        return await this.claim(task, args, run, undefined, run?.attempt_id ? run.dispatch?.extra_directories ?? [] : undefined);
       let historicalAttempt: A2AAttempt | undefined;
       if (
         args.command === "reclaim" &&

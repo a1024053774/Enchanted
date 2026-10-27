@@ -1,11 +1,13 @@
 # a2a 门禁、编排后台与工作台
 
 项目行的右键菜单提供“编辑项目”：主目录保持不变，可以通过目录选择器添加或移除额外目录。
-保存设置会追加 `project_settings_saved` 事件；旧设置记录保留。新启动的 worker、reviewer 与 monitor
-会获得这些目录的写权限（Claude 的 `--add-dir`、文件工具权限与 shell 沙箱 `allowWrite`；Codex 的 `--add-dir`）。
-移除只影响此后启动的会话，已运行的会话保留启动时权限。用户自己的项目终端不受影响。
+保存设置会追加 `project_settings_saved` 事件；旧设置记录保留。项目的额外目录只决定主控 `terminal_open` 能开普通终端的目录，
+不再自动给 worker（T-193）。worker 能写哪些项目外目录由主控按任务决定：`dispatch` 或 `run` 带 `extra_directories`
+（绝对路径、须存在，按真实路径去重；任务仓库与工作台数据目录内的路径返回 `extra_directory_guarded`），记在 attempt 上，
+该 attempt 的 worker 与 reviewer 获得写权限（Claude 的 `--add-dir`、文件工具权限与 shell 沙箱 `allowWrite`；Codex 的 `--add-dir`），
+启动记录的 `extra_directories` 与 argv 写明；没指定就没有。monitor 不获得额外目录。run 恢复和合并冲突后的自动替换沿用原 attempt 获批的目录；普通改卡后的新派发仍须重新指定。
 额外目录里的改动不进门禁的审查与集成，也不提供 worktree 隔离；worker 交付说明须列出改过的额外目录。
-reviewer 与 monitor 仍按角色卡做只读审查或观察。
+reviewer 仍按角色卡做只读审查。
 
 主区的“流程”页只读展示所有项目的任务：一张票一条横向泳道，按“认领与实现 → 交付 →
 机械检查 → 独立审查 → 集成”排列。当前阶段来自当前 attempt 的门禁事件，阶段无法确认时
@@ -175,10 +177,10 @@ T-177：已结束的会话和被新 attempt 取代的会话折进每个任务下
   `a2a request` 随即返回；授予没确认而作废时它们仍可批准。界面在申请列表变化后一秒内不接受批准或拒绝；授予等待确认时，同角色其他申请的“批准”按钮禁用。
 - 待批准、已授予未确认、被拒绝、已结束的申请没有任何权限；主控命令返回 `approved_role_required`。
 - 已批准的终端以该角色为门禁调用者（`address` 为 `ideation` 或 `executor`），沿用门禁的全部检查，只能调用
-  按命令名在这一层核对项目。任务 id 自带项目（T-123，见下文“任务 id”）：终端只写任务名时，门禁在本项目里解析，
-  另一个项目的同名任务和卡片碰不到；写完整 id 而项目不是本项目，门禁返回 `task_project_mismatch`。
-  `create` 的 `project` 须为本项目、`repo` 须为本项目打开的目录。`answer_issue(s)`、
-  `attach`、`run` 也是任务命令（T-124，见下文）；`inbox_ready` 须带本项目 `project`。其他项目返回 `role_project_mismatch`。收件箱的其他命令与 stop 还没有项目字段、也不看 task 字段，
+  按命令名在这一层确定目标项目（T-193）：身份绑终端，不绑启动目录，目标可以是工作台里已打开的任一项目。命令带 `project` 时以它为准；
+  否则完整任务 id（T-123，见下文“任务 id”）里的项目为准；只写任务名时在本项目里解析。目标项目没打开时返回
+  `project_not_opened`，`details` 带目标项目、已打开的项目和下一步。`create` 与 `inbox_ready` 须带 `project`，
+  `create` 的 `repo` 须为该项目打开的目录。`answer_issue(s)`、`attach`、`run` 也是任务命令（T-124，见下文）。收件箱的其他命令与 stop 还没有项目字段、也不看 task 字段，
   终端角色调用它们一律返回 `role_command_not_scoped`；主控之间的收件箱通信留给后续票，届时先给条目加上项目。
 - 终端关闭或后台重启后身份结束，侧栏保留最近一次确认生效的主控角色并标“已结束”；历史展示不授予命令权限。
 - 侧栏把已批准的终端显示为对应主控（“项目终端”）。批准执行主控时，申请卡片上可以选它的上级构思主控（本项目里在跑的构思主控，
@@ -705,11 +707,11 @@ Claude Code worker 的启动参数（证据 `evidence/2026-10-21-batch19/T-122/p
 T-141 去掉 `--strict-mcp-config`，在 `$HOME/.claude.json` 顶层有 `mcpServers` 时，将该文件单独传给原生
 `--mcp-config`。它只加载 MCP，不合入用户设置中的文件权限规则；没有用户 MCP 时不加此参数。
 这里支持用户作用域 MCP，不加载项目 `.mcp.json`、项目局部 MCP 或插件设置。CLI 的 deferred MCP 工具由模型先经 `ToolSearch` 发现再调用。
-`--settings` 的 allow 规则允许 `Bash`、`Read`、`Glob`、`Grep`，以及 worktree、请求目录与项目额外目录内的 `Edit`。
+`--settings` 的 allow 规则允许 `Bash`、`Read`、`Glob`、`Grep`，以及 worktree、请求目录与本次派发的额外目录内的 `Edit`。
 用户 MCP 通过每会话 `PreToolUse` hook 的 `^mcp__` 匹配器返回原生 `permissionDecision: allow`；
 该匹配器不匹配 Bash 或原生文件工具，CLI 自己的 deny/ask 规则仍适用。不使用无效的 `permissions.allow: ["mcp__*"]`：
 Claude CLI 不允许 allow 规则的 server 部分包含通配符，旧候选会在信任确认后停在 Settings Warning。
-shell 沙箱禁止沙箱外命令，另可写请求目录与项目额外目录。网络允许所有域名、Unix socket 和本地连接。MCP 工具由用户配置的服务执行，
+shell 沙箱禁止沙箱外命令，另可写请求目录与本次派发的额外目录。网络允许所有域名、Unix socket 和本地连接。MCP 工具由用户配置的服务执行，
 不在 Claude 的 Bash 文件沙箱内，服务本身的写入权限不由这些设置限制。linked worktree 里
 Claude 的沙箱自己把主仓库整个 `.git` 设为可写，所以 `denyWrite` 收回整个 Git common dir（worktree 的 `.git` 文件 Claude 沙箱本身就拒写）；
 只有 `git add`、`git commit` 经 `sandbox.excludedCommands` 在沙箱外运行（同 Codex 的两条前缀规则；只由这两种命令拼成的
@@ -778,10 +780,10 @@ monitor 的设置已保存，真实 monitor 启动入口仍未实现，不能据
 任务可修订后再派发；原生会话为空但 CLI 仍在运行时照旧拒绝（T-170）。CLI 在 dispatch 回执前就退出时，
 dispatch 先把 attempt 记为 claimed 并保存观察到的身份，再回 `run_blocked`，之后同样经 `reclaim` 回收。
 完整 argv 和请求模型/强度/tier 继续入库；这些请求值不证明供应商实际执行层级。
-reviewer 与 worker 同一 home、只写候选副本与项目额外目录，原审查 worktree 只读；权限边界不因模型设置改变。
+reviewer 与 worker 同一 home、只写候选副本与本次派发的额外目录，原审查 worktree 只读；权限边界不因模型设置改变。
 
 T-141 放开 Codex workspace-write 网络，不覆盖用户的托管代理、信任或工具配置。
-文件写入范围仍受沙箱限制：工作目录、worker 请求目录与项目额外目录；排除共享 `/tmp` 和原 `$TMPDIR`，
+文件写入范围仍受沙箱限制：工作目录、worker 请求目录与本次派发的额外目录；排除共享 `/tmp` 和原 `$TMPDIR`，
 worker 的 shell 临时目录放在请求目录里，reviewer/monitor 放在各自的一次性工作目录里。
 原生审批策略保留 `-a never`，被拒操作立即返回给 worker；worker 经 `issue` 上报，执行主控用 `answer_issue`
 答复，后台经原会话队列送回答案。答复不会扩大沙箱权限。会话 hook 向同一 CLI 的 `signal`

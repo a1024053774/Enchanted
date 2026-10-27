@@ -1,0 +1,113 @@
+{
+  "status": "PASS",
+  "argv": [
+    "workbench/tests/test_t193_multi_project_e2e.py",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a/evidence/2026-10-27-batch28/T-193/green-05-launch-check.json"
+  ],
+  "revision": null,
+  "mutant": null,
+  "fixture": "/private/tmp/t193-0fhux1o0",
+  "claude": "/Users/luckye/.local/bin/claude",
+  "checks": [
+    "controller_reaches_other_opened_project",
+    "worker_listed_under_other",
+    "no_extra_directory_unless_named",
+    "unopened_project_refused_with_reason",
+    "task_repository_is_not_an_extra_directory",
+    "named_directory_in_argv_and_record",
+    "relinked_directory_never_granted"
+  ],
+  "role_project": "demo",
+  "other": {
+    "card_save": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "create": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "dispatch": {
+      "ok": true,
+      "error": null,
+      "details": null
+    }
+  },
+  "worker": {
+    "project": "other",
+    "task": "other+T-1",
+    "workspace": "/private/tmp/t193-0fhux1o0/state/worktrees/other/T-1-a1",
+    "extra": [],
+    "add_dirs": []
+  },
+  "ghost": {
+    "card_save": {
+      "ok": false,
+      "error": "project_not_opened",
+      "details": {
+        "project": "ghost",
+        "opened": [
+          "demo",
+          "other"
+        ],
+        "next": "这个项目没有在工作台里打开：请用户先在工作台打开它的目录，再建卡或派发"
+      }
+    },
+    "create": {
+      "ok": false,
+      "error": "project_not_opened",
+      "details": {
+        "project": "ghost",
+        "opened": [
+          "demo",
+          "other"
+        ],
+        "next": "这个项目没有在工作台里打开：请用户先在工作台打开它的目录，再建卡或派发"
+      }
+    }
+  },
+  "named": {
+    "guarded": {
+      "ok": false,
+      "error": "extra_directory_guarded",
+      "details": {
+        "refused": [
+          "/private/tmp/t193-0fhux1o0/other"
+        ],
+        "guarded": [
+          "/private/tmp/t193-0fhux1o0/other",
+          "/private/tmp/t193-0fhux1o0/state"
+        ]
+      }
+    },
+    "named": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "extra": [
+      "/private/tmp/t193-0fhux1o0/shared"
+    ],
+    "add_dirs": [
+      "/private/tmp/t193-0fhux1o0/shared"
+    ]
+  },
+  "relinked": {
+    "approved": [
+      "/private/tmp/t193-0fhux1o0/shared2",
+      "/private/tmp/t193-0fhux1o0/shared2/nested"
+    ],
+    "verify": {
+      "ok": false,
+      "error": "extra_directory_changed",
+      "details": {
+        "path": "/private/tmp/t193-0fhux1o0/shared2/nested"
+      }
+    },
+    "granted": [],
+    "task_state": "paused"
+  }
+}

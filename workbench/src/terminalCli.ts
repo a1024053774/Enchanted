@@ -13,9 +13,9 @@ const usage = `a2a：Enchanted 工作台的编排命令（在 Enchanted 的项�
   a2a release                 放弃当前身份；已派出的工作继续做完
   a2a call terminal_open --cwd <绝对目录>
                               在本项目开普通终端，返回 launch.id；目录须在项目主目录或额外目录内
-  a2a call '<JSON>'           以已批准的身份调用本项目的门禁命令：本项目任务上的任务命令，
-                              新任务的 card_* 与 create（project 为本项目、repo 为本项目目录），
-                              以及本项目的 inbox_ready，例如
+  a2a call '<JSON>'           以已批准的身份调用门禁命令，可指向工作台里已打开的任一项目：任务命令
+                              （别的项目写完整 id <项目>+<任务>），新任务的 card_* 与 create（带 project，
+                              repo 为该项目打开的目录），以及 inbox_ready；没打开的项目返回 project_not_opened，例如
                               a2a call '{"command":"inbox_ready","project":"<项目>"}'
                               派发前对照用户原话逐项核对任务卡并列出结果，含先后顺序、等待条件与首版演练要求；漏项先改卡。
                               单独写验收脚本也须自检：每条判据对应用户明确要求，期望从原始数据推导，先独立确定样本预期，再写或运行检查器。
@@ -29,7 +29,8 @@ const usage = `a2a：Enchanted 工作台的编排命令（在 Enchanted 的项�
                               脚本只核对机械事实，无法机械判定的含义交独立审查。暂时未完成须有推进事实与等待条件；明确拒绝报告原始错误和 task/attempt；
                               结果未知保留原请求，不自动重发写入。没有新事实就停止轮询，报告最后确定事实、具体停点与缺少的事实或决定。
                               派 worker：card_template → card_save → create → dispatch
-                              （runtimeMode 为 workspace-write，带 model 与 effort）→ status
+                              （runtimeMode 为 workspace-write，带 model 与 effort；要 worker 写项目外目录时
+                              按任务加 extra_directories，不经审查与集成，未指定就不给）→ status
                               → submitted 后 verify → verified 后带 score_file 的 integrate；
                               交付改了卡外文件（verification.out_of_card）时，集成前先
                               a2a call '{"command":"out_of_card","task":"<任务>","decision":"accept","reason":"<为什么留下>"}'

@@ -1,0 +1,106 @@
+{
+  "status": "INCOMPLETE",
+  "argv": [
+    "workbench/tests/test_t193_multi_project_e2e.py",
+    "--summary",
+    "ev/green-01.json"
+  ],
+  "revision": null,
+  "mutant": null,
+  "fixture": "/private/tmp/t193-wwdye0vo",
+  "claude": "/Users/luckye/.local/bin/claude",
+  "checks": [
+    "controller_reaches_other_opened_project",
+    "worker_listed_under_other",
+    "no_extra_directory_unless_named",
+    "unopened_project_refused_with_reason"
+  ],
+  "role_project": "demo",
+  "other": {
+    "card_save": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "create": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "dispatch": {
+      "ok": true,
+      "error": null,
+      "details": null
+    }
+  },
+  "worker": {
+    "project": "other",
+    "task": "other+T-1",
+    "workspace": "/private/tmp/t193-wwdye0vo/state/worktrees/other/T-1-a1",
+    "extra": [],
+    "add_dirs": []
+  },
+  "ghost": {
+    "card_save": {
+      "ok": false,
+      "error": "project_not_opened",
+      "details": {
+        "project": "ghost",
+        "opened": [
+          "demo",
+          "other"
+        ],
+        "next": "这个项目没有在工作台里打开：请用户先在工作台打开它的目录，再建卡或派发"
+      }
+    },
+    "create": {
+      "ok": false,
+      "error": "project_not_opened",
+      "details": {
+        "project": "ghost",
+        "opened": [
+          "demo",
+          "other"
+        ],
+        "next": "这个项目没有在工作台里打开：请用户先在工作台打开它的目录，再建卡或派发"
+      }
+    }
+  },
+  "named": {
+    "guarded": {
+      "ok": false,
+      "error": "path_overlap",
+      "details": {
+        "conflicts": [
+          {
+            "task": "other+T-1",
+            "attempt": "80c6c9ab-7f88-43a1-bfcd-6c2cda28599f",
+            "snapshot": "8d1ec244-819d-4e58-8f31-c6b2b8517f28",
+            "paths": [
+              "hello.txt"
+            ]
+          }
+        ],
+        "next": "看清单判断：要并行就在 dispatch 里带 overlap_reason 写明理由；否则等这些执行尝试验收或回收"
+      }
+    },
+    "named": {
+      "ok": false,
+      "error": "path_overlap",
+      "details": {
+        "conflicts": [
+          {
+            "task": "other+T-1",
+            "attempt": "80c6c9ab-7f88-43a1-bfcd-6c2cda28599f",
+            "snapshot": "8d1ec244-819d-4e58-8f31-c6b2b8517f28",
+            "paths": [
+              "hello.txt"
+            ]
+          }
+        ],
+        "next": "看清单判断：要并行就在 dispatch 里带 overlap_reason 写明理由；否则等这些执行尝试验收或回收"
+      }
+    }
+  },
+  "error": "AssertionError: task_repository_is_not_an_extra_directory: {'guarded': {'ok': False, 'error': 'path_overlap', 'details': {'conflicts': [{'task': 'other+T-1', 'attempt': '80c6c9ab-7f88-43a1-bfcd-6c2cda28599f', 'snapshot': '8d1ec244-819d-4e58-8f31-c6b2b8517f28', 'paths': ['hello.txt']}], 'next': '看清单判断：要并行就在 dispatch 里带 overlap_reason 写明理由；否则等这些执行尝试验收或回收'}}, 'named': {'ok': False, 'error': 'path_overlap', 'details': {'conflicts': [{'task': 'other+T-1', 'attempt': '80c6c9ab-7f88-43a1-bfcd-6c2cda28599f', 'snapshot': '8d1ec244-819d-4e58-8f31-c6b2b8517f28', 'paths': ['hello.txt']}], 'next': '看清单判断：要并行就在 dispatch 里带 overlap_reason 写明理由；否则等这些执行尝试验收或回收'}}}"
+}

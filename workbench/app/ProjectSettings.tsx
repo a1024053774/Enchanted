@@ -31,7 +31,7 @@ export function ProjectSettings({ project, onClose }: { project: string; onClose
       <header><h2 id="project-settings-title">编辑项目</h2><button disabled={busy} onClick={onClose} aria-label="关闭编辑项目">关闭</button></header>
       <section><h3>主目录</h3><p className="project-directory">{settings?.repo ?? '正在读取…'}</p></section>
       <section><h3>额外目录</h3>
-        <p className="settings-note">新启动的 worker、reviewer 和 monitor 可以写入这些目录。移除后只影响新会话。</p>
+        <p className="settings-note">这些目录供主控开普通终端时选用（terminal_open）。worker 不会自动获得它们：主控每次派发时按任务指定额外可写目录，记入启动记录；monitor 没有额外目录。</p>
         <p className="settings-note">额外目录里的改动不进门禁的审查与集成。worker 交付时须列出改过的额外目录。</p>
         {settings && <ul>{settings.extra_directories.map(path => <li key={path} data-extra-directory={path}>
           <span className="project-directory">{path}</span><button disabled={busy} aria-label={`移除 ${path}`}

@@ -261,7 +261,8 @@ for line in sys.stdin:
             for result in [fixture.request('card_save', fixture.terminal, task=task, card=str(path), expected_version=0),
                            fixture.request('create', fixture.terminal, task=task, project='demo', repo=str(fixture.repo), branch='refs/heads/main', card_version=1)]:
                 assert result.get('ok'), result
-            dispatched = fixture.request('dispatch', fixture.terminal, task=task, runtimeMode='workspace-write')
+            # T-193: the extra directory is the controller's grant on this dispatch, not the project setting's.
+            dispatched = fixture.request('dispatch', fixture.terminal, task=task, runtimeMode='workspace-write', extra_directories=[str(x)])
             assert dispatched.get('ok'), dispatched
             attempt = dispatched['attempt']
             launch = fixture.request('launch_show', fixture.operator, launch=attempt['runtime_identity']['launch'])['launch']

@@ -1,0 +1,131 @@
+{
+  "status": "INCOMPLETE",
+  "argv": [
+    "workbench/tests/test_t193_multi_project_e2e.py",
+    "--mutant",
+    "follow-relinked",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a/evidence/2026-10-27-batch28/T-193/mutant-follow-relinked.json"
+  ],
+  "revision": null,
+  "mutant": "follow-relinked",
+  "fixture": "/private/tmp/t193-904h79sl",
+  "claude": "/Users/luckye/.local/bin/claude",
+  "checks": [
+    "controller_reaches_other_opened_project",
+    "worker_listed_under_other",
+    "no_extra_directory_unless_named",
+    "unopened_project_refused_with_reason",
+    "task_repository_is_not_an_extra_directory",
+    "named_directory_in_argv_and_record"
+  ],
+  "role_project": "demo",
+  "other": {
+    "card_save": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "create": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "dispatch": {
+      "ok": true,
+      "error": null,
+      "details": null
+    }
+  },
+  "worker": {
+    "project": "other",
+    "task": "other+T-1",
+    "workspace": "/private/tmp/t193-904h79sl/state/worktrees/other/T-1-a1",
+    "extra": [],
+    "add_dirs": []
+  },
+  "ghost": {
+    "card_save": {
+      "ok": false,
+      "error": "project_not_opened",
+      "details": {
+        "project": "ghost",
+        "opened": [
+          "demo",
+          "other"
+        ],
+        "next": "这个项目没有在工作台里打开：请用户先在工作台打开它的目录，再建卡或派发"
+      }
+    },
+    "create": {
+      "ok": false,
+      "error": "project_not_opened",
+      "details": {
+        "project": "ghost",
+        "opened": [
+          "demo",
+          "other"
+        ],
+        "next": "这个项目没有在工作台里打开：请用户先在工作台打开它的目录，再建卡或派发"
+      }
+    }
+  },
+  "named": {
+    "guarded": {
+      "ok": false,
+      "error": "extra_directory_guarded",
+      "details": {
+        "refused": [
+          "/private/tmp/t193-904h79sl/other"
+        ],
+        "guarded": [
+          "/private/tmp/t193-904h79sl/other",
+          "/private/tmp/t193-904h79sl/state"
+        ]
+      }
+    },
+    "named": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "extra": [
+      "/private/tmp/t193-904h79sl/shared"
+    ],
+    "add_dirs": [
+      "/private/tmp/t193-904h79sl/shared"
+    ]
+  },
+  "relinked": {
+    "approved": [
+      "/private/tmp/t193-904h79sl/shared2",
+      "/private/tmp/t193-904h79sl/shared2/nested"
+    ],
+    "verify": {
+      "ok": false,
+      "error": "review_extra_directories",
+      "details": {
+        "extraDirectories": [
+          "/private/tmp/t193-904h79sl/shared2",
+          "/private/tmp/t193-904h79sl/state"
+        ],
+        "approved": [
+          "/private/tmp/t193-904h79sl/shared2",
+          "/private/tmp/t193-904h79sl/shared2/nested"
+        ]
+      }
+    },
+    "granted": [
+      {
+        "launch": "e35c3338-2c1c-4f22-9f35-96b9f52b6d1d",
+        "role": "reviewer",
+        "extra": [
+          "/private/tmp/t193-904h79sl/shared2",
+          "/private/tmp/t193-904h79sl/state"
+        ]
+      }
+    ],
+    "task_state": "paused"
+  },
+  "error": "AssertionError: relinked_directory_never_granted: {'approved': ['/private/tmp/t193-904h79sl/shared2', '/private/tmp/t193-904h79sl/shared2/nested'], 'verify': {'ok': False, 'error': 'review_extra_directories', 'details': {'extraDirectories': ['/private/tmp/t193-904h79sl/shared2', '/private/tmp/t193-904h79sl/state'], 'approved': ['/private/tmp/t193-904h79sl/shared2', '/private/tmp/t193-904h79sl/shared2/nested']}}, 'granted': [{'launch': 'e35c3338-2c1c-4f22-9f35-96b9f52b6d1d', 'role': 'reviewer', 'extra': ['/private/tmp/t193-904h79sl/shared2', '/private/tmp/t193-904h79sl/state']}], 'task_state': 'paused'}"
+}

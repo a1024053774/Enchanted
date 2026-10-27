@@ -5,7 +5,9 @@ Failure modes (written before implementation of the test):
 1. No Edit Project menu/dialog; settings never reach the daemon or are not durable events.
 2. X is readable but not writable by shell/file tools; unrelated Y becomes writable.
 3. Removal only hides X; a newly dispatched worker still has its old write grant.
-4. Reviewer launch validation rejects legitimate extra directories, or monitors miss them.
+4. Reviewer launch validation rejects legitimate extra directories, or a monitor gets them.
+Since T-193 a worker gets X only when the dispatch names it; the project setting no longer grants it, and a monitor
+gets no extra directory. The settings dialog and its append-only events are still checked here.
 5. Launch records omit the actual extra-directory arguments; non-operator can change grants.
 6. Saved removal overwrites the add event; project-terminal launch parameters change.
 7. Driver clicks remove/save in one JavaScript task, before React commits the removal.
@@ -205,7 +207,9 @@ def main():
             for result in [fixture.request('card_save', fixture.terminal, task=task, card=str(path), expected_version=0),
                            fixture.request('create', fixture.terminal, task=task, project='demo', repo=str(fixture.repo), branch='refs/heads/main', card_version=1)]:
                 assert result.get('ok'), result
-            dispatched = fixture.request('dispatch', fixture.terminal, task=task, runtimeMode='workspace-write')
+            # T-193: the controller names X on the dispatch; the later tasks run after the setting is removed and name nothing.
+            dispatched = fixture.request('dispatch', fixture.terminal, task=task, runtimeMode='workspace-write',
+                                         **(dict(extra_directories=[str(x)]) if tasks[task][1] else {}))
             assert dispatched.get('ok'), dispatched
             attempt = dispatched['attempt']
             file = Path(attempt['workspace']) / f'result-{task}.json'
@@ -226,16 +230,17 @@ def main():
             fixture.wait(task + ' review complete', lambda: fixture.request('status', fixture.operator, task=task)['task']['state'] == 'verified', 240)
             check(task + '_reviewer_extra_write', (x / ('review-' + task + '.txt')).is_file() and not (y / ('review-' + task + '.txt')).exists())
 
-        # Monitor roles remain observational in their role cards, but get the project's write grant too.
+        # T-193: a monitor gets no extra directory, though the worker it watches has one.
         for suffix, cli in [('C', 'Claude Code'), ('D', 'Codex')]:
             instructions = fixture.out / ('monitor-' + suffix + '.txt')
             instructions.write_text('T140_MONITOR_' + suffix, encoding='utf-8')
             attached = fixture.request('attach', fixture.terminal, task='T-C', role='monitor', instructions=str(instructions), cli=cli,
                                        model='claude-haiku-5-5' if suffix == 'C' else 'gpt-6.1-sol', effort='low')
             assert attached.get('ok'), attached
-            result_file = Path(attached['attachment']['workspace']) / 'result.json'
-            fixture.wait('monitor ' + suffix + ' write', lambda: result_file.exists(), 180)
-            check('monitor_' + suffix + '_boundary', json.loads(result_file.read_text()) == dict(x=True, y=False))
+            monitor = next(row for row in reversed(launch_records()) if row['role'] == 'monitor' and row['task'] == 'demo+T-C' and row['cli'] == cli)
+            report['observed']['monitor_' + suffix] = dict(extra_directories=monitor.get('extra_directories'), sandbox=monitor.get('sandbox'))
+            check('monitor_' + suffix + '_no_extra_directory', monitor.get('extra_directories') == [] and str(x) not in monitor['argv'],
+                  report['observed']['monitor_' + suffix])
 
         edit()
         electron.until('saved X listed', f"!!document.querySelector('[data-extra-directory={json.dumps(str(x))}]')")

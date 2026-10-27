@@ -5,7 +5,7 @@
 1. 第二个项目建不了同名任务（`task_exists`，或草稿归属 `card_draft_not_owned`）。
 2. 两个项目的同名任务共用一条记录：卡片版本、事件、交付或评分串到另一个项目；一个集成把另一个的候选并进自己的仓库。
 3. 同时在跑的两个同名任务共用操作锁或 run 锁，一个被另一个挡住（`operation_busy`）或误收另一个的交付。
-4. 一个项目的终端主控用完整 id 读、改另一个项目的同名任务或卡片，门禁没拒绝，或拒绝没留记录。
+4. 一个项目的终端主控用完整 id 读、改另一个项目的同名任务或卡片时另给了与之矛盾的 project，门禁没拒绝，或拒绝没留记录（T-193 起不矛盾的完整 id 可以跨已打开的项目）。
 5. 管理凭据只写任务名、而任务名在两个项目里重名时，门禁随便挑一个，而不是拒绝。
 6. 旧库迁移丢记录：任务、卡片版本、事件条数变了；旧任务没归入原项目；旧任务在迁移后读不出、走不下去。
 7. `card_draft_owned` 仍被写入或仍被检查（两套归属并存）。
@@ -397,12 +397,13 @@ def main():
         cards = {name: request('card_show', terminals[name], task=TASK, card_version=1) for name in PROJECTS}
         check('each_terminal_reads_its_own_card', all(cards[name].get('ok') and cards[name]['card']['goal'] == f'{name} 加 hello.txt'
                                                       for name in PROJECTS), {name: cards[name].get('card', cards[name]) for name in PROJECTS})
-        # 4, 5: refusals while both tasks exist.
+        # 4, 5: refusals while both tasks exist. Since T-193 a controller may name another opened project's task by its
+        # full id; a full id beside a project that contradicts it is still refused.
         crossed = {
-            'status': request('status', terminals['alpha'], task=keys['beta']),
-            'card_save': request('card_save', terminals['alpha'], task=keys['beta'], card=str(card_file('crossed', 'alpha 改 beta 的卡')), expected_version=1),
-            'card_show': request('card_show', terminals['alpha'], task=keys['beta'], card_version=1),
-            'new_draft': request('card_save', terminals['alpha'], task='beta+T-9', card=str(card_file('draft', 'alpha 在 beta 起草', 'T-9')), expected_version=0),
+            'status': request('status', terminals['alpha'], task=keys['beta'], project='alpha'),
+            'card_save': request('card_save', terminals['alpha'], task=keys['beta'], project='alpha', card=str(card_file('crossed', 'alpha 改 beta 的卡')), expected_version=1),
+            'card_show': request('card_show', terminals['alpha'], task=keys['beta'], project='alpha', card_version=1),
+            'new_draft': request('card_save', terminals['alpha'], task='beta+T-9', project='alpha', card=str(card_file('draft', 'alpha 在 beta 起草', 'T-9')), expected_version=0),
         }
         report['crossed'] = {command: {key: value.get(key) for key in ('ok', 'error')} for command, value in crossed.items()}
         # The gate's refusal is recorded as a failed request_result; its request_received names the terminal it came from.

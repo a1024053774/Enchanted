@@ -1,0 +1,180 @@
+{
+ "note": "第 2 轮审查员的复现探针（/private/tmp/t193-review3 下的 recovery_cases.ts、recovery_launch.ts、lifecycle_probe.ts，仅把输出目录改为 /private/tmp/t193-fix-probes）在修后候选上的运行结果。探针按复现缺陷编写：REPRODUCED 分支断言“重派获得另一个目录”，修后这些断言失败，所以状态为 INCOMPLETE；实际观察见 run_error、run_extra_directories、task_after_state。file 场景的拒绝码由 invalid_extra_directories 变为 extra_directory_changed。",
+ "runs": [
+  {
+   "file": "/private/tmp/t193-fix-probes/crash-01/crash-resume.json",
+   "scenario": "crash-resume",
+   "probe_status": "INCOMPLETE",
+   "run_error": "daemon_stopping",
+   "run_extra_directories": [
+    "/private/tmp/t193-fix-probes/crash-01/initial"
+   ],
+   "task_after_state": null,
+   "probe_error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n+   '/private/tmp/t193-fix-probes/crash-01/initial'\n-   '/private/tmp/t193-fix-probes/crash-01/alias'\n  ]\n"
+  },
+  {
+   "file": "/private/tmp/t193-fix-probes/launch-recovery-IHYGVc/results.json",
+   "scenario": "resume-race",
+   "probe_status": "INCOMPLETE",
+   "run_error": "extra_directory_changed",
+   "run_extra_directories": [
+    "/private/tmp/t193-fix-probes/launch-recovery-IHYGVc/initial-data"
+   ],
+   "task_after_state": null,
+   "probe_error": "AssertionError [ERR_ASSERTION]: {\"root\":\"/private/tmp/t193-fix-probes/launch-recovery-IHYGVc\",\"scenario\":\"resume-race\",\"layer\":\"L1/L2: real gate, SQLite, Git and shutdown/resume logic; simulated runtime identity and CLI lifecycle\",\"before\":{\"attempt\":[\"/private/tmp/t193-fix-probes/launch-recovery-IHYGVc/initial-data\"],\"persisted_dispatch\":{\"runtimeMode\":\"workspace-write\",\"extra_directories\":[\"/pri"
+  },
+  {
+   "file": "/private/tmp/t193-fix-probes/launch-recovery-SHcOos/results.json",
+   "scenario": "resume-race",
+   "probe_status": "INCOMPLETE",
+   "run_error": "extra_directory_changed",
+   "run_extra_directories": [
+    "/private/tmp/t193-fix-probes/launch-recovery-SHcOos/initial-data"
+   ],
+   "task_after_state": null,
+   "probe_error": "AssertionError [ERR_ASSERTION]: {\"root\":\"/private/tmp/t193-fix-probes/launch-recovery-SHcOos\",\"scenario\":\"resume-race\",\"layer\":\"L1/L2: real gate, SQLite, Git and shutdown/resume logic; simulated runtime identity and CLI lifecycle\",\"before\":{\"attempt\":[\"/private/tmp/t193-fix-probes/launch-recovery-SHcOos/initial-data\"],\"persisted_dispatch\":{\"runtimeMode\":\"workspace-write\",\"extra_directories\":[\"/pri"
+  },
+  {
+   "file": "/private/tmp/t193-fix-probes/lifecycle-0we4P7/conflict-race.json",
+   "scenario": "conflict-race",
+   "probe_status": "INCOMPLETE",
+   "run_error": null,
+   "run_extra_directories": null,
+   "task_after_state": "ready",
+   "probe_error": "AssertionError [ERR_ASSERTION]: {\"root\":\"/private/tmp/t193-fix-probes/lifecycle-0we4P7\",\"scenario\":\"conflict-race\",\"layer\":\"L1/L2: real gate entry point, Git, SQLite, launch construction; simulated CLI lifecycle, stopped before PTY spawn\",\"checks\":[],\"before\":{\"attempt\":\"9f128edd-d490-47f4-bc90-34769bf97476\",\"extra_directories\":[\"/private/tmp/t193-fix-probes/lifecycle-0we4P7/initial\"]},\"injection\""
+  },
+  {
+   "file": "/private/tmp/t193-fix-probes/lifecycle-7fhF9b/conflict-recreate.json",
+   "scenario": "conflict-recreate",
+   "probe_status": "PASS",
+   "run_error": null,
+   "run_extra_directories": null,
+   "task_after_state": "claimed",
+   "probe_error": null
+  },
+  {
+   "file": "/private/tmp/t193-fix-probes/lifecycle-Gb3xWW/conflict-relink.json",
+   "scenario": "conflict-relink",
+   "probe_status": "PASS",
+   "run_error": null,
+   "run_extra_directories": null,
+   "task_after_state": "ready",
+   "probe_error": null
+  },
+  {
+   "file": "/private/tmp/t193-fix-probes/lifecycle-mSZqKB/conflict-control.json",
+   "scenario": "conflict-control",
+   "probe_status": "PASS",
+   "run_error": null,
+   "run_extra_directories": null,
+   "task_after_state": "claimed",
+   "probe_error": null
+  },
+  {
+   "file": "/private/tmp/t193-fix-probes/lifecycle-rLoIxz/conflict-missing.json",
+   "scenario": "conflict-missing",
+   "probe_status": "PASS",
+   "run_error": null,
+   "run_extra_directories": null,
+   "task_after_state": "ready",
+   "probe_error": null
+  },
+  {
+   "file": "/private/tmp/t193-fix-probes/lifecycle-y0e9N7/conflict-race.json",
+   "scenario": "conflict-race",
+   "probe_status": "INCOMPLETE",
+   "run_error": null,
+   "run_extra_directories": null,
+   "task_after_state": "ready",
+   "probe_error": "AssertionError [ERR_ASSERTION]: {\"root\":\"/private/tmp/t193-fix-probes/lifecycle-y0e9N7\",\"scenario\":\"conflict-race\",\"layer\":\"L1/L2: real gate entry point, Git, SQLite, launch construction; simulated CLI lifecycle, stopped before PTY spawn\",\"checks\":[],\"before\":{\"attempt\":\"559fb923-0ca9-4f33-b2bc-fdd6b4e2973e\",\"extra_directories\":[\"/private/tmp/t193-fix-probes/lifecycle-y0e9N7/initial\"]},\"injection\""
+  },
+  {
+   "file": "/private/tmp/t193-fix-probes/recovery-1ThaSf/results.json",
+   "scenario": "file",
+   "probe_status": "INCOMPLETE",
+   "run_error": "extra_directory_changed",
+   "run_extra_directories": [
+    "/private/tmp/t193-fix-probes/recovery-1ThaSf/initial-data"
+   ],
+   "task_after_state": null,
+   "probe_error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'extra_directory_changed'\n- 'invalid_extra_directories'\n"
+  },
+  {
+   "file": "/private/tmp/t193-fix-probes/recovery-3u26VL/results.json",
+   "scenario": "recreate",
+   "probe_status": "PASS",
+   "run_error": "daemon_stopping",
+   "run_extra_directories": [
+    "/private/tmp/t193-fix-probes/recovery-3u26VL/initial-data"
+   ],
+   "task_after_state": null,
+   "probe_error": null
+  },
+  {
+   "file": "/private/tmp/t193-fix-probes/recovery-6YdvOr/results.json",
+   "scenario": "resume-race",
+   "probe_status": "INCOMPLETE",
+   "run_error": "extra_directory_changed",
+   "run_extra_directories": [
+    "/private/tmp/t193-fix-probes/recovery-6YdvOr/initial-data"
+   ],
+   "task_after_state": null,
+   "probe_error": "AssertionError [ERR_ASSERTION]: {\"root\":\"/private/tmp/t193-fix-probes/recovery-6YdvOr\",\"scenario\":\"resume-race\",\"layer\":\"L1/L2: real gate, SQLite, Git and shutdown/resume logic; simulated runtime identity and CLI lifecycle\",\"before\":{\"attempt\":[\"/private/tmp/t193-fix-probes/recovery-6YdvOr/initial-data\"],\"persisted_dispatch\":{\"runtimeMode\":\"workspace-write\",\"extra_directories\":[\"/private/tmp/t193-"
+  },
+  {
+   "file": "/private/tmp/t193-fix-probes/recovery-F8oO5f/results.json",
+   "scenario": "resume-race",
+   "probe_status": "INCOMPLETE",
+   "run_error": "extra_directory_changed",
+   "run_extra_directories": [
+    "/private/tmp/t193-fix-probes/recovery-F8oO5f/initial-data"
+   ],
+   "task_after_state": null,
+   "probe_error": "AssertionError [ERR_ASSERTION]: {\"root\":\"/private/tmp/t193-fix-probes/recovery-F8oO5f\",\"scenario\":\"resume-race\",\"layer\":\"L1/L2: real gate, SQLite, Git and shutdown/resume logic; simulated runtime identity and CLI lifecycle\",\"before\":{\"attempt\":[\"/private/tmp/t193-fix-probes/recovery-F8oO5f/initial-data\"],\"persisted_dispatch\":{\"runtimeMode\":\"workspace-write\",\"extra_directories\":[\"/private/tmp/t193-"
+  },
+  {
+   "file": "/private/tmp/t193-fix-probes/recovery-Nw2B1H/results.json",
+   "scenario": "missing",
+   "probe_status": "PASS",
+   "run_error": "extra_directory_changed",
+   "run_extra_directories": [
+    "/private/tmp/t193-fix-probes/recovery-Nw2B1H/initial-data"
+   ],
+   "task_after_state": null,
+   "probe_error": null
+  },
+  {
+   "file": "/private/tmp/t193-fix-probes/recovery-Wzoukz/results.json",
+   "scenario": "canonical-relink",
+   "probe_status": "PASS",
+   "run_error": "extra_directory_changed",
+   "run_extra_directories": [
+    "/private/tmp/t193-fix-probes/recovery-Wzoukz/initial-data"
+   ],
+   "task_after_state": null,
+   "probe_error": null
+  },
+  {
+   "file": "/private/tmp/t193-fix-probes/recovery-dSP9mh/results.json",
+   "scenario": "alias-retarget",
+   "probe_status": "PASS",
+   "run_error": "daemon_stopping",
+   "run_extra_directories": [
+    "/private/tmp/t193-fix-probes/recovery-dSP9mh/initial-data"
+   ],
+   "task_after_state": null,
+   "probe_error": null
+  },
+  {
+   "file": "/private/tmp/t193-fix-probes/recovery-v8hYiD/results.json",
+   "scenario": "file",
+   "probe_status": "INCOMPLETE",
+   "run_error": "extra_directory_changed",
+   "run_extra_directories": [
+    "/private/tmp/t193-fix-probes/recovery-v8hYiD/initial-data"
+   ],
+   "task_after_state": null,
+   "probe_error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'extra_directory_changed'\n- 'invalid_extra_directories'\n"
+  }
+ ]
+}

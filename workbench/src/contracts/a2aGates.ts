@@ -70,6 +70,7 @@ export const A2AGateRequest = Schema.Struct({
   reason: Schema.optional(Schema.String),
   overlap_reason: Schema.optional(Schema.String),
   decision: Schema.optional(Schema.Literals(["accept", "reject"])),
+  extra_directories: Schema.optional(Schema.Array(Schema.String)),
   attempt: Schema.optional(Schema.String),
   session: Schema.optional(Schema.String),
   fence: Schema.optional(Schema.Number),
@@ -129,6 +130,8 @@ export interface A2AAttempt {
     model: string; effort: string; number: number; submitted_at: string;
   };
   conflict_source?: string;
+  // T-193: directories outside the repository the controller let this worker write, chosen per dispatch.
+  extra_directories?: string[];
   rework?: {
     verification_id: string;
     prior_candidate: string;
@@ -323,7 +326,8 @@ export interface A2ARun {
   initiator?: { launch: string; role_request: string; role: string };
   initiator_unavailable?: { state: "ended" | "quota_exhausted"; at: string };
   // What the run dispatched with, so a run resumed after a daemon restart can dispatch again (T-124).
-  dispatch?: { runtimeMode: string; overlap_reason?: string; model?: string; effort?: string; fast?: boolean };
+  // extra_directories: what the controller named, until the first dispatch binds the run; from then on the real paths it approved (T-193).
+  dispatch?: { runtimeMode: string; overlap_reason?: string; model?: string; effort?: string; fast?: boolean; extra_directories?: string[] };
   // Each daemon restart the run was resumed across.
   resumed?: { at: string; phase: string; task_state: string; redispatched_from: string | null }[];
 }

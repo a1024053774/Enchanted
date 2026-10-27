@@ -361,10 +361,16 @@ export async function serve(
     }
     const roleRequest: RoleRequest | undefined = roleRequests.approved(terminal.id);
     if (!roleRequest) throw new Refusal("approved_role_required");
+    // T-193: the role belongs to the terminal, not to the directory it started in. A command names its project (or a
+    // task's full id does); without one it is the project the role was granted in. Only an opened project is reachable.
+    const target = typeof input.project === "string" ? input.project
+      : typeof input.task === "string" && input.task.includes("+") ? input.task.slice(0, input.task.indexOf("+")) : roleRequest.project;
+    const opened = store.openedProjects();
+    const project = opened.find(row => row.project_id === target);
+    // Returned, not thrown: the request loop keeps only a thrown refusal's code, and the controller needs the why.
+    if (!project) return { ok: false, error: "project_not_opened", details: { project: target, opened: opened.map(row => row.project_id),
+      next: "这个项目没有在工作台里打开：请用户先在工作台打开它的目录，再建卡或派发" } };
     if (input.command === "terminal_open") {
-      if (input.project !== undefined && input.project !== roleRequest.project) throw new Refusal("role_project_mismatch");
-      const project = store.openedProjects().find(project => project.project_id === roleRequest.project);
-      if (!project) throw new Refusal("project_not_opened");
       if (typeof input.cwd !== "string" || !isAbsolute(input.cwd) || !existsSync(input.cwd) || !statSync(input.cwd).isDirectory())
         throw new Refusal("invalid_shell_cwd");
       const cwd = realpathSync(input.cwd);
@@ -373,20 +379,16 @@ export async function serve(
       return { ok: true, launch: panes.startShell(project.project_id, cwd) };
     }
     if (input.command === "inbox_ready") {
-      if (input.project !== roleRequest.project) throw new Refusal("role_project_mismatch");
+      if (input.project !== target) throw new Refusal("project_required");
     } else if (taskCommands.has(input.command)) {
       if (typeof input.task !== "string") throw new Refusal("task_required");
-      // T-123: the gate resolves the task in this role's project (GateActor.project): a bare name never reaches
-      // another project's task of the same name, and a full id of another project is refused (task_project_mismatch).
-      if (input.command === "create") {
-        if (input.project !== roleRequest.project) throw new Refusal("role_project_mismatch");
-        if (!store.openedProjects().some(project => project.project_id === roleRequest.project)) throw new Refusal("project_not_opened");
-      }
+      // T-123: the gate resolves the task in the target project (GateActor.project): a bare name never reaches
+      // another project's task of the same name, and a full id beside a different project is refused (task_project_mismatch).
+      if (input.command === "create" && input.project !== target) throw new Refusal("project_required");
     } else throw new Refusal("role_command_not_scoped");
-    if (input.project !== undefined && input.project !== roleRequest.project) throw new Refusal("role_project_mismatch");
     const { parent_launch: _parent, ...gateInput } = input;
     // Workers this call starts belong to the terminal that holds the role.
-    const result = await createGate(gateInput, command => panes.parentLaunch.run(terminal.id, () => gates.call(command, undefined, { address: roleRequest.role, project: roleRequest.project,
+    const result = await createGate(gateInput, command => panes.parentLaunch.run(terminal.id, () => gates.call(command, undefined, { address: roleRequest.role, project: target,
       assertActive: async () => {
         if (stopping) throw new Refusal("daemon_stopping");
         if (roleRequests.approved(terminal.id)?.id !== roleRequest.id) throw new Refusal("role_request_ended");

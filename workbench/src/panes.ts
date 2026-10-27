@@ -828,8 +828,9 @@ export class Panes implements GateRuntime {
     // untrusted for the independent reviewer; worker/monitor inherit user trust (T-127, T-141).
     const trustRoot = claude || managed ? null : review ? realpathSync(launchWorkspace) : null;
     const nativeSession = claude ? randomUUID() : null;
-    const extraDirectories = (this.store.openedProjects().find(project => project.project_id === task.project_id)?.extra_directories ?? [])
-      .map(path => realpathSync(path));
+    // T-193: the dispatch names them on the attempt (a reviewer's attempt is the worker's copy); a monitor gets none. The
+    // attempt holds the real paths approved at dispatch, used as they are; checked just before the launch is recorded.
+    const extraDirectories = monitor ? [] : attempt.extra_directories ?? [];
     // agy and opencode run without an OS sandbox; a reviewer's checkout is made read-only below instead.
     const sandboxMode = managed ? "none" : monitor && !extraDirectories.length ? "read-only" : "workspace-write";
     const reported = managed?.({ executable, workspace: launchWorkspace, model, effort, extraDirectories });
@@ -894,8 +895,12 @@ export class Panes implements GateRuntime {
       model_requested: model, effort_requested: effort, service_tier_requested: fast ? 'fast' : 'default',
       turn_limit: c.turn_limit, turn_authorization: c.turn_authorization ?? null,
       code_revision: c.code_revision, source_snapshot: c.source_snapshot ?? null, role_card: c.role_card, role_card_revision: c.role_card_revision,
-      role_text: readFileSync(c.role_card, "utf8") + `\n\n本会话可写的项目额外目录：${JSON.stringify(extraDirectories)}。其中的改动不进门禁的审查与集成。`, base_commit: attempt.base_commit, worktree: launchWorkspace,
+      role_text: readFileSync(c.role_card, "utf8") + `\n\n主控为本次派发给的额外可写目录：${JSON.stringify(extraDirectories)}。其中的改动不进门禁的审查与集成；没列出的目录不要写。`, base_commit: attempt.base_commit, worktree: launchWorkspace,
       shell: "/bin/zsh", shell_argv: shellArgv, env: recordedEnvironment, helper, hook_authorization: c.hook_authorization };
+    // After every await above (T-193 review 3 F2): one that no longer resolves to itself (a link put in its place,
+    // removed) is refused, never followed to wherever it now points.
+    for (const path of extraDirectories)
+      check(existsSync(path) && realpathSync(path) === path && statSync(path).isDirectory(), "extra_directory_changed", { path });
     this.store.launch(record);
     mkdirSync(join(this.root, "traces", launch), { recursive: true, mode: 0o700 });
     appendFileSync(join(this.root, "traces", launch, "pty.raw"), "", { flag: "wx", mode: 0o600 });
