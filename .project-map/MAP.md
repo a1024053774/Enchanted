@@ -65,6 +65,7 @@
 - [T-125 操作员凭据的持久化位置](tickets/T-125-operator-credential-storage.md): 用户选 A——凭据放 `~/Library/Application Support/Enchanted/` 的 0600 文件，终端改用专用 socket、环境里不出现后台数据目录；接受“挡不住有意搜索磁盘的 agent”；落地见 T-126
 - 输入法验证：2026-10-17 用户决定本轮不做，日后使用中发现问题再修（逐字："输入法先不做，我到时候使用的时候若发现了再修"）；T-078 的 Resolution 已记为未验证
 - T-098 pane 启动延时：2026-10-18 关闭未实现——用户把 `~/.zshrc` 的 oh-my-zsh 更新模式改为 reminder 消除已知提问源，不再加延时设置；一般缺陷（前台只剩 shell≠等命令）仍在，靠启动后核对回显
+- [T-189 0.1.5 两次真实使用后的方案](tickets/T-189-real-use-fixes-decisions.md): 主控身份绑终端、可跨已打开项目建任务；项目随时可移除、历史保留；派发 MCP 为主、a2a 命令兜底；复制深度链接给 CLI 名、原生 ID 与记录路径；加 CLI 图标、任务页显示门禁全程；落地 T-190～T-195
 
 ## Not yet specified
 
@@ -82,6 +83,7 @@
 - 2026-10-25 用户：T-182 产品页改版二（演示首屏、背景、切换引导、uiarc.dev 按钮）
 - 2026-10-25 用户：T-184 查明钩子未送达、T-185 Codex 开局钩子、T-186 发 0.1.4 并更新产品页、T-187 支持 agy 与 opencode 并实测
 - 2026-10-26 用户：T-188 发 0.1.5（agy、opencode），补齐产品页与 GitHub 各处，替换 /Applications
+- 2026-10-27 两次真实使用（findings/2026-10-27-two-real-uses.md，NO_GO）后的方案见 [T-189](tickets/T-189-real-use-fixes-decisions.md)；切为 T-190 项目移除与失效项目隔离、T-191 CLI 图标与 worker 状态、T-192 任务页门禁全程与关闭状态、T-193 主控跨项目、T-194 MCP 派发入口、T-195 复制会话链接；均未就绪，待用户开工。
 - T-119 之后待切：主控之间、worker 与主控之间经 `a2a` 通信；在界面上编辑每个角色的边界与权限默认值（T-121、T-122 关闭后再切）
 
 ## Out of scope
