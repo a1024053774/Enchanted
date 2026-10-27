@@ -33,6 +33,7 @@ import { IssuesPage, type TaskIssues } from './IssuesPage';
 import { MetricsPage } from './MetricsPage';
 import { RecordsPage, type GateReceipt, type UserInputRecord } from './RecordsPage';
 import { gateStateNames } from '../src/gateReceipts.ts';
+import { TaskRecord } from './TaskRecord.tsx';
 import { ReflectPage } from './ReflectPage';
 import type { NativeQuestion } from '../src/questions.ts';
 
@@ -112,6 +113,7 @@ declare global { interface Window { a2a: { readonly paneKeys: readonly string[];
   workBranchPrefix(prefix?: string): Promise<string>;
   flow(): Promise<FlowSnapshot>; sidebar(): Promise<Sidebar>; selectAgent(launch: string): Promise<Selection & { focusKey: string }>; decideRoleRequest(roleRequest: string, approved: boolean, parentLaunch?: string | null): Promise<unknown>; notificationSetting(enabled?: boolean, preference?: 'notifications' | 'dockBadges'): Promise<boolean>;
   projects(): Promise<ProjectItem[]>; tasks(project: string): Promise<TaskItem[]>;
+  taskHistory(task: string): Promise<any>;
   issues(project: string): Promise<TaskIssues[]>; answerIssue(task: string, issue: string, answer: string): Promise<void>;
   restartReview(task: string, attempt: string, reviewId: string): Promise<void>;
   reclaim(task: string, attempt: string): Promise<void>; hideSessions(launches: string[]): Promise<void>;
@@ -1114,15 +1116,21 @@ function Workbench() {
               onAction={async (key, action) => { const value = await window.a2a.paneAction(key, action); setPaneKeys(value.paneKeys); setConnectedPaneKeys(value.connectedPaneKeys); setLayout(value.layout); setNames(value.names); setLaunches(value.launches ?? {}); setZoom(null); }} onStatus={onStatus} onClose={onClose} />
           </div>;
         })}
-        {navigating ? <p className="selection-hint" role="status">正在切换…</p> : !paneKeys.length && !(viewProject && !task && project?.tasks.length) &&
+        {!navigating && task && !paneKeys.length && <TaskRecord key={task.task_id} task={task.task_id} docked={false} busy={busy} openSession={launch => {
+          // T-192: the record page offers the current attempt's worker the way the sidebar row opens it.
+          const agent = agents.find(row => row.id === launch);
+          return agent ? () => void selectAgent(agent) : null;
+        }} />}
+        {navigating ? <p className="selection-hint" role="status">正在切换…</p> : !paneKeys.length && !task && !(viewProject && project?.tasks.length) &&
           <div className="selection-hint">
-            <h2>{task ? '这个任务没有打开的窗格' : viewProject ? `在 ${viewProject.project_id} 里开一个终端` : '开一个终端'}</h2>
-            <p>{task ? '从左侧点选这个任务下的会话，或新建终端。'
-              : `终端会在 ${tilde(repo, home) || '家目录'} 下启动。经门禁派发的会话会按项目出现在左侧。`}</p>
+            <h2>{viewProject ? `在 ${viewProject.project_id} 里开一个终端` : '开一个终端'}</h2>
+            <p>{`终端会在 ${tilde(repo, home) || '家目录'} 下启动。经门禁派发的会话会按项目出现在左侧。`}</p>
             <button className="primary-button" disabled={busy} onClick={() => void newTerminal()}>新建终端</button>
           </div>}
       </div>
-      {task && <section className="gate" aria-label="门禁状态">
+      {!navigating && task && paneKeys.length > 0 && <TaskRecord key={task.task_id} task={task.task_id} docked />}
+      {/* Without panes the record page shows the gate state itself, read fresh; this bar would keep the selection's copy. */}
+      {task && paneKeys.length > 0 && <section className="gate" aria-label="门禁状态">
         <div><span className="gate-label">门禁</span><strong data-gate-state={task?.state ?? 'unknown'}>{gateNames[task?.state ?? ''] ?? '未知'}</strong></div>
         <dl><div><dt>执行尝试</dt><dd>{task?.current_attempt?.attempt_id.slice(0, 8) ?? '尚未认领'}</dd></div>
           <div><dt>候选提交</dt><dd>{task?.candidate_commit?.slice(0, 10) ?? '尚未交付'}</dd></div>

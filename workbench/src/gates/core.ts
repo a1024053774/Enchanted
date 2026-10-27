@@ -42,6 +42,7 @@ import { terminalClis } from "../terminalClis.ts";
 import { executorScore, reviewVerdict, reviewEvidence, QualityProtocolError } from "./qualityProtocol.ts";
 import { A2AMembership } from "./membership.ts";
 import { readyTickets } from "./readyTickets.ts";
+import { taskHistory } from "./taskHistory.ts";
 import {
   ensureRolePermissionTables,
   readRolePermissionSettings,
@@ -1561,6 +1562,7 @@ export class A2AGates {
       requireGate(args.runtimeMode, "runtime_mode_required");
     }
     const owner = text(args.command === "claim" ? args.owner : taskId);
+    requireGate(task.state !== "closed", "task_closed");
     requireGate(task.state === "ready" && !task.current_attempt, "already_claimed");
     // A claim reserves paths across tasks. The task lock alone cannot
     // serialize two different tasks that claim the same repository paths.
@@ -3689,6 +3691,11 @@ export class A2AGates {
       if (args.session !== undefined) id(args.session);
       if (args.command === "status")
         return { ok: true, task: this.load(taskId), ...this.readIssues(taskId) };
+      if (args.command === "task_history") {
+        const rows = this.db.prepare("SELECT seq,time,attempt,type,details FROM events WHERE task=? ORDER BY seq").all(taskId);
+        return { ok: true, task: this.load(taskId), history: taskHistory(rows.map((r) => ({ seq: Number(r.seq), time: String(r.time),
+          attempt: r.attempt === null ? null : String(r.attempt), type: String(r.type), details: JSON.parse(String(r.details)) }))) };
+      }
       if (args.command === "issues") {
         this.load(taskId);
         return { ok: true, ...this.readIssues(taskId, args.thread) };
@@ -3937,6 +3944,8 @@ export class A2AGates {
       }
       if (args.command === "revoke" || args.command === "revise") {
         requireGate(task.state !== "accepted", "already_accepted");
+        // T-192 review 01: invalidate() writes "ready", which would reopen a closed task.
+        requireGate(task.state !== "closed", "task_closed");
         requireGate(!task.integration_intent, "needs_reconciliation");
         const reason = args.command === "revoke" ? text(args.reason) : "spec revised";
         if (args.command === "revise")
@@ -3959,6 +3968,16 @@ export class A2AGates {
         const previous = task.current_attempt;
         this.invalidate(task, reason);
         if (previous) await this.cleanupAttempt(task, previous);
+        return { ok: true, task };
+      }
+      // T-192: a task finished or dropped outside the gate (for example a map ticket closed after a reclaim) stops
+      // reading "ready". Only a task with nothing in flight closes; it does not reopen.
+      if (args.command === "close") {
+        requireGate(!caller || caller.address === "executor", "executor_required");
+        requireGate(task.state === "ready" && !task.current_attempt && !task.integration_intent, "close_requires_idle_task", { state: task.state });
+        const reason = text(args.reason);
+        task.state = "closed";
+        this.save(task, "closed", { reason });
         return { ok: true, task };
       }
       if (args.command === "dispatch" || args.command === "claim") return await this.claim(task, args, run);

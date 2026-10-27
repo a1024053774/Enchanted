@@ -330,6 +330,13 @@ function registerHandlers() {
       ...(reason !== undefined ? { reason } : {}), ...(basis !== undefined ? { basis } : {}) }, context.operator);
     if (!result.ok) throw new Error(result.error);
   });
+  ipcMain.handle('a2a:task-history', async (event, task: unknown) => {
+    const context = windowTarget(event);
+    if (typeof task !== 'string' || !task) throw new Error('Invalid task');
+    const result = await request(context.options.state, { command: 'task_history', task }, context.operator);
+    if (!result.ok) throw new Error(result.error);
+    return { task: result.task, history: result.history };
+  });
   ipcMain.handle('a2a:receipts', async (event, project: unknown) => {
     const context = windowTarget(event);
     if (typeof project !== 'string' || !project) throw new Error('Invalid project');
@@ -752,9 +759,11 @@ async function prepareSelection(options: Options) {
     launches = layout.panes.filter((pane: { task: string | null }) => pane.task !== null).map((pane: { launch: string }) => pane.launch);
     shellLaunches = layout.panes.filter((pane: { task: string | null }) => pane.task === null).map((pane: { launch: string }) => pane.launch);
     saved = layout.saved; arrangement = layout.arrangement;
-    if (!saved) launches = [undefined];
+    // The unsaved default pane follows the current attempt's worker. With no current attempt it would stay an empty
+    // pane over the task, which is the "empty task page" of T-192; the renderer shows the gate record instead.
+    if (!saved) launches = snapshot.task.current_attempt ? [undefined] : [];
   } else launches = typeof options.launch === 'string' ? [options.launch] : [...options.launch];
-  if ((!launches.length && !saved) || launches.some(launch => launch !== undefined && (typeof launch !== 'string' || !launch)) ||
+  if ((!launches.length && !saved && options.launch !== undefined) || launches.some(launch => launch !== undefined && (typeof launch !== 'string' || !launch)) ||
       new Set(launches).size !== launches.length) throw new Error('Distinct nonempty pane launches are required');
   if (launches.length > 1) {
     // Reject the complete selection before creating a window or input credential.

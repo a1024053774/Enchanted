@@ -1,7 +1,8 @@
 // T-179: a gate receipt in a few lines a person can read in the worker's pane: the command, whether the gate took it,
 // the task's state and candidate commit, and the next step. The full receipt stays in relay_results and on the records page.
 export const gateStateNames: Record<string, string> = { creating: '创建中', ready: '待认领', preparing: '准备中', claimed: '已认领', submitted: '已交付',
-  verifying: '验收中', verified: '验收通过', integrating: '集成中', accepted: '已集成', paused: '已暂停', revoked: '已撤销' };
+  verifying: '验收中', verified: '验收通过', integrating: '集成中', accepted: '已集成', paused: '已暂停', revoked: '已撤销',
+  abandoned: '已放弃', upgraded: '已升级', closed: '已关闭' };
 const commandNames: Record<string, string> = { submit: '交付', status: '查状态', issue: '上报问题', review_submit: '提交审查结论' };
 
 export function receiptLines(command: string | null, result: any): string[] {

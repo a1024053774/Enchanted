@@ -34,6 +34,7 @@ description: 在 Enchanted 工作台的终端里，用户让你担任主控（�
 5. 回答 worker 用 `issue` 上报的问题：`{"command":"issues","task":"<任务>"}` 看问题，`{"command":"answer_issue","task":"<任务>","issue":"<问题 id>","answer":"…"}` 回答。答案记为你（主控）的回答，不算用户说的话。涉及范围、验收条件、权限、不可逆操作的问题，先问用户再答。
 6. 需要一个只读的观察会话时：`{"command":"attach","task":"<任务>","role":"monitor","instructions":"<说明文件路径>"}`，可加 `cli`（`Codex` 或 `Claude Code`）、`model`、`effort`。它出现在侧栏你的下面，只读，不改文件。
 7. 要在界面里开本项目的普通终端，运行 `a2a call terminal_open --cwd '<绝对目录>'`，也可用 `a2a call '{"command":"terminal_open","cwd":"<绝对目录>"}'`。目录必须在项目主目录或用户设置的额外目录内；后台核对真实路径，符号链接不能越界。回执的 `launch.id` 是终端标识；终端出现在本项目的普通终端列表，点它进入，不归入任务，也不授予主控身份。
+8. 不再做的任务（例如地图上已关闭、旧 attempt 已回收）用 `{"command":"close","task":"<任务>","reason":"<为什么不做了>"}` 在门禁里关闭。只有待认领、没有进行中 attempt 的任务能关闭；关闭后不能再派发，任务页显示“已关闭”和理由。查一个任务在门禁里的全程用 `{"command":"task_history","task":"<任务>"}`。
 8. 不再担任时运行 `a2a release`。已经派出的 worker、run 与 monitor 不受影响，会继续做完；你的身份结束后这个终端不能再派新的活。
 
 没有批准的身份时，门禁会拒绝主控命令；不要绕开 `a2a` 直接改后台的数据目录。

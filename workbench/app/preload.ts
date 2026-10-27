@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld('a2a', Object.freeze({
     ipcRenderer.invoke('a2a:issue-dispose', task, issue, action, reason, basis),
   records: (project: string) => ipcRenderer.invoke('a2a:records', project),
   receipts: (project: string) => ipcRenderer.invoke('a2a:receipts', project),
+  taskHistory: (task: string) => ipcRenderer.invoke('a2a:task-history', task),
   metrics: (project: string, since: string | null, until: string | null) => ipcRenderer.invoke('a2a:metrics', project, since, until),
   archiveUsage: () => ipcRenderer.invoke('a2a:archive-usage'),
   reflect: (project: string) => ipcRenderer.invoke('a2a:reflect', project),

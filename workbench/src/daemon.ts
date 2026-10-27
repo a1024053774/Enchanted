@@ -171,7 +171,7 @@ export async function serve(
   };
   const catalogCommands = new Set(["projects_list", "tasks_list", "sidebar_snapshot", "flow_snapshot"]);
   const readOnly = new Set([...catalogCommands, "daemon_status", "orchestration_events", "pane_output", "workbench_snapshot",
-    "pane_layout", "pane_status", "pane_process_info", "launch_show", "status", "events", "issues", "card_show", "card_template", "card_validate", "execution_settings", "work_branch_prefix", "metrics", "user_input_records", "relay_receipts", "trajectory_archive", "retrospective_list", "reflect_tree"]);
+    "pane_layout", "pane_status", "pane_process_info", "launch_show", "status", "events", "task_history", "issues", "card_show", "card_template", "card_validate", "execution_settings", "work_branch_prefix", "metrics", "user_input_records", "relay_receipts", "trajectory_archive", "retrospective_list", "reflect_tree"]);
   const authenticate = (identity: any): { source: string; kind: "operator" | "window" | "launch" | "terminal" | "anonymous";
       window?: WindowBinding; terminal?: { id: string; project: string | null; task: string | null } } => {
     if (!identity) return { source: "anonymous", kind: "anonymous" };
