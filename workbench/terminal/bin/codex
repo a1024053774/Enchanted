@@ -10,8 +10,15 @@ real=$(a2a_real_cli codex) || exit 127
 hook='{type="command",command="\"$A2A_TERMINAL_BIN/a2a\" hook",timeout=10}'
 # T-185: the same session-start orientation Claude's plugin gives (a2a session-context).
 start='{type="command",command="\"$A2A_TERMINAL_BIN/a2a\" session-context",timeout=10}'
+# T-194: the a2a commands as this session's MCP server. Codex gives an MCP server only the variables listed here; its
+# tools need no approval prompt, the gate and the role the user approves in Enchanted decide; a role request waits up to
+# 10 minutes for that approval.
+mcp=mcp_servers.enchanted
 set -- -c "hooks.SessionStart=[{hooks=[$start]}]" -c "hooks.UserPromptSubmit=[{hooks=[$hook]}]" -c "hooks.Stop=[{hooks=[$hook]}]" \
-  -c "hooks.PreToolUse=[{matcher=\"request_user_input_async\",hooks=[$hook]}]" "$@"
+  -c "hooks.PreToolUse=[{matcher=\"request_user_input_async\",hooks=[$hook]}]" \
+  -c "$mcp.command=\"$A2A_TERMINAL_BIN/a2a\"" -c "$mcp.args=[\"mcp\",\"codex\"]" \
+  -c "$mcp.env_vars=[\"A2A_NODE\",\"A2A_TERMINAL_CLI\",\"A2A_TERMINAL_SOCKET\",\"A2A_TERMINAL\",\"A2A_TERMINAL_TOKEN\",\"CODEX_HOME\"]" \
+  -c "$mcp.default_tools_approval_mode=\"approve\"" -c "$mcp.tool_timeout_sec=660" "$@"
 # The user's own setting wins: a -c override, or the key in their Codex config file.
 for argument in "$@"; do
   case $argument in developer_instructions=*|--config=developer_instructions=*) exec "$real" "$@" ;; esac

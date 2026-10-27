@@ -20,9 +20,15 @@ export function request(root: string, input: Record<string, unknown>, identity?:
   return requestAt(socketPath(root), input, identity, nextSequence);
 }
 // A project terminal knows only its own socket (T-126), not the daemon's data directory.
-export function requestAt(path: string, input: Record<string, unknown>, identity?: Record<string, unknown>, nextSequence?: () => number): Promise<any> {
+// signal: the caller stopped waiting (T-194: an MCP call the CLI cancelled); the connection closes as when a command is killed.
+export function requestAt(path: string, input: Record<string, unknown>, identity?: Record<string, unknown>, nextSequence?: () => number,
+  signal?: AbortSignal): Promise<any> {
   return new Promise((resolve, reject) => {
+    // A caller that has already stopped sends nothing: a role grant answered after the MCP client went away is never
+    // confirmed (T-194 review F1).
+    if (signal?.aborted) return reject(new Error("cancelled by the caller before sending; not sent"));
     const socket = createConnection(path);
+    signal?.addEventListener("abort", () => socket.destroy(new Error("cancelled by the caller; outcome unknown")), { once: true });
     let buffer = "";
     let finished = false;
     socket.setEncoding("utf8");

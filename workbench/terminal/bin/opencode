@@ -12,7 +12,10 @@ case ${1:-} in ''|-*) ;; *) [ -d "$1" ] || exec "$real" "$@" ;; esac
 for argument in "$@"; do
   case $argument in --server|--server=*|--standalone) exec "$real" "$@" ;; esac
 done
+# T-194: the a2a commands as this session's MCP server, in the same per-session configuration.
+json_string() { printf '"%s"' "$(printf '%s' "$1" | sed 's/[\\"]/\\&/g')"; }
 orientation=$(cd "$(dirname "$0")/.." && pwd -P)/orientation/AGENTS.md
-OPENCODE_CONFIG_CONTENT=$(printf '{"instructions":["%s"]}' "$(printf '%s' "$orientation" | sed 's/[\\"]/\\&/g')")
+OPENCODE_CONFIG_CONTENT=$(printf '{"instructions":[%s],"mcp":{"enchanted":{"type":"local","command":[%s,"mcp","opencode"]}}}' \
+  "$(json_string "$orientation")" "$(json_string "$A2A_TERMINAL_BIN/a2a")")
 export OPENCODE_CONFIG_CONTENT
 exec "$real" --standalone "$@"

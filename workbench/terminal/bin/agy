@@ -3,7 +3,9 @@
 # this terminal's turn states; agy asks the terminal first and Enchanted's does not answer. A2A_SHIM marks the launch
 # (src/terminalClis.ts). The user's own AGY_CLI_OSC7501 wins. agy has no per-session instruction option, but it reads the
 # AGENTS.md of each workspace directory: an interactive start gets the orientation's directory as one (--add-dir;
-# probe in T-187 RESULTS). A subcommand passes through unchanged.
+# probe in T-187 RESULTS). No a2a MCP server here: agy 1.4.8 starts a workspace's MCP servers and lists their tools,
+# but its interactive sessions do not give them to the model (print mode does; T-194 facts), so agy keeps the a2a
+# commands. Revisit when an interactive agy calls a workspace MCP tool. A subcommand passes through unchanged.
 . "$(dirname "$0")/real-cli.sh"
 real=$(a2a_real_cli agy) || exit 127
 export A2A_SHIM=agy AGY_CLI_OSC7501="${AGY_CLI_OSC7501:-on}"

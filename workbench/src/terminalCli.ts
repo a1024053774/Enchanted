@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { requestAt } from "./transport.ts";
 import { cliProgram, commandCli } from "./terminalClis.ts";
+import { serveMcp } from "./terminalMcp.ts";
 
 // The `a2a` command inside an Enchanted project terminal (T-121). Its identity is
 // the terminal itself; controller commands need a role the user approved in the UI.
@@ -51,6 +52,7 @@ const usage = `a2a：Enchanted 工作台的编排命令（在 Enchanted 的项�
                               回收后脏工作区仍保留、上报；保留证据不继续占用路径。
                               回答 worker 上报的问题：issues / answer_issue，记为主控的回答。
                               attach（role 为 monitor）挂一个只读观察会话。
+  a2a mcp <CLI>               以 MCP 服务器提供同一组命令（Enchanted 的 CLI 启动参数自动挂上，不手动运行）
   a2a help                    显示这段说明
 
 只有用户本人要求时才申请身份；被拒绝或超时就停下告诉用户。申请命令被中断、被杀或超时，后台都会撤回申请。`;
@@ -110,23 +112,35 @@ async function main(argv: string[]) {
     return 2;
   }
   const identity = { kind: "terminal", launch, token };
-  const send = (input: Record<string, unknown>) => requestAt(socket, input, identity);
+  const send = (input: Record<string, unknown>, signal?: AbortSignal) => requestAt(socket, input, identity, undefined, signal);
   const finish = (result: any) => { print(result); return result.ok ? 0 : 1; };
+  // The CLI's own session and home (T-124 probe 01): the daemon reads only that session's usage-limit records, to tell
+  // the user when this controller runs out, and keeps only that session's hook reports.
+  const requestRole = async (role: string, cli: string | undefined, session: string | undefined, signal?: AbortSignal) => {
+    const native = cli === "claude" || cli === "codex" ? { native_session: session, native_home: nativeHome(cli) } : {};
+    // The daemon holds this call until the user decides. If the caller stops
+    // waiting for any reason, the daemon sees the connection close and withdraws it.
+    const answered = await send({ command: "role_request", role, cli, ...native, wait_seconds: 600 }, signal);
+    if (!answered.ok) return answered;
+    // The user granted the role; confirming it here is what makes it take effect.
+    return send({ command: "role_request_confirm", role_request: answered.role_request.id }, signal);
+  };
   if (command === "whoami" && !rest.length) return finish(await send({ command: "terminal_whoami" }));
   if (command === "release" && !rest.length) return finish(await send({ command: "role_release" }));
   if (command === "request" && rest.length === 1) {
+    // The session comes from the environment the CLI gives its commands.
     const cli = commandCli(process.env, ancestorArgv);
-    // The CLI's own session and home, from the environment it gives its commands (T-124 probe 01): the
-    // daemon reads only that session's usage-limit records, to tell the user when this controller runs out.
-    const native = cli === "claude" ? { native_session: process.env.CLAUDE_CODE_SESSION_ID, native_home: nativeHome(cli) } :
-      cli === "codex" ? { native_session: process.env.CODEX_THREAD_ID, native_home: nativeHome(cli) } : {};
     process.stderr.write(`申请成为${rest[0] === "executor" ? "执行主控" : rest[0] === "ideation" ? "构思主控" : rest[0]}，等用户在 Enchanted 里批准…\n`);
-    // The daemon holds this call until the user decides. If this process stops
-    // waiting for any reason, the daemon sees the connection close and withdraws it.
-    const answered = await send({ command: "role_request", role: rest[0], cli, ...native, wait_seconds: 600 });
-    if (!answered.ok) return finish(answered);
-    // The user granted the role; confirming it here is what makes it take effect.
-    return finish(await send({ command: "role_request_confirm", role_request: answered.role_request.id }));
+    return finish(await requestRole(rest[0], cli, cli === "claude" ? process.env.CLAUDE_CODE_SESSION_ID : process.env.CODEX_THREAD_ID));
+  }
+  // T-194: started by the CLI named here (its MCP configuration from the shim or plugin), so the CLI is that one. Claude
+  // Code gives its MCP servers its session id in the environment; Codex gives none there, but names its thread in each
+  // call's _meta (T-194 facts).
+  if (command === "mcp" && rest.length === 1) {
+    const cli = rest[0];
+    await serveMcp(send, (role, meta, signal) => requestRole(role, cli,
+      cli === "claude" ? process.env.CLAUDE_CODE_SESSION_ID : cli === "codex" ? meta?.threadId : undefined, signal));
+    return 0;
   }
   if (command === "call" && rest.length === 1) {
     let input: unknown;

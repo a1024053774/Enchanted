@@ -145,6 +145,13 @@ T-177：已结束的会话和被新 attempt 取代的会话折进每个任务下
   `asker_gone`、`request_wait_timeout`、`daemon_stopping` 或 `not_confirmed`；`a2a release` 放弃身份；`a2a call '<JSON>'` 以已批准的身份调用门禁命令。
   已批准的主控可用 `a2a call terminal_open --cwd '<绝对目录>'`（或 JSON 命令 `terminal_open` 加 `cwd`）开本项目的普通终端。
   目录须在项目主目录或额外目录内，按真实路径核对；回执的 `launch.id` 对应侧栏项目层的普通终端，点它进入，不归入任务。
+- MCP 入口（T-194）：同一组主控命令也以 MCP 工具提供（`src/terminalMcp.ts`，`a2a mcp <CLI>` 起 stdio 服务器），参数有结构；
+  每个工具是以这个终端身份发出的一次后台请求，门禁照常判断，两条入口的门禁记录相同。`request_role` 走与 `a2a request` 相同的
+  申请与确认。Claude Code 经插件的 `mcpServers` 挂上（会话号取 `CLAUDE_CODE_SESSION_ID`），Codex 经包装脚本的
+  `-c mcp_servers.enchanted.*` 挂上（只传 `env_vars` 列出的变量；工具不弹批准框，超时 660 秒；会话号取调用 `_meta` 的
+  `threadId`），opencode 经包装脚本的 `OPENCODE_CONFIG_CONTENT`。agy 不挂：它交互模式下拿不到工作区 MCP 工具，继续用
+  `a2a` 命令。调用被 CLI 取消或后台断开时返回 `outcome_unknown`，不重放；CLI 关闭服务器输入（MCP stdio 的正常关闭）时在途调用一并中止，
+  待批的角色申请随之撤回，之后的批准不生效；CLI 不再读服务器输出时同样结束会话。会话结束后服务器不再写回包，正常退出。事实见 `findings/2026-10-27-mcp-per-session.zh-CN.md`。
   执行主控说明要求派发前逐项对照用户要求与任务卡（含顺序和等待条件），用原始数据及正确、错误样本实际检查验收命令；
   单独编写验收脚本也须自检：判据对应明确要求，先独立确定样本预期，含无额外明细的最小正例与关键词相同但含义相反的反例。
   自检先从原始数据构造没有开头说明、只有必需内容的最小正确正文并确认通过，再保持数据不变、只否定整体断言并确认拒绝；不能自加确认语、明细或字词白名单，修检查器后须重跑全部正例。
