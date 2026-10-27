@@ -32,3 +32,6 @@ ready_rev:
 范围外问题经问题上报。
 
 ## Resolution
+
+2026-10-27 进展（INCOMPLETE，未关闭）：用户 2026-10-27 “空仓库删掉”“验收的时候开启 codex 在你侧边栏,用 6.1 terra 模型来执行 computer use 实操测试”。已实现：认领前路径检查跳过已不存在的仓库（`gates/core.ts`）；移除不再受任务约束，运行中终端与未回收 attempt 返回问题由界面询问（`daemon.ts`、`store.removedProjects`、`RemoveProjectDialog`）；重新打开同一目录以原项目号恢复；项目行“目录不存在”。证据：`evidence/2026-10-27-batch28/T-190/`（隔离后台红态 `spawn git ENOENT`、绿态；Codex 第 2 轮界面 1～5 项 PASS）。
+未完成：“回收并移除”的真实正例；新版本未装到 /Applications；`/private/tmp/a2a-lcu-demo` 空仓库要等装上新版再删（现在删会让 0.1.5 的认领再次全部失败）。

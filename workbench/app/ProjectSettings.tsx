@@ -43,3 +43,31 @@ export function ProjectSettings({ project, onClose }: { project: string; onClose
     </div>
   </dialog>;
 }
+
+// T-190: removing a project only hides it. Before that the user decides what happens to attempts still open in it.
+export function RemoveProjectDialog({ ask, busy, onClose, onChoose }: {
+  ask: { project: string; refused: string; details: any }; busy: boolean; onClose: () => void; onChoose: (attempts: 'keep' | 'reclaim') => void;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => { dialog.current!.showModal(); }, []);
+  const attempts: { task: string; state: string }[] = ask.details?.attempts ?? [];
+  return <dialog ref={dialog} className="settings-dialog project-settings" aria-labelledby="remove-project-title"
+    onClose={onClose} onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}>
+    <div className="settings-body">
+      <header><h2 id="remove-project-title">移除 {ask.project}</h2><button disabled={busy} onClick={onClose} aria-label="关闭">关闭</button></header>
+      {ask.refused === 'project_has_running_terminals' ? <section>
+        <p className="settings-note">这个项目还有 {ask.details?.count} 个运行中的终端。先关掉它们再移除。</p>
+      </section> : ask.refused === 'project_reclaim_failed' ? <section>
+        <p className="settings-note">回收 {ask.details?.task} 没有成功（{ask.details?.error}）。可以保留它直接移除，以后重新打开这个目录再处理。</p>
+      </section> : <section>
+        <p className="settings-note">移除只是从列表隐藏，任务和记录都留着，重新打开这个目录就回来。下面的任务还有没回收的 attempt：</p>
+        <ul>{attempts.map(row => <li key={row.task}><span className="project-directory">{row.task.split('+').slice(1).join('+')}</span> {row.state}</li>)}</ul>
+      </section>}
+      <footer>
+        <button disabled={busy} onClick={onClose}>取消</button>
+        {ask.refused !== 'project_has_running_terminals' && <button data-remove-keep disabled={busy} onClick={() => onChoose('keep')}>保留并移除</button>}
+        {ask.refused === 'project_has_active_attempts' && <button data-remove-reclaim disabled={busy} onClick={() => onChoose('reclaim')}>回收并移除</button>}
+      </footer>
+    </div>
+  </dialog>;
+}

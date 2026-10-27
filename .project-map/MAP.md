@@ -2,7 +2,7 @@
 
 ## Destination
 
-第三阶段（2026-10-10 修订）：各家原生 CLI 以交互终端运行，a2a 只做编排、门禁与记录；工作台是本仓库里的轻量 Electron 应用，借用 Synara 的组件与样式。目标与切换条件见 [intent.md](../intent.md)，决定见 T-069～T-072，执行规格见 [native-cli-orchestration](specs/native-cli-orchestration-2026-10-10.md)；首批切片 T-073～T-075（S0、S1）已关闭；第二批为 T-076（S2 质量串与打分）、T-077（S3 worktree 与冲突）、T-078（S4 两个主控进工作台）。2026-10-14 插入门禁加固三张：T-080（验收文件受保护）、T-081（坏 worker 测试集）、T-082（reviewer 审查完成条件并做变异检查），决定见 [gate-hardening](proposals/gate-hardening-2026-10-14.md)。用户认为新工作台可用之前，日常派发仍经 Herdr。
+第三阶段（2026-10-10 修订）：各家原生 CLI 以交互终端运行，a2a 只做编排、门禁与记录；工作台是本仓库里的轻量 Electron 应用，借用 Synara 的组件与样式。目标与切换条件见 [intent.md](../intent.md)，决定见 T-069～T-072，执行规格见 [native-cli-orchestration](specs/native-cli-orchestration-2026-10-10.md)；首批切片 T-073～T-075（S0、S1）已关闭；第二批为 T-076（S2 质量串与打分）、T-077（S3 worktree 与冲突）、T-078（S4 两个主控进工作台）。2026-10-14 插入门禁加固三张：T-080（验收文件受保护）、T-081（坏 worker 测试集）、T-082（reviewer 审查完成条件并做变异检查），决定见 [gate-hardening](proposals/gate-hardening-2026-10-14.md)。2026-10-27 起日常派发改经工作台门禁，不再经 Herdr（用户："Herdr 那个要改掉"，T-189）。
 
 第二阶段（2026-10-07～10-09）基于 Synara fork：原生门禁、第一次经门禁的真实派发（T-046）与三项功能的部分实现，见 [synara-m1](specs/synara-m1-2026-10-07.md)；这些是日期记录，证据只对各自的代码版本成立。[workbench-m1](specs/workbench-m1-2026-10-06.md) 是更早被取代的 GPUI/Muster 方案。
 
@@ -25,7 +25,7 @@
 - `.project-map/inbox/` 是构思主控与执行主控之间的追加式收件箱（Herdr 期），`.project-map/roles/` 是各角色的角色卡；它们不是 ticket，格式见 [spec](specs/controller-split-user-input-2026-10-09.md) 第 5 节。
 - Core goal: collaboration must not depend on the model continuously remembering the operating manual.
 - First experiment: Codex workers in the current Herdr workflow; multi-CLI support is a later capability-contract validation, not the first success claim.
-- Control rule: the Astra Max controller may dispatch and reclaim workers through Herdr (the workbench control interface after the switch) within approved scope; it must pause for major decisions or direction changes and never bypass claim, submit, acceptance, or integration gates.
+- Control rule: the Astra Max controller may dispatch and reclaim workers through the workbench gate (Herdr until 2026-10-27) within approved scope; it must pause for major decisions or direction changes and never bypass claim, submit, acceptance, or integration gates.
 - Required skills by stage: `project-map` (map/status), `reality-first-engineering` (before architecture or broad implementation), `evidence-first-testing` (behavior changes and failure evidence), `design-integrity-review` (structural-risk completion), `behavioral-acceptance-review` (acceptance/eval surfaces), and `document-writing` (project documents). Use `grilling` for decision sessions.
 
 ## Decisions so far

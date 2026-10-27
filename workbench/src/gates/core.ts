@@ -1291,6 +1291,9 @@ export class A2AGates {
       .filter((a) => !a.reclaimed && a.cleanup?.state !== "removed" && (a.state !== "revoked" || Boolean(a.thread_id)));
     for (const a of active) {
       const owner = this.load(a.task_id);
+      // T-190: a repository that no longer exists cannot share this task's (existing) common dir; running git
+      // there failed every claim in every project.
+      if (!existsSync(owner.repo)) continue;
       const otherCommon = await this.git(task.task_id, owner.repo, ["rev-parse", "--path-format=absolute", "--git-common-dir"]);
       if (common !== otherCommon) continue;
       const paths = pathIntersection(task.card.paths, this.boundCard(a).paths);

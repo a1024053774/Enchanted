@@ -230,7 +230,7 @@ type Pane = {
   // T-184: a wrapped CLI in the foreground without the shim's launch arguments, and when its argv is next read.
   unwiredCli?: { command: string; pid: number; since: string } | null; wiringCheckAt?: number; wiringBusy?: boolean;
   // T-187: the last OSC 7501 state report of the terminal's CLI (agy, opencode), until that CLI exits.
-  cliTurn?: CliTurn | null; oscCarry?: string;
+  cliTurn?: CliTurn | null; oscCarry?: string; foregroundCli?: string | null;
   // T-187: a managed agy or opencode session; its turns come from its OSC 7501 reports (reportedTurns).
   reports?: boolean; reportedEnding?: boolean; trustWritten?: number;
   claudePromptId?: string | null;
@@ -348,17 +348,19 @@ export class Panes implements GateRuntime {
       const info = await this.processInfo(pane.record.thread);
       const leader = (info.processes as { pid: number; pgid: number; tpgid: number }[])
         .find(row => row.pid !== pane.pty.pid && row.pid === row.pgid && row.pgid === row.tpgid);
-      if (!leader) { pane.unwiredCli = null; pane.cliTurn = null; return; }
+      if (!leader) { pane.unwiredCli = null; pane.cliTurn = null; pane.foregroundCli = null; return; }
       const { stdout } = await exec("/usr/bin/python3", ["-I", "-S", "-B", processArgs, String(leader.pid)], { timeout: 5000 });
       const launch = JSON.parse(stdout) as { argv: string[]; shim: string | null };
       const command = cliProgram(launch.argv);
       const cli = command === undefined ? undefined : terminalClis[command];
       // Reports belong to the CLI in front; another program in front (`opencode; sleep 60`) leaves none standing.
       if (cli?.turns !== "osc7501") pane.cliTurn = null;
+      // T-191: the sidebar shows the state of the CLI in front; recheck while one is there so it clears when it exits.
+      pane.foregroundCli = cli ? command! : null;
       const unwired = Boolean(cli) && !cli!.wired(launch);
       pane.unwiredCli = !unwired ? null : pane.unwiredCli?.pid === leader.pid ? pane.unwiredCli
         : { command: command!, pid: leader.pid, since: new Date().toISOString() };
-      if (unwired || pane.cliTurn) pane.wiringCheckAt = Date.now() + WIRING_RECHECK_MS;
+      if (unwired || pane.cliTurn || pane.foregroundCli) pane.wiringCheckAt = Date.now() + WIRING_RECHECK_MS;
     } catch (error) {
       // The process may have exited between the two reads; with no observation the terminal shows no warning.
       pane.unwiredCli = null;
@@ -1601,7 +1603,7 @@ export class Panes implements GateRuntime {
         state_source: pane.failed ? "runtime_failure" : "host_events", active: pane.active, native_session: pane.native,
         start_missing: this.startMissing(pane), silent_foreground: pane.silentForeground ?? null,
         unwired_cli: pane.unwiredCli ? { command: pane.unwiredCli.command, since: pane.unwiredCli.since } : null,
-        cli_turn: pane.cliTurn ?? null,
+        cli_turn: pane.cliTurn ?? null, foreground_cli: pane.foregroundCli ?? null,
         turn: pane.turn, writing: pane.writing, user_draft: pane.userDraft, interrupted: pane.interrupted,
         input_generation: pane.inputGeneration, interruption: pane.interruption,
         queued: pane.queue.map((item) => item.id), failed: pane.failed, stopped: pane.stopped, restoration,

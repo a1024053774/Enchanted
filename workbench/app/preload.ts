@@ -41,7 +41,7 @@ contextBridge.exposeInMainWorld('a2a', Object.freeze({
   openProject: () => ipcRenderer.invoke('a2a:open-project'),
   projectSettings: (project: string, directories?: string[]) => ipcRenderer.invoke('a2a:project-settings', project, directories),
   pickExtraDirectory: () => ipcRenderer.invoke('a2a:pick-extra-directory'),
-  removeProject: (project: string) => ipcRenderer.invoke('a2a:remove-project', project),
+  removeProject: (project: string, attempts?: 'keep' | 'reclaim') => ipcRenderer.invoke('a2a:remove-project', project, attempts),
   selectProject: (project: string | null) => ipcRenderer.invoke('a2a:select-project', project),
   selectTask: (task: string | null) => ipcRenderer.invoke('a2a:select-task', task),
   newTerminal: () => ipcRenderer.invoke('a2a:new-terminal'),

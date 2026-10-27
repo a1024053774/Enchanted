@@ -437,11 +437,15 @@ function registerHandlers() {
       properties: ['openDirectory', 'createDirectory'] });
     return picked.canceled ? null : picked.filePaths[0];
   });
-  ipcMain.handle('a2a:remove-project', async (event, project: string) => {
+  ipcMain.handle('a2a:remove-project', async (event, project: string, attempts?: 'keep' | 'reclaim') => {
     const context = windowTarget(event);
     if (typeof project !== 'string' || !project) throw new Error('Invalid project');
+    if (attempts !== undefined && attempts !== 'keep' && attempts !== 'reclaim') throw new Error('Invalid attempts choice');
     if (context.closing || context.switching || context.creating) throw new Error('Task view is changing');
-    const removed = await request(context.options.state, { command: 'project_remove', project }, context.operator);
+    const removed = await request(context.options.state, { command: 'project_remove', project, ...(attempts ? { attempts } : {}) }, context.operator);
+    // T-190: these refusals are questions for the user, not failures.
+    if (!removed.ok && ['project_has_active_attempts', 'project_has_running_terminals', 'project_reclaim_failed'].includes(removed.error))
+      return { refused: removed.error, details: removed.details };
     if (!removed.ok) throw new Error(removed.error);
     if (context.options.project === project && !context.options.task) {
       context.switching = changeView(context, {});

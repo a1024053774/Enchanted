@@ -10,7 +10,17 @@ import '@xterm/xterm/css/xterm.css';
 import './style.css';
 import { FlowPage } from './FlowPage';
 import { ExecutionSettings } from './ExecutionSettings';
-import { ProjectSettings } from './ProjectSettings';
+import { ProjectSettings, RemoveProjectDialog } from './ProjectSettings';
+import claudeIcon from './brand/cli/claude.svg';
+import codexIcon from './brand/cli/codex.svg';
+import agyIcon from './brand/cli/agy.svg';
+import opencodeIcon from './brand/cli/opencode.svg';
+
+// T-191: which CLI a session runs, as its logo (sources in brand/cli/NOTICE.md). A CLI without one shows nothing.
+const cliIcons: Record<string, string> = { claude: claudeIcon, codex: codexIcon, agy: agyIcon, opencode: opencodeIcon };
+const cliNames: Record<string, string> = { claude: 'Claude Code', codex: 'Codex', agy: 'agy', opencode: 'opencode' };
+const CliIcon = ({ cli }: { cli: string }) => cliIcons[cli]
+  ? <img className="cli-icon" data-cli={cli} src={cliIcons[cli]} alt="" aria-hidden="true" /> : null;
 import type { ExecutionRole, ExecutionSelection } from '../src/executionSettings.ts';
 import type { FlowSnapshot } from '../src/flow.ts';
 import { TerminalScrollToBottom } from './TerminalScrollToBottom';
@@ -46,7 +56,7 @@ type Snapshot = {
 type Chunk = { launch: string; start_offset: number; next_offset: number; total_bytes: number; data_base64: string };
 type TaskItem = { task_id: string; project_id: string; title: string; state: string };
 type Theme = 'system' | 'light' | 'dark';
-type ProjectItem = { project_id: string; repo: string | null; opened?: boolean; tasks: TaskItem[]; state: string; state_label: string; issues_waiting: number | null;
+type ProjectItem = { project_id: string; repo: string | null; repo_missing?: boolean; opened?: boolean; tasks: TaskItem[]; state: string; state_label: string; issues_waiting: number | null;
   git: { branch: string | null; upstream: string | null; ahead: number | null; behind: number | null; error: string | null } };
 type AgentItem = { id: string; project: string; task: string | null; task_name: string | null; attempt: string | null; parent: string | null;
   role: string; preset: string | null; role_label: string; cli: string; state: string; state_label: string; created_at?: string | null; ended_at?: string | null; terminal?: boolean;
@@ -95,6 +105,7 @@ const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
 type Layout = string | { direction: 'right' | 'down'; first: Layout; second: Layout };
 type ProjectView = { project_id: string; repo: string | null };
+type RemoveRefusal = { refused: 'project_has_active_attempts' | 'project_has_running_terminals' | 'project_reclaim_failed'; details: any };
 type Selection = { task: Snapshot['task'] | null; project: ProjectView | null; paneKeys: string[]; connectedPaneKeys: string[]; layout: Layout | null; names: Record<string, string>; launches?: Record<string, string>; focus?: string | null };
 declare global { interface Window { a2a: { readonly paneKeys: readonly string[]; readonly home: string;
   executionSettings(change?: ExecutionSelection & { role: ExecutionRole }): Promise<Record<ExecutionRole, ExecutionSelection>>;
@@ -110,7 +121,7 @@ declare global { interface Window { a2a: { readonly paneKeys: readonly string[];
   saveRetrospectiveSchedule(change: Record<string, unknown>): Promise<unknown>; decideRetrospectiveSuggestion(suggestion: string, approved: boolean): Promise<void>;
   records(project: string): Promise<UserInputRecord[]>; receipts(project: string): Promise<GateReceipt[]>; metrics(project: string, since: string | null, until: string | null): Promise<any>;
   selection(): Promise<Selection>; selectTask(task: string | null): Promise<Selection>;
-  openProject(): Promise<Selection | null>; removeProject(project: string): Promise<Selection>;
+  openProject(): Promise<Selection | null>; removeProject(project: string, attempts?: 'keep' | 'reclaim'): Promise<Selection | RemoveRefusal>;
   projectSettings(project: string, directories?: string[]): Promise<{ repo: string; extra_directories: string[] }>;
   pickExtraDirectory(): Promise<string | null>;
   selectProject(project: string | null): Promise<Selection>; theme(theme: Theme): Promise<void>;
@@ -678,6 +689,7 @@ function Workbench() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarHidden, setSidebarHidden] = useState(false);
   const [theme, setTheme] = useState<Theme>(readTheme);
+  const [removeAsk, setRemoveAsk] = useState<(RemoveRefusal & { project: string }) | null>(null);
   const [projectMenu, setProjectMenu] = useState<{ project: ProjectItem; x: number; y: number; opener: HTMLElement } | null>(null);
   const projectMenuRef = useRef<HTMLDivElement>(null);
   const [editingProject, setEditingProject] = useState<string | null>(null);
@@ -775,10 +787,12 @@ function Workbench() {
       return value;
     });
   };
-  const removeProject = (project: string) => {
-    setProjectMenu(null);
+  const removeProject = (project: string, attempts?: 'keep' | 'reclaim') => {
+    setProjectMenu(null); setRemoveAsk(null);
     void navigate('移除项目', async () => {
-      const value = await window.a2a.removeProject(project);
+      const value = await window.a2a.removeProject(project, attempts);
+      // T-190: active attempts or running terminals come back as a question for the user.
+      if ('refused' in value) { setRemoveAsk({ ...value, project }); return null; }
       await reloadSidebar();
       return value;
     });
@@ -888,8 +902,9 @@ function Workbench() {
           title={`${agent.role_label} · ${agent.task ?? '任务未知'} · ${agent.attempt ? 'attempt ' + agent.attempt : '无 attempt'} · ${agent.cli}`}
           disabled={busy} onClick={() => void selectAgent(agent)}>
           <span className="agent-main">
-            <span className="agent-role">{agent.role_label}</span>
-            <span className="agent-meta">{agent.terminal ? '项目终端' : agent.task_name ?? '任务未知'} · {agent.cli}</span>
+            <span className="agent-role"><CliIcon cli={agent.cli} />{agent.role_label}</span>
+            {/* A terminal row's role already says it is a terminal; its meta is the CLI alone so the name is not cut off. */}
+            <span className="agent-meta">{agent.terminal ? '' : (agent.task_name ?? '任务未知') + ' · '}{cliNames[agent.cli] ?? agent.cli}</span>
             <span className={agent.state === 'ended' ? 'agent-state' : 'sr-only agent-state'}>{agent.state_label}</span>
             {isTurnRejection(agent.delivery) && <span className="agent-state" data-delivery-refusal title={agent.delivery.reason ?? ''}>旧回合交付被拒</span>}
             {agent.start_missing && <span className="agent-state" data-start-missing>回合未开始</span>}
@@ -963,7 +978,7 @@ function Workbench() {
                 setProjectMenu({ project: item, x: pointer ? event.clientX : box.left + 12, y: pointer ? event.clientY : box.bottom, opener: event.currentTarget });
               }}>
               <span className="project-heading"><span className="project-title">{item.project_id}</span>
-                <span className="project-git" data-project-git={item.project_id}>{projectGit(item.git)}</span></span>
+                <span className="project-git" data-project-git={item.project_id}>{item.repo_missing ? '目录不存在' : projectGit(item.git)}</span></span>
               <span className="project-count" title="不含折进“历史”的会话">{scope.filter(agent => !agent.history).length || ''}</span>
               {waiting > 0 ? <span className="project-needs">{waiting} 个等你</span>
                 : item.state === 'waiting_user_answer' && <span className="project-needs" data-project-needs-you title="有上报在等主控答复，但没有主控在回合中">等你处理</span>}
@@ -984,6 +999,8 @@ function Workbench() {
       </nav>
       <div className="sidebar-footer"><button className="text-button" disabled={busy} onClick={() => void refresh()}>刷新列表</button></div>
     </aside>
+    {removeAsk && <RemoveProjectDialog ask={removeAsk} busy={busy} onClose={() => setRemoveAsk(null)}
+      onChoose={attempts => removeProject(removeAsk.project, attempts)} />}
     {editingProject && <ProjectSettings project={editingProject} onClose={() => setEditingProject(null)} />}
     {projectMenu && <div ref={projectMenuRef} className="pane-menu" role="menu" aria-label="项目操作" style={{ left: projectMenu.x, top: projectMenu.y }}
       onMouseDown={event => event.stopPropagation()} onKeyDown={event => {
@@ -996,8 +1013,8 @@ function Workbench() {
       }}>
       <button role="menuitem" disabled={busy} onClick={() => { setProjectMenu(null); selectProject(projectMenu.project.project_id); }}>打开终端区</button>
       <button role="menuitem" data-edit-project disabled={busy || !projectMenu.project.opened} onClick={() => { setEditingProject(projectMenu.project.project_id); setProjectMenu(null); }}>编辑项目</button>
-      <button role="menuitem" disabled={busy || !projectMenu.project.opened || projectMenu.project.tasks.length > 0}
-        title={projectMenu.project.tasks.length ? '项目已有门禁任务，不能移除' : undefined} onClick={() => removeProject(projectMenu.project.project_id)}>从列表移除</button>
+      <button role="menuitem" disabled={busy} title="只从列表隐藏；任务和记录保留，重新打开这个目录就回来"
+        onClick={() => removeProject(projectMenu.project.project_id)}>从列表移除</button>
     </div>}
     <AppNotifications notices={notices} disabled={busy} onSelect={launch => {
       const agent = agents.find(row => row.id === launch); if (agent) void selectAgent(agent);

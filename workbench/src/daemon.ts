@@ -539,6 +539,11 @@ export async function serve(
       const opened = store.openedProjects();
       const existing = opened.find(project => project.repo === repo) ?? catalog.find(project => project.repo === repo);
       if (existing) return { ok: true, project: existing.project_id, repo, created: false };
+      const restored = [...store.removedProjects()].find(([, removedRepo]) => removedRepo === repo)?.[0];
+      if (restored) {
+        store.event('project_opened', { project_id: restored, repo });
+        return { ok: true, project: restored, repo, created: false };
+      }
       const taken = new Set([...catalog.map(row => row.project_id), ...opened.map(row => row.project_id),
         ...gates.listProjects().map((row: any) => String(row.project_id))]);
       // The directory name becomes the project id; gate ids allow [A-Za-z0-9_.-].
@@ -561,10 +566,28 @@ export async function serve(
     }
     if (input.command === 'project_remove') {
       if (authority.kind !== 'operator') throw new Refusal('operator_required');
-      if (!store.openedProjects().some(project => project.project_id === input.project)) throw new Refusal('unknown_project');
-      if (store.openPanes(undefined, input.project).length) throw new Refusal('project_has_open_panes');
-      if (gates.listTasks(input.project).length) throw new Refusal('project_has_tasks');
-      store.event('project_removed', { project_id: input.project });
+      // Refusals that carry details are returned, not thrown: the request loop keeps only a thrown refusal's code.
+      // T-190: removing only hides the project; tasks and records stay and come back when the directory is opened again.
+      const project = (await projectCatalog(gates, store)).find(row => row.project_id === input.project);
+      if (!project) throw new Refusal('unknown_project');
+      const running = store.openPanes(undefined, input.project).filter(pane => {
+        const record = store.launchRecord(pane.launch);
+        return record && panes.status(record.thread).lifecycle === 'running';
+      });
+      if (running.length) return { ok: false, error: 'project_has_running_terminals', details: { count: running.length } };
+      const active = [];
+      for (const task of project.tasks) {
+        const attempt = (await gates.call({ command: 'status', task: task.task_id })).task?.current_attempt;
+        if (attempt && !attempt.reclaimed) active.push({ task: task.task_id, attempt: attempt.attempt_id, state: attempt.state });
+      }
+      if (active.length && input.attempts !== 'keep' && input.attempts !== 'reclaim')
+        return { ok: false, error: 'project_has_active_attempts', details: { attempts: active } };
+      if (input.attempts === 'reclaim') for (const row of active) {
+        const result = await gates.call({ command: 'reclaim', task: row.task, attempt: row.attempt });
+        if (!result.ok) return { ok: false, error: 'project_reclaim_failed', details: { ...row, error: result.error, details: result.details } };
+      }
+      store.event('project_removed', { project_id: input.project, repo: project.repo,
+        kept_attempts: input.attempts === 'keep' ? active : [] });
       return { ok: true };
     }
     if (input.command === "role_request_decide") {

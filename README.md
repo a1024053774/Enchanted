@@ -17,7 +17,7 @@ Enchanted 是面向 macOS 的多 agent 协作工作台，a2a 是它的编排内�
 
 这是开发中的初版。工作台使用 Electron、React、xterm.js 和 node-pty；门禁核心位于本仓库的 `workbench/src/gates/`，命令行入口为 `workbench/src/gates/cli.ts`。前端复用了 Synara 的组件与样式，保留其 MIT 许可声明。
 
-当前只支持 macOS arm64（Apple Silicon）。CLI 支持 Claude Code、Codex、agy 与 opencode，四种都可当主控、worker 和审查员；agy 与 opencode 没有按会话的钩子，差别见[工作台说明](workbench/README.md)。多个窗格、用户输入记录、问题面板、主控收件箱和恢复流程各有自己的验证边界；完整双主控协作、正常登录恢复与日常使用切换仍有未完成项。项目作者的日常派发目前继续使用 Herdr，切换条件以 [intent.md](intent.md) 和[项目地图](.project-map/MAP.md)为准。这是开发中的初版，不作可靠性、吞吐或成本承诺；发布代码不代表用户已确认工作台“可用”。
+当前只支持 macOS arm64（Apple Silicon）。CLI 支持 Claude Code、Codex、agy 与 opencode，四种都可当主控、worker 和审查员；agy 与 opencode 没有按会话的钩子，差别见[工作台说明](workbench/README.md)。多个窗格、用户输入记录、问题面板、主控收件箱和恢复流程各有自己的验证边界；完整双主控协作、正常登录恢复与日常使用切换仍有未完成项。2026-10-27 起项目作者的日常派发改经工作台门禁，不再经 Herdr（见[项目地图](.project-map/MAP.md)）。这是开发中的初版，不作可靠性、吞吐或成本承诺；发布代码不代表用户已确认工作台“可用”。
 
 日常用法：点侧栏顶部的“+”打开一个目录，它就成了项目；在项目里新建或分屏出的终端直接从项目目录启动。任务卡由主控写、经门禁派发，界面里不再有新建任务的表单；经门禁派发的 agent 会话按项目出现在侧栏里，带启动时间和状态图标。在项目终端里用自己的命令启动 CLI，告诉它当主控，它会经 `a2a request` 申请角色；你在界面里批准后，它就能写任务卡、经门禁派发，身份跟着这个终端，终端关了就结束。agy 当主控请用 `agy --dangerously-skip-permissions` 启动，否则每条命令都要你确认。外观、通知和主控派发新会话时用的模型，在侧栏顶部齿轮打开的设置里调整。界面有浅色与深色两套，可以跟随系统。
 

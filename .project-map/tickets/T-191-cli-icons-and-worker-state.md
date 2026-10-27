@@ -30,3 +30,6 @@ ready_rev:
 范围外问题经问题上报。
 
 ## Resolution
+
+2026-10-27 进展（INCOMPLETE，未关闭）：用户 2026-10-27 “我刚刚新建了终端,还没开 agent 任务这个状态就动起来了,我我想要这个状态是监控 agent 状态的. 还有要加上对应 agent 的 logo”。已实现：普通终端状态取前台 CLI（无 CLI 为空闲，agy/opencode 取 OSC 7501，Claude/Codex 获批角色前未知）；四家 CLI 图标（LobeHub，MIT）；受管会话 CLI 名取启动记录；终端行副标题只显示 CLI 名。U05 更正为非缺陷（见 findings）。证据：`evidence/2026-10-27-batch28/T-190/ui-check-round2`、`ui-check-round3`。
+未验证：普通终端里 agy/opencode 回合进行中转圈、结束回到空闲（第 3 轮 opencode 无可用模型，BLOCKED）。

@@ -106,7 +106,10 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
 在单 agent 视图中重命名或关闭，只修改该会话的名称或布局叶子，保留其余会话的分屏方向与名称。
 项目终端的布局保存只包含普通终端，项目查询中同属该项目的任务 agent 不进入终端布局。
 项目终端里的 Claude Code（经插件）和 Codex（经包装脚本的 `-c hooks.SessionStart`）在会话开始时都经 SessionStart 钩子（`a2a session-context`，输出 `hookSpecificOutput.additionalContext`）收到同一份开局说明（文字只在 `terminal/orientation/AGENTS.md` 一处；opencode 把这个文件作为 instructions 读入，agy 经包装脚本的 `--add-dir` 把这个目录加进工作区、读其中的 AGENTS.md，T-187）：`a2a` 在 PATH 上、`a2a help`、用户要它当主控就直接 `a2a request`、当主控前先读使用说明（Claude 是 a2a skill，其他 CLI 看 `a2a help`）；只在有终端身份时输出（T-181、T-185）。用户自己用 `-c hooks.SessionStart=…` 传的开局钩子优先，替换 Enchanted 的这一项；用户 hooks.json 里的开局钩子照常一起运行。新钩子第一次在用户自己的 Codex 里启动时，Codex 会弹一次钩子信任框，由用户本人确认，a2a 不写 Codex 配置。
-侧栏接口把普通终端放在 `terminals`；`agents` 包含 agent 会话和终端最近一次确认生效的主控角色。终端已结束时保留主控条目；交回角色而终端仍运行时恢复为普通终端，状态取终端生命周期。
+侧栏接口把普通终端放在 `terminals`；`agents` 包含 agent 会话和终端最近一次确认生效的主控角色。终端已结束时保留主控条目；交回角色而终端仍运行时恢复为普通终端。普通终端的状态取前台的 agent，不取 shell（T-191）：前台没有已登记的 CLI 时为空闲；
+agy、opencode 取它们报给终端的 OSC 7501；Claude Code、Codex 在获批角色前没有回合钩子，显示未知。前台 CLI 在提交一行后读出，
+有 CLI 在前台时每 5 秒复查。每行在角色名前显示所属 CLI 的图标（Claude Code、Codex、agy、opencode；来源与许可见
+`app/brand/cli/NOTICE.md`），受管会话的 CLI 名取启动记录里的 `cli`。
 T-177：已结束的会话和被新 attempt 取代的会话折进每个任务下的“历史 N 个”，默认收起；子会话仍在用时父会话不折。“清理”只拿掉已结束的会话（追加 `sidebar_hidden` 事件，仅操作员；记录与门禁事件不删，运行中的会话拒绝 `session_not_ended`）。已集成任务仍空闲的当前 worker 显示“回收”，经门禁 `reclaim`。没有指定启动目标时，窗口打开最近活跃、未结束的会话。
 终端设 `minimumContrastRatio: 4.5`：按深色背景配色的 CLI（如 Claude Code 问答框正文用的 256 色纯白）在浅色配色下会被自动调深，不改 CLI 的配置（T-181）。
 终端用 xterm 的 WebGL 渲染器（`@xterm/addon-webgl`）逐格绘制，制表符、色块与 powerline 分隔符由渲染器自绘，不依赖字体；
@@ -368,9 +371,12 @@ B 在 T-075 的旧候选上通过隔离真实 Codex 的显式交付、机械检�
 项目就是用户打开的目录：侧栏的 `+`（⌘O）弹出系统目录对话框，主进程把所选目录交给后台的
 `project_open`。目录取 realpath，不要求是 Git 仓库；项目号取目录名，替换门禁不允许的字符，
 与已有项目号重名时加 `-2`、`-3` 后缀；同一目录再次打开返回原项目。登记写入追加事件
-`project_opened`；项目右键“从列表移除”写 `project_removed`，只对用户打开、没有门禁任务、
-也没有打开窗格的项目生效。侧栏的项目列表是“用户打开的目录”与“有门禁任务的项目”的并集；
-用户打开的项目以登记目录为仓库，否则要求各任务的仓库一致。
+`project_opened`；项目右键“从列表移除”写 `project_removed`（含当时的仓库），只从列表隐藏，任务与记录都留着；
+再次打开同一目录时以原项目号恢复（T-190）。项目里还有运行中的终端时返回 `project_has_running_terminals`，界面提示先关掉；
+还有未回收的 attempt 时返回 `project_has_active_attempts` 并列出，界面问“回收并移除”（经门禁 `reclaim`，失败返回
+`project_reclaim_failed`）或“保留并移除”（保留的 attempt 记入事件）。侧栏的项目列表是“用户打开的目录”与“有门禁任务、
+没有被移除的项目”的并集；用户打开的项目以登记目录为仓库，否则要求各任务的仓库一致；仓库目录已不存在时项目行显示“目录不存在”。
+认领前的路径冲突检查只比较同一仓库的 attempt，仓库目录已不存在的 attempt 跳过，不再让所有项目的认领失败（T-190）。
 
 任务详情不在界面填写。用户在项目终端里启动 claude、codex、agy 或 opencode，告诉它身份是主控并发送要做的事；
 主控经角色申请（见“项目终端里的 a2a 与角色申请”）取得身份后，经门禁注册任务卡，任务随后出现在项目的任务栏和侧栏会话树中。

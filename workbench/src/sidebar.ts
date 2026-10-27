@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { codexSessionOrigin } from './paneRecovery.ts';
@@ -12,6 +13,11 @@ export const stateLabels: Record<AgentState, string> = {
   running: '运行中', waiting_user_answer: '等待用户回答', waiting_controller_answer: '等待主控回答',
   idle: '空闲', ended: '已结束', unrestored: '未恢复', unknown: '未知',
 };
+// T-191: the registered CLI a launch runs ('claude', 'codex', 'agy', 'opencode'), as the sidebar names and draws it.
+export const launchCli = (record: any): string => record.cli === 'Claude Code' || record.cli_version?.startsWith('Claude Code') ? 'claude'
+  : record.cli === 'Codex' || record.cli_version?.startsWith('codex-cli ') ? 'codex'
+  : Object.hasOwn(terminalClis, record.cli) ? record.cli : '未知';
+
 export const roleLabel = (record: any): string => record.role === 'controller'
   ? record.preset === 'ideation' ? '构思主控' : record.preset === 'executor' ? '执行主控' : '角色未知'
   : ({ worker: 'worker', reviewer: '审查员', monitor: '监视器' }[record.role] ?? '角色未知');
@@ -97,7 +103,9 @@ export async function gitFacts(repo: string) {
 // An opened directory names the project's repo; otherwise the tasks must agree.
 export async function projectCatalog(gates: any, store: OrchestrationStore) {
   const opened = new Map(store.openedProjects().map(project => [project.project_id, project]));
-  const ids = [...new Set([...gates.listProjects().map((project: any) => String(project.project_id)), ...opened.keys()])].sort();
+  const removed = store.removedProjects();
+  const ids = [...new Set([...gates.listProjects().map((project: any) => String(project.project_id)).filter((id: string) => !removed.has(id)),
+    ...opened.keys()])].sort();
   return Promise.all(ids.map(async project_id => {
     const tasks = gates.listTasks(project_id);
     const repos = new Set<string>();
@@ -107,7 +115,7 @@ export async function projectCatalog(gates: any, store: OrchestrationStore) {
       repos.add(result.task.repo);
     }
     const repo = opened.get(project_id)?.repo ?? (repos.size === 1 ? [...repos][0] : null);
-    return { project_id, repo, tasks, opened: opened.has(project_id),
+    return { project_id, repo, repo_missing: repo !== null && !existsSync(repo), tasks, opened: opened.has(project_id),
       extra_directories: opened.get(project_id)?.extra_directories ?? [] };
   }));
 }
@@ -182,8 +190,7 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
     // T-123: `task` is the gate's id (`<project>+<name>`); `task_name` is what the sidebar shows.
     return { id: record.id, project: record.project, task: record.task, task_name: record.task ? record.task.slice(record.task.indexOf('+') + 1) : null,
       attempt: record.attempt, thread: record.thread, role: record.role, preset: record.preset ?? null, role_label: roleLabel(record),
-      cli: record.cli === 'Claude Code' || record.cli_version?.startsWith('Claude Code') ? 'claude' :
-        record.cli_version?.startsWith('codex-cli ') ? 'codex' : '未知',
+      cli: launchCli(record),
       parent: senders.size === 1 ? [...senders][0] : null, state, question_id, state_label: stateLabels[state],
       delivery: statuses.get(record.id)?.delivery ?? null,
       start_missing: Boolean(statuses.get(record.id)?.start_missing),
@@ -222,9 +229,13 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
   const terminals: typeof agents = [];
   for (const record of store.launches().filter(record => record.role === 'shell' && !hidden.has(record.id) && !agents.some(agent => agent.id === record.id))) {
     const pane = panes.status(record.thread);
-    const state: AgentState = pane?.lifecycle === 'ended' ? 'ended' : pane?.unwired_cli ? 'unknown' : pane?.lifecycle === 'running' ? 'running' : 'unknown';
+    // T-191: the state is the agent's in front, not the shell's. A shell with no CLI in front is idle; agy and opencode
+    // report their own turns; Claude Code and Codex report turns only once they hold a role, so before that unknown.
+    const front = pane?.foreground_cli ?? null;
+    const state: AgentState = pane?.lifecycle === 'ended' ? 'ended' : pane?.unwired_cli ? 'unknown' : pane?.lifecycle !== 'running' ? 'unknown'
+      : front === null ? 'idle' : terminalClis[front]?.turns === 'osc7501' ? osc7501State(pane?.cli_turn) : 'unknown';
     terminals.push({ id: record.id, project: record.project, task: null, task_name: null, attempt: null, thread: record.thread,
-      role: 'shell', preset: null, role_label: '普通终端', cli: 'zsh', parent: null, state, question_id: null,
+      role: 'shell', preset: null, role_label: '普通终端', cli: front ?? 'zsh', parent: null, state, question_id: null,
       descendants: { count: 0, state: 'unknown', state_label: stateLabels.unknown, counts: [] },
       state_label: stateLabels[state], created_at: record.created_at, ended_at: ended(record.id, state),
       active_at: activeAt.get(record.id) ?? record.created_at, history: state === 'ended', reclaimable: false, terminal: true } as any);

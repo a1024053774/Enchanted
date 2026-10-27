@@ -112,6 +112,18 @@ export class OrchestrationStore {
     }
     return [...opened.values()];
   }
+  // T-190: projects removed from the list and not opened again, with the repo they had. Their tasks and records stay;
+  // opening the same directory brings the project back under the same id.
+  removedProjects() {
+    const removed = new Map<string, string | null>();
+    for (const row of this.db.prepare(`SELECT type,data FROM orchestration_events
+      WHERE type IN ('project_opened','project_removed') ORDER BY seq`).all()) {
+      const data = JSON.parse(String(row.data));
+      if (row.type === 'project_opened') removed.delete(data.project_id);
+      else removed.set(data.project_id, data.repo ?? null);
+    }
+    return removed;
+  }
   paneArrangement(scope: string) {
     const row = this.db.prepare(`SELECT data FROM orchestration_events
       WHERE type='pane_arrangement_saved' AND json_extract(data,'$.scope')=? ORDER BY seq DESC LIMIT 1`).get(scope);
