@@ -45,3 +45,14 @@ python3 tests/test_t193_multi_project_e2e.py --mutant follow-relinked --summary 
 - 未做 Electron 实机界面检查；agy、opencode worker 的额外目录本轮没有真实复跑。
 - 第 4 轮建议把三个时序反例纳入常规回归；本 ticket 未加，探针保留在审查目录的报告里。
 - 校验到 PTY 启动之间不是文件系统原子操作；不承诺对抗外部进程在最后一次核对之后换链接。
+
+## 补丁（2026-10-27，提交后发现）
+
+T-195 回归时跑 `tests/test_t121_role_request_e2e.py`，发现它仍按 T-193 之前的契约断言（主控只能碰自己终端的项目，未打开的项目报 `unknown_project`），T-193 提交时漏改。按 T-193 的验收条件改写期望：未打开的项目拒绝为 `project_not_opened`；已获批主控可在别的已打开项目里建卡（卡存在那个项目里）、查状态、存卡，并经完整 id 取到别的项目或别的终端存的草稿；每个任务仍只认一个仓库（`project_repo_mismatch`）；完整 id 旁边写别的项目为矛盾（`task_project_mismatch`）。
+
+| 文件 | 结果 |
+| --- | --- |
+| `regression-t121_role_request-2.json` ～ `-5.json` | 改期望过程中的失败，逐条对应旧契约断言；保留 |
+| `regression-t121_role_request-6.json` | 49 项 PASS |
+
+这些运行在 T-195 开发副本上（含 T-193 与 T-195 改动），T-121 覆盖的行为只来自 T-193。没有在 T-193 修前版本上重跑改后的测试；修前反例由本票的 `red-base.json` 与 `mutant-home-project-only.json` 提供。

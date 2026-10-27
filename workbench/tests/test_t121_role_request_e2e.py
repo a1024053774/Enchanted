@@ -265,12 +265,14 @@ def main():
               result_file('a-request.json')['role_request']['state'] == 'approved')
         assert type_line(a, f'a2a whoami > {out}/a-whoami-1.json', 'T121-WHO1') == 0
         check('whoami_reports_approved_role', result_file('a-whoami-1.json')['role'] == 'executor')
-        # inbox_ready names its project; with no tasks in it the gate itself answers unknown_project.
+        # inbox_ready names its project; the project is not opened yet, so the approved role gets past the role check and is
+        # refused for the project (T-193: commands reach only opened projects and say why).
         code = type_line(a, f"a2a call '{{\"command\":\"inbox_ready\",\"project\":\"proj\"}}' > {out}/a-approved.json", 'T121-APPROVED')
-        check('approved_controller_command_reaches_gate', code == 1 and result_file('a-approved.json')['error'] == 'unknown_project',
+        check('approved_controller_command_reaches_gate', code == 1 and result_file('a-approved.json')['error'] == 'project_not_opened',
               result_file('a-approved.json'))
         code = type_line(a, f"a2a call '{{\"command\":\"inbox_ready\",\"project\":\"other\"}}' > {out}/a-other.json", 'T121-OTHER')
-        check('approved_role_limited_to_its_project', code == 1 and result_file('a-other.json')['error'] == 'role_project_mismatch')
+        # T-193: a project not opened in the workbench is refused for every controller, its own terminal's or not.
+        check('approved_role_limited_to_opened_projects', code == 1 and result_file('a-other.json')['error'] == 'project_not_opened', result_file('a-other.json'))
         unscoped = {}
         for name, command in [('inbox_list', '{"command":"inbox_list"}'), ('inbox_ack', '{"command":"inbox_ack","id":"x"}'),
                               ('stop', '{"command":"stop","thread":"x","stop_id":"x"}'),
@@ -278,7 +280,9 @@ def main():
             type_line(a, f"a2a call '{command}' > {out}/a-unscoped-{name}.json", f'T121-UNSCOPED-{name.upper()}')
             unscoped[name] = result_file(f'a-unscoped-{name}.json').get('error')
         report['unscoped_errors'] = unscoped
-        check('commands_without_project_refused', set(unscoped.values()) == {'role_command_not_scoped'}, unscoped)
+        # The terminal's project is not opened yet here (T-193 refuses that first); once it is, the same commands are
+        # refused as not scoped (task_field_does_not_widen_scope below).
+        check('commands_without_project_refused', set(unscoped.values()) == {'project_not_opened'}, unscoped)
 
         # 5b: tasks. The terminal controller prepares and creates a task in its own opened project; a task
         # field never widens inbox or stop, and another project's task and repo stay out of reach.
@@ -313,15 +317,18 @@ def main():
         check('terminal_controller_creates_task_in_own_project', own['ok'] and request('status', terminal_a, task='own-1')['ok'], own)
         wrong_repo = create(terminal_a, 'own-2', 'proj', other_repo)
         assert request('card_save', terminal_a, task='own-3', card=card('own-3'), expected_version=0)['ok']
+        # T-193 (T-189 第 1 条): an approved controller works in any opened project; a task still has exactly one repository.
         foreign = {label: request(command, terminal_a, **data).get('error') for label, command, data in [
             ('create_in_other_project', 'create', dict(task='own-3', project='other', repo=str(other_repo), branch='refs/heads/main', card_version=1)),
             ('status_of_other_task', 'status', dict(task='other+other-1')),
             ('card_save_on_other_task', 'card_save', dict(task='other+other-1', card=card('other-1'), expected_version=1))]}
         foreign['create_with_other_repo'] = wrong_repo.get('error')
+        # A card is saved in the project its task goes to; saved there, the other project's task is created.
+        foreign['create_in_other_project_with_its_card'] = create(terminal_a, 'own-4', 'other', other_repo).get('error')
         report['foreign_errors'] = foreign
-        check('other_project_task_and_repo_refused', foreign == dict(create_in_other_project='role_project_mismatch',
-              status_of_other_task='task_project_mismatch', card_save_on_other_task='task_project_mismatch',
-              create_with_other_repo='project_repo_mismatch'), foreign)
+        check('other_opened_project_reachable_one_repo_per_task', foreign == dict(create_in_other_project='unknown_card_version',
+              status_of_other_task=None, card_save_on_other_task=None, create_with_other_repo='project_repo_mismatch',
+              create_in_other_project_with_its_card=None), foreign)
         widened = {name: request(name, terminal_a, task='own-1', **data).get('error') for name, data in [
             ('inbox_list', {}), ('inbox_ack', dict(id='x')), ('inbox_send', dict(to='executor', kind='note', body='x')),
             ('stop', dict(thread='x', stop_id='x'))]}
@@ -336,12 +343,15 @@ def main():
             ('create', 'create', dict(project='proj', repo=str(cwd), branch='refs/heads/main', card_version=1))]}
         report['draft_errors'] = drafts
         own_same_name = request('card_save', terminal_a, task='other-2', card=card('other-2'), expected_version=0)
-        check('other_project_draft_refused', set(drafts.values()) == {'task_project_mismatch'} and own_same_name['ok'] and
+        # The full id reaches the other project's draft; a version already taken is a conflict; a project beside a full id
+        # of another project is a contradiction.
+        check('other_project_draft_by_full_id', drafts == dict(card_show=None, card_save_next=None, card_save_first='card_version_conflict',
+              create='task_project_mismatch') and own_same_name['ok'] and
               request('card_show', terminal_a, task='other-2', card_version=1)['ok'] and
               request('create', operator, task='other-2', project='other', repo=str(other_repo), branch='refs/heads/main', card_version=1)['ok'] and
               request('status', operator, task='other+other-2')['task']['project_id'] == 'other',
               dict(drafts=drafts, own_same_name=own_same_name.get('error')))
-        # A draft another project's terminal saved is reached only by its full id, which this terminal is refused.
+        # A draft another project's terminal saved is reached by its full id (T-193), not by the bare name here.
         o = open_terminal('o', 'other', other_repo)
         type_line(o, f'print -r -- $A2A_TERMINAL_TOKEN > {out}/o-token.txt', 'T121-O-TOKEN')
         terminal_o = dict(kind='terminal', launch=o['launch'], token=(out / 'o-token.txt').read_text(encoding='utf-8').strip())
@@ -354,7 +364,8 @@ def main():
             ('card_save_next', 'card_save', dict(card=card('oth-3'), expected_version=1)),
             ('card_show', 'card_show', dict(card_version=1))]}
         report['other_terminal_draft_errors'] = squatted
-        check('other_terminal_draft_refused', set(squatted.values()) == {'task_project_mismatch'} and
+        # A draft another terminal saved in its project is that project's: reached by its full id, never by the bare name here.
+        check('other_terminal_draft_by_full_id', squatted == dict(card_save_next=None, card_show=None) and
               request('card_show', terminal_o, task='oth-3', card_version=1)['ok'] and
               request('card_show', terminal_a, task='oth-3', card_version=1).get('ok') is not True, squatted)
         # Opened to terminal controllers by T-124: no longer refused as unscoped; each is still refused, for its missing arguments.
