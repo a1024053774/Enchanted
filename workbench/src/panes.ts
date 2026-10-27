@@ -1277,7 +1277,9 @@ export class Panes implements GateRuntime {
       this.store.event("quality_feedback_stopped", { repair, cancelled: held.map((item) => item.id) }, pane.record);
       return;
     }
-    await this.dispatch(pane, "门禁检查未通过。根据失败证据修复，运行完成条件，Git提交后用原CLI显式重交新候选；保持本attempt和原生会话。\n" +
+    // T-198: an out-of-card rejection is the controller's judgement, not a failed check.
+    const lead = (repair.failure as { error?: string } | undefined)?.error === "out_of_card_rejected" ? "主控没有放行任务卡以外的改动（out_of_card 列出的文件），理由见 reason。" : "门禁检查未通过。";
+    await this.dispatch(pane, lead + "根据失败证据修复，运行完成条件，Git提交后用原CLI显式重交新候选；保持本attempt和原生会话。\n" +
       JSON.stringify({ task: attempt.task_id, attempt: attempt.attempt_id, ...repair }, null, 2), "gate",
       undefined, { kind: "quality-repair", rejection_id: repair.id });
   }

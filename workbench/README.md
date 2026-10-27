@@ -218,7 +218,8 @@ T-177：已结束的会话和被新 attempt 取代的会话折进每个任务下
   worker 看到 ⟦用户 #n⟧ 与“用户答复”。
 - `run` 自动走完派发、验收、审查。审查通过后仍等主控带分 `integrate`；发起它的主控身份已结束（release、终端关闭）
   或额度用完时，run 写 `run_initiator_ended`，自己经门禁集成，评分记为 `{"result":"未评分","reason":"主控身份已结束"}`
-  或 `"主控额度用完"`。身份结束后这个终端的 `dispatch`、`run`、`attach` 返回 `approved_role_required` 并记入
+  或 `"主控额度用完"`。交付有卡外改动而主控没有判断（T-198）时，自动集成同样返回 `out_of_card_unjudged`，run 暂停
+  （`outcome: paused`），任务停在 `verified`、worker 不回收，等主控重新取得角色后判断、集成。身份结束后这个终端的 `dispatch`、`run`、`attach` 返回 `approved_role_required` 并记入
   `request_rejected`；已派出的 worker、run 与 monitor 继续。
 - 后台重启（T-124 用户裁定 4）：启动时 outcome 为 running、或因后台停止而 paused 的 run 接着跑，截止时间不变，
   每次续跑记入 run 的 `resumed`。原 attempt 的 worker 随后台结束、任务停在 claimed、reviewing 或 paused 的，先经门禁
@@ -450,7 +451,7 @@ M验收目录独立，顺序为路径边界、验收文件、完成条件、红�
 在 `claim`、`dispatch` 或 `run` 上显式加 `--overlap-reason '具体理由'`，
 理由、冲突身份和路径一起保存到 `claim_path_check` 事件；worker 的转交通道不增加认领权限。
 已验收（accepted）的 attempt 不再计入占用，事件的 `not_counted` 列出它们（T-197）；拒绝的 `conflicts` 是给主控判断的清单，放行理由空白算无效（`invalid_text`），带理由放行的重叠在任务页显示为“路径重叠”及理由。
-门禁检查候选相对起点的净改动，以及 M 相对 G 的净改动。
+门禁检查候选相对起点的净改动，以及 M 相对 G 的净改动。改动落在任务卡允许范围以外时（T-198），验收不再以 `path_boundary_failed` 结束：清单记入 `path_check` 事件的 `out_of_card` 与 `verification.out_of_card`，写进审查员的输入，集成前须主控经 `out_of_card` 判断——`accept` 带理由，只对这一次交付的这个候选、这些文件有效（工作分支前进后重验同一候选仍有效；新的交付、撤销或改卡后重派都要重新判断，交回之前放行过的提交也一样）；`reject` 带理由，撤销此前的放行，按打回发给 worker。没有判断时 `integrate` 返回 `out_of_card_unjudged`，`run` 在主控离开后自动集成时也停在这里。验收文件（T-080）与 Git 元数据守护仍直接拒绝。
 尾注归属核对 Task、Attempt、Session、Role。受管提交另把 Launch 与该 attempt 的启动记录号核对，并把 Tool、Model、Effort 与同一条记录核对；Model 为 unknown 时仍接受。不一致时拒收，码为 trailer_identity_mismatch。带有 A2A 尾注、但该 attempt 没有这份启动记录时，尾注检查直接拒收，码为 trailer_launch_record_missing，trailer_check 事件写明缺启动记录。外来任务或坏尾注被拒。
 完全无 A2A 尾注的提交产生来源为“推断：缺尾注”的 action 用户输入和派生人工介入，
 不阻止集成，同 attempt 同 commit 重验不重复记录。
@@ -524,7 +525,7 @@ node workbench/src/gates/cli.ts --state /绝对路径/state integrate --task T-0
 相同命令重放不再打分或改 Git，不同分数不能覆盖。后台与 `scripts/score` 新写入的打分行一律为 schema=2，
 事实由任务卡、交付回合和事件提取，不写真实 `records/scores.jsonl`。
 通过或升级的 `facts.rejections` 必须完整包含 `identity_version`、`path_boundary`、`oracle`、`completion`、
-`red_state`、`rule_checks`、`independent_review`、`commit_trailers`；验收文件打回计入 `oracle`，不计入 `path_boundary`。
+`red_state`、`rule_checks`、`independent_review`、`commit_trailers`；验收文件打回计入 `oracle`，不计入 `path_boundary`；主控经 `out_of_card` 打回卡外改动计入 `path_boundary`（T-198）。
 缺项拒收，不把缺失次数补为零。用户分和放弃结果沿用各自不带评分事实的合同，新行仍写 schema=2。
 交付缺当前回合的实际模型/强度时拒绝，不能沿用请求值或上一回合的值。
 

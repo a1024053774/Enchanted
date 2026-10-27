@@ -39,6 +39,7 @@ export const A2AGateRequest = Schema.Struct({
     "review_submit",
     "abandon",
     "close",
+    "out_of_card",
     "reclaim",
     "status",
     "events",
@@ -68,6 +69,7 @@ export const A2AGateRequest = Schema.Struct({
   owner: Schema.optional(Schema.String),
   reason: Schema.optional(Schema.String),
   overlap_reason: Schema.optional(Schema.String),
+  decision: Schema.optional(Schema.Literals(["accept", "reject"])),
   attempt: Schema.optional(Schema.String),
   session: Schema.optional(Schema.String),
   fence: Schema.optional(Schema.Number),
@@ -229,6 +231,8 @@ export interface A2AVerification {
     rules: { id: string; result: A2ACommandResult; passed: boolean }[];
   };
   ordinal?: number;
+  // T-198: changed files the card does not allow; the controller judges them before integration.
+  out_of_card?: string[];
   retained_ref?: string;
   cleanup?: "removed" | "preserved";
   conflict?: {
@@ -259,6 +263,8 @@ export interface A2ATask {
   candidate_commit: string | null;
   verification: A2AVerification | null;
   repair?: A2ARepair | null;
+  // T-198: the controller let a candidate's out-of-card files through, with why.
+  out_of_card_judgement?: { candidate_commit: string; verification_id: string; out_of_card: string[]; reason: string; at: string } | null;
   review?: A2AReview | null;
   quality?: ProjectQuality;
   integration_intent: {

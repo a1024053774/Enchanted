@@ -1552,6 +1552,7 @@ export class A2AGates {
     task.candidate_commit = null;
     task.verification = null;
     task.integration_intent = null;
+    delete task.out_of_card_judgement;
     this.save(
       task,
       "revoked",
@@ -2138,16 +2139,22 @@ export class A2AGates {
     this.event(task.task_id, "git_metadata_check", { verification_id: v.verification_id, before, after, changed, passed: changed.length === 0 });
     requireGate(changed.length === 0, "git_metadata_changed", { changed });
   }
+  private outOfCardJudged(task: A2ATask, v: A2AVerification) {
+    const judged = task.out_of_card_judgement;
+    return !v.out_of_card?.length || Boolean(judged && judged.candidate_commit === v.C && v.out_of_card.every((path) => judged.out_of_card.includes(path)));
+  }
   private async checkPaths(task: A2ATask, attempt: A2AAttempt, v: A2AVerification) {
     const paths = new Set<string>();
     for (const [from, to] of [[this.candidateBase(attempt, v.C), v.C], [v.G, v.M!]]) {
       for (const path of await this.changedPaths(task, from!, to!)) paths.add(path);
     }
     const card = this.boundCard(attempt);
-    const forbidden = [...paths].filter((path) => !pathAllowed(card, path));
+    // T-198: files outside the card are a fact for the controller to judge before integration, not a refusal. The
+    // oracle and Git metadata checks around this one still refuse.
+    const outOfCard = [...paths].filter((path) => !pathAllowed(card, path));
+    v.out_of_card = outOfCard;
     this.event(task.task_id, "path_check", { verification_id: v.verification_id, card_snapshot_id: v.card_snapshot_id,
-      G: v.G, C: v.C, M: v.M, paths: [...paths], forbidden, rules: card.paths, passed: forbidden.length === 0 });
-    requireGate(forbidden.length === 0, "path_boundary_failed", { forbidden });
+      G: v.G, C: v.C, M: v.M, paths: [...paths], out_of_card: outOfCard, rules: card.paths, passed: outOfCard.length === 0 });
   }
   private async checkOracleExists(task: A2ATask, base: string) {
     const missing: string[] = [];
@@ -2596,7 +2603,7 @@ export class A2AGates {
           completion_conditions_sufficiency: true,
           mutation_checks: { min: 2, max: 5, workspace: candidateWorkspace, report_section: "完成条件与变异检查" },
         }, report: { "完成条件与变异检查": "填写完成条件审查及各变异的改动、命令和结果" } };
-      const prompt = `审查这一次交付。审查目录和候选 Git worktree 只读；门禁为你准备的一次性候选副本是唯一可写工作目录：${candidateWorkspace}。不要实现或提交代码，不要调用 worker 的 submit、不能集成、不能写请求文件。独立判断候选是否满足任务卡；不要把机械通过当作审查结论。\n\n必查完成条件：判断完成条件（含验收文件 oracle_paths）是否足以拒绝明显错误的实现；不足时结论写“需修复”并列出缺失。\n必做变异检查：针对候选关键逻辑在一次性候选副本中构造 2～5 个少量错误实现，分别运行完成条件或候选新增测试，确认每个会失败；副本改动不提交、不进入集成。报告必须单列“完成条件与变异检查”，逐项写改了什么、运行的命令、结果。\n\n任务卡：\n${JSON.stringify(this.boundCard(attempt), null, 2)}\n候选改动：\n${diff}\n机械验收：\n${JSON.stringify(v, null, 2)}\n上一轮问题清单：\n${JSON.stringify(previous)}\n最终消息必须是一个完整 JSON 对象，不能加 Markdown 或说明文字。明确发起 review_submit，Stop hook 才会转交；结束回合本身不算交付。保留模板的全部顶层字段，不添加其他字段。身份字段和 review_requirements 原样返回。report 必须是 JSON 对象，在其中填写审查报告，并单列“完成条件与变异检查”；不要把 report 写成字符串。verdict 只选“可合并”或“需修复”。可合并时 findings 为空；需修复时每项为 {"location":{"path":"仓库相对路径","line":1},"failure_scenario":"具体失败场景","suggestion":"修复建议"}，至少一项。\n${JSON.stringify(shape, null, 2)}`;
+      const prompt = `审查这一次交付。审查目录和候选 Git worktree 只读；门禁为你准备的一次性候选副本是唯一可写工作目录：${candidateWorkspace}。不要实现或提交代码，不要调用 worker 的 submit、不能集成、不能写请求文件。独立判断候选是否满足任务卡；不要把机械通过当作审查结论。\n\n必查完成条件：判断完成条件（含验收文件 oracle_paths）是否足以拒绝明显错误的实现；不足时结论写“需修复”并列出缺失。\n必做变异检查：针对候选关键逻辑在一次性候选副本中构造 2～5 个少量错误实现，分别运行完成条件或候选新增测试，确认每个会失败；副本改动不提交、不进入集成。报告必须单列“完成条件与变异检查”，逐项写改了什么、运行的命令、结果。\n\n任务卡：\n${JSON.stringify(this.boundCard(attempt), null, 2)}\n候选改动：\n${diff}\n卡外改动（任务卡没有允许、待主控判断的文件）：${v.out_of_card?.length ? v.out_of_card.join("、") : "无"}。逐个判断是否必要、是否越出任务目标，写进报告。\n机械验收：\n${JSON.stringify(v, null, 2)}\n上一轮问题清单：\n${JSON.stringify(previous)}\n最终消息必须是一个完整 JSON 对象，不能加 Markdown 或说明文字。明确发起 review_submit，Stop hook 才会转交；结束回合本身不算交付。保留模板的全部顶层字段，不添加其他字段。身份字段和 review_requirements 原样返回。report 必须是 JSON 对象，在其中填写审查报告，并单列“完成条件与变异检查”；不要把 report 写成字符串。verdict 只选“可合并”或“需修复”。可合并时 findings 为空；需修复时每项为 {"location":{"path":"仓库相对路径","line":1},"failure_scenario":"具体失败场景","suggestion":"修复建议"}，至少一项。\n${JSON.stringify(shape, null, 2)}`;
       const formatCheck = '\n输出前自检：整条最终消息必须能直接被 JSON.parse 解析，第一个非空白字符为 {，最后一个为 }。不要用 ```json 或任何代码围栏，不加前言或结语。检查模板全部顶层字段、身份字段与 review_requirements 原样保留，report 是对象且含“完成条件与变异检查”。带围栏或自然语言的结论会被拒绝并暂停，不能追认为通过。';
       await this.runtime.createReview(task, review, formatCheck + '\n' + prompt);
       const live = await this.runtime.readThread(review.thread_id);
@@ -3985,6 +3992,30 @@ export class A2AGates {
         this.save(task, "closed", { reason });
         return { ok: true, task };
       }
+      // T-198: the controller judges a verified candidate's out-of-card files. accept lets integration go on for this
+      // candidate and these files; reject sends the list back to the worker the way a failed check does.
+      if (args.command === "out_of_card") {
+        requireGate(!caller || caller.address === "executor", "executor_required");
+        requireGate(task.state === "verified", "not_verified", { state: task.state });
+        const v = task.verification!;
+        requireGate(v.out_of_card?.length, "no_out_of_card");
+        requireGate(args.decision === "accept" || args.decision === "reject", "invalid_decision");
+        const reason = text(args.reason);
+        const attempt = this.current(task, args.attempt);
+        const judged = { decision: args.decision, reason, out_of_card: v.out_of_card, candidate_commit: v.C, verification_id: v.verification_id };
+        if (args.decision === "accept") {
+          task.out_of_card_judgement = { candidate_commit: v.C, verification_id: v.verification_id, out_of_card: v.out_of_card!, reason,
+            at: new Date(this.now()).toISOString() };
+          this.save(task, "out_of_card_judged", judged);
+          return { ok: true, task };
+        }
+        // A rejection withdraws an earlier accept of this candidate.
+        delete task.out_of_card_judgement;
+        this.event(taskId, "out_of_card_judged", judged, attempt.attempt_id);
+        // The score counts rejections per check; this one is the path boundary, judged by the controller.
+        await this.rejectDelivery(task, attempt, "path_boundary", { error: "out_of_card_rejected", out_of_card: v.out_of_card, reason });
+        return { ok: true, task: this.load(taskId) };
+      }
       if (args.command === "dispatch" || args.command === "claim") return await this.claim(task, args, run);
       let historicalAttempt: A2AAttempt | undefined;
       if (
@@ -4229,6 +4260,8 @@ export class A2AGates {
         task.state = "submitted";
         task.repair = null;
         task.verification = null;
+        // T-198: a judgement covers one delivery; a commit delivered again, even one accepted before, waits for a new one.
+        delete task.out_of_card_judgement;
         this.save(task, "submitted", { attempt, commit, task });
         return { ok: true, task };
       }
@@ -4251,6 +4284,8 @@ export class A2AGates {
           this.checkVerification(task, attempt, v);
           this.checkQualityEvidence(task, attempt, v);
           this.requireReviewed(task, attempt);
+          requireGate(this.outOfCardJudged(task, v), "out_of_card_unjudged", { out_of_card: v.out_of_card,
+            next: "用 out_of_card 判断：accept 写明为什么留下，或 reject 打回给 worker" });
           requireGate(attempt.delivery, "score_provenance_required");
           if (intent) requireGate(intent.score && JSON.stringify(intent.score.data) === JSON.stringify(score), "score_replay_mismatch");
           requireGate(v.M, "not_verified");

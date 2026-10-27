@@ -1,0 +1,126 @@
+{
+  "status": "PASS",
+  "argv": [
+    "tests/test_t198_out_of_card_e2e.py",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a/evidence/2026-10-27-batch28/T-198/frozen-green.json"
+  ],
+  "revision": null,
+  "mutant": null,
+  "fixture": "/private/tmp/t198-8lkqd_zh",
+  "claude": "/Users/luckye/.local/bin/claude",
+  "checks": [
+    "out_of_card_waits_for_judgement",
+    "out_of_card_oracle_still_refused",
+    "reviewer_input_lists_out_of_card",
+    "integrate_refused_before_judgement",
+    "blank_reason_is_no_reason",
+    "accepted_with_reason_integrates",
+    "reject_reaches_worker_with_list"
+  ],
+  "verify": {
+    "T-1": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "T-3": {
+      "ok": false,
+      "error": "oracle_modified",
+      "details": {
+        "modified": [
+          "check_T-3.py"
+        ]
+      }
+    }
+  },
+  "settled": {
+    "T-1": "verified",
+    "T-2": "verified"
+  },
+  "path_check": {
+    "T-1": [
+      {
+        "out_of_card": [
+          "notes/extra-1.txt"
+        ],
+        "passed": false
+      }
+    ],
+    "T-2": [
+      {
+        "out_of_card": [
+          "notes/extra-2.txt"
+        ],
+        "passed": false
+      }
+    ]
+  },
+  "t1": {
+    "unjudged": {
+      "ok": false,
+      "error": "out_of_card_unjudged",
+      "details": {
+        "out_of_card": [
+          "notes/extra-1.txt"
+        ],
+        "next": "用 out_of_card 判断：accept 写明为什么留下，或 reject 打回给 worker"
+      }
+    },
+    "blank": {
+      "ok": false,
+      "error": "invalid_text",
+      "details": null
+    },
+    "accepted": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "integrated": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "judged": [
+      {
+        "decision": "accept",
+        "reason": "notes/extra-1.txt 是这次改动的说明，留下无妨",
+        "out_of_card": [
+          "notes/extra-1.txt"
+        ],
+        "candidate_commit": "c044036c52945358023d54a49c8e1e7dcfc5861a",
+        "verification_id": "8ac54f91-8033-44cf-92d5-230b7e23e530"
+      }
+    ]
+  },
+  "t2": {
+    "rejected": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "state": "submitted",
+    "repair": {
+      "id": "6fba7cc3-dfd0-4203-b7ab-803a9f0f046b",
+      "candidate_commit": "3265ffdbca5b3c2f80d4661f29ae28f459ab10ac",
+      "verification_id": "8044b852-43d2-4106-8774-1d0f53902b9f",
+      "check": "path_boundary",
+      "count": 1,
+      "stopped": false,
+      "failure": {
+        "error": "out_of_card_rejected",
+        "out_of_card": [
+          "notes/extra-2.txt"
+        ],
+        "reason": "notes/ 不在这次范围，删掉再交"
+      }
+    },
+    "feedback": "⟦门禁 #10⟧\n主控没有放行任务卡以外的改动（out_of_card 列出的文件），理由见 reason。根据失败证据修复，运行完成条件，Git提交后用原CLI显式重交新候选；保持本attempt和原生会话。\n{\n  \"task\": \"demo+T-2\",\n  \"attempt\": \"7f11338e-f91b-40a8-9a47-3b5a31434929\",\n  \"id\": \"6fba7cc3-dfd0-4203-b7ab-803a9f0f046b\",\n  \"candidate_commit\": \"3265ffdbca5b3c2f80d4661f29ae28f459ab10ac\",\n  \"verification_id\": \"8044b852-43d2-4106-8774-1d0f53902b9f\",\n  \"check\": \"path_boundary\",\n  \"count\": 1,\n  \"stopped\": false,\n  \"failure\": {\n    \"error\": \"out_of_card_rejected\",\n    \"out_of_card\": [\n      \"notes/extra-2.txt\"\n    ],\n    \"reason\": \"notes/ 不在这次范围，删掉再交\"\n  }\n}"
+  }
+}

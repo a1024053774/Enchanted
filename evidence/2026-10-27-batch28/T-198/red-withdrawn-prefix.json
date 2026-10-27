@@ -1,0 +1,170 @@
+{
+  "status": "INCOMPLETE",
+  "argv": [
+    "tests/test_t198_regression_red.py",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a/evidence/2026-10-27-batch28/T-198/red-withdrawn-prefix.json"
+  ],
+  "revision": null,
+  "mutant": null,
+  "fixture": "/private/tmp/t198-inbgrdpn",
+  "claude": "/Users/luckye/.local/bin/claude",
+  "checks": [
+    "out_of_card_waits_for_judgement",
+    "out_of_card_oracle_still_refused",
+    "reviewer_input_lists_out_of_card",
+    "integrate_refused_before_judgement",
+    "blank_reason_is_no_reason",
+    "accepted_with_reason_integrates",
+    "reject_reaches_worker_with_list"
+  ],
+  "verify": {
+    "T-1": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "T-3": {
+      "ok": false,
+      "error": "oracle_modified",
+      "details": {
+        "modified": [
+          "check_T-3.py"
+        ]
+      }
+    }
+  },
+  "settled": {
+    "T-1": "verified",
+    "T-2": "verified"
+  },
+  "path_check": {
+    "T-1": [
+      {
+        "out_of_card": [
+          "notes/extra-1.txt"
+        ],
+        "passed": false
+      }
+    ],
+    "T-2": [
+      {
+        "out_of_card": [
+          "notes/extra-2.txt"
+        ],
+        "passed": false
+      }
+    ]
+  },
+  "t1": {
+    "unjudged": {
+      "ok": false,
+      "error": "out_of_card_unjudged",
+      "details": {
+        "out_of_card": [
+          "notes/extra-1.txt"
+        ],
+        "next": "用 out_of_card 判断：accept 写明为什么留下，或 reject 打回给 worker"
+      }
+    },
+    "blank": {
+      "ok": false,
+      "error": "invalid_text",
+      "details": null
+    },
+    "accepted": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "integrated": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "judged": [
+      {
+        "decision": "accept",
+        "reason": "notes/extra-1.txt 是这次改动的说明，留下无妨",
+        "out_of_card": [
+          "notes/extra-1.txt"
+        ],
+        "candidate_commit": "cc0ff92e2e76ba41363fbe84000fffb1063d2937",
+        "verification_id": "54f06caf-845a-4f50-b846-992a07edb146"
+      }
+    ]
+  },
+  "t2": {
+    "first_candidate": "dbe03254cb656a47323ccd84e0137f59aff8288d",
+    "first_accept": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "rejected": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "state": "submitted",
+    "repair": {
+      "id": "b2e51243-a50c-495e-9618-b35a50f23ece",
+      "candidate_commit": "dbe03254cb656a47323ccd84e0137f59aff8288d",
+      "verification_id": "c9892133-11fa-410d-a5cc-f173efbee242",
+      "check": "path_boundary",
+      "count": 1,
+      "stopped": false,
+      "failure": {
+        "error": "out_of_card_rejected",
+        "out_of_card": [
+          "notes/extra-2.txt"
+        ],
+        "reason": "notes/ 不在这次范围，删掉再交"
+      }
+    },
+    "feedback": "⟦门禁 #10⟧\n主控没有放行任务卡以外的改动（out_of_card 列出的文件），理由见 reason。根据失败证据修复，运行完成条件，Git提交后用原CLI显式重交新候选；保持本attempt和原生会话。\n{\n  \"task\": \"demo+T-2\",\n  \"attempt\": \"69dbd180-0fff-4b37-9ef7-cecc09c0ca5e\",\n  \"id\": \"b2e51243-a50c-495e-9618-b35a50f23ece\",\n  \"candidate_commit\": \"dbe03254cb656a47323ccd84e0137f59aff8288d\",\n  \"verification_id\": \"c9892133-11fa-410d-a5cc-f173efbee242\",\n  \"check\": \"path_boundary\",\n  \"count\": 1,\n  \"stopped\": false,\n  \"failure\": {\n    \"error\": \"out_of_card_rejected\",\n    \"out_of_card\": [\n      \"notes/extra-2.txt\"\n    ],\n    \"reason\": \"notes/ 不在这次范围，删掉再交\"\n  }\n}",
+    "second_candidate": "bec7514dd922073be7e477e9f0cefdb53134f39e",
+    "second_unjudged": {
+      "ok": false,
+      "error": "out_of_card_unjudged",
+      "details": {
+        "out_of_card": [
+          "notes/extra-2.txt"
+        ],
+        "next": "用 out_of_card 判断：accept 写明为什么留下，或 reject 打回给 worker"
+      }
+    },
+    "rejected_again": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "reappeared_state": "verified",
+    "reappeared": {
+      "ok": false,
+      "error": "review_end_check_required",
+      "details": null
+    },
+    "main_files": [
+      "README.md",
+      "a.txt",
+      "check_T-1.py",
+      "check_T-2.py",
+      "check_T-3.py",
+      "notes/extra-1.txt"
+    ]
+  },
+  "error": "AssertionError: withdrawn_accept_does_not_return: {'first_candidate': 'dbe03254cb656a47323ccd84e0137f59aff8288d', 'first_accept': {'ok': True, 'error': None, 'details': None}, 'rejected': {'ok': True, 'error': None, 'details': None}, 'state': 'submitted', 'repair': {'id': 'b2e51243-a50c-495e-9618-b35a50f23ece', 'candidate_commit': 'dbe03254cb656a47323ccd84e0137f59aff8288d', 'verification_id': 'c9892133-11fa-410d-a5cc-f173efbee242', 'check': 'path_boundary', 'count': 1, 'stopped': False, 'failure': {'error': 'out_of_card_rejected', 'out_of_card': ['notes/extra-2.txt'], 'reason': 'notes/ 不在这次范围，删掉再交'}}, 'feedback': '⟦门禁 #10⟧\\n主控没有放行任务卡以外的改动（out_of_card 列出的文件），理由见 reason。根据失败证据修复，运行完成条件，Git提交后用原CLI显式重交新候选；保持本attempt和原生会话。\\n{\\n  \"task\": \"demo+T-2\",\\n  \"attempt\": \"69dbd180-0fff-4b37-9ef7-cecc09c0ca5e\",\\n  \"id\": \"b2e51243-a50c-495e-9618-b35a50f23ece\",\\n  \"candidate_commit\": \"dbe03254cb656a47323ccd84e0137f59aff8288d\",\\n  \"verification_id\": \"c9892133-11fa-410d-a5cc-f173efbee242\",\\n  \"check\": \"path_boundary\",\\n  \"count\": 1,\\n  \"stopped\": false,\\n  \"failure\": {\\n    \"error\": \"out_of_card_rejected\",\\n    \"out_of_card\": [\\n      \"notes/extra-2.txt\"\\n    ],\\n    \"reason\": \"notes/ 不在这次范围，删掉再交\"\\n  }\\n}', 'second_candidate': 'bec7514dd922073be7e477e9f0cefdb53134f39e', 'second_unjudged': {'ok': False, 'error': 'out_of_card_unjudged', 'details': {'out_of_card': ['notes/extra-2.txt'], 'next': '用 out_of_card 判断：accept 写明为什么留下，或 reject 打回给 worker'}}, 'rejected_again': {'ok': True, 'error': None, 'details': None}, 'reappeared_state': 'verified', 'reappeared': {'ok': False, 'error': 'review_end_check_required', 'details': None}, 'main_files': ['README.md', 'a.txt', 'check_T-1.py', 'check_T-2.py', 'check_T-3.py', 'notes/extra-1.txt']}",
+  "api_roles": {
+    "worker:T-1": 2,
+    "worker:T-2": 6,
+    "worker:T-3": 3,
+    "reviewer:T-1": 1,
+    "reviewer:T-2": 1
+  }
+}

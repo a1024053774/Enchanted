@@ -31,7 +31,11 @@ const usage = `a2a：Enchanted 工作台的编排命令（在 Enchanted 的项�
                               派 worker：card_template → card_save → create → dispatch
                               （runtimeMode 为 workspace-write，带 model 与 effort）→ status
                               → submitted 后 verify → verified 后带 score_file 的 integrate；
-                              或者一条 run 自动走完（身份结束或额度用完时它自己集成，记未评分）。
+                              交付改了卡外文件（verification.out_of_card）时，集成前先
+                              a2a call '{"command":"out_of_card","task":"<任务>","decision":"accept","reason":"<为什么留下>"}'
+                              或 decision 为 reject（清单与理由发回 worker）；验收文件与 Git 元数据仍硬拒。
+                              或者一条 run 自动走完（身份结束或额度用完时它自己集成，记未评分；
+                              有未判断的卡外改动时不集成，返回 out_of_card_unjudged 并暂停）。
                               修订已注册任务：先 status 保存旧 current_attempt.attempt_id，
                               核对旧 worker 已提交、空闲且没有待发送输入；以下示例从 v1 改为 v2：
                               a2a call '{"command":"card_save","task":"<任务>","card":"<v2 JSON 路径>","expected_version":1}'

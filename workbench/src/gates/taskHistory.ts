@@ -33,7 +33,12 @@ function step(event: HistoryEvent): Omit<HistoryStep, 'seq' | 'time' | 'attempt'
     case 'claimed': return { label: '认领', passed: null, detail: null };
     case 'dispatched': return { label: '启动 worker', passed: null, detail: null };
     case 'submitted': return { label: '交付', passed: null, detail: short(d.commit) && `候选提交 ${short(d.commit)}` };
-    case 'path_check': return { label: '路径检查', passed: Boolean(d.passed), detail: d.passed ? null : `卡外改动：${list(d.forbidden) ?? '未知'}` };
+    // T-198: out-of-card files wait for the controller's judgement; older events refused them as `forbidden`.
+    case 'path_check': return d.out_of_card ? { label: '路径检查', passed: d.out_of_card.length ? null : true,
+      detail: d.out_of_card.length ? `卡外改动待主控判断：${list(d.out_of_card)}` : null }
+      : { label: '路径检查', passed: Boolean(d.passed), detail: d.passed ? null : `卡外改动：${list(d.forbidden) ?? '未知'}` };
+    case 'out_of_card_judged': return { label: d.decision === 'accept' ? '放行卡外改动' : '打回卡外改动', passed: d.decision === 'accept',
+      detail: `${list(d.out_of_card) ?? ''}；理由：${d.reason ?? '无'}` };
     case 'oracle_check': return { label: '验收文件未改动', passed: Boolean(d.passed), detail: d.passed ? null : `改动了：${list(d.modified) ?? '未知'}` };
     case 'completion_check': return { label: `完成条件 ${d.index ?? ''}`.trim(), passed: Boolean(d.passed), detail: tail(d.result?.argv) };
     case 'red_check': return { label: `红态检查 ${d.index ?? ''}`.trim(), passed: Boolean(d.passed),

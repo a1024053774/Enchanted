@@ -2,13 +2,13 @@
 id: T-198
 title: 交付里卡外改动的文件交主控判断，不再直接打回
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
-ready: no
-ready_by:
-ready_rev:
+ready: yes
+ready_by: ideation
+ready_rev: 1
 ---
 
 ## What to build
@@ -22,10 +22,10 @@ ready_rev:
 
 ## Acceptance
 
-- [ ] 红态：worker 改了一个卡外文件，现版本验收以 `path_boundary_failed` 结束。修后进入待判断，不带理由集成被拒，写理由后集成成功，理由在事件里。
-- [ ] 主控选择打回时，worker 收到清单并可修订。
-- [ ] 卡外改动碰到验收文件时仍硬拒（反例）。
-- [ ] 审查员的输入里有卡外清单。
+- [x] 红态：worker 改了一个卡外文件，现版本验收以 `path_boundary_failed` 结束。修后进入待判断，不带理由集成被拒，写理由后集成成功，理由在事件里。
+- [x] 主控选择打回时，worker 收到清单并可修订。
+- [x] 卡外改动碰到验收文件时仍硬拒（反例）。
+- [x] 审查员的输入里有卡外清单。
 
 通用：先在真实入口留红态再修根因；独立审查。
 
@@ -34,3 +34,5 @@ ready_rev:
 不改任务卡白名单本身的写法；不让 worker 自己放行。
 
 ## Resolution
+
+2026-10-27 PASS。见 [RESULTS](../../evidence/2026-10-27-batch28/T-198/RESULTS.md)：真实入口红态、冻结候选绿态 8 项与两个变异；独立审查第 1 轮 NO_GO（打回不撤销放行、run 暂停未写明），修复后第 2 轮 PASS。放行只对一次交付有效。未做 Electron 实机检查。
