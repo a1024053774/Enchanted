@@ -52,7 +52,7 @@ type Snapshot = {
     delivery?: WorkerDeliveryStatus | null; start_missing?: boolean; silent_foreground?: { command: string; since: string } | null; unwired_cli?: { command: string; since: string } | null;
     writing?: boolean; user_draft?: boolean; queued?: string[];
     restoration?: { status: string; error: string | null; details: string | null } | null;
-    size?: { cols: number; rows: number }; interrupted?: boolean; interruption?: number | null; input_generation?: number; active?: { dispatch: string } | null } | null;
+    size?: { cols: number; rows: number } | null; interrupted?: boolean; interruption?: number | null; input_generation?: number; active?: { dispatch: string } | null } | null;
 };
 type Chunk = { launch: string; start_offset: number; next_offset: number; total_bytes: number; data_base64: string };
 type TaskItem = { task_id: string; project_id: string; title: string; state: string };

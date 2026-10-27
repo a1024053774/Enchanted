@@ -224,7 +224,7 @@ T-177：已结束的会话和被新 attempt 取代的会话折进每个任务下
   每次续跑记入 run 的 `resumed`。原 attempt 的 worker 随后台结束、任务停在 claimed、reviewing 或 paused 的，先经门禁
   `reclaim` 再按 run 保存的派发参数重新派发（T-096 裁定 B）；已通过审查的直接继续验收与集成；派发还没绑定 attempt 的不续跑。
   这取代 supervised-run 规格第 6 条在后台重启时的规定。重启打断的 worker、reviewer 窗格在确认原 shell 与 CLI 进程已退出
-  （最多等 10 秒）后登记为已停止（`pane_gone_confirmed`）；monitor 按原启动记录恢复（`pane_restored`），之后可正常回收。
+  （最多等 10 秒）后登记为已停止（`pane_gone_confirmed`），这样的窗格没有终端，`pane_status` 的 `size` 为 `null`，界面只读显示原输出（T-199）；monitor 按原启动记录恢复（`pane_restored`），之后可正常回收。
 - `attach`（`role` 只能是 `monitor`）在任务下起一个只读观察会话：CLI 取 `cli`（默认 Codex），模型与强度取
   monitor 的执行设置或调用参数；Codex 以 `--sandbox read-only` 运行，Claude Code 没有可写目录、没有 Edit 规则；
   工作目录是数据目录下它自己的空目录 `monitors/<thread>`（项目目录写在提示里）。启动记录写全 argv，`parent_launch`

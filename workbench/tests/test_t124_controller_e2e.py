@@ -62,6 +62,9 @@ MUTANTS = {
     'runs-not-resumed': ('src/daemon.ts', '  void recovery.then(() => gates.resumeRuns(controllerOf), () => undefined);\n', ''),
     # A worker that went with the previous daemon is never registered, so its attempt cannot be reclaimed.
     'gone-not-registered': ('src/panes.ts', '      } else await this.registerGone(record);', '      }'),
+    # A worker gone with the previous daemon reports an empty size, as before T-199.
+    'gone-size-empty': ('src/panes.ts', '        size: pane.gone ? null : { cols: pane.pty.cols, rows: pane.pty.rows },',
+                        '        size: { cols: pane.pty.cols, rows: pane.pty.rows },'),
     # A monitor not shown in a window is not resumed after a restart.
     'monitor-not-restored': ('src/panes.ts', "        await this.restore(daemon, record, native, record.cli === \"Claude Code\" ?", "        if (false) await this.restore(daemon, record, native, record.cli === \"Claude Code\" ?"),
     # The resumed run follows the attempt the restart took instead of dispatching again.
@@ -565,6 +568,11 @@ def main():
             # run reclaims that attempt through the gate and dispatches again (T-096 ruling B), and the new worker
             # asks again. The terminal and its role end with the restart, so the user answers in the workbench.
             first = attempts()
+            # T-199: a live worker reports its terminal's size (whole numbers) ...
+            live = request('pane_status', operator, thread=worker['thread'])
+            report['worker_status_before_restart'] = {key: live.get(key) for key in ('ok', 'lifecycle', 'size')}
+            check('live_worker_has_size', live.get('ok') and all(isinstance((live.get('size') or {}).get(key), int) for key in ('cols', 'rows')),
+                  report['worker_status_before_restart'])
             operator = restart()
             runner.join(60)
             report['run_request_at_restart'] = run_result.get('value')
@@ -573,6 +581,12 @@ def main():
             gone = [e['data'] for e in events({'pane_gone_confirmed', 'pane_gone_unconfirmed'}) if e['launch'] == worker_launch]
             report['worker_gone'] = gone
             check('previous_worker_confirmed_gone', len(gone) == 1 and gone[0].get('leader_pid'), gone)
+            # ... and the same worker, gone with the previous daemon, has no terminal, so no size. An empty size made the
+            # workbench resize xterm to undefined: "This API only accepts integers" over an empty pane.
+            gone_status = request('pane_status', operator, thread=worker['thread'])
+            report['worker_status_after_restart'] = {key: gone_status.get(key) for key in ('ok', 'lifecycle', 'size')}
+            check('gone_worker_has_no_size', gone_status.get('ok') and 'size' in gone_status and gone_status['size'] is None,
+                  report['worker_status_after_restart'])
             again = wait('重新派出的 worker 再次提问', lambda: next((view for view in request('issues', operator, task='T-1').get('issues', [])
                                                           if view['issue']['title'] == 'hello.txt 写什么' and view['issue']['id'] != issue_one['issue']['id']), None), 180)
             assert request('answer_issue', operator, task='T-1', issue=again['issue']['id'], answer='写一行 hello 即可。')['ok']

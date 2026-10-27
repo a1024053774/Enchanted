@@ -210,6 +210,8 @@ type Pane = {
   state: "unknown" | "idle" | "busy"; stopped: boolean; archived: boolean;
   // restored: resumed by this daemon after a restart (T-096, T-124).
   restored?: boolean;
+  // gone: registered by registerGone after a restart; the process went with the previous daemon, so there is no terminal.
+  gone?: true;
   failed: string | null; leader: number | null; native: string | null; turn: string | null;
   nativeEnded: boolean;
   active: { id: string; dispatch: string; at: string; nativeTurn: string | null } | null;
@@ -613,7 +615,7 @@ export class Panes implements GateRuntime {
         }
       }
       const native = record.cli === "Claude Code" ? record.native_session : this.store.lastEvent(record.id, ["pane_native_session"])?.data.native_session ?? null;
-      const pane = { record, token: "", task: null, attempt: { workspace: record.worktree }, pty: { pid: shell }, state: "unknown",
+      const pane = { record, token: "", task: null, attempt: { workspace: record.worktree }, pty: { pid: shell }, gone: true, state: "unknown",
         stopped: true, archived: false, failed: null, leader, native, turn: null, nativeEnded: false, active: null, queue: [],
         writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0, userDraft: false, interrupted: false,
         inputGeneration: 0, interruption: null, sending: null, offsets: new Map(), model: "unknown", effort: "unknown",
@@ -1599,7 +1601,7 @@ export class Panes implements GateRuntime {
     if (pane) {
       return { thread, launch: pane.record.id, state: pane.failed || pane.stopped ? "unknown" : pane.state,
         lifecycle: pane.archived || pane.nativeEnded || pane.record.role === "shell" && pane.stopped ? "ended" : pane.stopped ? "interrupted" : "running", shell_pid: pane.pty.pid,
-        size: { cols: pane.pty.cols, rows: pane.pty.rows },
+        size: pane.gone ? null : { cols: pane.pty.cols, rows: pane.pty.rows },
         state_source: pane.failed ? "runtime_failure" : "host_events", active: pane.active, native_session: pane.native,
         start_missing: this.startMissing(pane), silent_foreground: pane.silentForeground ?? null,
         unwired_cli: pane.unwiredCli ? { command: pane.unwiredCli.command, since: pane.unwiredCli.since } : null,
