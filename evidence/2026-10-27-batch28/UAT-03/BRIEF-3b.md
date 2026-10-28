@@ -1,6 +1,6 @@
 # Enchanted 真实用户式试用 第 3 轮（Computer Use）
 
-第 3 轮第一次运行（3a）的报告在 `/private/tmp/uat3/ui-check/REPORT.md`：当时终端里的 CLI 都卡在系统“文稿”授权上，用户现在已经允许了。这次（3b）的截图和报告写到 `/private/tmp/uat3/ui-check-b/`（文件名带编号），不要覆盖 3a。前两轮报告在 `/private/tmp/uat/ui-check/REPORT.md`、`/private/tmp/uat/ui-check2/REPORT.md`，先看一眼，不要只重复它们。这一轮的目标：**产品页上宣称的功能，最起码都要能正常用**。产品页的说法摘在本文最后，逐条当成“用户读了产品页以后会去试的事”。像真实用户那样操作，会犯错、会换路子，不要只走顺的路。
+第 3 轮第一次运行（3a）的报告在 `/private/tmp/uat3/ui-check/REPORT.md`：当时终端里的 CLI 都卡在系统“文稿”授权上，用户现在已经允许了。这次（3b）的截图和报告写到 `/private/tmp/uat3/ui-check-b/`（文件名带编号），不要覆盖 3a。3b 第一次开始后被用户中途叫停：当时 todo-cli 终端里的 Claude 已申请并获批执行主控（截图 `01-request.png`、`02-approved.png`），还没建卡；应用和后台随后都被关掉，那个主控身份已随终端结束。这次接着跑：截图编号从 03 开始，主控要重新申请。前两轮报告在 `/private/tmp/uat/ui-check/REPORT.md`、`/private/tmp/uat/ui-check2/REPORT.md`，先看一眼，不要只重复它们。这一轮的目标：**产品页上宣称的功能，最起码都要能正常用**。产品页的说法摘在本文最后，逐条当成“用户读了产品页以后会去试的事”。像真实用户那样操作，会犯错、会换路子，不要只走顺的路。
 
 ## 边界（必须遵守）
 
