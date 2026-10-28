@@ -29,7 +29,7 @@ import sqlite3
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from scripted_claude import Electron, Fixture, prompt_text, quote, working_directory  # noqa: E402
+from scripted_claude import Electron, Fixture, prompt_text, quote, working_directory, review_steps  # noqa: E402
 
 FILES = {'T-1': 'one.txt', 'T-2': 'two.txt'}
 MUTANTS = {
@@ -56,11 +56,9 @@ def main():
     def plan(body):
         text = prompt_text(body)
         if '审查这一次交付' in text:
-            shape = json.loads(text[text.rindex('{\n  "schema": 1'):])
-            shape.update(verdict='可合并', findings=[], report={'结论': '候选只改了 one.txt，满足任务卡。',
+            fields = dict(verdict='可合并', findings=[], report={'结论': '候选只改了 one.txt，满足任务卡。',
                                                                 '完成条件与变异检查': '变异：删除 one.txt，完成条件退出 1。'})
-            return 'reviewer', [('Bash', dict(command='rm one.txt; python3 check_T-1.py; echo "mutation rc=$?"', description='mutation'))], \
-                json.dumps(shape, ensure_ascii=False)
+            return 'reviewer', review_steps(body, [('Bash', dict(command='rm one.txt; python3 check_T-1.py; echo "mutation rc=$?"', description='mutation'))], fields), '已提交审查结论。'
         cwd = working_directory(body)
         task, attempt = re.search(r'/(T-\d)-a(\d)$', cwd).groups()
         if task == 'T-1' and attempt == '3':

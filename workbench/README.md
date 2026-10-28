@@ -313,7 +313,7 @@ zsh；历史快照返回 `lifecycle: ended`。退出无法核对时保留 unknow
 
 agy 与 opencode 的回合状态不经钩子，取自它们自己报给终端的 OSC 7501（`ESC ] 7501 ; state=…[:kind=…] BEL`，T-187）：后台从项目终端的输出里读出最后一条报告（`pane_status` 的 `cli_turn`；一条报告被拆在两段输出里也能读出），前台程序退出后清掉。经角色申请成为主控的 agy、opencode 终端，侧栏与窗格头按它取状态：`working` 为运行中，`idle`、`done`、`clear` 为空闲，`blocked` 且 `kind=question` 为等待用户回答；`blocked` 的权限确认、登录和还没有报告时显示未知，不猜。`a2a request` 按运行它的 CLI 给子进程的环境认出是哪个 CLI（`CLAUDECODE`、`CODEX_THREAD_ID`、`OPENCODE_SESSION_ID`，agy 用包装脚本的 `A2A_SHIM=agy`），CLI 自己设的变量优先于包装脚本的。
 
-agy、opencode 也可作 worker 与审查员（任务卡 `executor.cli` 为 `agy` 或 `opencode`；T-187 ready_rev 2，用户选 C）。没有按会话的钩子，回合同样取自 OSC 7501：派发写入后的 `working` 是回合开始，之后的 `idle`、`done`、`clear` 是回合结束，worker 写在请求目录里的交付请求在这里转交门禁（与 Stop 钩子同一条路径）；审查员把结论 JSON 写进请求目录的 `review-result.json`，回合结束时读取。
+agy、opencode 也可作 worker 与审查员（任务卡 `executor.cli` 为 `agy` 或 `opencode`；T-187 ready_rev 2，用户选 C）。没有按会话的钩子，回合同样取自 OSC 7501：派发写入后的 `working` 是回合开始，之后的 `idle`、`done`、`clear` 是回合结束，worker 写在请求目录里的交付请求在这里转交门禁（与 Stop 钩子同一条路径）；审查员经 `review_submit`（opencode 为 MCP 工具，agy 为提示里的命令，T-203）把结论写进请求目录的 `review-result.json`，回合结束时读取。
 
 - 启动参数：agy 为 `agy --dangerously-skip-permissions --model <卡上模型> --effort <卡上强度>`，环境 `AGY_CLI_OSC7501=on`；opencode 为 `opencode --standalone --auto <worktree>`，模型经 `OPENCODE_CONFIG_CONTENT` 传入。两者都在用户自己的 HOME 运行（登录在那里，不复制凭据），没有操作系统沙箱；门禁核对完整 argv。它们报不出本回合的模型与强度，交付与提交尾注记为 `unknown`。
 - agy 的目录信任：agy 对每个新目录弹一次“Trust this folder?”。后台核对屏幕上选中的是 “Yes, I trust this folder”、目录是本会话的 worktree 后才按回车，再核对 `~/.gemini/antigravity-cli/settings.json` 只有 `trustedWorkspaces` 多了这一个目录、其他键不变；写入条数记在 `agy_trust_written` 事件里。对不上就记 `agy_trust_failed`，不按键。每次派发（worker 与审查员各一个新目录）写一条。
@@ -514,18 +514,22 @@ worker/reviewer 的 argv 显式传 service_tier，启动记录保存实际选择
 出厂普通速度传 `-c service_tier="default"`，覆盖用户 home 里的全局 priority 设置，但不改写它。
 记录仅表示请求设置，不代表供应商实际执行tier；其他沙箱、hook及身份检查不变。
 
-reviewer 的最终消息必须是完整 `review_submit` JSON；身份和候选模板由门禁派发。
-模板中的 `review_requirements` 原样返回；`report` 是非空 JSON 对象，须含“完成条件与变异检查”键，用于保存完成条件审查、
-变异命令与结果。解析器严格核对顶层字段，relay 和门禁结果保留完整报告。
+审查员经 MCP 工具 `review_submit` 交结论，只交 `verdict`、`findings`、`report` 三项（T-203）；身份字段、`review_requirements`
+等由门禁为这次审查写进请求目录的 `review-template.json`，工具从模板补齐。工具用门禁同一套核对当场检查，不合格时说明是哪一项、
+怎么改，审查员可在本回合内改了再交；合格的写进请求目录的 `review-result.json`，回合内再交一次覆盖上一次。审查员回合结束时，
+后台读这个文件，再按原样核对一遍，经原 B relay 转交门禁；最后一条回复不再读取，没有这个文件就按 `review_result_missing`
+拒收。各 CLI 的接法：Claude Code 经 `--mcp-config`（工具被延后加载，模型先经 ToolSearch 取出）；Codex 经
+`-c mcp_servers.enchanted.*`（0.164 下工具也被延后，模型经代码工具的 `ALL_TOOLS` 找到 `mcp__enchanted__review_submit`）；
+opencode 经 `OPENCODE_CONFIG_CONTENT` 的 `mcp`；agy 的交互会话拿不到 MCP 工具，提示里给一条命令
+`reviewResult.ts submit <请求目录> <文件>`，效果与工具相同。门禁的审查启动检查核对 Claude Code、Codex、opencode 的这项参数。
+`report` 是非空 JSON 对象，须含“完成条件与变异检查”键，用于保存完成条件审查、变异命令与结果；relay 和门禁结果保留完整报告。
 门禁在保存报告前核对其中的 `mutation_checks.workspace` 等于本次候选副本路径。
 门禁只核对报告容器、必需节键与请求格式，不判断报告结论或变异结果是否正确。
-匹配 Stop 的后台 hook 处理器把显式 JSON 落入该 launch 专用请求文件，再经原 B relay
-转交。程序不剥 Markdown fence、不抽取一段 JSON、不从自然语言猜结论。
-非法结论（或被门禁拒收的结论）保存原文、上报并暂停，Claude 与 Codex reviewer 相同（T-129）；有效结论只接受“可合并”加空清单，或“需修复”加位置、
+非法结论（或被门禁拒收的结论）保存原文、上报并暂停，各 CLI 的审查员相同（T-129）；有效结论只接受“可合并”加空清单，或“需修复”加位置、
 失败场景、建议。结论绑定 C、合同和独立启动/原生身份。有效结果存库、reviewer idle 后回收，
-不另开纯 ACK 回合。审查目录按下述 S3 规则命名和清理。
+不另开纯 ACK 回合。审查目录按下述 S3 规则命名和清理。问题卡的编号按 attempt 计，同一次交付的多张卡不重号（T-203）。
 
-协议解析失败后，问题页说明 JSON 格式或字段错误，并保留可展开的原文；仍在当前交付上的错误提供“为同一次交付新开审查”。
+协议失败后，问题页说明是没交出结论还是字段错误，并保留可展开的原文；仍在当前交付上的错误提供“为同一次交付新开审查”。
 该按钮经同一个 `verify` 门禁，绑定原 attempt 和失败的 review id；核对候选、规格、机械验收、进程身份与目录边界，
 确认旧审查 idle、停止并归档后才新开审查，不剥围栏、不追认旧结论，也不自动重试。
 旧错误事件和原文保留；关闭问题不会恢复任务。

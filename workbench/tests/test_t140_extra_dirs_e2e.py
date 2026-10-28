@@ -31,8 +31,8 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from scripted_claude import Electron, Fixture, prompt_text, quote, working_directory
-from t112_native_api import message_events, request_source, request_tools, shell_item, tool_events
+from scripted_claude import Electron, Fixture, prompt_text, quote, review_steps, review_task, working_directory
+from t112_native_api import mcp_item, message_events, request_source, request_tools, shell_item, tool_events
 
 
 def main():
@@ -81,14 +81,14 @@ def main():
             key = 'monitor-' + monitor.group(1)
             return key, [probe(cwd, key)], '观察完毕。'
         if '审查这一次交付' in text:
-            shape, _ = json.JSONDecoder().raw_decode(text[text.rindex('{\n  "schema": 1'):])
-            task = shape['task'].removeprefix('demo+')
-            assert task in tasks, f'unknown review task: {shape["task"]}'
-            shape.update(verdict='可合并', findings=[], report={'结论': '写入结果满足任务卡，额外目录改动不纳入集成。',
+            task = review_task(text)
+            assert task in tasks, f'unknown review task: {task}'
+            fields = dict(verdict='可合并', findings=[], report={'结论': '写入结果满足任务卡，额外目录改动不纳入集成。',
                 '完成条件与变异检查': '变异 1：把结果改为空对象，完成条件退出非零；变异 2：删除结果文件，完成条件退出非零。'})
             return 'review-' + task, [probe(cwd, 'review-' + task),
                                       f"printf '{{}}' > result-{task}.json; python3 check_{task}.py; echo \"mutation-1 rc=$?\"",
-                                      f'rm result-{task}.json; python3 check_{task}.py; echo "mutation-2 rc=$?"'], json.dumps(shape, ensure_ascii=False)
+                                      f'rm result-{task}.json; python3 check_{task}.py; echo "mutation-2 rc=$?"',
+                                      ('enchanted', 'review_submit', fields)], '已提交审查结论。'
         task = next((name for name in sorted(tasks, key=len, reverse=True) if f'/{name}-a1' in cwd), None)
         assert task, f'unknown working directory: {cwd}'
         submit = re.search(r'显式交付：\n(.+)\n', text).group(1).replace("'FULL_COMMIT_SHA'", '"$(git rev-parse HEAD)"')
@@ -98,7 +98,9 @@ def main():
     def claude_plan(body):
         cwd, text = working_directory(body), prompt_text(body)
         key, commands, final = plan(cwd, text)
-        steps = [('Bash', dict(command=command, description='T-140 write boundary')) for command in commands]
+        steps = [('Bash', dict(command=command, description='T-140 write boundary')) for command in commands if isinstance(command, str)]
+        if key.startswith('review-'):
+            steps = review_steps(body, steps, commands[-1][2])
         if key in ('T-C', 'T-RC'):
             steps.insert(1, ('Write', dict(file_path=str(x / (key + '-file-tool.txt')), content='file tool\n')))
         return key, steps, final
@@ -124,8 +126,10 @@ def main():
                     key, commands, final = plan(cwd, text)
                     done = [item for item in body['input'] if item.get('type') == 'custom_tool_call']
                     api['outputs'][key] = [str(item.get('output'))[:4000] for item in body['input'] if item.get('type') == 'custom_tool_call_output']
-                    events = (tool_events(shell_item(request_tools(body), commands[len(done)], cwd), body['model'])
-                              if len(done) < len(commands) else message_events(final, body['model']))
+                    step = commands[len(done)] if len(done) < len(commands) else None
+                    events = (message_events(final, body['model']) if step is None else
+                              tool_events(mcp_item(request_tools(body), *step), body['model']) if isinstance(step, tuple) else
+                              tool_events(shell_item(request_tools(body), step, cwd), body['model']))
                 self.send_response(200); self.send_header('Content-Type', 'text/event-stream'); self.end_headers()
                 for sequence, (name, payload) in enumerate(events):
                     self.wfile.write(('event: ' + name + '\ndata: ' + json.dumps(dict(type=name, sequence_number=sequence, **payload)) + '\n\n').encode())

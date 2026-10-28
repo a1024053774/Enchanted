@@ -50,3 +50,12 @@
 - Claude Code、Codex、opencode 经包装脚本或插件挂上 `a2a mcp <cli>`；agy 不挂。
 - 角色申请的会话号：Claude Code 取环境变量，Codex 取调用的 `_meta.threadId`；opencode、agy 不记会话号，与 `a2a request` 一致。
 - 证据：`evidence/2026-10-27-batch28/T-194/`（Claude Code 全流程 e2e；Codex、opencode 真实 CLI 核对；agy 交互模式复现）。
+
+## T-203 补充：审查员的 review_submit（2026-10-27）
+
+审查员经 MCP 工具交结论后，又实测了工具怎么出现在模型面前。版本：Claude Code 2.1.312，codex-cli 0.164.0，opencode v2.1.4。
+
+- Claude Code：`--mcp-config` 给的服务器在会话开始后才异步连上；工具开着搜索时被延后，模型要先用 ToolSearch（`select:mcp__enchanted__review_submit`）取出才能调用。会话的第一个请求可能在服务器连上之前发出。Claude Code 没有在本地按 schema 核对工具参数，参数错误由我们的服务器报出。
+- Codex：MCP 工具也被延后。它不在代码工具 `exec` 的声明里，也不在请求的工具表里。真实模型在 `exec` 代码里查 `ALL_TOOLS` 找到 `mcp__enchanted__review_submit`，再用 `tools.mcp__enchanted__review_submit(...)` 调用成功（`evidence/2026-10-27-batch28/T-203/codex-real-probe-1.json`，隔离 CODEX_HOME，用完已删）。脚本化接口下请求里同样看不到这个工具；这是延后加载的表现，不是工具没挂上。所以脚本化测试照真实模型的调用写法直接调用。
+- opencode：`opencode run --standalone` 下，模型在 `execute` 工具的代码里调用 `tools.enchanted.review_submit(...)`，结果来自我们的服务器（`opencode-real-probe-1.json`）。
+- agy：交互模式拿不到 MCP 工具（见上），审查员改用提示里的 `reviewResult.ts submit` 命令。

@@ -14,7 +14,9 @@
 // - inputAfterCursor: the first idle report comes before the CLI takes input; it takes input once it shows the cursor
 //   (ESC [ ? 25 h) after that report (T-187 RESULTS, opencode paste probe). The backend's first task waits for it.
 export type LaunchFacts = { argv: string[]; shim: string | null };
-export type ManagedLaunch = { executable: string; workspace: string; model: string; effort: string; extraDirectories: string[] };
+// reviewServer: a reviewer's MCP server (T-203), for a CLI that gives its interactive sessions MCP tools.
+export type ManagedLaunch = { executable: string; workspace: string; model: string; effort: string; extraDirectories: string[];
+  reviewServer?: { command: string; args: string[]; env: Record<string, string> } };
 export type TerminalCli = { wired: (launch: LaunchFacts) => boolean; turns: "hooks" | "osc7501";
   inCommand: (env: NodeJS.ProcessEnv) => boolean; inputAfterCursor?: boolean;
   managed?: (launch: ManagedLaunch) => { argv: string[]; env: Record<string, string> } };
@@ -25,8 +27,9 @@ export const terminalClis: Record<string, TerminalCli> = {
   // The hook commands name the a2a shim through the terminal's environment, unexpanded in the argument itself.
   codex: { turns: "hooks", inCommand: env => Boolean(env.CODEX_THREAD_ID), wired: ({ argv }) => argv.some(arg => arg.includes('$A2A_TERMINAL_BIN/a2a')) },
   opencode: { turns: "osc7501", inputAfterCursor: true, inCommand: env => Boolean(env.OPENCODE_SESSION_ID), wired: ({ shim }) => shim === "opencode",
-    managed: ({ executable, workspace, model }) => ({ argv: [executable, "--standalone", "--auto", workspace],
-      env: { OPENCODE_CONFIG_CONTENT: JSON.stringify({ model }) } }) },
+    managed: ({ executable, workspace, model, reviewServer }) => ({ argv: [executable, "--standalone", "--auto", workspace],
+      env: { OPENCODE_CONFIG_CONTENT: JSON.stringify({ model, ...(reviewServer ? { mcp: { enchanted: { type: "local",
+        command: [reviewServer.command, ...reviewServer.args], environment: reviewServer.env } } } : {}) }) } }) },
   agy: { turns: "osc7501", inCommand: env => env.A2A_SHIM === "agy", wired: ({ shim }) => shim === "agy",
     managed: ({ executable, model, effort, extraDirectories }) => ({ argv: [executable, "--dangerously-skip-permissions",
       "--model", model, "--effort", effort, ...extraDirectories.flatMap(path => ["--add-dir", path])], env: { AGY_CLI_OSC7501: "on" } }) },

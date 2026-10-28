@@ -25,7 +25,7 @@ import time
 import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from scripted_claude import Fixture, prompt_text  # noqa: E402
+from scripted_claude import Fixture, prompt_text, review_steps  # noqa: E402
 
 REQUEST = 'T-194：请申请执行主控'
 DISPATCH = 'T-194：派 T-1 与 T-2'
@@ -65,11 +65,10 @@ def main():
         cwd = found.group(1) if found else ''
         first = prompt_text(body)
         if '审查这一次交付' in first:
-            shape = json.loads(first[first.rindex('{\n  "schema": 1'):])
             named = [task for task in FILES if f'demo+{task}' in first]
             assert len(named) == 1, f'审查提示里的任务不唯一：{named}'
-            shape.update(verdict='可合并', findings=[], report={'结论': '夹具审查', '完成条件与变异检查': '夹具：删除目标文件后完成条件退出 1。'})
-            return 'reviewer:' + named[0], [], json.dumps(shape, ensure_ascii=False)
+            fields = dict(verdict='可合并', findings=[], report={'结论': '夹具审查', '完成条件与变异检查': '夹具：删除目标文件后完成条件退出 1。'})
+            return 'reviewer:' + named[0], review_steps(body, [], fields), '已提交审查结论。'
         for task, name in FILES.items():
             if cwd.endswith(f'/{task}-a1'):
                 submit = re.search(r'显式交付：\n(.+)\n', first).group(1).replace("'FULL_COMMIT_SHA'", '"$(git rev-parse HEAD)"')

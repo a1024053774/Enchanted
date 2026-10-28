@@ -67,10 +67,12 @@ function Issue({ task, view, changed }: { task: TaskIssues; view: A2AIssueView; 
     </header>
     <p className="record-meta">{roles[role] ?? role} 上报 · {time(issue.created_at)}</p>
     {protocol ? <section className="record-body" data-review-protocol-error={protocol.error}>
-      <p>{protocol.error === 'review_json'
+      <p>{protocol.error === 'review_result_missing'
+        ? '审查员结束回合时没有用 review_submit 交出合格的结论（工具当场报的错在审查会话里）。'
+        : protocol.error === 'review_json'
         ? '审查输出不是可直接解析的 JSON 对象。代码围栏、前后说明或 JSON 语法错误都会被拒绝。'
-        : `审查 JSON 的字段不符合协议：${protocol.error}。`}
-        这次输出被拒绝，当时任务因此暂停。原文保留如下。</p>
+        : `审查结论的字段不符合协议：${protocol.error}。`}
+        这次审查被拒收，当时任务因此暂停。审查员留下的原文保留如下。</p>
       <details><summary>查看审查原文</summary><pre className="review-original">{protocol.raw}</pre></details>
       {canRestart && <div className="record-actions"><p>将停止并归档旧审查，为这一次交付新开一个干净的审查会话，仍审查同一个候选提交。</p>
         <button type="button" className="primary-button" data-restart-review={recovery.review_id} disabled={busy}

@@ -19,6 +19,7 @@ import { resumeArgv, nativeSessionFile, codexSessionOrigin, codexSessionFileName
 import type { ExecutionOverrides } from './executionSettings.ts';
 import { cliProgram, terminalClis, readOsc7501, type CliTurn, type LaunchFacts } from './terminalClis.ts';
 import { cliProvider } from './gates/taskCards.ts';
+import { claudeReviewMcp, codexReviewMcp, reviewMcpServer, writeReviewTemplate } from './reviewResult.ts';
 
 const exec = promisify(execFile);
 const require = createRequire(import.meta.url);
@@ -133,7 +134,7 @@ export type EmptyInputDeclaration = {
 // one-off candidate copy (its working directory). Both can still write Claude's $TMPDIR: denying
 // it breaks every shell command (probe-04).
 async function claudeArgv(executable: string, signal: string, session: string,
-  selection: { model: string; effort: string; fast: boolean }, writable: string[], shellWritable: string[], gitDenied: string[] = [], extraDirectories: string[] = [], mcpConfig: string | null = null) {
+  selection: { model: string; effort: string; fast: boolean }, writable: string[], shellWritable: string[], gitDenied: string[] = [], extraDirectories: string[] = [], mcpConfigs: string[] = []) {
   const hook = [{ hooks: [{ type: "command", command: signal, timeout: 10 }] }];
   // MCP server wildcards are invalid in permissions.allow. The native hook matcher supports
   // this prefix and approves MCP only; Bash and native file tools retain their own checks.
@@ -152,7 +153,7 @@ async function claudeArgv(executable: string, signal: string, session: string,
   // dontAsk denies AskUserQuestion anyway; without the tool the model asks through `issue` (T-124 ruling 1a).
   return [executable, "--session-id", session, "--model", selection.model, "--effort", selection.effort, "--permission-mode", "dontAsk",
     "--setting-sources", "", "--disallowedTools", "AskUserQuestion", "--settings", JSON.stringify(settings),
-    ...(mcpConfig ? ["--mcp-config", mcpConfig] : []),
+    ...(mcpConfigs.length ? ["--mcp-config", ...mcpConfigs] : []),
     ...extraDirectories.flatMap(path => ["--add-dir", path])];
 }
 const STARTUP_DEADLINE_MS = 120_000;
@@ -200,12 +201,6 @@ export type WorkerDeliveryStatus = {
 const reportedSession = (launch: string) => `osc7501:${launch}`;
 // T-195: a session id a terminal's Claude Code or Codex reported through its hook, with that CLI's process.
 export type ShellNativeReport = { cli: string; pid: number; session: string; home: string | null };
-// An agy or opencode reviewer writes its result to this file: opencode's reports carry no last reply.
-export const REVIEW_RESULT_FILE = "review-result.json";
-function reviewResult(pane: { record: Record<string, any> }) {
-  const file = join(pane.record.request_dir, REVIEW_RESULT_FILE);
-  return existsSync(file) ? readFileSync(file, "utf8") : "";
-}
 type Pane = {
   record: Record<string, any> & { id: string; task: string | null; attempt: string | null };
   token: string; task: A2ATask | null; attempt: A2AAttempt | null; pty: any;
@@ -780,7 +775,7 @@ export class Panes implements GateRuntime {
     check(attempt.runtime_mode === "workspace-write", "worker_requires_workspace_write");
     await this.createPane(task, attempt, this.config, undefined, overrides);
   }
-  async createReview(task: A2ATask, review: A2AReview, prompt: string) {
+  async createReview(task: A2ATask, review: A2AReview, prompt: string, template: Record<string, unknown>) {
     const attempt = { ...review.attempt, session_id: review.session_id, thread_id: review.thread_id,
       workspace: review.candidate_workspace, runtime_identity: null, turn_id: null };
     check(this.config.reviewer_role_card && this.config.reviewer_role_card_revision, "review_launch_config_required");
@@ -793,12 +788,17 @@ export class Panes implements GateRuntime {
         { model: worker.model_requested, effort: worker.effort_requested, fast: worker.service_tier_requested === "fast" });
     } else await this.createPane(task, attempt, reviewConfig, review);
     const pane = this.get(review.thread_id);
+    writeReviewTemplate(pane.record.request_dir, template);
     // T-187: an agy or opencode reviewer has no OS sandbox. Its review checkout is read-only by file permissions (the
-    // candidate copy it works in stays writable for its mutation checks), and its result goes to a file.
+    // candidate copy it works in stays writable for its mutation checks).
     if (pane.reports) {
       treeWritable(review.workspace, false);
       this.store.event("review_checkout_read_only", { workspace: review.workspace }, pane.record);
-      prompt += `\n\n本会话的最后一条回复不会被读取：把上面要求的 JSON 原样写入文件 ${join(pane.record.request_dir, REVIEW_RESULT_FILE)}，然后结束本回合。`;
+    }
+    // agy's interactive sessions do not give the model MCP tools (T-194 facts): the same tool as a command.
+    if (pane.record.cli === "agy") {
+      const server = reviewMcpServer(pane.record.request_dir);
+      prompt += `\n\n本会话没有 review_submit 工具，改用命令：把 verdict、findings、report 三项写成一个 JSON 对象文件（放在候选副本以外的临时位置），然后运行\nELECTRON_RUN_AS_NODE=1 ${shellCommand([server.command, server.args[0], "submit", pane.record.request_dir])} <文件路径>\n命令当场核对，不合格会说明哪一项要改；以最后一次成功提交为准。`;
     }
     await this.dispatch(pane, `${pane.record.role_text}\n\n${prompt}`);
   }
@@ -865,7 +865,9 @@ export class Panes implements GateRuntime {
     const extraDirectories = monitor ? [] : attempt.extra_directories ?? [];
     // agy and opencode run without an OS sandbox; a reviewer's checkout is made read-only below instead.
     const sandboxMode = managed ? "none" : monitor && !extraDirectories.length ? "read-only" : "workspace-write";
-    const reported = managed?.({ executable, workspace: launchWorkspace, model, effort, extraDirectories });
+    // T-203: a reviewer hands in its result through its own MCP server (agy, without MCP tools, through a command).
+    const reported = managed?.({ executable, workspace: launchWorkspace, model, effort, extraDirectories,
+      ...(review && workerCli === "opencode" ? { reviewServer: reviewMcpServer(requestDirectory) } : {}) });
     // T-141: inherit the user's trust, tools and proxy configuration. Only the write
     // roots, open network, per-session instrumentation and execution selection are supplied.
     const writeRoots = [...(review || monitor ? [] : [requestDirectory]), ...extraDirectories];
@@ -876,7 +878,8 @@ export class Panes implements GateRuntime {
       Object.keys(JSON.parse(readFileSync(userConfig, "utf8")).mcpServers ?? {}).length ? userConfig : null;
     const argv = reported ? reported.argv : claude ? await claudeArgv(executable, signalCommand, nativeSession!, { model, effort, fast },
       [...(monitor ? [] : review ? [realpathSync(launchWorkspace)] : [realpathSync(launchWorkspace), requestDirectory]), ...extraDirectories],
-      [...(review || monitor ? [] : [requestDirectory]), ...extraDirectories], review || monitor ? [] : await workerGitDenied(launchWorkspace), extraDirectories, mcpConfig) : [executable, "--no-daemon", "--no-alt-screen", "-C", launchWorkspace,
+      [...(review || monitor ? [] : [requestDirectory]), ...extraDirectories], review || monitor ? [] : await workerGitDenied(launchWorkspace), extraDirectories,
+      [...(mcpConfig ? [mcpConfig] : []), ...(review ? [claudeReviewMcp(requestDirectory)] : [])]) : [executable, "--no-daemon", "--no-alt-screen", "-C", launchWorkspace,
       "-a", "never", "--sandbox", sandboxMode, "-m", model,
       ...(review ? ["-c", `projects={${JSON.stringify(trustRoot)}={trust_level="untrusted"}}`] : []),
       "-c", `model_reasoning_effort=${JSON.stringify(effort)}`, "-c", `service_tier=${JSON.stringify(fast ? 'fast' : 'default')}`,
@@ -888,7 +891,7 @@ export class Panes implements GateRuntime {
       "-c", `sandbox_workspace_write.writable_roots=${JSON.stringify(writeRoots)}`,
       ...extraDirectories.flatMap(path => ["--add-dir", path]),
       "-c", "sandbox_workspace_write.exclude_slash_tmp=true",
-      "-c", "sandbox_workspace_write.exclude_tmpdir_env_var=true"];
+      "-c", "sandbox_workspace_write.exclude_tmpdir_env_var=true", ...(review ? codexReviewMcp(requestDirectory) : [])];
     if (!claude && !managed) {
       for (const event of ["UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse"]) argv.push("-c", `hooks.${event}=${hook}`);
       argv.push("--dangerously-bypass-hook-trust");
@@ -1912,7 +1915,7 @@ export class Panes implements GateRuntime {
         else if (pane.active?.nativeTurn && !pane.stopInProgress && !pane.reportedEnding) {
           pane.reportedEnding = true;
           const stop = { hook_event_name: "Stop", source: "osc7501", session_id: pane.native, turn_id: pane.active.nativeTurn,
-            report: turn.state, ...(pane.record.role === "reviewer" ? { last_assistant_message: reviewResult(pane) } : {}) };
+            report: turn.state };
           void this.reportedTurnEnd!(pane, stop).catch(error => this.recordFailure(pane, "stop_transfer_failed", error))
             .finally(() => { pane.reportedEnding = false; });
         }

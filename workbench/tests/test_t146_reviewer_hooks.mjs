@@ -47,7 +47,7 @@ try {
   const worker = { id: 'worker', role: 'worker', cli: 'Claude Code', argv: await argv('worker') };
   const launch = { id: 'reviewer', role: 'reviewer', cli: 'Claude Code', review_id: 'review', review_verification_id: 'verification',
     session: 'review-session', thread: 'review-thread', attempt: 'attempt', native_session: 'native-reviewer',
-    sandbox: 'workspace-write', worktree: workspace, env: {}, argv: await argv('reviewer') };
+    sandbox: 'workspace-write', worktree: workspace, env: {}, argv: await argv('reviewer'), request_dir: captured.request_dir };  // T-203: its review_submit server
   const review = { review_id: 'review', verification_id: 'verification', session_id: 'review-session', thread_id: 'review-thread',
     launch_id: 'reviewer', candidate_workspace: workspace, attempt: { attempt_id: 'attempt', runtime_identity: { launch: 'worker' } } };
   const validate = candidate => A2AGates.prototype.reviewLaunch.call({

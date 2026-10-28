@@ -1,0 +1,105 @@
+{
+  "status": "INCOMPLETE",
+  "argv": [
+    "test_t187_managed_worker_e2e.py",
+    "--cli",
+    "opencode",
+    "--summary",
+    "../../evidence/2026-10-27-batch28/T-203/regression/t187-managed-opencode-1.json"
+  ],
+  "cli": "opencode",
+  "case": "deliver",
+  "revision": null,
+  "mutant": null,
+  "real_model_turns": 0,
+  "checks": [
+    {
+      "name": "card_accepts_cli",
+      "detail": {
+        "ok": true,
+        "error": null,
+        "details": null
+      }
+    },
+    {
+      "name": "worker_argv",
+      "detail": {
+        "argv": [
+          "/private/tmp/t187w-p55mnfh1/fake-bin/opencode",
+          "--standalone",
+          "--auto",
+          "/private/tmp/t187w-p55mnfh1/state/worktrees/demo/T-1-a1"
+        ],
+        "cli": "opencode",
+        "sandbox": "none"
+      }
+    },
+    {
+      "name": "worker_env",
+      "detail": {
+        "AGY_CLI_OSC7501": null,
+        "OPENCODE_CONFIG_CONTENT": "{\"model\":\"fixture-model\"}"
+      }
+    },
+    {
+      "name": "submitted",
+      "detail": "submitted"
+    },
+    {
+      "name": "sidebar_running_during_turn",
+      "detail": [
+        "unknown",
+        "running",
+        "unknown"
+      ]
+    },
+    {
+      "name": "sidebar_idle_after_turn",
+      "detail": [
+        "unknown",
+        "running",
+        "idle"
+      ]
+    },
+    {
+      "name": "verify_started",
+      "detail": {
+        "ok": true,
+        "error": null,
+        "details": null
+      }
+    }
+  ],
+  "failed": [],
+  "observed": {
+    "card_save": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "dispatch": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "worker_argv": [
+      "/private/tmp/t187w-p55mnfh1/fake-bin/opencode",
+      "--standalone",
+      "--auto",
+      "/private/tmp/t187w-p55mnfh1/state/worktrees/demo/T-1-a1"
+    ],
+    "worker_states": [
+      "unknown",
+      "running",
+      "unknown"
+    ],
+    "verify": {
+      "ok": true,
+      "error": null,
+      "details": null
+    }
+  },
+  "fixture": "/private/tmp/t187w-p55mnfh1",
+  "error": "AssertionError: 超时：审查结束",
+  "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/workbench/tests/test_t187_managed_worker_e2e.py\", line 163, in main\n    reviewed = fixture.wait('审查结束', lambda: status()['review'].get('state') in ('passed', 'needs_fix', 'failed') and status(), 120)\n               ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/luckye/Documents/Code/a2a/workbench/tests/scripted_claude.py\", line 231, in wait\n    assert time.monotonic() < deadline, f'超时：{label}'\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 超时：审查结束\n"
+}

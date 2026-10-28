@@ -10,6 +10,7 @@ import { Panes, spawnHelper, claudeSubmittedText, codexQuestionReply, type Launc
 import { socketPath } from "./transport.ts";
 import { RequestRelay, isPendingInboxResult } from "./relay.ts";
 import { readWorkerRequests, writeReviewRequest, writeControllerContext } from "./relayFiles.ts";
+import { readReviewResult } from "./reviewResult.ts";
 
 type Asker = { gone?: () => void };
 import { reviewRequest, scoreRecords, QualityProtocolError } from "./gates/qualityProtocol.ts";
@@ -850,14 +851,19 @@ export async function serve(
         let files = input.relay_files;
         if (pane.record.role === "reviewer") {
           if (!matched) return;
+          // T-203: the result its review_submit tool saved, never the last reply; the same validation as before.
+          const result = readReviewResult(pane.record.request_dir);
           let request: Record<string, any>;
-          try { request = reviewRequest(stop.last_assistant_message); }
-          catch (error) {
+          try {
+            if (result === null) throw new QualityProtocolError("review_result_missing");
+            request = reviewRequest(result);
+          } catch (error) {
             if (!(error instanceof QualityProtocolError)) throw error;
             // The same caller identity as the normal path: a Claude reviewer is checked by its prompt id (T-129).
             const caller = await panes.caller({ ...identity, native_session: stop.session_id, prompt_id: stop.prompt_id });
+            // raw: what the reviewer left, its saved result or, with none, its last reply.
             await gates.failReviewProtocol(pane.record.task, pane.record.review_id,
-              { error: error.field, raw: stop.last_assistant_message, stop }, caller);
+              { error: error.field, raw: result ?? stop.last_assistant_message ?? "", stop }, caller);
             pane.failed = "invalid_review_result";
             return;
           }

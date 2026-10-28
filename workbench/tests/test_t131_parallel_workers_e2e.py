@@ -30,6 +30,7 @@ import threading
 import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from scripted_claude import review_steps  # T-203: a scripted reviewer hands in its result through review_submit
 
 ROOT = Path(__file__).resolve().parents[2]
 TOKEN = 'a2a-fixture-key-not-a-secret'
@@ -109,16 +110,15 @@ def main():
         first = body['messages'][0]['content']
         text = first if isinstance(first, str) else '\n'.join(part.get('text', '') for part in first if isinstance(part, dict))
         if '审查这一次交付' in text:
-            shape = json.loads(text[text.rindex('{\n  "schema": 1'):])
             # The reviewer runs in a one-time copy; the prompt names the task under review.
             named = {name for name in TASKS if f'demo+{name}' in text}
             assert len(named) == 1, f'审查提示里的任务不唯一：{named}'
             task = named.pop()
-            shape.update(verdict='可合并', findings=[], report={'结论': f'候选只加了 {TASKS[task]}，满足任务卡。',
+            fields = dict(verdict='可合并', findings=[], report={'结论': f'候选只加了 {TASKS[task]}，满足任务卡。',
                 '完成条件与变异检查': f'变异：删除 {TASKS[task]}，完成条件退出 1。'})
-            return 'reviewer:' + task, [
+            return 'reviewer:' + task, review_steps(body, [
                 ('Bash', dict(command=f'rm {TASKS[task]}; python3 check_{task}.py; echo "mutation rc=$?"', description='mutation')),
-            ], json.dumps(shape, ensure_ascii=False)
+            ], fields), '已提交审查结论。'
         task = next(name for name in TASKS if cwd.endswith(f'/{name}-a1'))
         submit = re.search(r'显式交付：\n(.+)\n', text)
         assert submit, '派发提示里没有交付命令'

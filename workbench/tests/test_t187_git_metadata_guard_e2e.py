@@ -33,7 +33,7 @@ import sys
 import traceback
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from scripted_claude import Fixture, prompt_text, quote, working_directory  # noqa: E402
+from scripted_claude import Fixture, prompt_text, quote, working_directory, review_steps  # noqa: E402
 
 GUARD = 'src/gates/core.ts'
 MUTANTS = {
@@ -55,11 +55,9 @@ def make_plan(name, holder):
     def plan(body):
         text = prompt_text(body)
         if '审查这一次交付' in text:
-            shape = json.loads(text[text.rindex('{\n  "schema": 1'):])
-            shape.update(verdict='可合并', findings=[], report={'结论': '候选只改了 done.txt，满足任务卡。',
+            fields = dict(verdict='可合并', findings=[], report={'结论': '候选只改了 done.txt，满足任务卡。',
                                                                 '完成条件与变异检查': '变异：删除 done.txt，完成条件失败。'})
-            return 'reviewer', [('Bash', dict(command='rm done.txt; python3 check.py; echo "mutation rc=$?"', description='mutation'))], \
-                json.dumps(shape, ensure_ascii=False)
+            return 'reviewer', review_steps(body, [('Bash', dict(command='rm done.txt; python3 check.py; echo "mutation rc=$?"', description='mutation'))], fields), '已提交审查结论。'
         cwd = working_directory(body)
         submit = re.search(r'显式交付：\n(.+)\n', text).group(1).replace("'FULL_COMMIT_SHA'", '"$(git rev-parse HEAD)"')
         steps = [('Write', dict(file_path=f'{cwd}/done.txt', content='done\n')),

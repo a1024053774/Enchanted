@@ -33,6 +33,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from scripted_claude import review_steps  # T-203: a scripted reviewer hands in its result through review_submit
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -162,11 +163,10 @@ def main():
         messages = body['messages']
         first = '\n'.join(texts(messages[0]))
         if '审查这一次交付' in first:
-            shape = json.loads(first[first.rindex('{\n  "schema": 1'):])
-            shape.update(verdict='可合并', findings=[], report={'结论': '候选加了 hello.txt，满足任务卡。',
+            fields = dict(verdict='可合并', findings=[], report={'结论': '候选加了 hello.txt，满足任务卡。',
                 '完成条件与变异检查': '变异 1：删除 hello.txt，python3 check.py 退出 1。'})
-            return 'reviewer', 0, [('Bash', dict(command='rm hello.txt; python3 check.py; echo "mutation-1 rc=$?"', description='mutation 1'))], \
-                json.dumps(shape, ensure_ascii=False)
+            return 'reviewer', 0, review_steps(body, [('Bash', dict(command='rm hello.txt; python3 check.py; echo "mutation-1 rc=$?"', description='mutation 1'))], fields), \
+                '已提交审查结论。'
         if '角色卡：monitor' in first:
             return 'monitor', 0, [('Bash', dict(command=MONITOR_STEP, description='observe'))], '观察完毕：没有发现问题。'
         # The newest prompt (not a tool result) sets the worker's phase; steps count from it.

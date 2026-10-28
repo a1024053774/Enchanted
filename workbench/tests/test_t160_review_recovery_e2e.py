@@ -1,16 +1,18 @@
 """T-160: real daemon, Claude CLI (scripted local Messages), and Electron.
 
 Failure modes, specified before implementation:
-1. Fenced JSON is accepted, or its original text is discarded.
+1. A review that ends without a review_submit result (here: fenced JSON as its last reply, T-203) is accepted,
+   or that reply is discarded.
 2. The issue page does not explain the format error and same-delivery recovery.
 3. Explicit recovery cannot start a fresh review of the same candidate/attempt.
 4. Recovery silently accepts the failed review or changes the worker delivery.
 5. Stale/unbound recovery replaces another review or another attempt.
 6. Recovery leaves the failed reviewer running or discards its error evidence.
 
-The oracle comes from T-160: reject fenced output, preserve it, offer recovery.
---revision runs the same check against an earlier source tree. --mutant proves
-that accepting fenced output is rejected. This uses no vendor model turns.
+The oracle comes from T-160: reject the failed review, preserve its output, offer recovery. Since T-203 the
+conclusion goes through review_submit, so the fenced reply fails as review_result_missing (the field checks are
+T-203's test). --revision runs the same check against an earlier source tree; --mutant runs a known-bad
+recovery. This uses no vendor model turns.
 """
 import argparse
 import json
@@ -19,7 +21,7 @@ import re
 import shutil
 import sys
 
-from scripted_claude import Electron, Fixture, prompt_text, quote, working_directory
+from scripted_claude import Electron, Fixture, prompt_text, quote, review_steps, working_directory
 
 
 def main():
@@ -28,7 +30,7 @@ def main():
     parser.add_argument('--claude', default=shutil.which('claude') or str(Path.home() / '.local/bin/claude'))
     target = parser.add_mutually_exclusive_group()
     target.add_argument('--revision')
-    target.add_argument('--mutant', choices=['accept-fenced', 'unbound-review', 'reuse-failed-review'])
+    target.add_argument('--mutant', choices=['unbound-review', 'reuse-failed-review'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留旧证据，使用新 summary 路径'
     report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision,
@@ -36,8 +38,6 @@ def main():
     fixture = electron = None
     outputs = {}
     patches = {
-        'accept-fenced': [('src/gates/qualityProtocol.ts', 'value = JSON.parse(raw);',
-                          'value = JSON.parse(raw.replace(/^```json\\n/, "").replace(/\\n```$/, ""));')],
         'unbound-review': [('src/gates/core.ts', 'args.review_id === review?.review_id &&', 'true &&')],
         'reuse-failed-review': [('src/gates/core.ts',
                                '    await this.requestReview(task, attempt);\n    return { ok: true, task, verification: task.verification };',
@@ -47,14 +47,15 @@ def main():
     def plan(body):
         text = prompt_text(body)
         if '审查这一次交付' in text:
-            shape = json.loads(text[text.rindex('{\n  "schema": 1'):])
-            shape.update(verdict='可合并', findings=[], report={
+            fields = dict(verdict='可合并', findings=[], report={
                 '完成条件与变异检查': '脚本化协议夹具；不声称完成真实模型的独立审查。'})
-            key = shape['review_id']
+            # Each review has its own candidate copy. The first answers in its last reply only, inside a code fence.
+            key = working_directory(body)
             if key not in outputs:
-                raw = json.dumps(shape, ensure_ascii=False)
-                outputs[key] = '```json\n' + raw + '\n```' if not outputs else raw
-            return 'review:' + key, [], outputs[key]
+                outputs[key] = '```json\n' + json.dumps(fields, ensure_ascii=False) + '\n```' if not outputs else None
+            if outputs[key]:
+                return 'review:' + key, [], outputs[key]
+            return 'review:' + key, review_steps(body, [], fields), '已提交审查结论。'
         cwd = working_directory(body)
         submit = re.search(r'显式交付：\n(.+)\n', text).group(1).replace(
             "'FULL_COMMIT_SHA'", '"$(git rev-parse HEAD)"')
@@ -93,7 +94,7 @@ def main():
         report['before_recovery'] = before
         check('fenced_output_rejected', before['state'] == 'paused' and before['review']['state'] == 'unknown', before['state'])
         failed = [e for e in events() if e['type'] == 'review_protocol_failed']
-        check('raw_preserved', len(failed) == 1 and failed[0]['details']['details']['raw'] == outputs[before['review']['review_id']], failed)
+        check('raw_preserved', len(failed) == 1 and failed[0]['details']['details']['raw'] == next(iter(outputs.values())), failed)
         refused = fixture.request('integrate', fixture.terminal, task='T-1')
         check('failed_review_cannot_integrate', not refused.get('ok'), refused)
 
@@ -108,7 +109,7 @@ def main():
         screenshot = fixture.out / '01-protocol-rejection.png'
         electron.screenshot(screenshot)
         report['screenshot'] = str(screenshot)
-        check('recovery_guidance_visible', 'JSON' in page and '为同一次交付新开审查' in page, page)
+        check('recovery_guidance_visible', 'review_submit' in page and '为同一次交付新开审查' in page, page)
         check('no_automatic_review_retry', len([e for e in events() if e['type'] == 'review_requested']) == 1)
         binding = dict(task='T-1', attempt=before['current_attempt']['attempt_id'], review_id=before['review']['review_id'])
         for name, change in [('unbound_recovery_rejected', {'review_id': None}),
@@ -142,7 +143,7 @@ def main():
         check('failed_review_workspaces_cleaned', not Path(before['review']['workspace']).exists() and
               not Path(before['review']['candidate_workspace']).exists())
         check('failed_evidence_retained', any(e['type'] == 'review_protocol_failed' and
-              e['details']['details']['raw'] == outputs[before['review']['review_id']] for e in events()))
+              e['details']['details']['raw'] == next(iter(outputs.values())) for e in events()))
         replay = fixture.request('verify', fixture.terminal, **binding)
         check('recovery_replay_cannot_replace_new_review', not replay.get('ok') and status()['review']['review_id'] == after['review']['review_id'], replay)
         electron.screenshot(fixture.out / '02-recovered.png')

@@ -28,8 +28,8 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from scripted_claude import Electron, Fixture, gate_line, prompt_text, quote, working_directory
-from t112_native_api import message_events, request_source, request_tools, shell_item, tool_events
+from scripted_claude import Electron, Fixture, gate_line, prompt_text, quote, review_steps, review_task, working_directory
+from t112_native_api import mcp_item, message_events, request_source, request_tools, shell_item, tool_events
 
 ANSWER = 'T141_REPLY: 保持写入边界，改用 worktree 内的结果文件，然后完成交付。'
 TITLE = 'T141_NATIVE_APPROVAL_DENIED'
@@ -83,10 +83,9 @@ def main():
 
     def plan(cwd, text):
         if '审查这一次交付' in text:
-            shape, _ = json.JSONDecoder().raw_decode(text[text.rindex('{\n  "schema": 1'):])
-            task = shape['task'].removeprefix('demo+')
+            task = review_task(text)
             assert task in tasks
-            shape.update(verdict='可合并', findings=[], report={
+            fields = dict(verdict='可合并', findings=[], report={
                 '结论': '写入边界与结果符合任务卡。',
                 '完成条件与变异检查': '把 extra 改为 false、把 outside 改为 true，完成条件分别拒绝。'})
             commands = []
@@ -96,7 +95,7 @@ def main():
                         f'try:\n rc=subprocess.run(["python3","check_{task}.py"]).returncode; print("mutation-{field} rc="+str(rc))\n'
                         'finally:\n p.write_text(original)\n')
                 commands += ['python3 -c ' + quote(code)]
-            return 'review-' + task, commands, json.dumps(shape, ensure_ascii=False)
+            return 'review-' + task, commands + [('enchanted', 'review_submit', fields)], '已提交审查结论。'
         task = next((name for name in tasks if f'/{name}-a1' in cwd), None)
         assert task, f'unknown worker directory {cwd}'
         commands = ['curl --fail --location --max-time 30 https://example.com', boundary(cwd, task)]
@@ -113,7 +112,9 @@ def main():
     def claude_plan(body):
         cwd, text = working_directory(body), prompt_text(body)
         key, commands, final = plan(cwd, text)
-        steps = [('Bash', dict(command=command, description='T-141 network/write boundary')) for command in commands]
+        steps = [('Bash', dict(command=command, description='T-141 network/write boundary')) for command in commands if isinstance(command, str)]
+        if key.startswith('review-'):
+            steps = review_steps(body, steps, commands[-1][2])
         if key == 'T-C':
             steps[2:2] = [
                 ('Write', dict(file_path=str(x / 'T-C-native-file.txt'), content='T141_NATIVE_FILE_OK\n')),
@@ -148,7 +149,7 @@ def main():
                         api['answers_seen'] += 1
                     if len(done) < len(commands):
                         command = commands[len(done)]
-                        item = shell_item(request_tools(body), 'touch ' + quote(str(y / 'escalated.txt')) if command == 'T141_ESCALATION' else command, cwd)
+                        item = mcp_item(request_tools(body), *command) if isinstance(command, tuple) else shell_item(request_tools(body), 'touch ' + quote(str(y / 'escalated.txt')) if command == 'T141_ESCALATION' else command, cwd)
                         if command == 'T141_ESCALATION':
                             # Ask the installed CLI's real shell tool for escalation. Policy never must
                             # return the refusal to the model, without a native approval wait.

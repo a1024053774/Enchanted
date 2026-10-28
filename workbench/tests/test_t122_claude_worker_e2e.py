@@ -22,7 +22,8 @@
 11. 审查通过后，打分与集成走不到项目工作分支。
 13. 门禁放过与 worker 启动记录不符的 Claude reviewer（模型、Fast 不同，钩子命令带前缀），或者因 Claude 可执行文件路径
     不同（版本更新）误拒合法 reviewer（审查 03 第 2、3 条）。--reviewer-case 改写源码副本里 reviewer 的启动方式。
-15. reviewer 的最终消息不合审查协议（--review-result malformed），或合协议却被门禁拒收（rejected）时，门禁记不下审查
+15. reviewer 结束回合时没有经 review_submit 交出结论（--review-result malformed）时，门禁记不下审查。T-203 起身份字段由工具补齐，
+    reviewer 写不出“合协议却绑错候选”的结论，原来的 rejected 场景随之删去
     协议失败：Stop 转交时 Claude 的调用者身份核对失败（`native_identity_required`），任务停在审查中（T-129）。
 --revision 在该版本的隔离源码上跑同一场景（修前应失败）；--mutant 跑已知坏实现。
 """
@@ -40,6 +41,7 @@ import threading
 import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from scripted_claude import review_steps  # T-203: a scripted reviewer hands in its result through review_submit
 
 ROOT = Path(__file__).resolve().parents[2]
 TOKEN = 'a2a-fixture-key-not-a-secret'
@@ -61,7 +63,7 @@ def main():
                                              'gate-reviewer-executable-compared', 'protocol-failure-unbound', 'rejection-unbound'])
     parser.add_argument('--reviewer-case', choices=['model-differs', 'fast-differs', 'hook-prefixed', 'other-executable-path'])
     # T-129: the scripted reviewer ends with a message the review protocol refuses, or one the gate refuses.
-    parser.add_argument('--review-result', choices=['malformed', 'rejected'])
+    parser.add_argument('--review-result', choices=['malformed'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
     fixture = Path(tempfile.mkdtemp(prefix='t122-', dir='/private/tmp')).resolve()
@@ -157,20 +159,19 @@ def main():
         first = body['messages'][0]['content']
         text = first if isinstance(first, str) else '\n'.join(part.get('text', '') for part in first if isinstance(part, dict))
         if '审查这一次交付' in text:
-            shape = json.loads(text[text.rindex('{\n  "schema": 1'):])
-            shape.update(verdict='可合并', findings=[], report={'结论': '候选加了 hello.txt，满足任务卡。',
+            fields = dict(verdict='可合并', findings=[], report={'结论': '候选加了 hello.txt，满足任务卡。',
                 '完成条件与变异检查': '变异 1：删除 hello.txt，python3 check.py 退出 1；变异 2：hello.txt 换成目录，退出 1。'})
             review_worktree = state / 'worktrees/demo/T-1-a1-review-1'
-            if args.review_result == 'rejected':
-                shape['candidate_commit'] = '0' * 40  # well formed, but not the candidate under review
-            final = '审查完毕，可以合并。' if args.review_result == 'malformed' else json.dumps(shape, ensure_ascii=False)
-            return 'reviewer', [
+            steps = [
                 ('Bash', dict(command='rm hello.txt; python3 check.py; echo "mutation-1 rc=$?"', description='mutation 1')),
                 ('Bash', dict(command='mkdir hello.txt; python3 check.py; echo "mutation-2 rc=$?"', description='mutation 2')),
                 ('Write', dict(file_path=f'{review_worktree}/reviewer-note.txt', content='reviewer must not write here\n')),
                 ('Bash', dict(command=f'echo x > {review_worktree}/shell-note.txt; echo "wt rc=$?"; echo x > "$A2A_REQUEST_DIR/forged.json"; echo "req rc=$?"',
                               description='shell writes')),
-            ], final
+            ]
+            if args.review_result == 'malformed':
+                return 'reviewer', steps, '审查完毕，可以合并。'
+            return 'reviewer', review_steps(body, steps, fields), '已提交审查结论。'
         submit = re.search(r'显式交付：\n(.+)\n', text)
         assert submit, '派发提示里没有交付命令'
         line = submit.group(1).replace("'FULL_COMMIT_SHA'", '"$(git rev-parse HEAD)"')
@@ -377,7 +378,7 @@ def main():
         flag = lambda name: argv[argv.index(name) + 1] if name in argv else None
         check('worker_launch_is_bounded_claude',
               worker.get('cli') == 'Claude Code' and flag('--permission-mode') == 'dontAsk' and
-              flag('--model') == 'claude-haiku-5-5' and flag('--effort') == 'low' and '--strict-mcp-config' in argv and
+              flag('--model') == 'claude-haiku-5-5' and flag('--effort') == 'low' and '--strict-mcp-config' not in argv and  # T-141: user MCP loads
               flag('--session-id') == worker.get('native_session') and
               settings['sandbox']['enabled'] is True and settings['sandbox']['allowUnsandboxedCommands'] is False, report['worker'])
         check('worker_belongs_to_terminal_controller', worker.get('parent_launch') == launch, worker.get('parent_launch'))
@@ -472,7 +473,7 @@ def main():
             report['review_protocol_failed'] = [dict(error=item.get('error'), receipt_ok=(item.get('receipt') or {}).get('result', {}).get('ok'))
                                                 for item in failed]
             report['review_outcome'] = dict(task=task['state'], review=task['review']['state'])
-            expected = dict(error='review_json', receipt_ok=None) if args.review_result == 'malformed' else dict(error=None, receipt_ok=False)
+            expected = dict(error='review_result_missing', receipt_ok=None)
             check('review_protocol_failure_recorded', report['review_protocol_failed'] == [expected] and
                   task['state'] == 'paused' and task['review']['state'] == 'unknown', [report['review_protocol_failed'], report['review_outcome']])
             report['status'] = 'PASS'

@@ -25,6 +25,7 @@ import threading
 import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from scripted_claude import review_steps  # T-203: a scripted reviewer hands in its result through review_submit
 
 ROOT = Path(__file__).resolve().parents[2]
 TOKEN = 'a2a-fixture-key-not-a-secret'
@@ -105,12 +106,11 @@ def main():
         cwd = found.group(1)
         first = user_texts(body)[0]
         if '审查这一次交付' in first:
-            shape = json.loads(first[first.rindex('{\n  "schema": 1'):])
             named = {name for name in TASKS if f'demo+{name}' in first}
             assert len(named) == 1, f'审查提示里的任务不唯一：{named}'
             task = named.pop()
-            shape.update(verdict='可合并', findings=[], report={'结论': '夹具审查', '完成条件与变异检查': '夹具：删除目标文件后完成条件退出 1。'})
-            return 'reviewer:' + task, [], json.dumps(shape, ensure_ascii=False)
+            fields = dict(verdict='可合并', findings=[], report={'结论': '夹具审查', '完成条件与变异检查': '夹具：删除目标文件后完成条件退出 1。'})
+            return 'reviewer:' + task, review_steps(body, [], fields), '已提交审查结论。'
         task = next(name for name in TASKS if cwd.endswith(f'/{name}-a1'))
         allowed, extra = TASKS[task]
         submit = re.search(r'显式交付：\n(.+)\n', first)

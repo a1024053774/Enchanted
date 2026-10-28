@@ -71,6 +71,33 @@ def gate_line(body, command):
     return submit.group(1)[:submit.group(1).index("'submit'")] + command.replace('{task}', task)
 
 
+REVIEW_TOOL = 'mcp__enchanted__review_submit'
+_review_loads = {}
+
+
+def review_steps(body, steps, fields):
+    """A scripted Claude reviewer (T-203): its own steps, then its verdict, findings and report through review_submit.
+    Claude Code connects MCP servers while the session runs and may defer their tools behind ToolSearch; a real model
+    loads a deferred tool before calling it, so the step that would submit decides once whether a load comes first."""
+    steps = list(steps) or [('Bash', dict(command='ls -la', description='read the candidate copy'))]
+    count = sum(1 for message in body['messages'] if message['role'] == 'assistant' and isinstance(message['content'], list)
+                and any(isinstance(part, dict) and part.get('type') == 'tool_use' for part in message['content']))
+    review = working_directory(body)
+    if count >= len(steps) and review not in _review_loads:
+        tools = {tool.get('name') for tool in body.get('tools', [])}
+        deferred = REVIEW_TOOL not in tools and 'ToolSearch' in tools and REVIEW_TOOL in json.dumps(body, ensure_ascii=False)
+        assert REVIEW_TOOL in tools or deferred, '审查会话里没有 review_submit 工具'
+        _review_loads[review] = [('ToolSearch', dict(query='select:' + REVIEW_TOOL, max_results=1))] if deferred else []
+    return steps + _review_loads.get(review, []) + [(REVIEW_TOOL, fields)]
+
+
+def review_task(text):
+    """The task under review, from the task card in the review prompt."""
+    found = re.search(r'"id": "([^"]+)"', text)
+    assert found, '审查提示里没有任务卡'
+    return found.group(1)
+
+
 def quote(value):
     return "'" + value.replace("'", "'\\''") + "'"
 

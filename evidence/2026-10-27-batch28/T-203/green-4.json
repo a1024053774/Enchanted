@@ -1,0 +1,600 @@
+{
+  "status": "FAIL",
+  "argv": [
+    "test_t203_review_submit_e2e.py",
+    "--summary",
+    "../../evidence/2026-10-27-batch28/T-203/green-4.json"
+  ],
+  "revision": null,
+  "mutant": null,
+  "runtime": "real daemon/gate/Claude Code; scripted Messages API; zero vendor model calls",
+  "checks": [
+    "bad_verdict_refused_at_once",
+    "refusal_says_how_to_fix",
+    "review_1_paused_without_result",
+    "broken_last_message_still_refused",
+    "same_opinion_accepted",
+    "two_failures_two_cards",
+    "issue_numbers_distinct"
+  ],
+  "fixture": "/private/tmp/t203-6lu1xw7x",
+  "review_tools": {
+    "review-1": {
+      "available": true,
+      "deferred": true
+    },
+    "review-2": {
+      "available": true,
+      "deferred": true
+    },
+    "review-3": {
+      "available": true,
+      "deferred": true
+    }
+  },
+  "outcomes": [
+    {
+      "review": 1,
+      "state": "paused",
+      "review_state": "unknown",
+      "error": "review_result_missing"
+    },
+    {
+      "review": 2,
+      "state": "paused",
+      "review_state": "unknown",
+      "error": "review_result_missing"
+    },
+    {
+      "review": 3,
+      "state": "verified",
+      "review_state": "passed",
+      "error": null
+    }
+  ],
+  "tool_results": {
+    "review-1": [
+      {
+        "is_error": true,
+        "text": "Exit code 128\nfatal: not a git repository (or any of the parent directories): .git"
+      },
+      {
+        "is_error": false,
+        "text": ""
+      },
+      {
+        "is_error": true,
+        "text": "{\n  \"ok\": false,\n  \"error\": \"invalid_review_result\",\n  \"details\": {\n    \"field\": \"verdict\"\n  },\n  \"explanation\": {\n    \"reason\": \"字段 verdict 不符合要求。\",\n    \"next\": \"verdict 只能是“可合并”或“需修复”。改好后再调用一次。\"\n  }\n}"
+      }
+    ],
+    "review-2": [
+      {
+        "is_error": true,
+        "text": "Exit code 128\nfatal: not a git repository (or any of the parent directories): .git"
+      }
+    ],
+    "review-3": [
+      {
+        "is_error": true,
+        "text": "Exit code 128\nfatal: not a git repository (or any of the parent directories): .git"
+      },
+      {
+        "is_error": false,
+        "text": ""
+      },
+      {
+        "is_error": true,
+        "text": "{\n  \"ok\": false,\n  \"error\": \"invalid_review_result\",\n  \"details\": {\n    \"field\": \"location\"\n  },\n  \"explanation\": {\n    \"reason\": \"字段 location 不符合要求。\",\n    \"next\": \"location 只含 path 与 line 两个字段。改好后再调用一次。\"\n  }\n}"
+      },
+      {
+        "is_error": false,
+        "text": "{\n  \"ok\": true,\n  \"saved\": true,\n  \"next\": \"已收下。结束本回合后门禁才处理；结束前再交一次会覆盖这一次。\"\n}"
+      }
+    ]
+  },
+  "details": {
+    "bad_verdict_refused_at_once": [
+      {
+        "is_error": true,
+        "text": "{\n  \"ok\": false,\n  \"error\": \"invalid_review_result\",\n  \"details\": {\n    \"field\": \"verdict\"\n  },\n  \"explanation\": {\n    \"reason\": \"字段 verdict 不符合要求。\",\n    \"next\": \"verdict 只能是“可合并”或“需修复”。改好后再调用一次。\"\n  }\n}"
+      }
+    ],
+    "refusal_says_how_to_fix": [
+      {
+        "is_error": true,
+        "text": "{\n  \"ok\": false,\n  \"error\": \"invalid_review_result\",\n  \"details\": {\n    \"field\": \"verdict\"\n  },\n  \"explanation\": {\n    \"reason\": \"字段 verdict 不符合要求。\",\n    \"next\": \"verdict 只能是“可合并”或“需修复”。改好后再调用一次。\"\n  }\n}"
+      }
+    ],
+    "review_1_paused_without_result": {
+      "review": 1,
+      "state": "paused",
+      "review_state": "unknown",
+      "error": "review_result_missing"
+    },
+    "broken_last_message_still_refused": [
+      {
+        "review": 2,
+        "state": "paused",
+        "review_state": "unknown",
+        "error": "review_result_missing"
+      }
+    ],
+    "missing_line_refused_at_once": [
+      {
+        "is_error": true,
+        "text": "{\n  \"ok\": false,\n  \"error\": \"invalid_review_result\",\n  \"details\": {\n    \"field\": \"location\"\n  },\n  \"explanation\": {\n    \"reason\": \"字段 location 不符合要求。\",\n    \"next\": \"location 只含 path 与 line 两个字段。改好后再调用一次。\"\n  }\n}"
+      },
+      {
+        "is_error": false,
+        "text": "{\n  \"ok\": true,\n  \"saved\": true,\n  \"next\": \"已收下。结束本回合后门禁才处理；结束前再交一次会覆盖这一次。\"\n}"
+      }
+    ],
+    "same_opinion_accepted": {
+      "state": "verified",
+      "review": {
+        "review_id": "a8f7f020-84ed-4156-a475-ef9383cda31f",
+        "ordinal": 3,
+        "task_id": "demo+T-1",
+        "attempt": {
+          "task_id": "demo+T-1",
+          "attempt_id": "8272c654-ed69-462f-b1b3-51ae85d707ea",
+          "session_id": "427f39f3-35f4-4e44-9d0b-b00d3ac8e1be",
+          "fence": 1,
+          "spec_rev": 1,
+          "thread_id": "b5dccad4-a17c-4a06-bb9f-1ec7f793aa3b",
+          "runtime_mode": "workspace-write",
+          "turn_id": "80060058-d7d6-4a0a-a622-dd5ec9756bea",
+          "runtime_identity": {
+            "launch": "f1e1eace-e06e-4c61-b8eb-962d51a58640",
+            "thread": "b5dccad4-a17c-4a06-bb9f-1ec7f793aa3b",
+            "shell_pid": 26410,
+            "leader_pid": 26412,
+            "native_session": "3ef7c77b-1aaa-4625-bbd4-f43c4b04b475"
+          },
+          "workspace": "/private/tmp/t203-6lu1xw7x/state/worktrees/demo/T-1-a1",
+          "base_commit": "d0c3ca087384ddda0cee8b8f3f2efdd393834a6e",
+          "card_snapshot_id": "c9db525f-962c-47f9-930d-c5ed449c7547",
+          "reclaimed": false,
+          "owner": "demo+T-1",
+          "state": "submitted",
+          "extra_directories": [],
+          "git_metadata": {
+            "head": "ref: refs/heads/a2a/T-1-a1",
+            "config": "100644:cae33efdb02cf774435c1ff9cb16bcc1014606908530c6e1dc727615fe3e8cda",
+            "worktree_config": null,
+            "hooks": {
+              "applypatch-msg.sample": "100755:0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7",
+              "commit-msg.sample": "100755:1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437",
+              "fsmonitor-watchman.sample": "100755:e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0",
+              "post-update.sample": "100755:81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5",
+              "pre-applypatch.sample": "100755:e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475",
+              "pre-commit.sample": "100755:57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b",
+              "pre-merge-commit.sample": "100755:d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53",
+              "pre-push.sample": "100755:ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a",
+              "pre-rebase.sample": "100755:4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3",
+              "pre-receive.sample": "100755:a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989",
+              "prepare-commit-msg.sample": "100755:e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619",
+              "push-to-checkout.sample": "100755:a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f",
+              "sendemail-validate.sample": "100755:44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92",
+              "update.sample": "100755:8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+            }
+          },
+          "delivery": {
+            "commit": "21b120610a4b1ce0c4902a38b6a4f212a524aeb3",
+            "turn_id": "80060058-d7d6-4a0a-a622-dd5ec9756bea",
+            "launch_id": "f1e1eace-e06e-4c61-b8eb-962d51a58640",
+            "cli": "2.1.312 (Claude Code)",
+            "model": "claude-haiku-5-5-scripted-served",
+            "effort": "low",
+            "number": 1,
+            "submitted_at": "2026-10-28T02:56:53.343Z"
+          }
+        },
+        "candidate_commit": "21b120610a4b1ce0c4902a38b6a4f212a524aeb3",
+        "spec_rev": 1,
+        "card_snapshot_id": "c9db525f-962c-47f9-930d-c5ed449c7547",
+        "verification_id": "c8fe40cb-eaaf-4227-818e-66bb52c4fc76",
+        "thread_id": "58fb892c-1ad2-47fb-9ca0-b36f0a96f096",
+        "session_id": "81b9da57-37f7-4683-8f64-25ee29f183fb",
+        "workspace": "/private/tmp/t203-6lu1xw7x/state/worktrees/demo/T-1-a1-review-3",
+        "candidate_workspace": "/private/tmp/t203-6lu1xw7x/state/review-copies/a8f7f020-84ed-4156-a475-ef9383cda31f",
+        "shared_refs": "refs/a2a/verifications/demo+T-1/a1/v1=21b120610a4b1ce0c4902a38b6a4f212a524aeb3\nrefs/heads/a2a/T-1-a1=21b120610a4b1ce0c4902a38b6a4f212a524aeb3\nrefs/heads/main=d0c3ca087384ddda0cee8b8f3f2efdd393834a6e",
+        "requested_at": "2026-10-28T02:57:00.462Z",
+        "launch_id": "c4175764-0166-4cba-9a9d-1e08fd66174b",
+        "runtime_identity": {
+          "launch": "c4175764-0166-4cba-9a9d-1e08fd66174b",
+          "thread": "58fb892c-1ad2-47fb-9ca0-b36f0a96f096",
+          "shell_pid": 28207,
+          "leader_pid": 28209,
+          "native_session": "b8b8ad14-22dd-4367-b857-6739cde6865e"
+        },
+        "state": "passed",
+        "result": {
+          "verdict": "可合并",
+          "findings": [],
+          "review_requirements": {
+            "completion_conditions_sufficiency": true,
+            "mutation_checks": {
+              "min": 2,
+              "max": 5,
+              "workspace": "/private/tmp/t203-6lu1xw7x/state/review-copies/a8f7f020-84ed-4156-a475-ef9383cda31f",
+              "report_section": "完成条件与变异检查"
+            }
+          },
+          "report": {
+            "结论说明": "候选只加了 answer.txt，内容与任务卡一致。",
+            "完成条件与变异检查": "脚本化夹具：不声称做过真实变异检查。"
+          },
+          "turn_id": "569f0c97-0d36-427b-94d0-452f97c3821d",
+          "received_at": "2026-10-28T02:57:03.820Z"
+        }
+      }
+    },
+    "two_failures_two_cards": [
+      {
+        "number": 1,
+        "title": "审查结论协议无效，已停止",
+        "thread": "fa7f78ce-9090-48dd-959e-917a47a405de"
+      },
+      {
+        "number": 2,
+        "title": "审查结论协议无效，已停止",
+        "thread": "70f92540-4d09-4612-8111-0cc15de77f52"
+      }
+    ],
+    "issue_numbers_distinct": [
+      1,
+      2
+    ]
+  },
+  "failed": [
+    "missing_line_refused_at_once"
+  ],
+  "final": {
+    "state": "verified",
+    "review": {
+      "review_id": "a8f7f020-84ed-4156-a475-ef9383cda31f",
+      "ordinal": 3,
+      "task_id": "demo+T-1",
+      "attempt": {
+        "task_id": "demo+T-1",
+        "attempt_id": "8272c654-ed69-462f-b1b3-51ae85d707ea",
+        "session_id": "427f39f3-35f4-4e44-9d0b-b00d3ac8e1be",
+        "fence": 1,
+        "spec_rev": 1,
+        "thread_id": "b5dccad4-a17c-4a06-bb9f-1ec7f793aa3b",
+        "runtime_mode": "workspace-write",
+        "turn_id": "80060058-d7d6-4a0a-a622-dd5ec9756bea",
+        "runtime_identity": {
+          "launch": "f1e1eace-e06e-4c61-b8eb-962d51a58640",
+          "thread": "b5dccad4-a17c-4a06-bb9f-1ec7f793aa3b",
+          "shell_pid": 26410,
+          "leader_pid": 26412,
+          "native_session": "3ef7c77b-1aaa-4625-bbd4-f43c4b04b475"
+        },
+        "workspace": "/private/tmp/t203-6lu1xw7x/state/worktrees/demo/T-1-a1",
+        "base_commit": "d0c3ca087384ddda0cee8b8f3f2efdd393834a6e",
+        "card_snapshot_id": "c9db525f-962c-47f9-930d-c5ed449c7547",
+        "reclaimed": false,
+        "owner": "demo+T-1",
+        "state": "submitted",
+        "extra_directories": [],
+        "git_metadata": {
+          "head": "ref: refs/heads/a2a/T-1-a1",
+          "config": "100644:cae33efdb02cf774435c1ff9cb16bcc1014606908530c6e1dc727615fe3e8cda",
+          "worktree_config": null,
+          "hooks": {
+            "applypatch-msg.sample": "100755:0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7",
+            "commit-msg.sample": "100755:1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437",
+            "fsmonitor-watchman.sample": "100755:e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0",
+            "post-update.sample": "100755:81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5",
+            "pre-applypatch.sample": "100755:e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475",
+            "pre-commit.sample": "100755:57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b",
+            "pre-merge-commit.sample": "100755:d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53",
+            "pre-push.sample": "100755:ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a",
+            "pre-rebase.sample": "100755:4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3",
+            "pre-receive.sample": "100755:a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989",
+            "prepare-commit-msg.sample": "100755:e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619",
+            "push-to-checkout.sample": "100755:a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f",
+            "sendemail-validate.sample": "100755:44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92",
+            "update.sample": "100755:8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+          }
+        },
+        "delivery": {
+          "commit": "21b120610a4b1ce0c4902a38b6a4f212a524aeb3",
+          "turn_id": "80060058-d7d6-4a0a-a622-dd5ec9756bea",
+          "launch_id": "f1e1eace-e06e-4c61-b8eb-962d51a58640",
+          "cli": "2.1.312 (Claude Code)",
+          "model": "claude-haiku-5-5-scripted-served",
+          "effort": "low",
+          "number": 1,
+          "submitted_at": "2026-10-28T02:56:53.343Z"
+        }
+      },
+      "candidate_commit": "21b120610a4b1ce0c4902a38b6a4f212a524aeb3",
+      "spec_rev": 1,
+      "card_snapshot_id": "c9db525f-962c-47f9-930d-c5ed449c7547",
+      "verification_id": "c8fe40cb-eaaf-4227-818e-66bb52c4fc76",
+      "thread_id": "58fb892c-1ad2-47fb-9ca0-b36f0a96f096",
+      "session_id": "81b9da57-37f7-4683-8f64-25ee29f183fb",
+      "workspace": "/private/tmp/t203-6lu1xw7x/state/worktrees/demo/T-1-a1-review-3",
+      "candidate_workspace": "/private/tmp/t203-6lu1xw7x/state/review-copies/a8f7f020-84ed-4156-a475-ef9383cda31f",
+      "shared_refs": "refs/a2a/verifications/demo+T-1/a1/v1=21b120610a4b1ce0c4902a38b6a4f212a524aeb3\nrefs/heads/a2a/T-1-a1=21b120610a4b1ce0c4902a38b6a4f212a524aeb3\nrefs/heads/main=d0c3ca087384ddda0cee8b8f3f2efdd393834a6e",
+      "requested_at": "2026-10-28T02:57:00.462Z",
+      "launch_id": "c4175764-0166-4cba-9a9d-1e08fd66174b",
+      "runtime_identity": {
+        "launch": "c4175764-0166-4cba-9a9d-1e08fd66174b",
+        "thread": "58fb892c-1ad2-47fb-9ca0-b36f0a96f096",
+        "shell_pid": 28207,
+        "leader_pid": 28209,
+        "native_session": "b8b8ad14-22dd-4367-b857-6739cde6865e"
+      },
+      "state": "passed",
+      "result": {
+        "verdict": "可合并",
+        "findings": [],
+        "review_requirements": {
+          "completion_conditions_sufficiency": true,
+          "mutation_checks": {
+            "min": 2,
+            "max": 5,
+            "workspace": "/private/tmp/t203-6lu1xw7x/state/review-copies/a8f7f020-84ed-4156-a475-ef9383cda31f",
+            "report_section": "完成条件与变异检查"
+          }
+        },
+        "report": {
+          "结论说明": "候选只加了 answer.txt，内容与任务卡一致。",
+          "完成条件与变异检查": "脚本化夹具：不声称做过真实变异检查。"
+        },
+        "turn_id": "569f0c97-0d36-427b-94d0-452f97c3821d",
+        "received_at": "2026-10-28T02:57:03.820Z"
+      }
+    }
+  },
+  "issue_cards": [
+    {
+      "number": 1,
+      "title": "审查结论协议无效，已停止",
+      "thread": "fa7f78ce-9090-48dd-959e-917a47a405de"
+    },
+    {
+      "number": 2,
+      "title": "审查结论协议无效，已停止",
+      "thread": "70f92540-4d09-4612-8111-0cc15de77f52"
+    }
+  ],
+  "error": "AssertionError: 未通过：missing_line_refused_at_once",
+  "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/workbench/tests/test_t203_review_submit_e2e.py\", line 161, in main\n    assert not report.get('failed'), '未通过：' + '、'.join(report['failed'])\n           ^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 未通过：missing_line_refused_at_once\n",
+  "review_messages": {
+    "review-1": [
+      {
+        "role": "system",
+        "parts": "## Bash command sandbox\nBy default, Bash commands run inside an OS-level sandbox (macOS Seatbelt) applied to each command separately, not to the session as a whole; how it is configured in this sessio"
+      },
+      {
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "tool_use",
+            "name": "Bash",
+            "input": "{'command': 'git show --stat HEAD', 'description': 'read the candidate'}"
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "parts": [
+          {
+            "type": "tool_result",
+            "content": "Exit code 128\nfatal: not a git repository (or any of the parent directories): .git",
+            "is_error": true
+          }
+        ]
+      },
+      {
+        "role": "system",
+        "parts": "<total_tokens>14999852 tokens left</total_tokens>"
+      },
+      {
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "tool_use",
+            "name": "ToolSearch",
+            "input": "{'query': 'select:mcp__enchanted__review_submit', 'max_results': 1}"
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "parts": [
+          {
+            "type": "tool_result",
+            "content": "[{'type': 'tool_reference', 'tool_name': 'mcp__enchanted__review_submit'}]"
+          },
+          {
+            "type": "text",
+            "text": "Tool loaded."
+          }
+        ]
+      },
+      {
+        "role": "system",
+        "parts": "<total_tokens>14999852 tokens left</total_tokens>"
+      },
+      {
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "tool_use",
+            "name": "mcp__enchanted__review_submit",
+            "input": "{'verdict': '通过', 'findings': [], 'report': {'结论说明': '候选只加了 answer.txt，内容与任务卡一致。', '完成条件与变异检查': '脚本化夹具：不声称做过真实变异检查。'}}"
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "parts": [
+          {
+            "type": "tool_result",
+            "content": "{\n  \"ok\": false,\n  \"error\": \"invalid_review_result\",\n  \"details\": {\n    \"field\": \"verdict\"\n  },\n  \"explanation\": {\n    \"reason\": \"字段 verdict 不符合要求。\",\n    \"next\": \"verdict 只能是“可合并”或“需修复”。改好后再调用一次。\"\n  }\n}",
+            "is_error": true
+          }
+        ]
+      },
+      {
+        "role": "system",
+        "parts": [
+          {
+            "type": "text",
+            "text": "<total_tokens>14999852 tokens left</total_tokens>"
+          }
+        ]
+      }
+    ],
+    "review-2": [
+      {
+        "role": "system",
+        "parts": "## Bash command sandbox\nBy default, Bash commands run inside an OS-level sandbox (macOS Seatbelt) applied to each command separately, not to the session as a whole; how it is configured in this sessio"
+      },
+      {
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "tool_use",
+            "name": "Bash",
+            "input": "{'command': 'git show --stat HEAD', 'description': 'read the candidate'}"
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "parts": [
+          {
+            "type": "tool_result",
+            "content": "Exit code 128\nfatal: not a git repository (or any of the parent directories): .git",
+            "is_error": true
+          }
+        ]
+      },
+      {
+        "role": "system",
+        "parts": [
+          {
+            "type": "text",
+            "text": "<total_tokens>14999852 tokens left</total_tokens>"
+          }
+        ]
+      }
+    ],
+    "review-3": [
+      {
+        "role": "system",
+        "parts": "## Bash command sandbox\nBy default, Bash commands run inside an OS-level sandbox (macOS Seatbelt) applied to each command separately, not to the session as a whole; how it is configured in this sessio"
+      },
+      {
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "tool_use",
+            "name": "Bash",
+            "input": "{'command': 'git show --stat HEAD', 'description': 'read the candidate'}"
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "parts": [
+          {
+            "type": "tool_result",
+            "content": "Exit code 128\nfatal: not a git repository (or any of the parent directories): .git",
+            "is_error": true
+          }
+        ]
+      },
+      {
+        "role": "system",
+        "parts": "<total_tokens>14999852 tokens left</total_tokens>"
+      },
+      {
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "tool_use",
+            "name": "ToolSearch",
+            "input": "{'query': 'select:mcp__enchanted__review_submit', 'max_results': 1}"
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "parts": [
+          {
+            "type": "tool_result",
+            "content": "[{'type': 'tool_reference', 'tool_name': 'mcp__enchanted__review_submit'}]"
+          },
+          {
+            "type": "text",
+            "text": "Tool loaded."
+          }
+        ]
+      },
+      {
+        "role": "system",
+        "parts": "<total_tokens>14999852 tokens left</total_tokens>"
+      },
+      {
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "tool_use",
+            "name": "mcp__enchanted__review_submit",
+            "input": "{'verdict': '需修复', 'findings': [{'location': {'path': 'answer.txt'}, 'failure_scenario': '示例', 'suggestion': '示例'}], 'report': {'结论说明': '候选只加了 answer.txt，内容与任务卡一致。', '完成条件与变异检查': '脚本化夹具：不声称做过真实变异检查。'}}"
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "parts": [
+          {
+            "type": "tool_result",
+            "content": "{\n  \"ok\": false,\n  \"error\": \"invalid_review_result\",\n  \"details\": {\n    \"field\": \"location\"\n  },\n  \"explanation\": {\n    \"reason\": \"字段 location 不符合要求。\",\n    \"next\": \"location 只含 path 与 line 两个字段。改好后再调用一次。\"\n  }\n}",
+            "is_error": true
+          }
+        ]
+      },
+      {
+        "role": "system",
+        "parts": "<total_tokens>14999852 tokens left</total_tokens>"
+      },
+      {
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "tool_use",
+            "name": "mcp__enchanted__review_submit",
+            "input": "{'verdict': '可合并', 'findings': [], 'report': {'结论说明': '候选只加了 answer.txt，内容与任务卡一致。', '完成条件与变异检查': '脚本化夹具：不声称做过真实变异检查。'}}"
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "parts": [
+          {
+            "type": "tool_result",
+            "content": "[{'type': 'text', 'text': '{\\n  \"ok\": true,\\n  \"saved\": true,\\n  \"next\": \"已收下。结束本回合后门禁才处理；结束前再交一次会覆盖这一次。\"\\n}'}]"
+          }
+        ]
+      },
+      {
+        "role": "system",
+        "parts": [
+          {
+            "type": "text",
+            "text": "<total_tokens>14999852 tokens left</total_tokens>"
+          }
+        ]
+      }
+    ]
+  }
+}

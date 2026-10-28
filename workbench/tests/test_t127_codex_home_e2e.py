@@ -34,7 +34,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from t112_native_api import message_events, request_source, request_tools, shell_item, tool_events  # noqa: E402
+from t112_native_api import code_functions, mcp_item, message_events, request_source, request_tools, shell_item, tool_events  # noqa: E402
 
 
 
@@ -151,9 +151,7 @@ def main():
         assert found, '请求里没有工作目录'
         cwd = found.group(1)
         if '审查这一次交付' in text:
-            start = text.rindex('{\n  "schema": 1')
-            shape, _ = json.JSONDecoder().raw_decode(text[start:])
-            shape.update(verdict='可合并', findings=[], report={'结论': '候选加了 hello.txt，内容为 hello，满足任务卡。',
+            fields = dict(verdict='可合并', findings=[], report={'结论': '候选加了 hello.txt，内容为 hello，满足任务卡。',
                 '完成条件与变异检查': '变异 1：删除 hello.txt，python3 check.py 退出 1；变异 2：内容改成 bye，退出 1。'})
             review_worktree = state / 'worktrees/demo/T-1-a1-review-1'
             return 'reviewer', cwd, [
@@ -162,7 +160,9 @@ def main():
                 f'echo x > {review_worktree}/shell-note.txt; echo "wt rc=$?"; echo x > "$A2A_REQUEST_DIR/forged.json"; echo "req rc=$?"',
                 # A here-document needs a temporary file; a real reviewer wrote its mutations this way (T-127 GUI round 01).
                 "python3 - <<'PY'\nimport tempfile\nwith tempfile.NamedTemporaryFile() as f: print('heredoc-and-tempfile ok')\nPY",
-            ], json.dumps(shape, ensure_ascii=False)
+                # T-203: the conclusion goes through the reviewer's MCP tool, not the last message.
+                ('enchanted', 'review_submit', fields),
+            ], '已提交审查结论。'
         submit = re.search(r'显式交付：\n(.+)\n', text)
         assert submit, '派发提示里没有交付命令'
         line = submit.group(1).replace("'FULL_COMMIT_SHA'", '"$(git rev-parse HEAD)"')
@@ -196,8 +196,12 @@ def main():
                     done = [item for item in body['input'] if item.get('type') == 'custom_tool_call']
                     outputs = [item for item in body['input'] if item.get('type') == 'custom_tool_call_output']
                     api['outputs'][role] = [str(item.get('output'))[:4000] for item in outputs]
-                    events = (tool_events(shell_item(request_tools(body), steps[len(done)], cwd), body['model'])
-                              if len(done) < len(steps) else message_events(final, body['model']))
+                    if role == 'reviewer':
+                        api.setdefault('reviewer_functions', sorted({f for f, _, _ in code_functions(request_tools(body))}))
+                    step = steps[len(done)] if len(done) < len(steps) else None
+                    events = (message_events(final, body['model']) if step is None else
+                              tool_events(mcp_item(request_tools(body), *step), body['model']) if isinstance(step, tuple) else
+                              tool_events(shell_item(request_tools(body), step, cwd), body['model']))
                 self.send_response(200); self.send_header('Content-Type', 'text/event-stream'); self.end_headers()
                 for sequence, (name, payload) in enumerate(events):
                     self.wfile.write(('event: ' + name + '\ndata: ' + json.dumps(dict(type=name, sequence_number=sequence, **payload)) + '\n\n').encode())
@@ -460,6 +464,7 @@ def main():
         check('reviewer_mutations_ran_in_copy', len(routs) >= 2 and 'mutation-1 rc=1' in routs[0] and 'mutation-2 rc=1' in routs[1], routs)
         check('reviewer_shell_has_temporary_files', len(routs) >= 4 and 'heredoc-and-tempfile ok' in routs[3], routs[3:4])
         check('reviewer_cannot_write_outside_copy', len(routs) >= 3 and 'wt rc=0' not in routs[2] and 'req rc=0' not in routs[2] and 'wt rc=' in routs[2], routs[2:])
+        check('review_submitted_by_tool', len(routs) >= 5 and re.search(r'"saved":\s*true', routs[4]) is not None, routs[4:])
         check('review_passed', review['state'] == 'passed' and task['state'] == 'verified', report['review'])
         score = out / 'score.json'
         score.write_text(json.dumps(dict(result='通过', boundary_discipline=3, boundary_reason='只改了 hello.txt',
@@ -494,7 +499,7 @@ def main():
         report['status'] = 'PASS'
     except BaseException as error:
         report['error'] = f'{type(error).__name__}: {error}'
-        report['api_snapshot'] = dict(requests=api['requests'], outputs=api['outputs'], error=api['error'])
+        report['api_snapshot'] = dict(requests=api['requests'], outputs=api['outputs'], error=api['error'], reviewer_functions=api.get('reviewer_functions'))
         try:
             report['events_tail'] = [dict(type=e['type'], launch=e['launch']) for e in events()][-40:]
             report['failures'] = [dict(type=e['type'], data=e.get('data')) for e in events() if 'fail' in e['type'] or 'unrecognised' in e['type'] or 'trust' in e['type']][-6:]

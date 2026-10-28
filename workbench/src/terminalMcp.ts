@@ -76,20 +76,28 @@ type Send = (input: Record<string, unknown>, signal: AbortSignal) => Promise<any
 // role: runs the whole role request (wait, then confirm); meta is the call's MCP _meta, where some CLIs name their session.
 type RequestRole = (role: string, meta: Record<string, any> | undefined, signal: AbortSignal) => Promise<any>;
 
-// Resolves when the session ends: the client closed the input or stopped reading the output.
 export function serveMcp(send: Send, role: RequestRole): Promise<void> {
+  return serveTools([{ name: "request_role", ...requestRole }, ...Object.entries(tools).map(([name, tool]) => ({
+    name, description: tool.description, inputSchema: { type: "object", properties: tool.fields ?? {}, required: tool.required ?? [], additionalProperties: false } }))],
+  async (name, args, meta, signal) => {
+    if (name === "request_role") return role(String(args.role), meta, signal);
+    const tool = tools[name];
+    if (!tool) return { ok: false, error: "unknown_tool", details: { tool: name } };
+    return send({ ...args, command: tool.command }, signal);
+  });
+}
+
+export type McpTool = { name: string; description: string; inputSchema: Record<string, unknown> };
+type Call = (name: string, args: Record<string, unknown>, meta: Record<string, any> | undefined, signal: AbortSignal) => Promise<any>;
+// An MCP stdio server for these tools (T-194; T-203 adds the reviewer's). Each call's answer is its JSON text; ok:false is an
+// error result. Resolves when the session ends: the client closed the input or stopped reading the output.
+export function serveTools(list: McpTool[], call: Call): Promise<void> {
   let ended!: () => void;
   const done = new Promise<void>(resolve => { ended = resolve; });
   // Once the session is over nothing more is written: a call stopped by the close gets no answer (T-194 review 2, F2).
   let open = true;
   const write = (message: unknown) => { if (open) process.stdout.write(JSON.stringify(message) + "\n"); };
   const calls = new Map<unknown, AbortController>();
-  const call = async (name: string, args: Record<string, unknown>, meta: Record<string, any> | undefined, signal: AbortSignal) => {
-    if (name === "request_role") return role(String(args.role), meta, signal);
-    const tool = tools[name];
-    if (!tool) return { ok: false, error: "unknown_tool", details: { tool: name } };
-    return send({ ...args, command: tool.command }, signal);
-  };
   const input = createInterface({ input: process.stdin });
   // The client closing the server's input ends the session (MCP stdio shutdown): every call still in flight stops as if
   // cancelled, so a pending role request is withdrawn and never confirmed (T-194 review F1).
@@ -112,8 +120,7 @@ export function serveMcp(send: Send, role: RequestRole): Promise<void> {
         capabilities: { tools: {} }, serverInfo: { name: "enchanted", version: "1" } } });
     if (method === "ping") return write({ jsonrpc: "2.0", id, result: {} });
     if (method === "tools/list")
-      return write({ jsonrpc: "2.0", id, result: { tools: [{ name: "request_role", ...requestRole }, ...Object.entries(tools).map(([name, tool]) => ({
-        name, description: tool.description, inputSchema: { type: "object", properties: tool.fields ?? {}, required: tool.required ?? [], additionalProperties: false } }))] } });
+      return write({ jsonrpc: "2.0", id, result: { tools: list } });
     if (method !== "tools/call") return write({ jsonrpc: "2.0", id, error: { code: -32601, message: `method not found: ${method}` } });
     const controller = new AbortController();
     calls.set(id, controller);

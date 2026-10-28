@@ -56,6 +56,33 @@ def shell_item(tools, command, cwd):
     return item
 
 
+def code_functions(tools):
+    """Every nested function the native code tool declares, with its tool and namespace."""
+    found = []
+    for tool in tools:
+        children = [(child, tool['name']) for child in tool['tools']] if tool['type'] == 'namespace' else [(tool, None)]
+        for child, namespace in children:
+            if child['type'] == 'custom':
+                found.extend((function, child, namespace) for function in
+                             re.findall(r'declare const tools:\s*\{\s*(\w+)\(args:', child.get('description', '')))
+    return found
+
+
+def mcp_item(tools, server, name, args):
+    """Call an MCP tool from the native code tool (T-203: the reviewer's review_submit). Codex 0.164 defers MCP tools: they
+    are not in the code tool's declaration but callable as `tools.mcp__<server>__<tool>` (a real Codex model finds them
+    through ALL_TOOLS; evidence/2026-10-27-batch28/T-203/codex-real-probe-1.json)."""
+    code = [(tool, namespace) for function, tool, namespace in code_functions(tools) if function == 'exec_command']
+    assert len(code) == 1, 'Native declaration must have one code tool'
+    tool, namespace = code[0]
+    call = 'tools.mcp__' + server + '__' + name + '(' + json.dumps(args, ensure_ascii=False) + ')'
+    item = dict(type='custom_tool_call', name=tool['name'], input='const r = await ' + call + '; for (const c of r.content ?? []) text(c.text);',
+                id='fc_' + uuid.uuid4().hex, call_id='call_t203_' + uuid.uuid4().hex)
+    if namespace:
+        item['namespace'] = namespace
+    return item
+
+
 def tool_events(item, model):
     response = dict(id='resp_' + uuid.uuid4().hex, object='response', status='completed', model=model,
                     output=[item], usage={'input_tokens': 10, 'output_tokens': 5, 'total_tokens': 15})

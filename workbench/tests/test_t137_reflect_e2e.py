@@ -33,7 +33,7 @@ import sys
 import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from scripted_claude import Electron, Fixture, prompt_text, quote, working_directory  # noqa: E402
+from scripted_claude import Electron, Fixture, prompt_text, quote, working_directory, review_steps  # noqa: E402
 
 FILES = {'T-1': 'a.txt', 'T-2': 'b.txt', 'T-3': 'c.txt'}
 MODEL = 'claude-haiku-5-5'
@@ -82,12 +82,10 @@ def main():
         if '角色卡：monitor' in text:
             return 'monitor', [('Bash', dict(command='git log --oneline -3', description='observe'))], '观察完毕：没有发现问题。'
         if '审查这一次交付' in text:
-            shape = json.loads(text[text.rindex('{\n  "schema": 1'):])
             task = next(task for task in FILES if f'demo+{task}' in text)
-            shape.update(verdict='可合并', findings=[], report={'结论': f'候选只改了 {FILES[task]}，满足任务卡。',
+            fields = dict(verdict='可合并', findings=[], report={'结论': f'候选只改了 {FILES[task]}，满足任务卡。',
                                                                 '完成条件与变异检查': f'变异：删除 {FILES[task]}，完成条件退出 1。'})
-            return 'reviewer:' + task, [('Bash', dict(command=f'rm {FILES[task]}; python3 check_{task}.py; echo "mutation rc=$?"', description='mutation'))], \
-                json.dumps(shape, ensure_ascii=False)
+            return 'reviewer:' + task, review_steps(body, [('Bash', dict(command=f'rm {FILES[task]}; python3 check_{task}.py; echo "mutation rc=$?"', description='mutation'))], fields), '已提交审查结论。'
         cwd = working_directory(body)
         task = next(name for name in FILES if cwd.endswith(f'/{name}-a1'))
         submit = re.search(r'显式交付：\n(.+)\n', text).group(1).replace("'FULL_COMMIT_SHA'", '"$(git rev-parse HEAD)"')

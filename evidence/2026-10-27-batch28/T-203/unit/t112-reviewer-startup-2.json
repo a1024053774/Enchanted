@@ -1,0 +1,38 @@
+{
+  "status": "INCOMPLETE",
+  "model_calls": 0,
+  "scope": "actual driver with supplied startup boundaries; no native sandbox",
+  "cases": [
+    {
+      "mode": "session-after-release",
+      "calls": [
+        "create",
+        "identity-before-release"
+      ],
+      "files": {
+        "/private/tmp/T112-startup-sentinel/launch.json": {
+          "role": "reviewer"
+        },
+        "/private/tmp/T112-startup-sentinel/pre-release.json": {
+          "foreground": {
+            "leader": 42,
+            "native_session": null,
+            "failed": null
+          },
+          "sessions": {
+            "directory": "/private/tmp/T112-startup-sentinel/reviewer-home/sessions",
+            "exists": false,
+            "files": []
+          }
+        },
+        "/private/tmp/T112-startup-sentinel/host-error.json": {
+          "error": "AssertionError [ERR_ASSERTION]: Reviewer released after the restricted-folder screen: undefined",
+          "stack": "AssertionError [ERR_ASSERTION]: Reviewer released after the restricted-folder screen: undefined\n    at until (file:///Users/luckye/Documents/Code/a2a/workbench/tests/t112_reviewer_record.mjs:40:12)\n    at async file:///Users/luckye/Documents/Code/a2a/workbench/tests/t112_reviewer_record.mjs:62:3"
+        }
+      },
+      "root": "/private/tmp/T112-startup-sentinel"
+    }
+  ],
+  "error": "AssertionError [ERR_ASSERTION]: Startup must release before requiring a session: [\"create\",\"identity-before-release\"]",
+  "stack": "AssertionError [ERR_ASSERTION]: Startup must release before requiring a session: [\"create\",\"identity-before-release\"]\n    at file:///Users/luckye/Documents/Code/a2a/workbench/tests/test_t112_reviewer_startup.mjs:59:10"
+}

@@ -39,6 +39,7 @@ import { createInterface } from "node:readline";
 import { cliProvider, workerClis, TaskCardError, taskCardTemplate, validateTaskCard, pathAllowed, pathIntersection, projectRules, type ProjectQuality, type TaskCard } from "./taskCards.ts";
 import { Schema } from "effect";
 import { terminalClis } from "../terminalClis.ts";
+import { claudeReviewMcp, codexReviewMcp, reviewMcpServer } from "../reviewResult.ts";
 import { executorScore, reviewVerdict, reviewEvidence, QualityProtocolError } from "./qualityProtocol.ts";
 import { A2AMembership } from "./membership.ts";
 import { readyTickets } from "./readyTickets.ts";
@@ -136,7 +137,8 @@ export interface GateRuntime {
   stopThread(thread: string): Promise<void>;
   archiveThread(thread: string): Promise<void>;
   qualityFeedback?(attempt: A2AAttempt, repair: A2ARepair): Promise<void>;
-  createReview?(task: A2ATask, review: A2AReview, prompt: string): Promise<void>;
+  // template: the review_submit envelope without verdict, findings and report, for the reviewer's tool (T-203).
+  createReview?(task: A2ATask, review: A2AReview, prompt: string, template: Record<string, unknown>): Promise<void>;
   sessionFacts?(thread: string): Promise<{ launch: Record<string, any>; model: string; effort: string }>;
   sendGateFeedback?(thread: string, messageId: string, message: string): Promise<void>;
   createAttachedThread?(task: A2ATask, attachment: A2AAttachment, prompt: string): Promise<void>;
@@ -750,14 +752,7 @@ export class A2AGates {
       );
       await caller.assertActive();
       const issueId = randomUUID();
-      const number =
-        Number(
-          this.db
-            .prepare(
-              "SELECT count(*) AS count FROM issue_records WHERE thread=? AND json_extract(data,'$.kind')='issue'",
-            )
-            .get(caller.thread)!.count,
-        ) + 1;
+      const number = this.issueNumber(attempt?.attempt_id ?? null, caller.thread);
       const issue: A2AIssueRecord = {
         id: issueId,
         schema: 1,
@@ -1270,9 +1265,7 @@ export class A2AGates {
   /** The caller holds the task operation lock. System issues never impersonate a worker. */
   private lifecycleIssue(task: A2ATask, attempt: A2AAttempt, reason: string, details: unknown) {
     const issueId = randomUUID();
-    const number = Number(this.db.prepare(
-      "SELECT count(*) AS n FROM issue_records WHERE thread=? AND json_extract(data,'$.kind')='issue'",
-    ).get(attempt.thread_id)!.n) + 1;
+    const number = this.issueNumber(attempt.attempt_id, attempt.thread_id);
     const issue: A2AIssueRecord = {
       id: issueId, issue_id: issueId, schema: 1, kind: "issue", from: "system", to: "executor",
       reply_to: null, refs: [`task:${task.task_id}`, `attempt:${attempt.attempt_id}`, `session:${attempt.session_id}`],
@@ -2357,10 +2350,18 @@ export class A2AGates {
     return attempt;
   }
 
+  // Issues are numbered per attempt (T-203): its worker, each review (a new thread every time) and the system share one
+  // sequence. An attached monitor belongs to no attempt and numbers its own thread's issues.
+  private issueNumber(attempt: string | null, thread: string) {
+    const row = attempt
+      ? this.db.prepare("SELECT count(*) AS n FROM issue_records WHERE json_extract(data,'$.attempt_id')=? AND json_extract(data,'$.kind')='issue'").get(attempt)
+      : this.db.prepare("SELECT count(*) AS n FROM issue_records WHERE thread=? AND json_extract(data,'$.kind')='issue'").get(thread);
+    return Number(row!.n) + 1;
+  }
+
   private qualityIssue(task: A2ATask, attempt: A2AAttempt, title: string, body: unknown, thread = attempt.thread_id) {
     const issueId = randomUUID();
-    const number = Number(this.db.prepare("SELECT count(*) AS n FROM issue_records WHERE thread=? AND json_extract(data,'$.kind')='issue'")
-      .get(thread)!.n) + 1;
+    const number = this.issueNumber(attempt.attempt_id, thread);
     this.appendIssue({ id: issueId, schema: 1, kind: "issue", from: "system", to: "executor", reply_to: null,
       refs: [`task:${task.task_id}`, `attempt:${attempt.attempt_id}`], created_at: new Date(this.now()).toISOString(),
       body: JSON.stringify(body), task_id: task.task_id, attempt_id: attempt.attempt_id, thread_id: thread,
@@ -2486,15 +2487,20 @@ export class A2AGates {
     try { workerSettings = worker ? JSON.parse(String(worker.argv?.[14])) : null; } catch { workerSettings = null; }
     const workerSignal = workerSettings?.hooks?.Stop?.[0]?.hooks?.[0]?.command;
     const extraDirectories: string[] = launch?.extra_directories ?? [];
-    const mcp = Array.isArray(argv) && argv[15] === "--mcp-config";
-    const extraStart = mcp ? 17 : 15;
+    // T-203: --mcp-config names the user's MCP source when there is one, then always this review's own server.
+    const userMcp = Array.isArray(argv) && typeof launch?.env?.HOME === "string" && isAbsolute(launch.env.HOME) &&
+      argv[16] === join(launch.env.HOME, ".claude.json");
+    const reviewMcp = typeof launch?.request_dir === "string" && Array.isArray(argv) && argv[15] === "--mcp-config" &&
+      argv[userMcp ? 17 : 16] === claudeReviewMcp(launch.request_dir);
+    const extraStart = userMcp ? 18 : 17;
     requireGate(Array.isArray(extraDirectories) && extraDirectories.every(path => typeof path === 'string' && isAbsolute(path)) &&
       JSON.stringify(extraDirectories) === JSON.stringify(review.attempt.extra_directories ?? []),
       "review_extra_directories", { extraDirectories, approved: review.attempt.extra_directories ?? [] });
     // T-187: an agy or opencode reviewer's launch is the one the register builds from the worker launch's model and
     // effort, as a whole; its review checkout is read-only, since the CLI has no sandbox.
     const expected = managed && worker ? managed({ executable: String(argv?.[0]), workspace: review.candidate_workspace,
-      model: worker.model_requested, effort: worker.effort_requested, extraDirectories }) : null;
+      model: worker.model_requested, effort: worker.effort_requested, extraDirectories,
+      ...(cli === "opencode" && typeof launch?.request_dir === "string" ? { reviewServer: reviewMcpServer(launch.request_dir) } : {}) }) : null;
     const boundary = managed
       ? launch?.cli === cli && worker?.cli === cli && worker.role === "worker" && expected !== null &&
         JSON.stringify(argv) === JSON.stringify(expected.argv) &&
@@ -2502,7 +2508,7 @@ export class A2AGates {
         live.workspace === review.candidate_workspace && (statSync(review.workspace).mode & 0o222) === 0
       : claude
       ? launch?.cli === "Claude Code" && Array.isArray(argv) && argv.length === extraStart + 2 * extraDirectories.length &&
-        (!mcp || typeof launch.env?.HOME === "string" && isAbsolute(launch.env.HOME) && argv[16] === join(launch.env.HOME, ".claude.json")) &&
+        reviewMcp &&
         JSON.stringify(argv.slice(extraStart)) === JSON.stringify(extraDirectories.flatMap(path => ['--add-dir', path])) &&
         worker?.cli === "Claude Code" && worker.role === "worker" && Array.isArray(worker.argv) &&
         argv[4] === worker.argv[4] && argv[6] === worker.argv[6] &&
@@ -2532,6 +2538,7 @@ export class A2AGates {
         config(`sandbox_workspace_write.writable_roots=${JSON.stringify(extraDirectories)}`) &&
         config("sandbox_workspace_write.exclude_slash_tmp=true") &&
         config("sandbox_workspace_write.exclude_tmpdir_env_var=true") &&
+        typeof launch?.request_dir === "string" && codexReviewMcp(launch.request_dir).every(value => value === "-c" || config(value)) &&
         !argv.some((arg) => ["resume", "fork", "--resume", "--fork"].includes(String(arg)));
     requireGate(launch && launch.role === "reviewer" && launch.review_id === review.review_id &&
       launch.review_verification_id === review.verification_id && launch.session === review.session_id &&
@@ -2624,16 +2631,15 @@ export class A2AGates {
         review_workspace: review.workspace, candidate_workspace: review.candidate_workspace,
         candidate_commit: review.candidate_commit });
       const diff = await this.git(task.task_id, task.repo, ["diff", "--no-ext-diff", "--no-renames", attempt.base_commit, v.C, "--"]);
-      const shape = { schema: 1, request_id: "review-" + reviewId, command: "review_submit", task: task.task_id,
+      const template = { schema: 1, request_id: "review-" + reviewId, command: "review_submit", task: task.task_id,
         attempt: attempt.attempt_id, session: review.session_id, fence: attempt.fence, spec_rev: task.spec_rev,
-        review_id: reviewId, candidate_commit: v.C, verdict: "可合并或需修复", findings: [],
+        review_id: reviewId, candidate_commit: v.C,
         review_requirements: {
           completion_conditions_sufficiency: true,
           mutation_checks: { min: 2, max: 5, workspace: candidateWorkspace, report_section: "完成条件与变异检查" },
-        }, report: { "完成条件与变异检查": "填写完成条件审查及各变异的改动、命令和结果" } };
-      const prompt = `审查这一次交付。审查目录和候选 Git worktree 只读；门禁为你准备的一次性候选副本是唯一可写工作目录：${candidateWorkspace}。不要实现或提交代码，不要调用 worker 的 submit、不能集成、不能写请求文件。独立判断候选是否满足任务卡；不要把机械通过当作审查结论。\n\n必查完成条件：判断完成条件（含验收文件 oracle_paths）是否足以拒绝明显错误的实现；不足时结论写“需修复”并列出缺失。\n必做变异检查：针对候选关键逻辑在一次性候选副本中构造 2～5 个少量错误实现，分别运行完成条件或候选新增测试，确认每个会失败；副本改动不提交、不进入集成。报告必须单列“完成条件与变异检查”，逐项写改了什么、运行的命令、结果。\n\n任务卡：\n${JSON.stringify(this.boundCard(attempt), null, 2)}\n候选改动：\n${diff}\n卡外改动（任务卡没有允许、待主控判断的文件）：${v.out_of_card?.length ? v.out_of_card.join("、") : "无"}。逐个判断是否必要、是否越出任务目标，写进报告。\n机械验收：\n${JSON.stringify(v, null, 2)}\n上一轮问题清单：\n${JSON.stringify(previous)}\n最终消息必须是一个完整 JSON 对象，不能加 Markdown 或说明文字。明确发起 review_submit，Stop hook 才会转交；结束回合本身不算交付。保留模板的全部顶层字段，不添加其他字段。身份字段和 review_requirements 原样返回。report 必须是 JSON 对象，在其中填写审查报告，并单列“完成条件与变异检查”；不要把 report 写成字符串。verdict 只选“可合并”或“需修复”。可合并时 findings 为空；需修复时每项为 {"location":{"path":"仓库相对路径","line":1},"failure_scenario":"具体失败场景","suggestion":"修复建议"}，至少一项。\n${JSON.stringify(shape, null, 2)}`;
-      const formatCheck = '\n输出前自检：整条最终消息必须能直接被 JSON.parse 解析，第一个非空白字符为 {，最后一个为 }。不要用 ```json 或任何代码围栏，不加前言或结语。检查模板全部顶层字段、身份字段与 review_requirements 原样保留，report 是对象且含“完成条件与变异检查”。带围栏或自然语言的结论会被拒绝并暂停，不能追认为通过。';
-      await this.runtime.createReview(task, review, formatCheck + '\n' + prompt);
+        } };
+      const prompt = `审查这一次交付。审查目录和候选 Git worktree 只读；门禁为你准备的一次性候选副本是唯一可写工作目录：${candidateWorkspace}。不要实现或提交代码，不要调用 worker 的 submit、不能集成、不能写请求文件。独立判断候选是否满足任务卡；不要把机械通过当作审查结论。\n\n必查完成条件：判断完成条件（含验收文件 oracle_paths）是否足以拒绝明显错误的实现；不足时结论写“需修复”并列出缺失。\n必做变异检查：针对候选关键逻辑在一次性候选副本中构造 2～5 个少量错误实现，分别运行完成条件或候选新增测试，确认每个会失败；副本改动不提交、不进入集成。报告必须单列“完成条件与变异检查”，逐项写改了什么、运行的命令、结果。\n\n任务卡：\n${JSON.stringify(this.boundCard(attempt), null, 2)}\n候选改动：\n${diff}\n卡外改动（任务卡没有允许、待主控判断的文件）：${v.out_of_card?.length ? v.out_of_card.join("、") : "无"}。逐个判断是否必要、是否越出任务目标，写进报告。\n机械验收：\n${JSON.stringify(v, null, 2)}\n上一轮问题清单：\n${JSON.stringify(previous)}\n提交结论：用 review_submit 工具，只交 verdict、findings、report 三项，身份字段与审查要求由工具补齐。verdict 只选“可合并”或“需修复”。可合并时 findings 为空；需修复时每项为 {"location":{"path":"仓库相对路径","line":1},"failure_scenario":"具体失败场景","suggestion":"修复建议"}，至少一项。report 是对象，每节一个键，必须有“完成条件与变异检查”一节，逐项写改了什么、运行的命令、结果。工具当场核对格式，不合格会说明哪一项要改，改好再交；以最后一次成功提交为准。提交后结束本回合，门禁在回合结束时处理；结束回合时没有成功提交的结论，审查暂停。最后一条回复不会被读取。`;
+      await this.runtime.createReview(task, review, prompt, template);
       const live = await this.runtime.readThread(review.thread_id);
       review.runtime_identity = { ...live.runtime_identity };
       review.launch_id = live.runtime_identity.launch;

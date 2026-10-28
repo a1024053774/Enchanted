@@ -25,6 +25,7 @@ import threading
 import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from scripted_claude import review_steps  # T-203: a scripted reviewer hands in its result through review_submit
 
 ROOT = Path(__file__).resolve().parents[2]
 TOKEN = 'a2a-fixture-key-not-a-secret'
@@ -120,12 +121,11 @@ def main():
         first = body['messages'][0]['content']
         text = first if isinstance(first, str) else '\n'.join(part.get('text', '') for part in first if isinstance(part, dict))
         if '审查这一次交付' in text:
-            shape = json.loads(text[text.rindex('{\n  "schema": 1'):])
-            shape.update(verdict='可合并', findings=[], report={'结论': '候选加了 hello.txt，满足任务卡。',
+            fields = dict(verdict='可合并', findings=[], report={'结论': '候选加了 hello.txt，满足任务卡。',
                 '完成条件与变异检查': '变异 1：删除 hello.txt，python3 check.py 退出 1；变异 2：hello.txt 换成目录，退出 1。'})
-            return [('Bash', dict(command='rm hello.txt; python3 check.py; echo "mutation-1 rc=$?"', description='mutation 1')),
-                    ('Bash', dict(command='mkdir hello.txt; python3 check.py; echo "mutation-2 rc=$?"', description='mutation 2'))], \
-                json.dumps(shape, ensure_ascii=False)
+            return review_steps(body, [('Bash', dict(command='rm hello.txt; python3 check.py; echo "mutation-1 rc=$?"', description='mutation 1')),
+                    ('Bash', dict(command='mkdir hello.txt; python3 check.py; echo "mutation-2 rc=$?"', description='mutation 2'))], fields), \
+                '已提交审查结论。'
         # A reviewer works in a copy; a worker in its project's worktree.
         project = next(name for name in PROJECTS + ('legacy',) if f'/worktrees/{name}/' in cwd)
         submit = re.search(r'显式交付：\n(.+)\n', text)
