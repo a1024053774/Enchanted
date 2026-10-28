@@ -39,7 +39,7 @@ function fixture() {
   }),kill:(signal:string)=>kills.push(signal)},
     state:'busy',stopped:false,archived:false,failed:null,leader:321,native:'unit-native',turn:'turn-0',
     active:{id:'first-submission',dispatch:'seed',at:'2026-10-11T00:00:00Z',nativeTurn:'turn-0'},
-    queue:[],writing:false,stopInProgress:false,writes:Promise.resolve(),pendingInputs:0,userDraft:false,interrupted:false,
+    queue:[],writing:false,stopInProgress:false,writes:Promise.resolve(),pendingInputs:0,userDraft:false,draft:{chars:[],cursor:0,keys:[],uncertain:false},interrupted:false,
     nativeEnded:false,inputGeneration:0,interruption:null,offsets:new Map(),model:'unknown',effort:'unknown',terminalBuffer:''};
   panes.panes.set(record.thread,pane);
   panes.processInfo=async()=>({leader:321,failed:null,shell_pid:321,native_session:'unit-native',processes:[]});
@@ -98,7 +98,8 @@ await test('escape_late_stop_and_user_release',async f=>{
     interruption:f.pane.interruption,input_generation:f.pane.inputGeneration},()=>f.action('queue_release'),async()=>{});
   assert.equal(f.writes.length,3);assert.equal(f.writes[2].data,'\r');assert.equal(f.pane.state,'busy');
   const inputs=f.store.db.prepare('SELECT data FROM user_inputs').all().map(row=>JSON.parse(String(row.data)));
-  assert.deepEqual(inputs.map(x=>x.text),['escape','queue_release']);
+  // T-206: Esc is an operation, not a message, so only the release statement is recorded.
+  assert.deepEqual(inputs.map(x=>x.text),['queue_release']);
 });
 await test('interrupt_only_esc_not_reclaim',async f=>{
   const stop={id:'stop-1',schema:1,kind:'stop',from:'ideation',to:'executor',reply_to:null,
@@ -112,7 +113,7 @@ await test('interrupt_only_esc_not_reclaim',async f=>{
   assert.equal(JSON.parse(String(event.details)).actor,'executor');
 });
 await test('recorder_failure_has_no_pty_write',async f=>{
-  await assert.rejects(f.panes.userInput(f.record.id,'禁止写出',{request_id:'failed-record'},async()=>{throw new Error('fixture recorder failure');},async()=>{}));
+  await assert.rejects(f.panes.userInput(f.record.id,'禁止写出\r',{request_id:'failed-record'},async()=>{throw new Error('fixture recorder failure');},async()=>{}));
   assert.equal(f.writes.length,0);
 });
 function barrier() {
@@ -123,7 +124,7 @@ function barrier() {
 await test('input_admission_holds_injection',async f=>{
   f.pane.state='idle';f.pane.active=null;
   const entered=barrier(),held=barrier();
-  const input=f.panes.userInput(f.record.id,'人工草稿',{request_id:'first'},async()=>{
+  const input=f.panes.userInput(f.record.id,'人工草稿\r',{request_id:'first'},async()=>{
     entered.release();await held.promise;
   },async()=>{});
   await entered.promise;
@@ -131,20 +132,21 @@ await test('input_admission_holds_injection',async f=>{
   const before=f.writes.slice();
   held.release();await Promise.all([input,injected]);
   assert.deepEqual(before,[],'A pending user record must reserve the pane');
-  assert.deepEqual(f.writes.map(x=>x.data),['人工草稿']);assert.equal(f.pane.queue.length,1);
+  assert.deepEqual(f.writes.map(x=>x.data),['人工草稿\r']);assert.equal(f.pane.queue.length,1);
 });
 await test('input_recording_cannot_reorder_keys',async f=>{
   const entered=barrier(),held=barrier();
-  const first=f.panes.userInput(f.record.id,'字',{request_id:'first'},async()=>{
+  // T-206: only a sent message is recorded, so the held record is the Enter's.
+  const first=f.panes.userInput(f.record.id,'字\r',{request_id:'first'},async()=>{
     entered.release();await held.promise;
   },async()=>{});
   await entered.promise;
-  const later=f.panes.userInput(f.record.id,'\r',{request_id:'second'},async()=>{},async()=>{});
+  const later=f.panes.userInput(f.record.id,'下',{request_id:'second'},async()=>{},async()=>{});
   // Finish one event-loop turn while the first record is held. No clock race.
   await new Promise<void>(resolve=>setImmediate(resolve));
   const before=f.writes.slice();held.release();await Promise.all([first,later]);
-  assert.deepEqual(before,[],'A later Enter cannot overtake an earlier key');
-  assert.deepEqual(f.writes.map(x=>x.data),['字','\r']);
+  assert.deepEqual(before,[],'A later key cannot overtake an earlier message');
+  assert.deepEqual(f.writes.map(x=>x.data),['字\r','下']);
 });
 await test('escape_during_paste_suppresses_submit',async f=>{
   f.pane.state='idle';f.pane.active=null;

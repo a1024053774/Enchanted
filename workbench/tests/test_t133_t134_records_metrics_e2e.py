@@ -216,8 +216,9 @@ def main():
         check('records_page_matches_stored_inputs', [r['id'] for r in rows] == [i['id'] for i in stored], rows)
         check('interventions_marked_by_gate_rule', {r['id'] for r in rows if r['marked'] and r['badge']} == expected_marked and
               typed[0]['id'] in expected_marked and answer[0]['id'] in expected_marked, dict(rows=rows, expected=sorted(expected_marked)))
+        # T-206: the paste and its Enter are one sent message; the Enter is not a record of its own.
         enter = [i for i in stored if i['text'] == '\r']
-        check('key_input_named', len(enter) == 1 and any(r['id'] == enter[0]['id'] and '（按键：回车）' in r['text'] for r in rows), rows)
+        check('enter_not_separate_record', not enter and any(r['id'] == typed[0]['id'] and TYPED in r['text'] for r in rows), rows)
         check('dispatch_text_not_recorded', not any('显式交付' in r['text'] or '审查这一次交付' in r['text'] for r in rows), rows)
         # The project terminal's own input (the fixture printed its token there) is not recorded: T-133's open gap.
         report['terminal_input_recorded'] = any('A2A_TERMINAL_TOKEN' in i['text'] for i in stored)

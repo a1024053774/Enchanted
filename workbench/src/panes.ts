@@ -19,6 +19,7 @@ import { resumeArgv, nativeSessionFile, codexSessionOrigin, codexSessionFileName
 import type { ExecutionOverrides } from './executionSettings.ts';
 import { cliProgram, terminalClis, readOsc7501, type CliTurn, type LaunchFacts } from './terminalClis.ts';
 import { cliProvider } from './gates/taskCards.ts';
+import { emptyDraft, feedInput, type InputDraft } from './inputDraft.ts';
 import { claudeReviewMcp, codexReviewMcp, reviewMcpServer, writeReviewTemplate } from './reviewResult.ts';
 
 const exec = promisify(execFile);
@@ -214,7 +215,7 @@ type Pane = {
   active: { id: string; dispatch: string; at: string; nativeTurn: string | null } | null;
   queue: ReturnType<OrchestrationStore["register"]>[]; writing: boolean;
   stopInProgress: boolean;
-  writes: Promise<void>; pendingInputs: number; userDraft: boolean; interrupted: boolean; sending: string | null;
+  writes: Promise<void>; pendingInputs: number; userDraft: boolean; draft: InputDraft; interrupted: boolean; sending: string | null;
   inputGeneration: number; interruption: number | null;
   offsets: Map<string, number>; model: string; effort: string;
   terminalBuffer: string;
@@ -302,7 +303,7 @@ export class Panes implements GateRuntime {
     const pane: Pane = { record, token, task: null, attempt: null, pty: terminal, state: "unknown",
       stopped: false, archived: false, failed: null, leader: null, native: null, turn: null,
       nativeEnded: false, active: null, queue: [], writing: false, stopInProgress: false,
-      writes: Promise.resolve(), pendingInputs: 0, userDraft: false, interrupted: false, sending: null,
+      writes: Promise.resolve(), pendingInputs: 0, userDraft: false, draft: emptyDraft(), interrupted: false, sending: null,
       inputGeneration: 0, interruption: null, offsets: new Map(), model: "unknown", effort: "unknown", terminalBuffer: "" };
     this.panes.set(thread, pane);
     terminal.onData((data: string) => {
@@ -469,7 +470,7 @@ export class Panes implements GateRuntime {
       const pane: Pane = { record, token, task, attempt: null, pty: terminal, state: "unknown", stopped: false,
         archived: false, failed: null, leader: null, native: record.session, turn: null, nativeEnded: false, active: null,
         queue: [], writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0,
-        userDraft: false, interrupted: false, inputGeneration: 0, interruption: null, sending: null, offsets: new Map(), model: "unknown", effort: "unknown",
+        userDraft: false, draft: emptyDraft(), interrupted: false, inputGeneration: 0, interruption: null, sending: null, offsets: new Map(), model: "unknown", effort: "unknown",
         terminalBuffer: "", claudePromptId: null, claudePromptIds: new Set(), login };
       login?.recordChild(terminal.pid, "PTY helper -> zsh -> CLI");
       this.panes.set(record.thread, pane);
@@ -644,7 +645,7 @@ export class Panes implements GateRuntime {
       const native = record.cli === "Claude Code" ? record.native_session : this.store.lastEvent(record.id, ["pane_native_session"])?.data.native_session ?? null;
       const pane = { record, token: "", task: null, attempt: { workspace: record.worktree }, pty: { pid: shell }, gone: true, state: "unknown",
         stopped: true, archived: false, failed: null, leader, native, turn: null, nativeEnded: false, active: null, queue: [],
-        writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0, userDraft: false, interrupted: false,
+        writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0, userDraft: false, draft: emptyDraft(), interrupted: false,
         inputGeneration: 0, interruption: null, sending: null, offsets: new Map(), model: "unknown", effort: "unknown",
         terminalBuffer: "", claudePromptId: null, claudePromptIds: new Set() } as unknown as Pane;
       this.panes.set(record.thread, pane);
@@ -699,7 +700,7 @@ export class Panes implements GateRuntime {
         state: "unknown", stopped: false, archived: false, failed: null, leader: null,
         native: native, nativeFile, turn: null, nativeEnded: false, active: null,
         queue: [], writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0,
-        userDraft: false, interrupted: false, inputGeneration: 0, interruption: null, sending: null,
+        userDraft: false, draft: emptyDraft(), interrupted: false, inputGeneration: 0, interruption: null, sending: null,
         offsets: new Map([[nativeFile, readFileSync(nativeFile).length]]), model: "unknown", effort: "unknown",
         terminalBuffer: "", claudePromptId: null, claudePromptIds: new Set(), restored: true };
       this.panes.set(record.thread, pane);
@@ -944,7 +945,7 @@ export class Panes implements GateRuntime {
     });
     const pane: Pane = { record, token, task, attempt, pty: terminal, state: "unknown", stopped: false,
       archived: false, failed: null, leader: null, native: managed ? reportedSession(launch) : nativeSession, turn: null, reports: Boolean(managed), nativeEnded: false, active: null,
-      queue: [], writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0, userDraft: false, interrupted: false, inputGeneration: 0, interruption: null, sending: null,
+      queue: [], writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0, userDraft: false, draft: emptyDraft(), interrupted: false, inputGeneration: 0, interruption: null, sending: null,
       offsets: new Map(), model: "unknown", effort: "unknown", terminalBuffer: "",
       startupScreen: "", trustAnswered: false,
       ...(claude ? { claudePromptId: null, claudePromptIds: new Set<string>() } : {}) };
@@ -1348,7 +1349,7 @@ export class Panes implements GateRuntime {
     });
   }
   async userInput(launch: string, data: string, receipt: Record<string, unknown>,
-    record: (text: string, control: boolean) => Promise<void>, assertCurrent: () => Promise<void>,
+    record: (text: string, content?: Record<string, unknown>) => Promise<void>, assertCurrent: () => Promise<void>,
     encoding: "utf8" | "binary" = "utf8") {
     const pane = this.byLaunch(launch);
     check(data.length > 0 && !pane.failed && !pane.stopped && !pane.archived, "pane_unavailable");
@@ -1361,8 +1362,6 @@ export class Panes implements GateRuntime {
     const protocolReport = binary ? /^(?:\x1b\[M[\s\S]{3})+(?![\s\S])/.test(data)
       : /^(?:(?:\x1b\[|\x9b)(?:<[0-9]+;[0-9]+;[0-9]+[Mm]|[0-9]+;[0-9]+;[0-9]+M|[IO]|0n|(?!1;(?:[2-9]|1[0-6])R)\??[0-9]+;[0-9]+R|[?>][0-9;]+c|\??[0-9]+;[0-4]\$y|(?:4|6|8);[0-9]+;[0-9]+t)|\x1b\](?:4;[0-9]+|10|11|12);rgb:[0-9a-fA-F/]+(?:\x07|\x1b\\)|\x1bP[01]\$r[ -~]*\x1b\\)+(?![\s\S])/.test(data);
     const pasted = !binary && data.startsWith("\x1b[200~") && data.endsWith("\x1b[201~");
-    const text = binary ? "终端二进制输入" : pasted ? data.slice(6, -6).replaceAll("\r", "\n") : data;
-    const control = binary || (!pasted && /[\x00-\x1f\x7f]/.test(data));
     // Reserve synchronously, before the recorder or identity check can yield.
     // Input records and their bytes keep the same order as admission. Esc also
     // prevents the CR of a paste that is already waiting inside this stream.
@@ -1371,7 +1370,10 @@ export class Panes implements GateRuntime {
     if (!binary && data === "\x1b") { pane.interrupted = true; pane.state = "busy"; }
     try { await this.serializeWrite(pane, async () => {
       await assertCurrent();
-      if (!protocolReport) await record(text, control);
+      // T-206: the draft is kept only once the bytes are written; a message is recorded before its Enter is written.
+      const draft = structuredClone(pane.draft);
+      const entries = protocolReport ? [] : feedInput(draft, data, pasted, binary);
+      if (!protocolReport) for (const entry of entries) await record(entry.text, entry.content);
       check(!pane.failed && !pane.stopped && !pane.archived, "pane_unavailable");
       if (!binary && !protocolReport) pane.userDraft = true;
       this.store.event("terminal_input_write_intent", { ...receipt, encoding,
@@ -1392,6 +1394,7 @@ export class Panes implements GateRuntime {
       if (permissionControl) { pane.userDraft = false; pane.permission = null; }
       try {
         pane.pty.write(binary ? bytes : data);
+        pane.draft = draft;
         const written = this.store.event("terminal_input_written", { ...receipt, encoding, byte_length: bytes.length }, pane.record);
         if (permissionControl) this.store.event("permission_control_written", { ...receipt, ...currentTurnBinding(pane), prompt_id: pane.claudePromptId }, pane.record);
         if(!binary && data==="\x1b") { pane.interruption = written; this.retireClaudeSubmission(pane,"user-esc"); }

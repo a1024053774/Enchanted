@@ -4,7 +4,6 @@ Known red contracts: composition must hold injection; request_id reuse must not 
 bytes >= 128 must reach PTY unchanged and be recorded as user actions. Other
 failures stop. Only isolated fixture data receives the recorder fault injection.
 """
-import base64
 from contextlib import closing
 import json
 import socket
@@ -67,10 +66,10 @@ def run_input_failures(*,home,state,attempt,window,call,query,check,result,outpu
     before=received();window.call('terminal-compose',text=phrase,started=True)
     wait_for(lambda:len(received())>=len(before)+len(phrase.encode()),'composition bytes')
     inputs=[json.loads(row['data']) for row in query('user_inputs')]
-    matching=[item for item in inputs if item['form']=='message' and item['text']==phrase]
-    verify('composition_reaches_backend_once',received()==before+phrase.encode() and len(matching)==1
-           and matching[0]['target']['attempt']==attempt['attempt_id'],
-           '中文合成组合事件只提交一次准确文本，绑定活动 attempt',{'inputs':matching,'received_suffix':received()[len(before):].hex()})
+    matching=[item for item in inputs if phrase in item['text']]
+    # T-206: the composed text is a draft until Enter sends it; nothing is recorded yet.
+    verify('composition_reaches_backend_once',received()==before+phrase.encode() and not matching,
+           '中文合成组合事件的字节只写一次；没按回车发出前不记用户输入（T-206）',{'inputs':matching,'received_suffix':received()[len(before):].hex()})
 
     extra=new_window();before=received()
     first=raw({'command':'window_input','sequence':1,'request_id':'same-window-request','data':'FIRST_ONLY'},extra)
@@ -102,11 +101,10 @@ def run_input_failures(*,home,state,attempt,window,call,query,check,result,outpu
     while len(received())<len(before)+len(expected) and time.monotonic()<deadline:
         time.sleep(.025)
     binary=[json.loads(row['data']) for row in query('user_inputs')]
-    binary=[item for item in binary if item.get('content',{}).get('action')=='terminal-binary']
-    recorded=b''.join(base64.b64decode(item['content']['data_base64'],validate=True) for item in binary)
-    verify('binary_mouse_bytes_and_action',received()==before+expected and recorded==expected
-           and len(binary)==2 and all(item['form']=='action' and item['target']['attempt']==attempt['attempt_id'] for item in binary),
-           '第 131 列第 7 行左键按下／抬起的 12 字节完整写入；两个二进制用户 action，不按 UTF-8 扩展 0xa3',
+    binary=binary[len(inputs):]
+    # T-206: a mouse report is an operation, not a sent message, so it is not a user input.
+    verify('binary_mouse_bytes_and_action',received()==before+expected and not binary,
+           '第 131 列第 7 行左键按下／抬起的 12 字节完整写入，不按 UTF-8 扩展 0xa3；鼠标上报不记用户输入（T-206）',
            {'mouse':mouse,'expected_hex':expected.hex(),'received_suffix':received()[len(before):].hex(),'records':binary})
     window.call('capture',name='input-failures-before-close');window.close();result['runtime_window_closed']=True
 

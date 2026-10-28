@@ -18,7 +18,7 @@ export async function answerLifecycleContracts() {
     const pane={record,native:'native',state:'busy',failed:null,stopped:false,archived:false,interrupted:false,
       active:{id:'submission',dispatch:dispatch.id,at:'2026-10-20T00:00:00Z',nativeTurn:null},
       claudePromptId:null,claudePromptIds:new Set(),queue:[],writing:false,writes:Promise.resolve(),pendingInputs:0,
-      userDraft:false,inputGeneration:0,stopInProgress:false,pty:{write:value=>writes.push(value)}};
+      userDraft:false,draft:{chars:[],cursor:0,keys:[],uncertain:false},inputGeneration:0,stopInProgress:false,pty:{write:value=>writes.push(value)}};
     panes.panes.set(record.thread,pane);
     const questions=[{question:'选择发布区域？',header:'区域',options:[{label:'南区'},{label:'北区'}],multiSelect:false}];
     const signal=(event,extra={})=>panes.signal(record.id,JSON.stringify({session_id:'native',prompt_id:'prompt',cwd:root,
@@ -43,11 +43,11 @@ export async function answerLifecycleContracts() {
       if(scene==='unknown_pty_queued') {
         let release,entered;const enteredPromise=new Promise(resolve=>entered=resolve),hold=new Promise(resolve=>release=resolve);
         pane.pty.write=value=>{writes.push(value);throw new Error('PTY outcome unknown');};
-        const first=panes.userInput(record.id,'first',{request_id:'first'},async()=>{entered();await hold;},async()=>{});
+        const first=panes.userInput(record.id,'first\r',{request_id:'first'},async()=>{entered();await hold;},async()=>{});
         const firstRejected=assert.rejects(first);await enteredPromise;
-        const second=panes.userInput(record.id,'queued',{request_id:'queued'},async()=>inputs.push('queued'),async()=>{});
+        const second=panes.userInput(record.id,'queued\r',{request_id:'queued'},async()=>inputs.push('queued'),async()=>{});
         const secondRejected=assert.rejects(second);release();await Promise.all([firstRejected,secondRejected]);
-        assert.ok(pane.failed);assert.deepEqual(writes,['first']);assert.equal(inputs.length,0);
+        assert.ok(pane.failed);assert.deepEqual(writes,['first\r']);assert.equal(inputs.length,0);
         result.status='PASS';continue;
       }
       let guards=0,operationError,completion;

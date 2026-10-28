@@ -13,7 +13,7 @@ async function test(name,run){const root=mkdtempSync('/tmp/t78-perm-'),store=new
  const dispatch=store.register(record.id,ups.prompt.slice('⟦主控 #1⟧\n'.length));assert.equal(dispatch.text,ups.prompt);
  const active={id:'registered-submission',dispatch:dispatch.id,at:'2026-10-14T22:00:00Z',nativeTurn:null};store.event('turn_submit_intent',active,record);
  const writes=[],actions=[];const pane:any={record,task:{},attempt:null,token:'private-fixture',state:'busy',native:ups.session_id,active,claudePromptId:null,claudePromptIds:new Set(),
-  failed:null,stopped:false,archived:false,stopInProgress:false,interrupted:false,writes:Promise.resolve(),pendingInputs:0,inputGeneration:0,userDraft:false,offsets:new Map(),pty:{pid:1,write:v=>writes.push(v)}};
+  failed:null,stopped:false,archived:false,stopInProgress:false,interrupted:false,writes:Promise.resolve(),pendingInputs:0,inputGeneration:0,userDraft:false,draft:{chars:[],cursor:0,keys:[],uncertain:false},offsets:new Map(),pty:{pid:1,write:v=>writes.push(v)}};
  panes.panes.set(record.thread,pane);panes.processInfo=async()=>({leader:2,failed:null});
  try{await panes.signal(record.id,JSON.stringify(ups),new Date().toISOString());await run({pane,panes,store,active,writes,actions,record});checks.push({name,status:'PASS'});}
  catch(e){checks.push({name,status:'INCOMPLETE',error:String(e)});}finally{store.close();}}
@@ -21,7 +21,7 @@ await test('permission-Enter-preserves-registered-active-and-root-count',async f
  await f.panes.signal(f.record.id,JSON.stringify(permission),new Date().toISOString());
  await f.panes.userInput(f.record.id,'\r',{request_id:'permission-enter'},async(text,control)=>f.actions.push({text,control}),async()=>{});
  assert.equal(f.pane.active,f.active);assert.equal(f.pane.claudePromptId,ups.prompt_id);
- assert.equal(f.store.read().filter(e=>e.type==='turn_submit_intent').length,1);assert.deepEqual(f.writes,['\r']);assert.deepEqual(f.actions,[{text:'\r',control:true}]);
+ assert.equal(f.store.read().filter(e=>e.type==='turn_submit_intent').length,1);assert.deepEqual(f.writes,['\r']);assert.deepEqual(f.actions,[]);  // T-206: a bare Enter is an operation, not a message
 });
 await test('ordinary-Enter-remains-a-user-submit',async f=>{
  await f.panes.userInput(f.record.id,'\r',{request_id:'normal-enter'},async()=>{},async()=>{});

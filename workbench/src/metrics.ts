@@ -94,8 +94,8 @@ export function metricsSnapshot(db: DatabaseSync, range: MetricsRange = {}) {
   const firstTime = passed.filter(score => score.facts.delivery_rounds === 1 && score.facts.human_interventions === 0 &&
     Object.values(score.facts.rejections ?? {}).every(count => count === 0));
 
-  // 3. The user's attention per integrated task. Every keystroke in a managed pane is its own input record, so an
-  // intervention is a turn the user submitted there (Enter), not an input row; a stop is an emergency stop or an Esc.
+  // 3. The user's attention per integrated task. An intervention is a turn the user submitted in a managed pane (Enter);
+  // a stop is an emergency stop or an Esc.
   const attention = passed.map(score => {
     const forms = db.prepare('SELECT data FROM user_inputs WHERE task=?').all(score.task).map(row => json(row.data))
       .filter(input => input.channel !== 'ui-derived' && input.form !== 'gap').map(input => input.form);

@@ -179,7 +179,7 @@ def main():
         check('focus_device_reports_forwarded_exactly', (home / 'received.bin').read_bytes()[reply_offset:] == expected_replies)
         check('focus_device_reports_unrecorded', inputs() == before and events() == before_events)
 
-        # One printable native key => one xterm onData => one input/intervention.
+        # One printable native key, then Enter => one sent message => one input/intervention.
         # Input.insertText emits only an input event, which xterm deliberately
         # ignores in screenReaderMode. A char event follows its keypress path.
         typed = chr(ord('A') + uuid.uuid4().int % 26)
@@ -205,6 +205,12 @@ def main():
             report['typed_bytes_hex'] = (home / 'received.bin').read_bytes()[text_offset:].hex()
             report['inputs_after_typing'] = inputs()
         check('typed_bytes_forwarded_exactly_once', (home / 'received.bin').read_bytes()[text_offset:] == typed.encode(), report['typed_bytes_hex'])
+        # T-206: a key is a draft until Enter sends it; only the sent message is recorded.
+        check('unsent_key_not_recorded', inputs() == before and events() == before_events, inputs())
+        cdp('Input.dispatchKeyEvent', type='keyDown', key='Enter', code='Enter', windowsVirtualKeyCode=13, nativeVirtualKeyCode=13, text='\r', unmodifiedText='\r')
+        cdp('Input.dispatchKeyEvent', type='keyUp', key='Enter', code='Enter', windowsVirtualKeyCode=13, nativeVirtualKeyCode=13)
+        fixture.wait('回车到 PTY', lambda: (home / 'received.bin').read_bytes()[text_offset:] == (typed + '\r').encode(), 10)
+        fixture.wait('发出的消息已记录', lambda: len(inputs()) == len(before) + 1, 10)
         after = inputs()
         check('one_real_input_creates_one_record', len(after) == len(before) + 1 and after[-1]['text'] == typed, after)
         check('one_real_input_creates_one_intervention', len(events()) == len(before_events) + 1, events())

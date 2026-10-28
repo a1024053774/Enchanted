@@ -729,7 +729,8 @@ export async function serve(
       };
       const recordInput = async (text: string, content?: Record<string, unknown>, question?: string) => {
         try {
-          gates.appendUserInput({ id: randomUUID(), schema: 1, form: question ? "answer" : content ? "action" : "message", text,
+          gates.appendUserInput({ id: randomUUID(), schema: 1,
+            form: question ? "answer" : content && content.action !== "terminal-submit" ? "action" : "message", text,
             target: { project: record.project, task: record.task, attempt: record.attempt, thread: record.thread,
               turn: panes.get(record.thread).turn, message: null, request: question ?? null },
             channel: "terminal-window", reply_to: question ?? null, certainty: "observed", created_at: receipt.received_at,
@@ -768,10 +769,8 @@ export async function serve(
         store.event("terminal_input_empty", { ...receipt, byte_length: 0 }, record as any);
         return { ok: true, observed: true, written: false };
       }
-      await panes.userInput(window.launch, input.data, receipt,
-        (text, control) => recordInput(text, encoding === "binary" ? { action: "terminal-binary",
-          data_base64: Buffer.from(input.data, "latin1").toString("base64") } : control ? { action: "terminal-key", data: input.data } : undefined),
-        assertCurrent, encoding);
+      // T-206: called once per message the user sends (Enter), not per key.
+      await panes.userInput(window.launch, input.data, receipt, (text, content) => recordInput(text, content), assertCurrent, encoding);
       return { ok: true, written: true, request_id: receipt.request_id };
     }
     if (input.command === "daemon_status") return { ok: true, pid: process.pid, node: process.version, root, helper };

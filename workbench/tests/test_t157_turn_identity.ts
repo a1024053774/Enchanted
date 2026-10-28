@@ -30,6 +30,7 @@ for (const scenario of ['input-during-stop', 'native-new-turn', 'idle-manual-pro
     native: 'native-session', state: 'busy', failed: null, stopped: false, archived: false, nativeEnded: false,
     interrupted: false, active: original, turn: null, claudePromptId: 'prompt-1', claudePromptIds: new Set(['prompt-1']),
     stopInProgress: false, writing: false, queue: [], writes: Promise.resolve(), pendingInputs: 0, inputGeneration: 0,
+    draft: { chars: [], cursor: 0, keys: [], uncertain: false },
     pty: { pid: 101, write: (data: string) => bytes.push(data) } };
   panes.panes.set(record.thread, pane);
   writeFileSync(join(root, 'native-session.jsonl'), JSON.stringify({type:'assistant',message:{model:'host-only'}})+'\n');
@@ -71,7 +72,7 @@ for (const scenario of ['input-during-stop', 'native-new-turn', 'idle-manual-pro
     // Input must complete while the Stop's identity observation is still held.
     await Promise.race([writing,new Promise((_,reject)=>setTimeout(()=>reject(new Error('input deferred behind Stop')),500))]);
     assert.deepEqual(bytes,[note]);
-    assert.equal(recorded,note);
+    assert.equal(recorded,note.slice(0,-1),'T-206: the sent message, without its Enter');
     assert.equal(pane.active,original,'Enter alone is not a native turn transition');
     assert.equal(pane.claudePromptId,'prompt-1');
     if (scenario === 'native-queued-input') {

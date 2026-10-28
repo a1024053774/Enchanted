@@ -1,0 +1,100 @@
+{
+  "status": "FAIL",
+  "argv": [
+    "test_t206_input_on_send_e2e.py",
+    "--mutant",
+    "ctrl-c-keeps-draft",
+    "--summary",
+    "../../evidence/2026-10-27-batch28/T-206/mutant-ctrl-c-keeps-draft.json"
+  ],
+  "revision": null,
+  "mutant": "ctrl-c-keeps-draft",
+  "runtime": "real Electron/daemon/gate/Claude Code; native CDP key events; scripted Messages API; zero vendor model calls",
+  "checks": [
+    "one_record_for_first_message",
+    "one_record_for_edited_message",
+    "interventions_follow_records",
+    "terminal_bytes_unchanged"
+  ],
+  "observed": {
+    "after_1": [
+      {
+        "form": "message",
+        "text": "fix it",
+        "content": null
+      }
+    ],
+    "after_2": [
+      {
+        "form": "message",
+        "text": "abdc",
+        "content": {
+          "action": "terminal-submit",
+          "keys": [
+            "←"
+          ]
+        }
+      }
+    ],
+    "after_3": [
+      {
+        "form": "message",
+        "text": "zzzdone now",
+        "content": {
+          "action": "terminal-submit",
+          "keys": [
+            "Ctrl-C"
+          ],
+          "text_uncertain": true
+        }
+      }
+    ],
+    "human_interventions": 3,
+    "written_stream": "fizx it\rabc\u001b[Dd\rzzz\u0003done now\r\u001b"
+  },
+  "fixture": "/private/tmp/t206-flsxko8z",
+  "details": {
+    "one_record_for_first_message": [
+      {
+        "form": "message",
+        "text": "fix it",
+        "content": null
+      }
+    ],
+    "one_record_for_edited_message": [
+      {
+        "form": "message",
+        "text": "abdc",
+        "content": {
+          "action": "terminal-submit",
+          "keys": [
+            "←"
+          ]
+        }
+      }
+    ],
+    "cleared_draft_and_esc_not_recorded": [
+      {
+        "form": "message",
+        "text": "zzzdone now",
+        "content": {
+          "action": "terminal-submit",
+          "keys": [
+            "Ctrl-C"
+          ],
+          "text_uncertain": true
+        }
+      }
+    ],
+    "interventions_follow_records": {
+      "human": 3,
+      "inputs": 3
+    },
+    "terminal_bytes_unchanged": "fizx it\rabc\u001b[Dd\rzzz\u0003done now\r\u001b"
+  },
+  "failed": [
+    "cleared_draft_and_esc_not_recorded"
+  ],
+  "error": "AssertionError: 未通过：cleared_draft_and_esc_not_recorded",
+  "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/workbench/tests/test_t206_input_on_send_e2e.py\", line 171, in main\n    assert not report.get('failed'), '未通过：' + '、'.join(report['failed'])\n           ^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 未通过：cleared_draft_and_esc_not_recorded\n"
+}

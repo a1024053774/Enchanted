@@ -26,6 +26,7 @@ for (const scenario of ['busy-input-queued', 'no-enter-reused']) {
     native: 'native-session', state: 'busy', failed: null, stopped: false, archived: false, nativeEnded: false,
     interrupted: false, active: original, turn: null, claudePromptId: 'prompt-1', claudePromptIds: new Set(['prompt-1']),
     stopInProgress: false, writing: false, queue: [], writes: Promise.resolve(), pendingInputs: 0, inputGeneration: 0,
+    draft: { chars: [], cursor: 0, keys: [], uncertain: false },
     pty: { pid: 101, write: (data: string) => bytes.push(data) } };
   panes.panes.set(record.thread, pane);
   panes.processInfo = async () => ({ leader: 102, failed: pane.failed });
