@@ -2,7 +2,7 @@
 id: T-208
 title: 任务页底部在审查中、返工中显示“门禁 未知”
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -19,8 +19,8 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 修前版本经真实入口：任务进入审查后，底部显示“未知”。
-- [ ] 修后审查中、返工中都显示中文状态名；门禁会写入的每个任务状态在表里都有名字（由测试从门禁代码里列出状态逐个核对，不手抄）。
+- [x] 修前版本经真实入口：任务进入审查后，底部显示“未知”。
+- [x] 修后审查中、返工中都显示中文状态名；门禁会写入的每个任务状态在表里都有名字（由测试从门禁代码里列出状态逐个核对，不手抄）。
 
 通用：先在真实入口留红态再修根因；独立审查。
 
@@ -29,3 +29,5 @@ ready_rev: 1
 改门禁状态本身。
 
 ## Resolution
+
+2026-10-28 PASS。`gateStateNames` 补 `reviewing: '审查中'`、`rework: '返工中'`。真实入口测试 `workbench/tests/test_t208_gate_state_names_e2e.py`：修前底部显示“未知”（`red-1.json`），修后“审查中”；从门禁源码提取的 15 个任务状态都有名字；两个变异体各在缺名的状态上失败。agy 审查“可合并”，P2 已改。证据见 [RESULTS](../../evidence/2026-10-27-batch28/T-208/RESULTS.md)。
