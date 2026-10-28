@@ -45,8 +45,8 @@ export function ProjectSettings({ project, onClose }: { project: string; onClose
 }
 
 // T-190: removing a project only hides it. Before that the user decides what happens to attempts still open in it.
-export function RemoveProjectDialog({ ask, busy, onClose, onChoose }: {
-  ask: { project: string; refused: string; details: any }; busy: boolean; onClose: () => void; onChoose: (attempts: 'keep' | 'reclaim') => void;
+export function RemoveProjectDialog({ ask, name, busy, onClose, onChoose }: {
+  ask: { project: string; refused: string; details: any }; name: string; busy: boolean; onClose: () => void; onChoose: (attempts: 'keep' | 'reclaim') => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => { dialog.current!.showModal(); }, []);
@@ -54,7 +54,7 @@ export function RemoveProjectDialog({ ask, busy, onClose, onChoose }: {
   return <dialog ref={dialog} className="settings-dialog project-settings" aria-labelledby="remove-project-title"
     onClose={onClose} onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}>
     <div className="settings-body">
-      <header><h2 id="remove-project-title">移除 {ask.project}</h2><button disabled={busy} onClick={onClose} aria-label="关闭">关闭</button></header>
+      <header><h2 id="remove-project-title">移除 {name}</h2><button disabled={busy} onClick={onClose} aria-label="关闭">关闭</button></header>
       {ask.refused === 'project_has_running_terminals' ? <section>
         <p className="settings-note">这个项目还有 {ask.details?.count} 个运行中的终端。先关掉它们再移除。</p>
       </section> : ask.refused === 'project_reclaim_failed' ? <section>

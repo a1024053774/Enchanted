@@ -197,6 +197,8 @@ function SessionPane({ paneKey, active, screenReader, fontFamily, name, confirme
   const [releaseError, setReleaseError] = useState<string | null>(null);
   const [keyboardFocused, setKeyboardFocused] = useState(false);
   const [closing, setClosing] = useState(false);
+  // T-204: a pane being closed neither polls nor resizes; the main process refuses both while it closes.
+  const closingRef = useRef(false);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [forwardRightClick, setForwardRightClick] = useState(false);
   const [renaming, setRenaming] = useState(false);
@@ -265,7 +267,7 @@ function SessionPane({ paneKey, active, screenReader, fontFamily, name, confirme
       }
       fit.fit();
       const next = `${term.cols}:${term.rows}`;
-      if (writable && dimensions !== next) {
+      if (writable && !closingRef.current && dimensions !== next) {
         dimensions = next;
         void window.a2a.resize(paneKey, term.cols, term.rows).catch(failInput);
       }
@@ -334,7 +336,7 @@ function SessionPane({ paneKey, active, screenReader, fontFamily, name, confirme
       let nextSnapshot = 0, seenVisibility = -1;
       try {
         while (mounted) {
-          if (!visibility.current.active) { await delay(); continue; }
+          if (!visibility.current.active || closingRef.current) { await delay(); continue; }
           if (Date.now() >= nextSnapshot || seenVisibility !== visibility.current.version) {
             const visibleVersion = visibility.current.version;
             if (seenVisibility !== visibleVersion) { hidden = true; setRestoring(true); }
@@ -438,8 +440,9 @@ function SessionPane({ paneKey, active, screenReader, fontFamily, name, confirme
   const inputEnabled = Boolean(snapshot?.input_enabled && !inputError && !error);
   const inputTarget = keyboardFocused && inputEnabled;
   const closePane = () => {
-    setMenu(null); setClosing(true); setCloseError(null);
+    setMenu(null); setClosing(true); setCloseError(null); closingRef.current = true;
     void window.a2a.closePane(paneKey).then(value => onClose(paneKey, value)).catch(error => {
+      closingRef.current = false; refit.current();
       setCloseError('关闭窗格未确认：' + String(error)); setClosing(false);
     });
   };
@@ -492,7 +495,7 @@ function SessionPane({ paneKey, active, screenReader, fontFamily, name, confirme
           <p>消息已写入终端并按了提交键，但 CLI 没有开始新回合。终端里可能有等待回答的提示，请查看终端并自行处理；后台不会重发，也不会替你按键。</p>
         </div>}
         {pane?.silent_foreground && <div className="connection-error" role="status" data-silent-foreground={pane.silent_foreground.command}>
-          <p>{pane.silent_foreground.command} 启动后还没有任何输出。它可能在等 macOS 的权限弹窗（例如“想访问‘文稿’文件夹”），弹窗可能被其他窗口挡住了，请移开其他窗口找一找。有输出后这条提示自动消失。</p>
+          <p>{pane.silent_foreground.command} 启动后还没有任何输出。如果它本该有输出（例如 claude、codex 启动后会画出界面），可能在等 macOS 的权限弹窗（例如“想访问‘文稿’文件夹”），弹窗可能被其他窗口挡住了，请移开其他窗口找一找；sleep 这类本来就不输出的命令不用管。有输出后这条提示自动消失。</p>
         </div>}
         {pane?.unwired_cli && <div className="connection-error" role="status" data-unwired-cli={pane.unwired_cli.command}>
           <p>这个会话没接入 Enchanted，状态和主控命令不可用。退出后直接敲 {pane.unwired_cli.command} 重启（不要用绝对路径或别名启动）。</p>
@@ -724,6 +727,14 @@ function Workbench() {
   const [now, setNow] = useState(Date.now());
   const sidebarRead = useRef(false);
   const selectedProject = selectedTask?.project_id ?? viewProject?.project_id ?? null;
+  // T-200: a project id keeps only [A-Za-z0-9_.-] (a Chinese directory becomes `project`), so the window names a project by
+  // its directory; two directories with one name also show their ids.
+  const projectName = (id: string) => {
+    const base = (item?: ProjectItem) => item?.repo?.split('/').filter(Boolean).pop() ?? item?.project_id;
+    const item = projects.find(project => project.project_id === id), name = base(item) ?? id;
+    const twin = projects.some(other => other !== item && base(other) === name);
+    return twin ? `${name} · ${id}` : name;
+  };
   useEffect(() => {
     void window.a2a.theme(theme).catch(error => setCatalogError('外观未切换：' + String(error)));
     try { localStorage.setItem(themeKey, theme); } catch { /* Per-viewer convenience only. */ }
@@ -1015,7 +1026,7 @@ function Workbench() {
                 const pointer = event.clientX || event.clientY;
                 setProjectMenu({ project: item, x: pointer ? event.clientX : box.left + 12, y: pointer ? event.clientY : box.bottom, opener: event.currentTarget });
               }}>
-              <span className="project-heading"><span className="project-title">{item.project_id}</span>
+              <span className="project-heading"><span className="project-title" title={item.project_id}>{projectName(item.project_id)}</span>
                 <span className="project-git" data-project-git={item.project_id}>{item.repo_missing ? '目录不存在' : projectGit(item.git)}</span></span>
               <span className="project-count" title="不含折进“历史”的会话">{scope.filter(agent => !agent.history).length || ''}</span>
               {waiting > 0 ? <span className="project-needs">{waiting} 个等你</span>
@@ -1037,7 +1048,7 @@ function Workbench() {
       </nav>
       <div className="sidebar-footer"><button className="text-button" disabled={busy} onClick={() => void refresh()}>刷新列表</button></div>
     </aside>
-    {removeAsk && <RemoveProjectDialog ask={removeAsk} busy={busy} onClose={() => setRemoveAsk(null)}
+    {removeAsk && <RemoveProjectDialog ask={removeAsk} name={projectName(removeAsk.project)} busy={busy} onClose={() => setRemoveAsk(null)}
       onChoose={attempts => removeProject(removeAsk.project, attempts)} />}
     {editingProject && <ProjectSettings project={editingProject} onClose={() => setEditingProject(null)} />}
     {projectMenu && <div ref={projectMenuRef} className="pane-menu" role="menu" aria-label="项目操作" style={{ left: projectMenu.x, top: projectMenu.y }}
@@ -1065,15 +1076,15 @@ function Workbench() {
       <p className="pane-menu-note" data-native-link-note role="status">{agentMenu.error ?? (agentMenu.copied ? '已复制' : agentMenu.link
         ? agentMenu.link.available ? `${agentMenu.link.cli} · ${agentMenu.link.session}` : agentMenu.link.reason : '正在查找会话记录…')}</p>
     </div>}
-    <AppNotifications notices={notices} disabled={busy} onSelect={launch => {
+    <AppNotifications notices={notices} nameOf={projectName} disabled={busy} onSelect={launch => {
       const agent = agents.find(row => row.id === launch); if (agent) void selectAgent(agent);
     }} />
     <main className="content">
       <header className="task-header">
         {sidebarHidden && <span className="header-toggle">{sidebarToggle}</span>}
         <div className="header-title">
-          <h1>{task?.title ?? viewProject?.project_id ?? (loading ? '正在读取项目' : '独立终端')}</h1>
-          <span className="eyebrow" title={repo ?? undefined}>{task ? `${task.project_id} / ${task.name}` : repo ? tilde(repo, home) : '~'}</span>
+          <h1>{task?.title ?? (viewProject ? projectName(viewProject.project_id) : loading ? '正在读取项目' : '独立终端')}</h1>
+          <span className="eyebrow" title={repo ?? undefined}>{task ? `${projectName(task.project_id)} / ${task.name}` : repo ? tilde(repo, home) : '~'}</span>
         </div>
         <nav className="workspace-pages" aria-label="工作区页面">
           <button aria-current={page === 'terminal' ? 'page' : undefined} onClick={() => setPage('terminal')}>终端</button>
@@ -1088,7 +1099,7 @@ function Workbench() {
         <span className={'connection ' + (error || catalogError ? 'warning' : '')} role="status">{status}</span>
         <button className="primary-button" disabled={busy} title="新建终端（⌘T）" onClick={() => void newTerminal()}>新建终端</button>
       </header>
-      {page === 'flow' && <FlowPage key={selectedProject ?? ''} project={selectedProject} />}
+      {page === 'flow' && <FlowPage key={selectedProject ?? ''} project={selectedProject} nameOf={projectName} />}
       {/* Keyed by project: another project's page starts from "reading", never from this one's rows (T-132 review 02). */}
       {page === 'issues' && <IssuesPage key={selectedProject ?? ''} project={selectedProject} />}
       {page === 'records' && <RecordsPage key={selectedProject ?? ''} project={selectedProject} />}
@@ -1104,10 +1115,10 @@ function Workbench() {
       </nav>}
       {(roleRequests.length > 0 || unconfirmedRequests.length > 0 || grantedRequests.length > 0) && <div className="role-requests" aria-label="角色申请">
         {unconfirmedRequests.map(roleRequest => <div className="role-request" key={roleRequest.id} data-role-request-unconfirmed={roleRequest.id} role="status">
-          <p><strong>{roleRequest.project}</strong> 里 {new Date(roleRequest.decided_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })} 批准的{roleRequest.role_label}没有生效：{roleRequest.cli ?? 'agent'} 没有确认收到（可能已被中断）。需要时让它重新申请。</p>
+          <p><strong>{projectName(roleRequest.project)}</strong> 里 {new Date(roleRequest.decided_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })} 批准的{roleRequest.role_label}没有生效：{roleRequest.cli ?? 'agent'} 没有确认收到（可能已被中断）。需要时让它重新申请。</p>
         </div>)}
         {grantedRequests.map(roleRequest => <div className="role-request" key={roleRequest.id} data-role-request-granted={roleRequest.id} role="status">
-          <p><strong>{roleRequest.project}</strong> 的{roleRequest.role_label}已批准，等待 {roleRequest.cli ?? 'agent'} 确认（15 秒内不确认则作废，同角色的其他申请届时仍可批准）。</p>
+          <p><strong>{projectName(roleRequest.project)}</strong> 的{roleRequest.role_label}已批准，等待 {roleRequest.cli ?? 'agent'} 确认（15 秒内不确认则作废，同角色的其他申请届时仍可批准）。</p>
         </div>)}
         {roleRequests.map((roleRequest, index) => {
           const key = Object.entries(launches).find(([, launch]) => launch === roleRequest.launch)?.[0];
@@ -1123,7 +1134,7 @@ function Workbench() {
           const parent = parentChoices[roleRequest.id] !== undefined ? parentChoices[roleRequest.id] : ideations[0]?.id ?? '';
           return <div className="role-request" key={roleRequest.id} data-role-request={roleRequest.id} role="alert">
             <span className="role-request-number" aria-label={`申请 ${index + 1}`}>{index + 1}</span>
-            <p><strong>{roleRequest.project}</strong> 的{place}里的 {roleRequest.cli ?? 'agent'} 申请成为<strong>{roleRequest.role_label}</strong>
+            <p><strong>{projectName(roleRequest.project)}</strong> 的{place}里的 {roleRequest.cli ?? 'agent'} 申请成为<strong>{roleRequest.role_label}</strong>
               {!key && <span className="role-request-hint">，不在当前视图</span>}
               {roleTaken && <span className="role-request-hint">。这个角色已批准给另一个终端，正在等它确认</span>}
               {rivals > 0 && <span className="role-request-hint">。同一角色另有 {rivals} 个申请：批准其中一个，它确认生效后其余自动拒绝</span>}</p>
@@ -1170,7 +1181,7 @@ function Workbench() {
         }} />}
         {navigating ? <p className="selection-hint" role="status">正在切换…</p> : !paneKeys.length && !task && !(viewProject && project?.tasks.length) &&
           <div className="selection-hint">
-            <h2>{viewProject ? `在 ${viewProject.project_id} 里开一个终端` : '开一个终端'}</h2>
+            <h2>{viewProject ? `在 ${projectName(viewProject.project_id)} 里开一个终端` : '开一个终端'}</h2>
             <p>{`终端会在 ${tilde(repo, home) || '家目录'} 下启动。经门禁派发的会话会按项目出现在左侧。`}</p>
             <button className="primary-button" disabled={busy} onClick={() => void newTerminal()}>新建终端</button>
           </div>}

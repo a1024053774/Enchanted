@@ -1,3 +1,5 @@
+import { explainRefusal } from './gates/refusals.ts';
+
 // T-179: a gate receipt in a few lines a person can read in the worker's pane: the command, whether the gate took it,
 // the task's state and candidate commit, and the next step. The full receipt stays in relay_results and on the records page.
 export const gateStateNames: Record<string, string> = { creating: '创建中', ready: '待认领', preparing: '准备中', claimed: '已认领', submitted: '已交付',
@@ -7,7 +9,11 @@ const commandNames: Record<string, string> = { submit: '交付', status: '查状
 
 export function receiptLines(command: string | null, result: any): string[] {
   const name = commandNames[command ?? ''] ?? command ?? '请求';
-  if (!result?.ok) return [`${name}：门禁没有受理（${result?.error ?? '原因未知'}）`, '下一步：结束本回合；要改什么由门禁或主控另行说明。'];
+  if (!result?.ok) {
+    const refused = `${name}：门禁没有受理（${result?.error ?? '原因未知'}）`, why = explainRefusal(result?.error);
+    if (why) return [refused, '原因：' + why.reason, '下一步：' + why.next];
+    return [refused, '下一步：结束本回合；要改什么由门禁或主控另行说明。'];
+  }
   const lines = [`${name}：门禁已受理`];
   const task = result.task;
   if (task) lines.push(`任务 ${task.name ?? task.task_id} · ${gateStateNames[task.state] ?? task.state} · ${

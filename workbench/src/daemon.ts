@@ -18,6 +18,7 @@ import { createOperatorCredential, readOperatorCredential } from "./credentials.
 import { sidebarSnapshot, projectCatalog } from './sidebar.ts';
 import { flowSnapshot } from './flow.ts';
 import { receiptLines } from './gateReceipts.ts';
+import { explainRefusal } from './gates/refusals.ts';
 import { checkWorkBranchPrefix, defaultWorkBranch, dropWorkBranch } from './workBranch.ts';
 import { metricsSnapshot } from './metrics.ts';
 import { userInputRecords } from './userInputRecords.ts';
@@ -125,6 +126,11 @@ export async function serve(
     ? "门禁回执（完整内容在记录页的“门禁回执”里）。请仅确认收到并结束；不调用工具、不改文件、不新增请求。\n" +
       receipts.map(receipt => receiptLines(relayCommand(receipt.key), receipt.result).join("\n")).join("\n")
     : "本回合的异步请求处理结果如下。请仅确认收到并结束；不调用工具、不改文件、不新增请求。\n" + JSON.stringify(receipts, null, 2);
+  // T-205: a refused reply keeps its code and gains one line of why and what to do next, for a2a, MCP and the window alike.
+  const explained = (result: any) => {
+    const why = result?.ok === false ? explainRefusal(result.error) : null;
+    return why ? { ...result, explanation: why } : result;
+  };
   const relayCommand = (key: string): string | null => {
     const row = store.db.prepare("SELECT json_extract(input,'$.command') AS command FROM relay_requests WHERE key=?").get(key) as any;
     return row?.command ?? null;
@@ -995,7 +1001,7 @@ export async function serve(
           result = { ok: false, error: "event_write_failed", details: String(recordError) };
         }
       } finally { activityFinished(); }
-      connection.end(JSON.stringify(result) + "\n");
+      connection.end(JSON.stringify(explained(result)) + "\n");
       if (result.ok && envelope?.input.command === "signal") {
         connection.once("close", () => {
           if (stopping) return;

@@ -1,3 +1,5 @@
+import { explainRefusal } from './refusals.ts';
+
 // T-192: a task's gate history in steps a person can read, whether or not any of its panes is still alive.
 // The events table keeps every detail; this keeps the milestone, whether it passed, and one line of why.
 
@@ -25,8 +27,12 @@ function step(event: HistoryEvent): Omit<HistoryStep, 'seq' | 'time' | 'attempt'
   const d = event.details ?? {};
   switch (event.type) {
     case 'created': return { label: '创建任务', passed: null, detail: null };
-    case 'rejected': return quietRefusals.has(d.input?.command) ? null : { label: '门禁拒绝', passed: false,
-      detail: `${d.input?.command ?? '请求'}：${d.error ?? '原因未知'}${d.details?.reason ? `（${d.details.reason}）` : ''}` };
+    case 'rejected': {
+      if (quietRefusals.has(d.input?.command)) return null;
+      const why = explainRefusal(d.error), missing = list(d.details?.missing);
+      return { label: '门禁拒绝', passed: false, detail: `${d.input?.command ?? '请求'}：${d.error ?? '原因未知'}${d.details?.reason ? `（${d.details.reason}）` : ''}${
+        missing ? `（缺：${missing}）` : ''}${why ? `。${why.reason}下一步：${why.next}` : ''}` };
+    }
     // T-197: a clean check is noise; an overlap let through shows the reason the controller wrote.
     case 'claim_path_check': return Array.isArray(d.conflicts) && d.conflicts.length ? { label: '路径重叠', passed: Boolean(d.passed),
       detail: `与 ${d.conflicts.map((c: any) => `${c.task}（${list(c.paths) ?? '路径'}）`).join('、')}${d.reason ? `；放行理由：${d.reason}` : ''}` } : null;

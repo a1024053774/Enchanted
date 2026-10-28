@@ -20,13 +20,13 @@ function Agents({ agents, group }: { agents: FlowAgent[]; group: string }) {
       onClick={() => setExpanded(value => !value)}>{expanded ? '收起' : `还有 ${agents.length - 4} 个 ↗`}</button>}
   </div>;
 }
-function Lane({ lane }: { lane: FlowSnapshot['lanes'][number] }) {
+function Lane({ lane, nameOf }: { lane: FlowSnapshot['lanes'][number]; nameOf: (project: string) => string }) {
   const [open, setOpen] = useState(!lane.integrated);
   const current = flowStages.findIndex(stage => stage.id === lane.stage);
   return <article className="flow-lane" data-flow-task={lane.task} data-flow-stage={lane.stage ?? 'unknown'}>
     <header className="flow-lane-heading"><button data-flow-toggle={lane.task} aria-expanded={open} onClick={() => setOpen(value => !value)}>
       <span aria-hidden="true">{open ? '⌄' : '›'}</span> {lane.name}{lane.title && lane.title !== lane.name && ` · ${lane.title}`}</button>
-      <span>{lane.project} · {lane.integrated ? '已集成' : current < 0 ? '阶段未知 · 核对门禁记录' : flowStages[current].label}
+      <span>{nameOf(lane.project)} · {lane.integrated ? '已集成' : current < 0 ? '阶段未知 · 核对门禁记录' : flowStages[current].label}
         {lane.returns.length > 0 && ` · 打回 ${lane.returns.length} 次`}</span></header>
     <ul className="flow-paths" aria-label="任务路径">{lane.paths.map(path => <li key={path}>{path}</li>)}</ul>
     {open && <div className="flow-lane-body">
@@ -52,7 +52,7 @@ function Lane({ lane }: { lane: FlowSnapshot['lanes'][number] }) {
 }
 // T-178: in a project, its own tickets come first and open; other projects' tickets wait in one folded group.
 // With no project selected (the standalone terminal area) every ticket is shown.
-export function FlowPage({ project }: { project: string | null }) {
+export function FlowPage({ project, nameOf }: { project: string | null; nameOf: (project: string) => string }) {
   const [othersOpen, setOthersOpen] = useState(false);
   const [snapshot, setSnapshot] = useState<FlowSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +78,7 @@ export function FlowPage({ project }: { project: string | null }) {
       return <>
         {!lanes.length && <p className="flow-empty" role="status">{project === null ? '还没有任务票。注册任务后，流程会显示在这里。' : '这个项目还没有任务票。注册任务后，流程会显示在这里。'}</p>}
         <div className="flow-scroll" tabIndex={0} aria-label="任务泳道，可左右滚动">
-          {lanes.map(lane => <Lane key={lane.task} lane={lane} />)}
+          {lanes.map(lane => <Lane key={lane.task} lane={lane} nameOf={nameOf} />)}
         </div>
         {unassigned.length > 0 && <section className="flow-unassigned" aria-label="未归属"><h3>未归属</h3>
           <p>各会话下方列出未归属原因。</p><Agents agents={unassigned} group="unassigned" /></section>}
@@ -86,7 +86,7 @@ export function FlowPage({ project }: { project: string | null }) {
           <button className="flow-others-toggle" data-flow-others-toggle aria-expanded={othersOpen} aria-controls="flow-others-lanes"
             onClick={() => setOthersOpen(value => !value)}><span aria-hidden="true">{othersOpen ? '⌄' : '›'}</span> {others.length > 0 ? `其他项目的任务 ${others.length} 张` : `其他项目未归属的会话 ${othersUnassigned.length} 个`}</button>
           <div id="flow-others-lanes" hidden={!othersOpen}>
-            <div className="flow-scroll">{others.map(lane => <Lane key={lane.task} lane={lane} />)}</div>
+            <div className="flow-scroll">{others.map(lane => <Lane key={lane.task} lane={lane} nameOf={nameOf} />)}</div>
             {othersUnassigned.length > 0 && <section className="flow-unassigned" aria-label="其他项目未归属"><h3>其他项目未归属</h3>
               <p>各会话下方列出未归属原因。</p><Agents agents={othersUnassigned} group="others-unassigned" /></section>}
           </div>

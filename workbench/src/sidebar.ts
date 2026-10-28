@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { execFile } from 'node:child_process';
+import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { codexSessionOrigin } from './paneRecovery.ts';
 import { terminalClis, osc7501State } from './terminalClis.ts';
@@ -95,6 +96,10 @@ export async function gitFacts(repo: string) {
     if (!branch || upstream && !ab) return { branch: null, upstream: null, ahead: null, behind: null, error: 'Git 分支事实不完整' };
     return { branch, upstream: upstream ?? null, ahead: ab ? Number(ab[1]) : null, behind: ab ? Number(ab[2]) : null, error: null };
   } catch (error) {
+    // T-201: a plain directory is a valid project; say so in a few words. Git also reports a broken HEAD or an
+    // unreadable .git as "not a git repository", so only a directory without any .git entry counts as plain.
+    if (!existsSync(join(repo, '.git')) && existsSync(repo) && String((error as { stderr?: unknown }).stderr).includes('not a git repository'))
+      return { branch: null, upstream: null, ahead: null, behind: null, error: '不是 Git 仓库' };
     return { branch: null, upstream: null, ahead: null, behind: null, error: '无法读取 Git：' + String(error) };
   }
 }
