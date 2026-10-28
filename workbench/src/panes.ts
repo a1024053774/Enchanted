@@ -212,7 +212,9 @@ type Pane = {
   gone?: true;
   failed: string | null; leader: number | null; native: string | null; turn: string | null;
   nativeEnded: boolean;
-  active: { id: string; dispatch: string; at: string; nativeTurn: string | null } | null;
+  // interruption: the Esc or gate interrupt this turn was started after (T-207). A turn the user sends after an
+  // interruption is theirs and its hooks count; a turn started before it, or cut off again, does not.
+  active: { id: string; dispatch: string; at: string; nativeTurn: string | null; interruption?: number | null } | null;
   queue: ReturnType<OrchestrationStore["register"]>[]; writing: boolean;
   stopInProgress: boolean;
   writes: Promise<void>; pendingInputs: number; userDraft: boolean; draft: InputDraft; interrupted: boolean; sending: string | null;
@@ -1207,7 +1209,7 @@ export class Panes implements GateRuntime {
           value.message?.role === 'user' && value.message.content === queued.prompt);
         if (!entry) break;
         pane.claudeQueuedPrompts.shift();
-        pane.active = { id: randomUUID(), dispatch: `input:${entry.promptId}`, at: entry.timestamp, nativeTurn: null };
+        pane.active = { id: randomUUID(), dispatch: `input:${entry.promptId}`, at: entry.timestamp, nativeTurn: null, interruption: pane.interrupted ? pane.interruption : null };
         pane.claudePromptIds!.add(entry.promptId); pane.claudePromptId = entry.promptId;
         pane.state = 'busy'; pane.permission = null;
         this.store.event('turn_submit_intent', { ...pane.active, source: 'user', origin: 'native-transcript' }, pane.record);
@@ -1387,7 +1389,7 @@ export class Panes implements GateRuntime {
         // not a native turn transition; a fresh UPS or verified queued transcript
         // owns the next turn. In particular, do not invalidate an in-flight Stop.
         if (pane.record.cli !== "Claude Code") {
-          pane.active = { id: randomUUID(), dispatch: `input:${receipt.request_id}`, at: new Date().toISOString(), nativeTurn: null };
+          pane.active = { id: randomUUID(), dispatch: `input:${receipt.request_id}`, at: new Date().toISOString(), nativeTurn: null, interruption: pane.interrupted ? pane.interruption : null };
           this.store.event("turn_submit_intent", { ...pane.active, source: "user", request_id: receipt.request_id }, pane.record);
         }
       }
@@ -1814,7 +1816,7 @@ export class Panes implements GateRuntime {
           // Hand-typed submissions and retired injections cannot trigger this guard.
           if (!item) {
             this.store.event("user_prompt_unregistered", value, pane.record);
-            pane.active = { id: randomUUID(), dispatch: `input:${value.prompt_id}`, at: received_at, nativeTurn: null };
+            pane.active = { id: randomUUID(), dispatch: `input:${value.prompt_id}`, at: received_at, nativeTurn: null, interruption: pane.interrupted ? pane.interruption : null };
             pane.claudePromptId = null; pane.state = 'busy';
             this.store.event('turn_submit_intent', { ...pane.active, source: 'user', origin: 'native-hook' }, pane.record);
             this.store.event('turn_submitted', { ...pane.active, source: 'user', origin: 'native-hook' }, pane.record);

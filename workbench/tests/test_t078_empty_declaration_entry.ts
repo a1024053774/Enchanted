@@ -33,7 +33,7 @@ function fixture(){
   const writes:any[]=[];
   const pane:any={record,task,attempt:null,token:randomUUID(),pty:{pid:1,write:(v:any)=>writes.push(Buffer.isBuffer(v)?{base64:v.toString('base64')}:v)},
     state:'busy',native:record.session,failed:null,stopped:false,archived:false,active:null,queue:[],writing:false,stopInProgress:false,
-    writes:Promise.resolve(),pendingInputs:0,userDraft:false,interrupted:false,sending:null,offsets:new Map(),terminalBuffer:'',claudePromptId:null,claudePromptIds:new Set(),
+    writes:Promise.resolve(),pendingInputs:0,userDraft:false,draft:{chars:[],cursor:0,keys:[],uncertain:false},interrupted:false,sending:null,offsets:new Map(),terminalBuffer:'',claudePromptId:null,claudePromptIds:new Set(),
     inputGeneration:0,interruption:null};
   const first=panes.store.register(id,'FIRST_FIXED_NONCE');pane.active={id:randomUUID(),dispatch:first.id,at:new Date().toISOString(),nativeTurn:null};
   panes.store.event('turn_submit_intent',pane.active,record);panes.panes.set(record.thread,pane);
@@ -119,7 +119,8 @@ await test('valid_declaration_preserves_bytes_and_records_statement',async(f,w)=
 await test('controls_are_actions_not_messages',async(f,w)=>{
   for(const data of ['\x03','\x15','\x13','\x1b[A'])assert.equal((await w.send('window_input',{data})).ok,true);
   const rows=gates.db.prepare('SELECT data FROM user_inputs WHERE json_extract(data,\'$.target.task\')=?').all(f.record.task).map((r:any)=>JSON.parse(r.data));
-  assert.deepEqual(rows.map((r:any)=>[r.form,r.content?.action,r.content?.data]),[['action','terminal-key','\x03'],['action','terminal-key','\x15'],['action','terminal-key','\x13'],['action','terminal-key','\x1b[A']]);
+  // T-206 (user 2026-10-27: "只记录我发送之后的完整消息,不要每次操作都要记录"): control keys with no Enter are written, not recorded.
+  assert.deepEqual(rows,[]);
   assert.deepEqual(f.writes,['\x03','\x15','\x13','\x1b[A']);
 });
 await test('injected_mismatch_blocks_actual_hook_output',async(f)=>{

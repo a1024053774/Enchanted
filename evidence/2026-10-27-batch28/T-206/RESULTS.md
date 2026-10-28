@@ -102,3 +102,4 @@ xterm 每送来一段数据（一个键、一段粘贴），`panes.userInput` �
 - `test_t078_permission_accounting.ts` 跑不了（缺稀疏 checkout 外的证据文件）。
 - 草稿只按一行编辑器处理；CLI 里的多行编辑、历史翻找、补全后实际发出的文字可能与记录不同，这类消息标 `text_uncertain`，没有逐个 CLI 核对。
 - 只用 Claude Code 跑了主测试；Codex、agy、opencode 窗格走同一段 `panes.userInput`，没有分别实测。
+- 补记（2026-10-28，T-207）：`test_t078_empty_declaration_entry.ts` 当时没跑。它的夹具缺 `draft`，一条预期与本票需求冲突，已在 T-207 中修正，三个版本的对照见 `../T-207/RESULTS.md`。

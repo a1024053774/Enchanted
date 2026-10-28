@@ -66,7 +66,8 @@ export function validateHookEnvelope(pane: any, value: any): void {
   if (value.hook_event_name === 'PermissionRequest') requireField(typeof value.tool_name === 'string' && value.tool_name.trim() &&
     value.tool_input && typeof value.tool_input === 'object' && !Array.isArray(value.tool_input), 'permission_tool_fields_required');
   if (['PreToolUse', 'PostToolUse', 'PostToolUseFailure'].includes(value.hook_event_name)) {
-    requireField(pane.active && !pane.failed && !pane.stopped && !pane.interrupted, 'question_turn_mismatch');
+    requireField(pane.active && !pane.failed && !pane.stopped && (!pane.interrupted ||
+      pane.active.interruption != null && pane.active.interruption === pane.interruption), 'question_turn_mismatch');
   }
 }
 
