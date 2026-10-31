@@ -8,7 +8,9 @@
 - **Enchanted / a2a**：Enchanted 是对外产品名与 GitHub 仓库名；a2a 是其编排内核（门禁、编排后台、提交尾注）。2026-10-21 改名公开后统一使用；本地目录、bundle id、数据目录仍叫 a2a。
 - **工作台（workbench）**：a2a 自己的轻量桌面应用（Electron），放在本仓库，借用 Synara 的前端组件与样式；按“项目 → 任务 → agent 会话”组织，连接编排后台显示窗格、面板与指标。2026-10-10 起取代基于 Synara fork 的工作台；切换完成后取代 Herdr 的日常使用。
 - **编排后台（orchestration daemon）**：工作台的常驻后台进程，托管窗格，负责派发与唤醒、门禁、任务卡、收件箱与复盘调度，记录都存在这里；界面关掉不影响它。
-- **窗格（pane）**：承载一个 shell 及其中 agent CLI 的终端区域；工作台的窗格由编排后台托管，Herdr 期指 Herdr 的 pane。
+- **窗格（pane）**：承载一个 shell 及其中 agent CLI 的终端区域；工作台的窗格是私有 core 里的一个终端，由编排后台管理，Herdr 期指 Herdr 的 pane。
+- **hc（herdr-core）**：Herdr 的终端运行时（Apache-2.0），只托管终端、不画界面；程序跑在 holder 进程里，状态只认程序自报的 OSC 7501。Enchanted 随应用打包固定版本，不改其源码（T-209）。
+- **私有 core**：编排后台用 Enchanted 专属 `HC_SESSION` 启动的 hc core；工作台的全部终端都在其中，与用户自己 Herdr 的 core 互不相连。
 - **Muster 引擎**：Herdr 0.9.3 的硬分叉，曾计划作为工作台后台；2026-10-07 冻结，2026-10-08 与 `coop.py` 一起从仓库删除（T-040），源码留在 git 历史与 `evidence/2026-10-08-batch4/T-040-A/retired-source.tar.gz`。
 - **门禁入口（gate entry）**：a2a 门禁对外唯一的调用入口；认领、交付、验收、集成与回收只经它，并保持操作锁语义。第三阶段抽进编排后台：2026-10-11 起门禁源码在本仓库 `workbench/src/gates/`（由 Node 运行，T-075-1），fork 中的 `packages/a2a-gates` 不再作入口；编排后台的命令行入口接上之前，本仓库验收经 `acceptance/entry/a2a_gates.py` 调用 `workbench/src/gates/cli.ts`。
 - **项目（Project）**：对应一个仓库目录的工作范围；在工作台中包含多个任务。

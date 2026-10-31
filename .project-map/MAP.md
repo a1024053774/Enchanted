@@ -15,6 +15,8 @@
 
 2026-10-21：主控与 worker 的建立方式改为 Herdr 式，见 [T-119](tickets/T-119-herdr-style-terminals-claimed-roles.md) 与 [spec](specs/herdr-style-claimed-roles-2026-10-21.md)。
 
+2026-10-31：终端运行时改用随应用打包的 Herdr `hc`，问题先给主控处理，见 [spec](specs/hc-runtime-2026-10-31.md)（决定 T-209、T-210）。
+
 ## Notes
 
 - [开发发现目录](../findings/README.md)：集中相关报告，分别记录 GPT 模型行为、分工协调、工程与证据处理。
@@ -51,9 +53,9 @@
 - [T-024 一个引擎能否让多个窗口各看不同项目](tickets/T-024-per-window-project-focus.md): 可以，各连接焦点、尺寸与输入独立；窗口导航须走各自连接，同一任务共享 PTY 尺寸
 - [T-049 构思主控与执行主控的分工、层级与权限](tickets/T-049-controller-roles-and-permissions.md): 用户 ⇄ 构思主控 → 执行主控 → worker；提示词为主，不做策略引擎；执行主控在 T-004 边界内可自建缺陷级 ticket；第三阶段权限改为四层（T-071）
 - [T-050 用户输入记录：类型、存放、与人工介入的关系、过渡期](tickets/T-050-user-input-records.md): 形态与含义两层，含义判断不用正则；服务端追加式表，人工介入改为派生事件，仅受管 attempt fail-closed；Herdr 期靠派发包装、日志与会话副本
-- [T-051 问题上报与面板：语义、处置、发送](tickets/T-051-issue-reports-and-panel.md): 默认不阻塞；每会话一个面板，逐个或打包发送；主控可判断并关闭但不删除，拿不准留给用户
+- [T-051 问题上报与面板：语义、处置、发送](tickets/T-051-issue-reports-and-panel.md): 默认不阻塞；每会话一个面板，逐个或打包发送；关闭不删除；主控能否答复与 blocking 的处理由 T-210 改写
 - [T-052 主控交接协议：就绪、收件箱、唤醒、完成报告、紧急停止](tickets/T-052-controller-handoff-protocol.md): `ready` 字段加追加式收件箱，跨会话消息唤醒；完成报告逐字报状态；紧急停止分层，限时 break-glass
-- [T-069 第三阶段方向：原生 CLI 编排与 a2a 自己的工作台](tickets/T-069-third-stage-direction.md): 原生 CLI 交互终端、a2a 只做编排；本仓库 Electron 工作台借用 Synara 组件；编排后台常驻；先支持 Claude Code 与 Codex；切换条件含第三阶段全部新功能与用户试用
+- [T-069 第三阶段方向：原生 CLI 编排与 a2a 自己的工作台](tickets/T-069-third-stage-direction.md): 原生 CLI 交互终端、a2a 只做编排；本仓库 Electron 工作台借用 Synara 组件；编排后台常驻（终端托管由 T-209 改为 hc）；先支持 Claude Code 与 Codex；切换条件含第三阶段全部新功能与用户试用
 - [T-070 门禁、任务卡与质量保障](tickets/T-070-gates-task-cards-quality.md): 提示词管判断、脚本管事实；门禁抽进编排后台；任务卡；统一检查串与独立审查；worktree 命名、清理与冲突；集成落到项目工作分支
 - [T-071 权限、状态信号、派发唤醒、数据与主控提问](tickets/T-071-permissions-signals-dispatch-data.md): 权限四层；只认结构化状态信号；派发与唤醒写进窗格；唯一 SQLite 库；面板收主控提问
 - [T-072 提交追溯、验收打分、复盘与指标](tickets/T-072-traceability-scoring-retrospective-metrics.md): `A2A-*` 尾注；每个 attempt 结束随验收命令打分；手动或定期复盘；原始事件全记、四个指标视图；Herdr 期先用三样
@@ -67,6 +69,8 @@
 - T-098 pane 启动延时：2026-10-18 关闭未实现——用户把 `~/.zshrc` 的 oh-my-zsh 更新模式改为 reminder 消除已知提问源，不再加延时设置；一般缺陷（前台只剩 shell≠等命令）仍在，靠启动后核对回显
 - [T-189 0.1.5 两次真实使用后的方案](tickets/T-189-real-use-fixes-decisions.md): 主控身份绑终端、可跨已打开项目建任务；项目随时可移除、历史保留；派发 MCP 为主、a2a 命令兜底；复制深度链接给 CLI 名、原生 ID 与记录路径；加 CLI 图标、任务页显示门禁全程；落地 T-190～T-195
 - [T-196 路径限制交主控判断](tickets/T-196-path-judgement-by-controller.md): 门禁算出路径重叠与卡外改动并记录，主控判断放行须写理由；已验收 attempt 不占路径；Git 元数据、验收文件、合并冲突、理由必记仍硬性把关；落地 T-197、T-198，并改 T-193
+- [T-209 用 Herdr 的 hc 当终端运行时](tickets/T-209-hc-as-runtime.md): 打包固定版本 hc、私有 `HC_SESSION`、不改 hc 源码；门禁与记录留在编排后台；后台重启接回原 attempt（取代 T-096 裁定 B）；受管 Claude 打开 OSC 7501；本批建造票由 Claude Code 主控在侧边栏终端派 Codex 写、agy 审
+- [T-210 问题先给主控](tickets/T-210-issues-controller-first.md): 上报即推执行主控；主控可答、可关、可交用户；blocking 也先给主控；权限、范围、验收、安全、不可逆只交用户；15 分钟兜底不变
 
 ## Not yet specified
 
@@ -87,6 +91,7 @@
 - 2026-10-27 两次真实使用（findings/2026-10-27-two-real-uses.md，NO_GO）后的方案见 [T-189](tickets/T-189-real-use-fixes-decisions.md)；切为 T-190 项目移除与失效项目隔离、T-191 CLI 图标与 worker 状态、T-192 任务页门禁全程与关闭状态、T-193 主控跨项目、T-194 MCP 派发入口、T-195 复制会话链接；均未就绪，待用户开工。
 - 路径限制按 [T-196](tickets/T-196-path-judgement-by-controller.md) 切为 T-197 认领重叠交主控判断、T-198 卡外改动交主控判断；未就绪，待用户开工。
 - T-119 之后待切：主控之间、worker 与主控之间经 `a2a` 通信；在界面上编辑每个角色的边界与权限默认值（T-121、T-122 关闭后再切）
+- hc 运行时待切（T-211、T-212、T-216 关闭后按 [spec](specs/hc-runtime-2026-10-31.md) 再切，预留编号 T-213～T-215、T-217、T-218）：受管窗格走 hc 并重新证明交付与编排；后台重启接回原 attempt 与恢复规格修订；状态统一取 hc 事件；worker 卡住经父子通知推给主控；跨项目“等你”分组与问题界面默认视图
 
 ## Out of scope
 

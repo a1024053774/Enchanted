@@ -18,6 +18,7 @@ T-012 已缩小为[研究阶段产物与移交证据](../.project-map/tickets/T-
 
 ## 相关资料
 
+- [herdr-core 能否做 Enchanted 的终端内核](2026-10-31-herdr-core-evaluation.md)：读 herdr-core / herdr-app 源码，在隔离 core 实测 Claude Code 2.1.312 原生上报 OSC 7501（含 blocked/question）；判断它只能替换终端托管层，输入记录与提问绑定仍靠我们自己，换不换待用户决定。第二轮在 Herdr app 里实测“等你”提示、agent 起 agent、父 agent 替子 agent 作答，对照它的 core 设计与我们问题面板缺的“主控先处理”。
 - [四家 CLI 的原生会话号与记录文件](2026-10-27-native-session-ids.zh-CN.md)：T-195 实测；Claude Code、Codex 有会话号与 jsonl 记录；opencode 的会话号在终端 OSC 7501 报告里，记录在共用库 `opencode.db`；agy 不报会话号，只能按工作目录对上唯一的会话文件，对不上就置灰。
 - [四家 CLI 按会话挂 MCP 服务器](2026-10-27-mcp-per-session.zh-CN.md)：T-194 实测；Claude Code 经插件、Codex 经启动参数 `-c`、opencode 经 `OPENCODE_CONFIG_CONTENT` 都能按会话挂上；agy 1.4.8 交互模式下模型拿不到工作区 MCP 工具，继续用 `a2a` 命令。T-203 补充：Claude Code 与 Codex 都把 MCP 工具延后加载（Claude 经 ToolSearch、Codex 经代码工具的 `ALL_TOOLS`），opencode 在 `execute` 代码里调用；agy 审查员改用提交命令。
 - [Enchanted 0.1.5 两次真实使用的问题记录](2026-10-27-two-real-uses.md)：用户两次使用均未按宣称走通（NO_GO）；记 U01～U11（项目移不掉、已删仓库拖垮全局认领、agy 显示“未知”、任务页为空、跨路径受限等）及用户提出的方向；U05 经后来的截图更正为非缺陷；U11 路径限制改由主控判断（T-196）。
