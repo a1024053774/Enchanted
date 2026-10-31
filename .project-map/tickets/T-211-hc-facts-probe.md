@@ -26,7 +26,7 @@ ready_rev: 1
 
 ## Resolution
 
-2026-10-31，Claude Code 主控在隔离会话里实测 hc 0.1.15。用户自己 Herdr 的 core 没有碰。完整结果、复现命令与原始输出见 [evidence/2026-10-31-batch29/T-211/RESULTS.md](../../evidence/2026-10-31-batch29/T-211/RESULTS.md)。**总状态 INCOMPLETE**：只有第 5 项的 Codex 部分为 BLOCKED（Codex 登录已过期，需要用户重新登录），挪到后续受管窗格切片开票前补测；其余各项都取得了事实。
+2026-10-31，Claude Code 主控在隔离会话里实测 hc 0.1.15。用户自己 Herdr 的 core 没有碰。完整结果、复现命令与原始输出见 [evidence/2026-10-31-batch29/T-211/RESULTS.md](../../evidence/2026-10-31-batch29/T-211/RESULTS.md)。**总状态 PASS**：八项都取得了事实。第 5 项的 Codex 部分起初因登录过期没测成，用户重新登录后已补测。
 
 1. **PASS**：固定 0.1.15。macOS arm64 构件的 SHA-256 与 manifest 一致，发布没有独立签名密钥。许可证为 Apache-2.0，随包附带 `LICENSE` 与 `THIRD-PARTY-NOTICES`。
 2. **PASS，与假设部分不符**：
@@ -40,10 +40,10 @@ ready_rev: 1
 4. **PASS**：
    - attach 写入的字节（bracketed paste、中文、CR、Esc、Ctrl-C、Ctrl-D）原样到达程序。
    - observe viewer 改不了尺寸，也敲不进字。
-5. **INCOMPLETE**：
+5. **PASS**：
    - Claude 在不设或设空 `CLAUDE_CODE_DISABLE_TERMINAL_TITLE` 时正常上报：dontAsk 与默认 auto 模式下为 idle/working/done，default 模式下为 blocked(permission)。设为 `1` 时完全不报，T-209 子决定 3 成立。
    - agy 启动时先报约 7 秒的 blocked(auth)。opencode 回合结束报 idle，不报 done。
-   - Codex 停在登录页，不报任何状态，正常回合未测。
+   - Codex 停在登录页时不报任何状态。登录后正常上报：回合为 working → done；等审批时报 blocked(permission)。启动时有时先报一段 working → idle，hc 的 turn 计数会因此多 1。
 6. **PASS**：
    - 子终端 blocked、error、退出时，hc 各往父终端粘贴一行 `<hc>…</hc>`。
    - 父终端 blocked 时通知扣住，回到 idle 后送达。

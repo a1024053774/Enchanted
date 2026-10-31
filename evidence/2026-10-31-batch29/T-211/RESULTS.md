@@ -3,7 +3,7 @@
 - 被测对象：herdr-core 0.1.15 的 macOS arm64 打包构件（来源见第 1 项），在隔离会话 `HC_SESSION=probe` 中运行。状态与配置目录放在会话临时目录，socket 放在 `/tmp/enc.RXDy`。探针结束后两者都已删除。
 - 执行人：Claude Code（主控）。脚本是本目录的 `hcprobe.py` 与 `statusprobe.py`（最终版本）。
 - 用户自己 Herdr 的 core（`default` 会话，pid 87320）全程没有连接，也没有改动。
-- 总状态：**INCOMPLETE**。第 5 项中 Codex 的回合上报没测成：Codex 登录已过期，需要用户自己重新登录，这一小项为 BLOCKED。其余各项都取得了实测事实。
+- 总状态：**PASS**，八项都取得了实测事实。第 5 项的 Codex 部分起初因登录过期没测成（run9）；用户重新登录后补测（run10、run11）。
 
 ## 复现命令
 
@@ -31,7 +31,10 @@ env -i HOME=$HOME USER=$USER LOGNAME=$USER SHELL=/bin/zsh LANG=en_US.UTF-8 \
 python3 -I statusprobe.py /tmp/enc.RXDy/p.sock $P/probe/out claude-dontask,claude-title-empty,claude-title-1,claude-default-perm  # run6
 python3 -I statusprobe.py /tmp/enc.RXDy/p.sock $P/probe/out claude-ask-perm   # run7
 python3 -I statusprobe.py /tmp/enc.RXDy/p.sock $P/probe/out agy,opencode      # run8
-python3 -I statusprobe.py /tmp/enc.RXDy/p.sock $P/probe/out codex             # run9
+python3 -I statusprobe.py /tmp/enc.RXDy/p.sock $P/probe/out codex             # run9（登录过期时）
+# 用户重新登录后，以同样方式另起私有 core（socket 目录换成新的 mktemp -d 短路径）：
+python3 -I statusprobe.py <新目录>/p.sock $P/probe/out codex                   # run10
+python3 -I statusprobe.py <新目录>/p.sock $P/probe/out codex-ask               # run11
 ```
 
 另有一条手动检查。它验证终端里的 `hc` 能否经 `HC_SOCKET` 连回私有 core，输出没有入库：
@@ -47,7 +50,7 @@ env XDG_STATE_HOME=$P/probe/state XDG_CONFIG_HOME=$P/probe/config HC_SOCKET=/tmp
 - run1 的通知一项为空：BSD `cat -v` 写文件时带缓冲，内容没刷出来。run3 改用 `cat -uv`。
 - run2 的通知一项报 `name_taken`：上一轮的父终端还没结束。
 - run4 的历史计数为 0：正则多转义了一层。run5 是有效结果。
-- `screens/` 只收了两份屏幕：Claude 的权限框和 Codex 的登录页。`env*.txt` 含本会话的令牌与邮箱，不入库。
+- `screens/` 只收了三份屏幕：Claude 的权限框、Codex 的登录页、Codex 的审批框。`env*.txt` 含本会话的令牌与邮箱，不入库。
 
 ## 逐项结果
 
@@ -90,7 +93,7 @@ env XDG_STATE_HOME=$P/probe/state XDG_CONFIG_HOME=$P/probe/config HC_SOCKET=/tmp
 - 经 framed attach 的 DATA 帧写入 32 字节：`ESC[200~中文 paste okESC[201~`、CR、ESC、Ctrl-C、Ctrl-D、`x`。raw 模式下的程序收到的字节逐字节相同（run1，十六进制对照）。
 - observe viewer 发 RESIZE 帧后，终端尺寸仍是活动 viewer 的 90×25。它发的 DATA 帧 `OBS` 没有到达程序，程序只收到活动 viewer 的 `ACT`（run4）。
 
-### 5. 状态：INCOMPLETE（Codex 未测）
+### 5. 状态：PASS
 
 各 CLI 都在私有 core 里运行，cwd 为本仓库；提示经 `terminal.send`（粘贴后回车）送入，每个已就绪的 CLI 都收到并处理了。
 
@@ -103,7 +106,9 @@ env XDG_STATE_HOME=$P/probe/state XDG_CONFIG_HOME=$P/probe/config HC_SOCKET=/tmp
 | `--permission-mode default` | idle → working → blocked（kind=permission）。按 Esc 拒绝后回到 idle，命令没有执行 |
 | agy，`AGY_CLI_OSC7501=on`，不加 `--dangerously-skip-permissions` | 启动后先报 blocked（kind=auth）约 7 秒，之后 idle → working → done |
 | opencode TUI | idle → working → idle，turn 由 0 变 1。回合结束报 idle，不报 done |
-| Codex，`gpt-6.1-sol`，high | 停在登录选择页，40 秒内没有任何上报。正常回合未测：BLOCKED，需要用户运行 `codex login` |
+| Codex 0.164.0，`gpt-6.1-sol`，high，登录过期时 | 停在登录选择页，40 秒内没有任何上报（run9） |
+| 同上，重新登录后 | 启动时先报 working，约 4 秒后报 idle，hc 把这一段计为一个回合（turn 由 0 变 1）；送入提示后 working → done（turn 变 2）（run10） |
+| 同上，加 `--sandbox workspace-write --ask-for-approval on-request` | 启动直接报 idle；送入提示后 working → blocked（kind=permission）。按 Esc 拒绝后回到 idle，命令没有执行（run11） |
 
 主控由用户自己启动，用的应当就是上表的默认模式。这一点是推断，没有核对过用户实际的启动命令。
 
@@ -147,5 +152,5 @@ env XDG_STATE_HOME=$P/probe/state XDG_CONFIG_HOME=$P/probe/config HC_SOCKET=/tmp
 1. 终端环境只能靠 core 的启动环境来控制。XDG 变量会漏进终端，需要 `HC_SOCKET` 加 `env -u` 的组合（第 2 项）。
 2. core 自身崩溃（不是后台重启）会丢屏幕与历史（第 3 项）。
 3. 在 macOS 上，脱离后被 launchd 收养的系统二进制会逃过清理（第 8 项）。
-4. Codex 的状态上报没测成（第 5 项）。
+4. Codex 启动时可能先报一段 working → idle，hc 的 turn 计数会因此比实际回合多 1；run11 那次启动则直接报 idle（第 5 项）。按 turn 计数判断回合的代码要考虑这一点。
 5. agy 启动时有短暂的 blocked（auth），opencode 回合结束时报 idle（第 5 项）。按 7501 推断状态的代码，不能把前者当成真正的阻塞，也不能漏判后者的回合结束；hc 的父子通知会把 agy 这次短暂的 blocked 也报给父终端。

@@ -71,7 +71,7 @@
 - [T-196 路径限制交主控判断](tickets/T-196-path-judgement-by-controller.md): 门禁算出路径重叠与卡外改动并记录，主控判断放行须写理由；已验收 attempt 不占路径；Git 元数据、验收文件、合并冲突、理由必记仍硬性把关；落地 T-197、T-198，并改 T-193
 - [T-209 用 Herdr 的 hc 当终端运行时](tickets/T-209-hc-as-runtime.md): 打包固定版本 hc、私有 `HC_SESSION`、不改 hc 源码；门禁与记录留在编排后台；后台重启接回原 attempt（取代 T-096 裁定 B）；受管 Claude 打开 OSC 7501；本批建造票由 Claude Code 主控在侧边栏终端派 Codex 写、agy 审
 - [T-210 问题先给主控](tickets/T-210-issues-controller-first.md): 上报即推执行主控；主控可答、可关、可交用户；blocking 也先给主控；权限、范围、验收、安全、不可逆只交用户；15 分钟兜底不变
-- [T-211 hc 事实探针](tickets/T-211-hc-facts-probe.md): INCOMPLETE（Codex 状态上报未测，登录过期）；终端环境只能靠 core 启动环境控制，用 `HC_SOCKET` 加 `env -u` 去掉 XDG 变量；后台重启不丢屏幕，core 崩溃丢历史；Claude 不设或设空标题变量就上报；macOS 上被收养的系统二进制逃过清理
+- [T-211 hc 事实探针](tickets/T-211-hc-facts-probe.md): 终端环境只能靠 core 启动环境控制，用 `HC_SOCKET` 加 `env -u` 去掉 XDG 变量；后台重启不丢屏幕，core 崩溃丢历史；Claude 不设或设空标题变量就上报；Codex 启动可能多计一个 turn；macOS 上被收养的系统二进制逃过清理
 
 ## Not yet specified
 
@@ -92,7 +92,7 @@
 - 2026-10-27 两次真实使用（findings/2026-10-27-two-real-uses.md，NO_GO）后的方案见 [T-189](tickets/T-189-real-use-fixes-decisions.md)；切为 T-190 项目移除与失效项目隔离、T-191 CLI 图标与 worker 状态、T-192 任务页门禁全程与关闭状态、T-193 主控跨项目、T-194 MCP 派发入口、T-195 复制会话链接；均未就绪，待用户开工。
 - 路径限制按 [T-196](tickets/T-196-path-judgement-by-controller.md) 切为 T-197 认领重叠交主控判断、T-198 卡外改动交主控判断；未就绪，待用户开工。
 - T-119 之后待切：主控之间、worker 与主控之间经 `a2a` 通信；在界面上编辑每个角色的边界与权限默认值（T-121、T-122 关闭后再切）
-- hc 运行时待切（T-211、T-212、T-216 关闭后按 [spec](specs/hc-runtime-2026-10-31.md) 再切，预留编号 T-213～T-215、T-217、T-218）：受管窗格走 hc 并重新证明交付与编排；后台重启接回原 attempt 与恢复规格修订；状态统一取 hc 事件（开票前补测 Codex 在 hc 里的 OSC 7501 上报，T-211 未测）；worker 卡住经父子通知推给主控；跨项目“等你”分组与问题界面默认视图
+- hc 运行时待切（T-211、T-212、T-216 关闭后按 [spec](specs/hc-runtime-2026-10-31.md) 再切，预留编号 T-213～T-215、T-217、T-218）：受管窗格走 hc 并重新证明交付与编排；后台重启接回原 attempt 与恢复规格修订；状态统一取 hc 事件；worker 卡住经父子通知推给主控；跨项目“等你”分组与问题界面默认视图。用户 2026-10-31：“最好能把 Core 移植过来之后，能把我们原先想设计的功能，就是之前没换运行时时候想做的东西更好的实现”，切片前先盘点换运行时之前计划过的功能，逐项看 hc 能否做得更好
 
 ## Out of scope
 
