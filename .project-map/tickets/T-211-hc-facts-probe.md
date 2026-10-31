@@ -2,9 +2,9 @@
 id: T-211
 title: hc 事实探针：后续建造票依赖的行为逐条实测
 type: research
-status: open
+status: closed
 blocked_by: []
-claimed_by:
+claimed_by: claude-code-2026-10-31
 supersedes:
 ready: yes
 ready_by: ideation
@@ -26,4 +26,34 @@ ready_rev: 1
 
 ## Resolution
 
-（未开始）
+2026-10-31，Claude Code 主控在隔离会话里实测 hc 0.1.15。用户自己 Herdr 的 core 没有碰。完整结果、复现命令与原始输出见 [evidence/2026-10-31-batch29/T-211/RESULTS.md](../../evidence/2026-10-31-batch29/T-211/RESULTS.md)。**总状态 INCOMPLETE**：只有第 5 项的 Codex 部分为 BLOCKED（Codex 登录已过期，需要用户重新登录），挪到后续受管窗格切片开票前补测；其余各项都取得了事实。
+
+1. **PASS**：固定 0.1.15。macOS arm64 构件的 SHA-256 与 manifest 一致，发布没有独立签名密钥。许可证为 Apache-2.0，随包附带 `LICENSE` 与 `THIRD-PARTY-NOTICES`。
+2. **PASS，与假设部分不符**：
+   - core 的环境原样进入终端，`env` 只能覆盖、不能删除，所以终端环境只能靠 core 的启动环境控制。
+   - 给 core 设的 XDG 变量也会进终端。实测可行的组合是：socket 用 `HC_SOCKET`；私有状态与配置目录经 XDG 变量交给 core；终端 argv 前加 `env -u XDG_STATE_HOME -u XDG_CONFIG_HOME`。这样终端里的 `hc` 仍能连回私有 core。
+   - socket 路径上限为 103 字节。
+3. **PASS**：
+   - 客户端退出、`server restart`、kill -9 core 之后，程序都还活着。
+   - 正常重启时屏幕与历史完整。core 崩溃后屏幕标为 inexact，历史丢失，hc 会让全屏程序重画。
+   - 后台重启不动 core，因此不受影响。
+4. **PASS**：
+   - attach 写入的字节（bracketed paste、中文、CR、Esc、Ctrl-C、Ctrl-D）原样到达程序。
+   - observe viewer 改不了尺寸，也敲不进字。
+5. **INCOMPLETE**：
+   - Claude 在不设或设空 `CLAUDE_CODE_DISABLE_TERMINAL_TITLE` 时正常上报：dontAsk 与默认 auto 模式下为 idle/working/done，default 模式下为 blocked(permission)。设为 `1` 时完全不报，T-209 子决定 3 成立。
+   - agy 启动时先报约 7 秒的 blocked(auth)。opencode 回合结束报 idle，不报 done。
+   - Codex 停在登录页，不报任何状态，正常回合未测。
+6. **PASS**：
+   - 子终端 blocked、error、退出时，hc 各往父终端粘贴一行 `<hc>…</hc>`。
+   - 父终端 blocked 时通知扣住，回到 idle 后送达。
+   - `no_notify` 能关掉单个子终端的通知，配置项 `notes = false` 全局关闭。
+7. **PASS**：
+   - 私有 core 的目录权限为 0700。
+   - 用户的 Herdr app 经 `herdr-core connect` 只连 `default` 会话，看不到私有 core。
+   - 会话不是安全边界。
+8. **PASS，与假设部分不符**：
+   - `hc kill` 能清掉脱离 session 的 node、python 子进程。
+   - 在 macOS 上，被 launchd 收养的系统二进制（`/bin/sleep`）会逃过清理，上游认为可以接受。
+
+另：`terminal.send` 的条件参数名是 `if`；评估报告里写的 `only_if` 不对。
