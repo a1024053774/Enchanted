@@ -36,7 +36,7 @@ T-220 实测（[结果记录](../../evidence/2026-10-31-batch29/T-220/RESULTS.md
   - holder 重拉的 core 被接受，原终端接回，`shell_reattached` 记 `screen: inexact`，shell 进程号不变；
   - 外来 core 不被接受，后台不在上面开终端，事件里有原因。
 - [ ] T-212 的 `test_t212_shell_hc_e2e.py --core-crash` 与 `--electron-screen --mismatched-screen` 回归通过；用户自己的 core 与状态目录前后不变。
-- [ ] 独立审查（agy 只读）无未处理的阻塞意见。
+- [ ] 独立审查（GPT 只读，新开干净会话）无未处理的阻塞意见。用户 2026-11-01 改分工：“antigravity 换用里面的 4 argon 模型可以做一些小任务, gpt 做审核,work 的工作由你在当前会话中做.”
 
 ## Resolution
 
