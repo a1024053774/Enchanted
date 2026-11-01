@@ -2,7 +2,7 @@
 id: T-222
 title: 门禁与质量串的旧测试在 main 上失败，现在没人守着
 type: research
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -35,4 +35,13 @@ T-219 第二轮把共享夹具的 23 个调用者在基线 `a09da15f9` 和 T-219
 
 ## Resolution
 
-（未开始）
+2026-10-31 关闭（研究完成）。worker 报告见 [evidence/2026-10-31-batch29/T-222/REPORT.md](../../evidence/2026-10-31-batch29/T-222/REPORT.md)，源码固定在 `1e5f0a348`。
+
+1. 现行契约：报告第 2 节把 17 个套件涉及的契约归为 C1～C14，逐条给出票号、行号与落实提交。主要变化：`pane_release` 删除，改由原生就绪放行（T-127、T-141）；预建 reviewers home 删除（T-127）；审查改经 `review_submit`（T-203）；后台启动者须提供操作员凭据（T-078-1、T-125、T-126）；任务与卡按项目定位（T-123）；卡外改动交主控判断（T-198）。17 个套件守的大部分业务检查仍有效，只是入口、协议或个别预期过时。
+2. 覆盖：报告第 4 节逐项列出检查、原断言位置、其他现行覆盖与结论。大多数检查“没人守”或只有部分覆盖，例如红态 B/C 配对、规则冻结、第 3 次拒绝暂停、oracle 目录矩阵、四个尾注追溯字段、审查期间 worker 变动、冲突重派与第 4 次 CAS 落空。有直接现行断言的少数项（卡外交主控判断、路径重叠、按项目同名任务、`review_submit`、新用户回合）本次未复跑。
+3. 受管窗格切片之前：报告第 5 节建议先在现有运行时恢复 P0-1～P0-6 六组检查，再换 hc，否则换运行时后分不清旧测试错误与运行时回归；这是排期建议，不是已定门禁。
+4. 新发现：`workbench/tests/test_relay_scope.ts` 5 场中 4 场失败，首交付即 `invalid_relay_request`，原因是夹具用了不带项目的任务 id（C11），所以“跨 attempt 同 request_id 是新交付”目前也没有有效守护。主控复跑结果相同（`controller/relay-scope-rerun.log`）。
+
+主控抽查了报告引用的 `pane_release` 调用、relay-scope 夹具、`HISTORICAL.md` 的 T-154 先例、cards 里不带项目的 `card_save`、parent-launch 的外置盘前置，都与源码一致。
+
+处置（迁移、标历史或拆开）照 T-154 先例由用户裁定，见 [T-225](T-225-legacy-suites-disposition.md)。

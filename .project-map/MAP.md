@@ -73,6 +73,8 @@
 - [T-210 问题先给主控](tickets/T-210-issues-controller-first.md): 上报即推执行主控；主控可答、可关、可交用户；blocking 也先给主控；权限、范围、验收、安全、不可逆只交用户；15 分钟兜底不变
 - [T-211 hc 事实探针](tickets/T-211-hc-facts-probe.md): 终端环境只能靠 core 启动环境控制，用 `HC_SOCKET` 加 `env -u` 去掉 XDG 变量；后台重启不丢屏幕，core 崩溃丢历史；Claude 不设或设空标题变量就上报；Codex 启动可能多计一个 turn；macOS 上被收养的系统二进制逃过清理
 - [T-219 既有测试在基线上失败](tickets/T-219-baseline-test-failures.md): 九项里八项是测试过时，已按 T-108/T-123/T-124/T-141/T-187/T-189/T-191/T-193/T-203 的现行契约修订；夏令时漏扫次日是产品缺陷（T-221）；另有 17 个旧套件两边都失败，留给 T-222
+- [T-222 门禁与质量串的旧测试在 main 上失败](tickets/T-222-legacy-gate-suites-broken.md): 17 个套件的业务检查多数仍有效，只是入口、协议或个别预期过时，其中大部分现在没人守；建议受管窗格换 hc 前先恢复 P0-1～P0-6；处置交 T-225
+- [T-224 换运行时之前计划过的功能盘点](tickets/T-224-pre-hc-feature-inventory.md): 50 项里依据最实的改善是后台重启保住原进程、接回原 attempt；状态统一、只读 observe、父子通知、HC_SCOPE 清理各有待证接线，给出探针 P1～P9；任务合同、授权、输入来源、审查结论等 hc 帮不上；方向问题交 T-225、T-226
 
 ## Not yet specified
 
@@ -93,7 +95,7 @@
 - 2026-10-27 两次真实使用（findings/2026-10-27-two-real-uses.md，NO_GO）后的方案见 [T-189](tickets/T-189-real-use-fixes-decisions.md)；切为 T-190 项目移除与失效项目隔离、T-191 CLI 图标与 worker 状态、T-192 任务页门禁全程与关闭状态、T-193 主控跨项目、T-194 MCP 派发入口、T-195 复制会话链接；均未就绪，待用户开工。
 - 路径限制按 [T-196](tickets/T-196-path-judgement-by-controller.md) 切为 T-197 认领重叠交主控判断、T-198 卡外改动交主控判断；未就绪，待用户开工。
 - T-119 之后待切：主控之间、worker 与主控之间经 `a2a` 通信；在界面上编辑每个角色的边界与权限默认值（T-121、T-122 关闭后再切）
-- hc 运行时待切（T-211、T-212、T-216 关闭后按 [spec](specs/hc-runtime-2026-10-31.md) 再切，预留编号 T-213～T-215、T-217、T-218）：受管窗格走 hc 并重新证明交付与编排；后台重启接回原 attempt 与恢复规格修订；状态统一取 hc 事件；worker 卡住经父子通知推给主控；跨项目“等你”分组与问题界面默认视图。用户 2026-10-31：“最好能把 Core 移植过来之后，能把我们原先想设计的功能，就是之前没换运行时时候想做的东西更好的实现”，切片前先盘点换运行时之前计划过的功能，逐项看 hc 能否做得更好（[T-224](tickets/T-224-pre-hc-feature-inventory.md)）
+- hc 运行时待切（T-211、T-212、T-216 关闭后按 [spec](specs/hc-runtime-2026-10-31.md) 再切，预留编号 T-213～T-215、T-217、T-218）：受管窗格走 hc 并重新证明交付与编排；后台重启接回原 attempt 与恢复规格修订；状态统一取 hc 事件；worker 卡住经父子通知推给主控；跨项目“等你”分组与问题界面默认视图。用户 2026-10-31：“最好能把 Core 移植过来之后，能把我们原先想设计的功能，就是之前没换运行时时候想做的东西更好的实现”，盘点已由 [T-224](tickets/T-224-pre-hc-feature-inventory.md) 完成；切片还等 T-220 的结论和 [T-225](tickets/T-225-legacy-suites-disposition.md)、[T-226](tickets/T-226-hc-slicing-open-questions.md) 的用户裁定
 
 ## Out of scope
 
