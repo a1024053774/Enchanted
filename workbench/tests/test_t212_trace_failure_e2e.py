@@ -6,6 +6,12 @@
 3. 捕获 IO 错误却仍返回成功/旧重绘偏移，或未把目标窗格记为 trace_write_failed。
 4. 初次 attach 的 paint 出错仍返回成功或悬挂，影响其他终端。
 5. 失败请求卡住写入队列，后续请求继续挂起；清理遗漏权限恢复或测试后台/core。
+T-227 追加（规则：初次打开失败算“没建成”，当场销毁；窗格失败后不再写 trace，同一失败只记一次）：
+6. 初次 attach 失败后，hc 终端和其中的 zsh 仍留在私有 core 里。
+7. 销毁了终端却没记 shell_closed，侧栏仍把它当活着的终端。
+8. 窗格失败后程序继续输出，每帧再记一条 trace_write_failed。
+9. 去重或销毁时误伤另一个终端，或断开共享 hc 连接。
+10. 只给失败事件去重，每帧仍去写 trace：trace 恢复可写后，失败窗格的后续输出又写了进去（T-227 第一轮审查）。
 
 只改自己夹具的文件权限，不写满磁盘、不连接 default core、不调用模型。
 """
@@ -105,8 +111,13 @@ def scenario(case, output):
         report['private_core_pid'] = core_pid
         if case == 'resize':
             target = first
+            # Output keeps coming after the failure: each frame used to record trace_write_failed again.
+            ticking = request('window_input', first_window, sequence=2, request_id=str(uuid.uuid4()),
+                data=f"for i in {{1..40}}; do print -r -- T227_TICK_$i; print $i > '{cwd / 'tick'}'; sleep 0.05; done\r")
+            assert ticking.get('ok'), ticking
+            wait_for(lambda: b'T227_TICK_1' in (trace_root / target['id'] / 'pty.raw').read_bytes(), '输出循环未开始')
             protect(trace_root / target['id'] / 'pty.raw')
-            response = request('window_resize', first_window, sequence=2, request_id=str(uuid.uuid4()), cols=111, rows=37)
+            response = request('window_resize', first_window, sequence=3, request_id=str(uuid.uuid4()), cols=111, rows=37)
         else:
             previous = set(trace_root.glob('*/pty.raw'))
             def watch():
@@ -134,6 +145,10 @@ def scenario(case, output):
         refused = not response.get('timed_out') and response.get('ok') is False and response.get('error') == 'pane_unavailable'
         report['checks']['explicit_refusal_no_hang'] = refused
         report['checks']['target_trace_failure'] = str(status.get('failed','')).startswith('trace_write_failed:')
+        if case == 'resize':
+            # The trace becomes writable again while the loop still prints: a stopped pane leaves it untouched.
+            file, mode, _ = protected[0]; file.chmod(mode)
+            frozen = dict(bytes=file.stat().st_size, tick=int((cwd / 'tick').read_text()))
         report['checks']['other_not_failed'] = other_status.get('failed') is None and other_status.get('lifecycle') == 'running'
         marker = cwd / 'other-alive'
         typed = request('window_input', other_window, sequence=2, request_id=str(uuid.uuid4()), data=f"print -r -- intact > '{marker}'\r")
@@ -141,10 +156,32 @@ def scenario(case, output):
         if typed.get('ok'): wait_for(lambda: marker.exists(), '另一个终端未执行命令')
         report['checks']['other_still_usable'] = typed.get('ok') is True and marker.read_text().strip() == 'intact'
         if case == 'resize':
-            after = request('window_input', first_window, sequence=3, request_id=str(uuid.uuid4()), data='x')
+            after = request('window_input', first_window, sequence=4, request_id=str(uuid.uuid4()), data='x')
             report['later_input_response'] = after
             report['checks']['later_request_refused_no_hang'] = not after.get('timed_out') and after.get('error') == 'pane_unavailable'
         report['checks']['socket_survives'] = Path(manifest['socket']).exists()
+        time.sleep(3)  # Longer than the 40 x 50 ms output loop.
+        failures = [e for e in request('orchestration_events')['events']
+                    if e['type'] == 'trace_write_failed' and e['launch'] == target['id']]
+        report['trace_write_failed_events'] = len(failures)
+        report['checks']['trace_failure_recorded_once'] = len(failures) == 1
+        if case == 'resize':
+            later = dict(bytes=file.stat().st_size, tick=int((cwd / 'tick').read_text()))
+            report['trace_after_restore'] = dict(at_restore=frozen, after=later)
+            report['checks']['output_continued_after_restore'] = later['tick'] > frozen['tick']
+            report['checks']['trace_not_written_after_failure'] = later['bytes'] == frozen['bytes']
+        if case == 'initial':
+            listed = subprocess.run([str(state / 'hc/bin/herdr-core'), '--json', 'ls', '--all'], env=private,
+                capture_output=True, text=True, timeout=15, start_new_session=True)
+            live = [t for t in json.loads(listed.stdout).get('terminals', [])
+                    if t['address'] == created['data']['hc_terminal'] and t['state'] == 'live']  # hc ls has no labels
+            shell_pid = created['data']['shell_pid']
+            gone = subprocess.run(['/bin/ps', '-p', str(shell_pid), '-o', 'stat='], capture_output=True, text=True).stdout.strip()
+            report['initial_after'] = dict(live_terminals=live, shell_ps=gone)
+            report['checks']['failed_terminal_not_in_core'] = not live
+            report['checks']['failed_shell_exited'] = not gone or gone.startswith('Z')
+            report['checks']['failed_terminal_recorded_closed'] = any(e['type'] == 'shell_closed' and e['launch'] == target['id']
+                for e in request('orchestration_events')['events'])
         assert all(report['checks'].values()), str([name for name,value in report['checks'].items() if not value])
         report['status'] = 'PASS'
     except Exception as error:

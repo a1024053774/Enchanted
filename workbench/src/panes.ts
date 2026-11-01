@@ -224,6 +224,10 @@ type Pane = {
   inputGeneration: number; interruption: number | null;
   offsets: Map<string, number>; model: string; effort: string;
   terminalBuffer: string;
+  // T-227: a trace write failed. The pane is failed; later frames are not written and the failure is recorded once.
+  traceFailed?: boolean;
+  failureTypes?: Set<string>;
+  eventWriteFailed?: boolean;
   shellPaintOffset?: number;
   nativeFile?: string;
   // Claude worker start-up: the folder-trust screen as read so far, and whether it was answered.
@@ -332,7 +336,14 @@ export class Panes implements GateRuntime {
     const drafts = join(this.root, "shell-drafts");
     mkdirSync(drafts, { recursive: true, mode: 0o700 });
     writeFileSync(join(drafts, launch + ".json"), JSON.stringify({ ...emptyDraft(), pending: false }), { flag: "wx", mode: 0o600 });
-    await this.attachShell(record, tokenHash, terminal);
+    try { await this.attachShell(record, tokenHash, terminal); }
+    catch (error) {
+      // T-227: a terminal whose first attach failed was never opened; the user has no pane for it. It is destroyed
+      // here (killed, exit confirmed, recorded closed) rather than left running in the private core.
+      try { await this.closeShell(launch); }
+      catch (closeError) { throw new AggregateError([error, closeError], `shell open failed (${String(error)}) and its terminal was not closed (${String(closeError)})`); }
+      throw error;
+    }
     this.rememberOpen(launch, this.store.openPanes(undefined, project ?? undefined).length);
     return record;
   }
@@ -362,11 +373,12 @@ export class Panes implements GateRuntime {
       // A paint is a new byte stream, independent of a partial old UTF-8/OSC chunk.
       decoder = new StringDecoder("utf8");
       pane.oscCarry = "";
+      if (pane.traceFailed) return;
       try {
         const offset = statSync(trace).size;
         appendFileSync(trace, "\x1bc");
         pane.shellPaintOffset = offset;
-      } catch (error) { this.recordFailure(pane, "trace_write_failed", error); }
+      } catch (error) { pane.traceFailed = true; this.recordFailure(pane, "trace_write_failed", error); }
     });
     terminal.on("data", (bytes: Buffer) => {
       const data = decoder.write(bytes);
@@ -382,8 +394,7 @@ export class Panes implements GateRuntime {
         pane.wiringCheckAt ??= Date.now() + WIRING_RECHECK_MS;
         if (["idle", "done"].includes(turn.state)) void this.shellReady(pane).catch(error => this.recordFailure(pane, "inbox_resume_failed", error));
       }
-      try { appendFileSync(trace, bytes); }
-      catch (error) { this.recordFailure(pane, "trace_write_failed", error); }
+      this.appendTrace(pane, trace, bytes);
     });
     const silence = setInterval(() => { void this.watchSilence(pane); void this.watchWiring(pane); }, 1000);
     terminal.once("detach", () => clearInterval(silence));
@@ -633,7 +644,12 @@ export class Panes implements GateRuntime {
       this.panes.set(record.thread, pane);
       this.store.event("pane_started", { shell_pid: terminal.pid, state: "unknown" }, record);
       terminal.onData((data: string) => {
-        try { if (login) login.observe(data, trace); else appendFileSync(trace, data); this.terminalProtocol(pane, data); }
+        // The login trace is redacted as it is written; a failure there stops the trace like any trace failure (T-227).
+        if (login) {
+          if (!pane.traceFailed) try { login.observe(data, trace); }
+          catch (error) { pane.traceFailed = true; this.recordFailure(pane, "controller_terminal_failed", error); }
+        } else this.appendTrace(pane, trace, data);
+        try { this.terminalProtocol(pane, data); }
         catch (error) { this.recordFailure(pane, "controller_terminal_failed", error); }
       });
       terminal.onExit((event: unknown) => {
@@ -877,7 +893,8 @@ export class Panes implements GateRuntime {
         terminalBuffer: "", claudePromptId: null, claudePromptIds: new Set(), restored: true };
       this.panes.set(record.thread, pane);
       terminal.onData((data: string) => {
-        try { appendFileSync(trace, data); this.terminalProtocol(pane, data); }
+        this.appendTrace(pane, trace, data);
+        try { this.terminalProtocol(pane, data); }
         catch (error) { this.recordFailure(pane, "restore_terminal_failed", error); }
       });
       terminal.onExit((event: unknown) => {
@@ -1130,9 +1147,7 @@ export class Panes implements GateRuntime {
         this.recordFailure(pane, "worker_startup_unrecognised", new Error(claude ? "session_start_missing" : "native_ready_signal_missing"), { screen: pane.startupScreen });
     }, STARTUP_DEADLINE_MS).unref();
     terminal.onData((data: string) => {
-      try {
-        appendFileSync(join(this.root, "traces", launch, "pty.raw"), data);
-      } catch (error) { this.recordFailure(pane, "trace_write_failed", error); return; }
+      this.appendTrace(pane, join(this.root, "traces", launch, "pty.raw"), data);
       try { this.scan(pane); }
       catch (error) { this.recordFailure(pane, "native_read_failed", error); return; }
       if (pane.reports) this.reportedTurns(pane, data);
@@ -1239,14 +1254,31 @@ export class Panes implements GateRuntime {
     }
     this.store.event("native_turn_facts", { prompt_id: stop.prompt_id, model: pane.model, effort: pane.effort }, pane.record);
   }
+  // Project terminals and managed panes share this rule (T-227).
+  // T-227: the one rule for every trace of a pane (pty.raw, native.jsonl): after a failed write the pane is failed,
+  // recorded once, and none of its traces is written again; the stream it traces is still handled (native scan, OSC
+  // reports, terminal protocol answers), so callers never return on a failed trace write.
+  appendTrace(pane: Pane, trace: string, bytes: string | Buffer) {
+    if (pane.traceFailed) return false;
+    try { appendFileSync(trace, bytes); return true; }
+    catch (error) { pane.traceFailed = true; this.recordFailure(pane, "trace_write_failed", error); return false; }
+  }
+  // T-227: a pane fails once and never recovers; its first failure stays the cause. Each kind of failure is recorded
+  // once per pane, and a failed event write is reported once, so a stream that keeps failing the same way (every
+  // frame, every protocol query) does not grow the event table or repeat the alarm.
   recordFailure(pane: Pane, type: string, error: unknown, context?: unknown) {
-    pane.failed = `${type}: ${String(error)}`; pane.state = "unknown";
+    if ((pane.failureTypes ??= new Set()).has(type)) return;
+    pane.failureTypes.add(type);
+    const cause = `${type}: ${String(error)}`;
+    pane.failed ??= cause; pane.state = "unknown";
     try { this.store.event(type, { error: String(error), state: "unknown", ...(context ? { context } : {}) }, pane.record); }
     catch (recordError) {
-      const reason = `event_write_failed: ${String(recordError)}; original ${pane.failed}`;
-      pane.failed = reason;
-      this.onEventWriteFailed(reason);
+      const reason = `event_write_failed: ${String(recordError)}; original ${cause}`;
+      if (pane.failed === cause) pane.failed = reason;
       console.error(JSON.stringify({ error: "event_write_failed", launch: pane.record.id, reason }));
+      if (pane.eventWriteFailed) return;
+      pane.eventWriteFailed = true;
+      this.onEventWriteFailed(reason);
     }
   }
   // Terminal capability replies are protocol bytes, never screen-derived state.
@@ -1431,7 +1463,7 @@ export class Panes implements GateRuntime {
       while ((end = bytes.indexOf(10, offset)) >= 0) {
         const raw = bytes.subarray(offset, end).toString("utf8"), event = JSON.parse(raw);
         this.store.event("native_record", { file: relative(home, file), offset, record: event }, pane.record);
-        appendFileSync(join(this.root, "traces", pane.record.id, "native.jsonl"), raw + "\n");
+        this.appendTrace(pane, join(this.root, "traces", pane.record.id, "native.jsonl"), raw + "\n");
         if (event.type === "session_meta" && event.payload.source === "cli" && rootFile) {
           check(!pane.native || pane.native === event.payload.id, "ambiguous_native_session");
           if (!pane.native) this.store.event("pane_native_session", { native_session: event.payload.id,
