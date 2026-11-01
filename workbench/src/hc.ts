@@ -189,15 +189,31 @@ export class HcRuntime {
   async start() {
     this.starting ??= (async () => {
       const binary = await hcBinary(this.root);
-      const started = await exec(binary, ['--json', 'server', 'start'], { env: this.environment, timeout: 15_000 });
-      const status = JSON.parse(started.stdout);
-      if (status.version !== hcRelease.version) throw new Error('private hc version differs from packaged pin');
-      const observed = await exec('/bin/ps', ['-p', String(status.pid), '-o', 'ppid=,pgid='], { timeout: 5000 });
-      const [ppid, pgid] = observed.stdout.trim().split(/\s+/).map(Number);
-      const caller = await exec('/bin/ps', ['-p', String(process.pid), '-o', 'pgid='], { timeout: 5000 });
-      if (ppid !== 1 || pgid === Number(caller.stdout.trim())) throw new Error('private hc core did not detach');
+      await exec(binary, ['--json', 'server', 'start'], { env: this.environment, timeout: 15_000 });
+      // T-228: the checks below are about the core this connection reached, asked over the connection itself; a
+      // core checked first and connected to after could have died and been replaced in between. If the connected
+      // core dies later, the connection drops and the panes record hc_connection_lost.
       const connection = new HcConnection(this.socket);
-      await connection.call('hello', { framed: true });
+      try {
+        await connection.call('hello', { framed: true });
+        const status = await connection.call('server.status');
+        if (status.version !== hcRelease.version) throw new Error('private hc version differs from packaged pin');
+        const observed = await exec('/bin/ps', ['-p', String(status.pid), '-o', 'pgid='], { timeout: 5000 });
+        const caller = await exec('/bin/ps', ['-p', String(process.pid), '-o', 'pgid='], { timeout: 5000 });
+        if (Number(observed.stdout.trim()) === Number(caller.stdout.trim())) throw new Error('private hc core did not detach');
+        // The core is ours when it holds this session's private core.lock open. The holder respawns a dead core as
+        // its own child with our environment, so the parent is not 1; a core another client started with the
+        // session and socket but the default XDG directory holds a different lock. lsof is the outside view of
+        // which state directory a running core uses. The lock goes to lsof as a name, so it matches by file
+        // identity: the names lsof prints are escaped (non-ASCII bytes under the C locale) and cannot be compared
+        // as text. lsof exits 1 with no output when the process does not have it open; any failure refuses the core.
+        const lock = join(this.environment.XDG_STATE_HOME!, 'herdr-core', this.session, 'core.lock');
+        let held = '', lsofError = '';
+        try { held = (await exec('/usr/sbin/lsof', ['-a', '-p', String(status.pid), '-Fp', '--', lock], { timeout: 5000 })).stdout; }
+        catch (error) { lsofError = String((error as { stderr?: string }).stderr ?? error).trim(); }
+        if (!held.split('\n').includes('p' + status.pid))
+          throw new Error(`hc core ${status.pid} does not hold this session's ${lock}${lsofError ? ` (lsof: ${lsofError})` : ''}; refusing it`);
+      } catch (error) { connection.close(); throw error; }
       this.connection = connection;
     })();
     return this.starting;

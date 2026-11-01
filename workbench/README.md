@@ -8,6 +8,9 @@ hc 的固定版本、来源和校验值只定义在 `src/hcDistribution.mjs`。�
 每个后台数据目录保存自己的 `HC_SESSION` 与 `HC_SOCKET` 身份。socket 位于随机私有临时目录，
 与用户 default core 无关；核对长度时包含 holder 后缀。hc 的状态和配置通过 XDG 变量放在后台私有 `hc/` 目录，
 启动 core 前去掉编排、Git、agent 会话与继承的 `HC_*` 标记；终端启动时还原用户原有 XDG 值，未设置的则删除。
+后台启动时只接受打开着本会话私有 `hc/state/herdr-core/<session>/core.lock` 的 core（把锁路径交给 `lsof` 按文件身份核对，不比对它输出的路径文本），且它不在后台的进程组里：
+core 死后 holder 约 3 秒按原受控环境重拉的 core 被接受，原终端接回、屏幕记 inexact；同 session、同 socket 但状态在默认 XDG
+目录的 core 被拒，后台不启动，记 `hc_start_failed` 事件与原因（T-228）。运行中的后台断开后不自动重连。
 项目终端经 framed attach 收发数据、归还输出 credit 和调整尺寸，pid 来自 hc 记录。attach 的完整重绘前追加 reset，
 避免重放 trace 时重复历史。项目终端窗格打开或布局稳定 150 毫秒后，后台先发送 RESIZE，再重新 attach，取得该尺寸下的完整重绘，
 返回 reset 所在的 trace 偏移；界面等尺寸请求完成后从该偏移回放，避免把大屏重绘写进小窗格而覆盖末行。

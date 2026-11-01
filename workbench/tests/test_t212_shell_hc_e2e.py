@@ -226,8 +226,11 @@ def core_crash_scenario(args):
         probe = hc('run', '--bg', '--no-parent', '--no-notify', '/usr/bin/python3', '-c', program)
         wait_for(lambda: env_file.exists(), '新 core 环境探针未完成')
         observed = json.loads(env_file.read_text(encoding='utf-8'))
-        assert observed['starter'] == 'restarted-daemon' and observed['xdg_state'] == str(state / 'hc/state')
-        report['core_restart'] = dict(old_pid=old_core['pid'], new_pid=new_core['pid'], initiated_by='测试重启编排后台；期间没有终端内 hc 客户端',
+        # T-228: whichever comes first brings the core back, the restarted daemon or the holder (about 3 s, with
+        # the first daemon's controlled environment); both are ours. A core with a terminal's marker is not.
+        assert observed['starter'] in ('restarted-daemon', 'initial-daemon') and observed['xdg_state'] == str(state / 'hc/state')
+        report['core_restart'] = dict(old_pid=old_core['pid'], new_pid=new_core['pid'],
+            initiated_by='重启的编排后台' if observed['starter'] == 'restarted-daemon' else 'holder（沿用首个后台的受控环境）',
             observed_environment=observed, probe_terminal=probe['address'], agent_first_restart='未知；T-220 范围，本场景未测试抢先启动')
         core_status()  # Include every holder created by the environment probe in cleanup.
         assert all(report['checks'].values()), 'core 崩溃投影/恢复断言失败：' + str([k for k,v in report['checks'].items() if not v])

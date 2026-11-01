@@ -57,7 +57,13 @@ export async function serve(
   // Startup must fail before publishing a ready endpoint if the pinned runtime
   // cannot start (for example a corrupt archive). Recovery itself stays behind
   // the existing recovering gate, but installing hc is not background recovery.
-  await panes.hc.start();
+  try { await panes.hc.start(); }
+  catch (error) {
+    // The start failure is what stops the daemon; a failed event write must not replace it.
+    try { store.event("hc_start_failed", { reason: String(error) }); }
+    catch (recordError) { throw new AggregateError([error, recordError], `hc start failed (${String(error)}) and hc_start_failed was not recorded`); }
+    throw error;
+  }
   gates.openedProjectRepo = project => store.openedProjects().find(opened => opened.project_id === project)?.repo;
   const relay = new RequestRelay(store);
   const roleRequests = new RoleRequests(store, launch => panes.terminalAlive(launch));
