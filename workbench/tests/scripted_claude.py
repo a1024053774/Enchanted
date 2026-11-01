@@ -276,12 +276,12 @@ class Fixture:
         granted = json.loads(response.split(b'\n', 1)[0])
         assert self.request('role_request_confirm', self.terminal, role_request=granted['role_request']['id'])['ok']
 
-    def card(self, task, allow, oracle, task_type='测试'):
+    def card(self, task, allow, oracle, task_type='测试', executor=None):
         path = self.out / f'{task}.json'
         path.write_text(json.dumps(dict(id=task, source=None, goal=f'在仓库根目录加 {allow}', non_goals=['不改别的文件'],
             paths=dict(allow=[allow], deny=[]), oracle_paths=[oracle], completion_conditions=[dict(argv=['python3', oracle])],
             red_commands=[], task_type=task_type, repair_target=None, complexity='S',
-            executor=dict(cli='Claude Code', model='claude-haiku-5-5', effort='low'), base_commit=None, writer=None), ensure_ascii=False), encoding='utf-8')
+            executor=executor or dict(cli='Claude Code', model='claude-haiku-5-5', effort='low'), base_commit=None, writer=None), ensure_ascii=False), encoding='utf-8')
         saved = self.request('card_save', self.terminal, task=task, card=str(path), expected_version=0)
         assert saved['ok'], saved
         created = self.request('create', self.terminal, task=task, project=self.project, repo=str(self.repo), branch='refs/heads/main', card_version=1)

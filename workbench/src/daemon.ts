@@ -73,6 +73,13 @@ export async function serve(
     return held ? { role: held.role, project: held.project, cli: held.cli } : undefined;
   };
   panes.controllerReady = (thread, role, project) => gates.resumeControllerInbox(thread, role, project);
+  // T-229: a managed Claude Code or Codex pane's submission, as its UserPromptSubmit hook reported it. One hook call is one
+  // submission (a Claude prompt queued during a turn shares that turn's prompt id), so each record gets an id of its own.
+  panes.recordUserSubmission = (pane, text, received_at) => gates.appendUserInput({ id: randomUUID(), schema: 1, form: "message", text,
+    target: { project: pane.record.project, task: pane.record.task, attempt: pane.record.attempt, thread: pane.record.thread,
+      turn: pane.turn, message: null, request: null },
+    channel: "terminal-window", reply_to: null, certainty: "observed", created_at: received_at,
+    source_ref: { label: pane.record.id } }, `hook:${pane.record.id}:${randomUUID()}`);
   // A terminal controller's usage limit, read from its own session log (T-124).
   const quota = new ControllerQuota(store);
   const quotaTimer = setInterval(() => {
@@ -752,7 +759,7 @@ export async function serve(
       const recordInput = async (text: string, content?: Record<string, unknown>, question?: string) => {
         try {
           gates.appendUserInput({ id: randomUUID(), schema: 1,
-            form: question ? "answer" : content && content.action !== "terminal-submit" ? "action" : "message", text,
+            form: question ? "answer" : content?.action ? "action" : "message", text,
             target: { project: record.project, task: record.task, attempt: record.attempt, thread: record.thread,
               turn: panes.get(record.thread).turn, message: null, request: question ?? null },
             channel: "terminal-window", reply_to: question ?? null, certainty: "observed", created_at: receipt.received_at,
@@ -791,7 +798,8 @@ export async function serve(
         store.event("terminal_input_empty", { ...receipt, byte_length: 0 }, record as any);
         return { ok: true, observed: true, written: false };
       }
-      // T-206: called once per message the user sends (Enter), not per key.
+      // T-206: every chunk the user types; a record is kept once per message sent, not per key (T-229: from the CLI's
+      // submit hook where it has one).
       await panes.userInput(window.launch, input.data, receipt, (text, content) => recordInput(text, content), assertCurrent, encoding);
       return { ok: true, written: true, request_id: receipt.request_id };
     }
@@ -867,6 +875,9 @@ export async function serve(
       authority.kind === "operator" ? input.parent_launch ?? null : null, () => panes.dispatch(panes.get(input.thread), input.body)) };
     if (input.command === "signal") {
       if (!identity || identity.launch !== input.launch) throw new Refusal("signal_identity_required");
+      // T-229: a UserPromptSubmit hook has blocked its submission by now (gates/cli.ts); from here to the record the
+      // pane's handling is synchronous, so a request refused here changes nothing.
+      if (typeof input.submit_deadline === "number" && Date.now() > input.submit_deadline) throw new Refusal("prompt_submit_deadline_passed");
       let completedReview: { task: string; id: string } | undefined;
       const decision = await panes.signal(input.launch, input.raw_stdin, input.received_at, async (pane, stop, matched) => {
         let files = input.relay_files;
@@ -1001,6 +1012,8 @@ export async function serve(
       let envelope: any;
       let result: any;
       let unlogged = false;
+      // T-229: an authenticated pane's UserPromptSubmit, whose reply does not wait for inbox feedback.
+      let promptSubmit = false;
       try {
         envelope = JSON.parse(buffer.slice(0, end));
         // A hook event carries the prompt itself; the terminal_hook command decides whether to keep it.
@@ -1008,15 +1021,26 @@ export async function serve(
         // Checked before authenticating, so this socket never tells whether another kind of identity is valid.
         if (terminalOnly && envelope?.identity?.kind !== "terminal") throw new Refusal("terminal_socket_terminal_only");
         const authority = authenticate(envelope.identity);
+        promptSubmit = authority.kind === "launch" && envelope.input?.command === "signal" &&
+          JSON.parse(envelope.input.raw_stdin).hook_event_name === "UserPromptSubmit";
         const catalogRead = catalogCommands.has(envelope.input?.command);
         const viewing = catalogRead || ["workbench_snapshot", "pane_output"].includes(envelope.input?.command);
         if (!viewing && !unlogged) store.event("request_received", { id: envelope.id, input: eventInput(envelope.input), source: authority.source });
         result = await handle(envelope, authority, asker);
-        if (result.ok && ["controller_start", "window_release", "signal"].includes(envelope.input.command)) {
+        // T-229: a UserPromptSubmit hook gives up 8 s in (gates/cli.ts), so its reply does not wait for feedback; the
+        // after-close step below settles it, as for every signal.
+        if (result.ok && ["controller_start", "window_release", "signal"].includes(envelope.input.command) && !promptSubmit) {
           await settleInboxFeedback();
         }
-        if (!catalogRead && !unlogged && (!viewing || !result.ok)) store.event("request_result", { id: envelope.id, command: envelope.input.command,
-          ok: result.ok, error: result.error, details: result.details });
+        if (!catalogRead && !unlogged && (!viewing || !result.ok)) {
+          try { store.event("request_result", { id: envelope.id, command: envelope.input.command, ok: result.ok, error: result.error, details: result.details }); }
+          catch (error) {
+            // T-229: an accepted UserPromptSubmit is noted (recorded or claimed) and must run, so failing to log its result
+            // marks the pane failed rather than turning the reply into a block.
+            if (!promptSubmit || !result.ok) throw error;
+            panes.recordFailure(panes.byLaunch(envelope.input.launch), "request_result_write_failed", error);
+          }
+        }
       } catch (error) {
         const processQuery = (error as { process_query?: unknown })?.process_query;
         result = { ok: false, error: error instanceof Refusal ? error.code : "orchestration_failed", details: String(error),
@@ -1038,10 +1062,7 @@ export async function serve(
             await panes.drain(pane);
             await settleInboxFeedback();
             if (result.completedReview) await gates.reclaimReview(result.completedReview.task, result.completedReview.id);
-          })().catch((error) => {
-            pane.failed = String(error); pane.state = "unknown";
-            store.event("queue_stopped", { error: String(error) }, pane.record);
-          }).finally(activityFinished);
+          })().catch((error) => panes.recordFailure(pane, "queue_stopped", error)).finally(activityFinished);
         });
       }
       if (result.ok && envelope?.input.command === "daemon_stop") {

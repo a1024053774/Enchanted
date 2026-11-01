@@ -12,13 +12,16 @@ export async function answerLifecycleContracts() {
     'changed_after_confirmation','unknown_after_confirmation','unknown_during_answer','recorder_refused','unknown_pty','unknown_pty_queued',
     'shell_refusal','shell_unknown_pty']) {
     const root=mkdtempSync('/private/tmp/t108-answer-lifecycle-'),store=new OrchestrationStore(root),panes=new Panes(root,store,{},()=>{});
+    // T-229: the daemon records hook-reported submissions; recording is not under test in this state fixture. Its
+    // submissions stand for a window Enter at input generation 0 (submitGeneration), with no input after it.
+    panes.recordUserSubmission=()=>{};
     const record={id:'launch',thread:'thread',task:'task',attempt:null,role:'controller',preset:'ideation',session:'native',cli:'Claude Code',turn_limit:1,worktree:root};
     store.launch(record);const dispatch=store.register(record.id,'Ask region.');
     const writes=[],inputs=[],transfers=[];
     const pane={record,native:'native',state:'busy',failed:null,stopped:false,archived:false,interrupted:false,
       active:{id:'submission',dispatch:dispatch.id,at:'2026-10-20T00:00:00Z',nativeTurn:null},
       claudePromptId:null,claudePromptIds:new Set(),queue:[],writing:false,writes:Promise.resolve(),pendingInputs:0,
-      userDraft:false,draft:{chars:[],cursor:0,keys:[],uncertain:false},inputGeneration:0,stopInProgress:false,pty:{write:value=>writes.push(value)}};
+      userDraft:false,draft:{chars:[],cursor:0,keys:[],uncertain:false},inputGeneration:0,submitGeneration:0,stopInProgress:false,pty:{write:value=>writes.push(value)}};
     panes.panes.set(record.thread,pane);
     const questions=[{question:'选择发布区域？',header:'区域',options:[{label:'南区'},{label:'北区'}],multiSelect:false}];
     const signal=(event,extra={})=>panes.signal(record.id,JSON.stringify({session_id:'native',prompt_id:'prompt',cwd:root,
@@ -41,6 +44,8 @@ export async function answerLifecycleContracts() {
         result.status='PASS';continue;
       }
       if(scene==='unknown_pty_queued') {
+        // T-229: the window input is recorded at attach (this scene's hold point) only for CLIs without a submit hook.
+        pane.record.cli='opencode';
         let release,entered;const enteredPromise=new Promise(resolve=>entered=resolve),hold=new Promise(resolve=>release=resolve);
         pane.pty.write=value=>{writes.push(value);throw new Error('PTY outcome unknown');};
         const first=panes.userInput(record.id,'first\r',{request_id:'first'},async()=>{entered();await hold;},async()=>{});

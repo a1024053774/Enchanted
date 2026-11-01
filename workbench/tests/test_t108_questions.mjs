@@ -14,6 +14,8 @@ import { hookFailureContracts } from './t108_hook_failure_contracts.mjs';
 const output=process.argv[2];
 const root=mkdtempSync('/private/tmp/t108-question-contract-');
 const store=new OrchestrationStore(root), panes=new Panes(root,store,{},()=>{});
+// T-229: the daemon records hook-reported submissions; recording is not under test in this state fixture.
+panes.recordUserSubmission=()=>{};
 const record={id:'launch',thread:'thread',task:'task',project:'project',attempt:null,role:'controller',preset:'ideation',
   session:'native',cli:'Claude Code',turn_limit:1,worktree:root};
 store.launch(record);

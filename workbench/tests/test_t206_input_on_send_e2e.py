@@ -3,7 +3,8 @@
 
 预期来自需求（用户 2026-10-27：“在我消息发送成功出去的那一刻,也就是输入完之后再记录”，T-206）：
 1. 打 “fiz”、退格、“x it”、回车：只记一条 message，文字是 “fix it”；人工介入一条；CLI 收到 “fix it”。
-2. 打 “abc”、左方向键、“d”、回车：只记一条 message，文字是光标移动后的 “abdc”，content.keys 列出左方向键。
+2. 打 “abc”、左方向键、“d”、回车：只记一条 message，文字是光标移动后的 “abdc”。
+   T-229（用户 2026-11-01）起记录不带按键，原来断言 content.keys 列出左方向键，现改为没有 content。
 3. 打 “zzz”，按 Ctrl-C 清掉（没发出），再打 “done now” 回车：只记 “done now”；之后按 Esc 不记。
    用户 2026-10-27 补充：“只记录我发送之后的完整消息,不要每次操作都要记录”。
 4. 写进终端的字节与按下的键一一对应，不因记录方式改变。
@@ -30,12 +31,10 @@ from scripted_claude import Electron, Fixture
 ROOT = Path(__file__).resolve().parents[2]
 MUTANTS = {
     # Every chunk is recorded again, as before T-206.
-    'record-every-key': [('src/panes.ts', '      if (!protocolReport) for (const entry of entries) await record(entry.text, entry.content);\n',
+    'record-every-key': [('src/panes.ts', '      if (!protocolReport && !submitHook(pane)) for (const entry of entries) await record(entry.text, entry.uncertain ? { text_uncertain: true } : undefined);\n',
                           '      if (!protocolReport) await record(data, /[\\x00-\\x1f\\x7f]/.test(data) ? { action: "terminal-key", data } : undefined);\n')],
-    # The draft ignores the cursor: the left arrow is listed but the text is appended at the end.
-    'cursor-ignored': [('src/inputDraft.ts', '  if (key === "←") draft.cursor = Math.max(0, draft.cursor - 1);\n  else if', '  if')],
-    # Ctrl-C does not start the draft over, so the cleared text is recorded with the next message.
-    'ctrl-c-keeps-draft': [('src/inputDraft.ts', 'const CLEARS = new Set(["\\x03", "\\x04"]);', 'const CLEARS = new Set<string>();')],
+    # T-229: a Claude worker's record comes from its submit hook, so the draft's own mutants (cursor, Ctrl-C) moved to
+    # test_t229_managed_input_e2e.py, whose agy and opencode workers are still recorded from the draft.
 }
 
 
@@ -143,7 +142,7 @@ def main():
         second = inputs()[len(first):]
         report['observed']['after_2'] = [dict(form=i['form'], text=i['text'], content=i.get('content')) for i in second]
         check('one_record_for_edited_message', len(second) == 1 and second[0]['form'] == 'message' and second[0]['text'] == 'abdc' and
-              '←' in (second[0].get('content') or {}).get('keys', []), report['observed']['after_2'])
+              'content' not in second[0], report['observed']['after_2'])
 
         # 3. A draft cleared with Ctrl-C is never sent; the next sentence is. Then Esc, an operation, not a message.
         focus(); type_text('zzz'); ctrl_c(); type_text('done now'); enter()

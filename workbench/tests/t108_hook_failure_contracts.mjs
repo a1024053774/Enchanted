@@ -63,6 +63,9 @@ export async function hookFailureContracts() {
     const waiting=codex?'waiting_controller_answer':'waiting_user_answer';
     const root=mkdtempSync('/private/tmp/t108-hook-failure-');
     const store=new OrchestrationStore(root),panes=new Panes(root,store,{},()=>{});
+    // T-229: the daemon records hook-reported submissions; recording is not under test in this state fixture. Its
+    // submissions stand for a window Enter at input generation 0 (submitGeneration), with no input after it.
+    panes.recordUserSubmission=()=>{};
     const record={id:'launch',thread:'thread',task:'task',project:'project',attempt:codex?'attempt':null,role:codex?'worker':'controller',preset:'ideation',
       session:'native',cli:scene.cli??'Claude Code',turn_limit:1,worktree:root,env:{CODEX_HOME:root}};
     store.launch(record);
@@ -72,7 +75,7 @@ export async function hookFailureContracts() {
       stopInProgress:false,active:{id:'submission',dispatch:dispatch.id,at:'2026-10-20T00:00:00Z',nativeTurn:codex?'prompt':null},
       claudePromptId:null,claudePromptIds:new Set(),queue:[],writing:false,writes:Promise.resolve(),pendingInputs:0,
       nativeFile:root+'/native.jsonl',turn:codex?'prompt':null,offsets:new Map(),
-      userDraft:false,inputGeneration:0,pty:{write:data=>writes.push(data)}};
+      userDraft:false,inputGeneration:0,submitGeneration:0,pty:{write:data=>writes.push(data)}};
     if(codex){mkdirSync(root+'/traces/launch',{recursive:true});writeFileSync(pane.nativeFile,[
       {type:'session_meta',payload:{id:'native',source:'cli',cwd:root}},
       {type:'event_msg',payload:{type:'task_started',turn_id:'prompt'}}].map(JSON.stringify).join('\n')+'\n');}

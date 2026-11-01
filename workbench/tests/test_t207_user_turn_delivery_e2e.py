@@ -29,8 +29,8 @@ from scripted_claude import Electron, Fixture, prompt_text, quote, working_direc
 ROOT = Path(__file__).resolve().parents[2]
 MUTANTS = {
     # A turn the user started after the Esc is still treated as the interrupted one.
-    'user-turn-not-marked': [('src/panes.ts', "nativeTurn: null, interruption: pane.interrupted ? pane.interruption : null };\n            pane.claudePromptId = null; pane.state = 'busy';",
-                              "nativeTurn: null, interruption: null };\n            pane.claudePromptId = null; pane.state = 'busy';")],
+    'user-turn-not-marked': [('src/panes.ts', "nativeTurn: null, interruption: pane.interrupted ? pane.interruption : null };\n              pane.claudePromptId = null; pane.state = 'busy';",
+                              "nativeTurn: null, interruption: null };\n              pane.claudePromptId = null; pane.state = 'busy';")],
 }
 SENTENCE = 'deliver now'
 

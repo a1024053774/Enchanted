@@ -1,11 +1,12 @@
 // T-206: what the user types into a managed pane. Agents reach a pane only through a2a's own interfaces (dispatch, inbox,
 // gate receipts), so keyboard input there is the user's. Keys are composed into a draft and nothing is recorded until
 // Enter sends it: then the whole message is one record. Other keys (Esc, Ctrl-C, arrows in a menu) are not records of
-// their own; the terminal's raw bytes stay in the pane's write events either way.
-export type InputDraft = { chars: string[]; cursor: number; keys: string[]; uncertain: boolean };
-export type InputEntry = { text: string; content?: Record<string, unknown> };
+// their own; the terminal's raw bytes stay in the pane's write events either way. T-229: a record holds only the text
+// sent, never the keys that composed it.
+export type InputDraft = { chars: string[]; cursor: number; uncertain: boolean };
+export type InputEntry = { text: string; uncertain: boolean };
 
-export const emptyDraft = (): InputDraft => ({ chars: [], cursor: 0, keys: [], uncertain: false });
+export const emptyDraft = (): InputDraft => ({ chars: [], cursor: 0, uncertain: false });
 
 // The keys the draft edits like a one-line editor. Any other key may change what the CLI holds in ways the draft
 // cannot follow (history, completion), so the message is marked text_uncertain.
@@ -15,7 +16,6 @@ const SEQUENCES: Record<string, string> = { "[D": "←", "OD": "←", "[C": "→
 const CLEARS = new Set(["\x03", "\x04"]);
 
 function edit(draft: InputDraft, key: string) {
-  draft.keys.push(key);
   if (key === "←") draft.cursor = Math.max(0, draft.cursor - 1);
   else if (key === "→") draft.cursor = Math.min(draft.chars.length, draft.cursor + 1);
   else if (key === "Home") draft.cursor = 0;
@@ -42,8 +42,7 @@ export function feedInput(draft: InputDraft, data: string, pasted: boolean, bina
     const char = chars[index]!;
     if (char === "\r" || char === "\n") {
       const text = draft.chars.join("");
-      if (text.trim()) sent.push({ text, ...(draft.keys.length ? { content: { action: "terminal-submit", keys: draft.keys,
-        ...(draft.uncertain ? { text_uncertain: true } : {}) } } : {}) });
+      if (text.trim()) sent.push({ text, uncertain: draft.uncertain });
       Object.assign(draft, emptyDraft());
     } else if (char === "\x7f" || char === "\b") {
       if (draft.cursor > 0) draft.chars.splice(--draft.cursor, 1);

@@ -21,6 +21,8 @@ const checks: any[] = [];
 for (const scenario of ['input-during-stop', 'native-new-turn', 'idle-manual-prompt', 'native-queued-input']) {
   const root = join(out, scenario); mkdirSync(root);
   const store = new OrchestrationStore(root), panes = new Panes(root, store, {}, () => {}), relay = new RequestRelay(store);
+  // T-229: a Claude submission is recorded from its UserPromptSubmit hook through this callback.
+  panes.recordUserSubmission = () => {};
   const record = { id: scenario, thread: scenario, task: 'demo+T-157', role: 'worker', cli: 'Claude Code',
     worktree: root, attempt: 'a1', session: 's1', fence: 1, spec_rev: 1, turn_limit: 6, env: {} };
   store.launch(record);
@@ -72,7 +74,8 @@ for (const scenario of ['input-during-stop', 'native-new-turn', 'idle-manual-pro
     // Input must complete while the Stop's identity observation is still held.
     await Promise.race([writing,new Promise((_,reject)=>setTimeout(()=>reject(new Error('input deferred behind Stop')),500))]);
     assert.deepEqual(bytes,[note]);
-    assert.equal(recorded,note.slice(0,-1),'T-206: the sent message, without its Enter');
+    // T-229: a Claude pane records the message from its UserPromptSubmit hook, not at the window's Enter.
+    assert.equal(recorded,'','T-229: Enter does not record a Claude submission');
     assert.equal(pane.active,original,'Enter alone is not a native turn transition');
     assert.equal(pane.claudePromptId,'prompt-1');
     if (scenario === 'native-queued-input') {

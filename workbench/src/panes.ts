@@ -167,6 +167,8 @@ const TURN_START_DEADLINE_MS = 20_000;
 // this long may be waiting on a macOS privacy prompt hidden behind other windows (T-174, L01).
 const SILENT_FOREGROUND_MS = 6_000;
 const WIRING_CHECK_DELAY_MS = 1_500, WIRING_RECHECK_MS = 5_000;
+// T-229: the CLIs whose UserPromptSubmit hook reports each submission's text; agy and opencode report turns by OSC 7501.
+const submitHook = (pane: Pane) => pane.record.cli === "Claude Code" || pane.record.cli === "Codex";
 // The text a Claude prompt submitted. A long paste reaches UserPromptSubmit wrapped in Claude's
 // own pasted_content markers (seen with the user's login, T-122 GUI round 01); anything else
 // is compared as it is.
@@ -222,6 +224,8 @@ type Pane = {
   stopInProgress: boolean;
   writes: Promise<void>; pendingInputs: number; userDraft: boolean; draft: InputDraft; interrupted: boolean; sending: string | null;
   inputGeneration: number; interruption: number | null;
+  // T-229: the input generation of the last window Enter on a pane whose CLI reports submissions (Claude Code, Codex).
+  submitGeneration?: number;
   offsets: Map<string, number>; model: string; effort: string;
   terminalBuffer: string;
   // T-227: a trace write failed. The pane is failed; later frames are not written and the failure is recorded once.
@@ -296,6 +300,8 @@ export class Panes implements GateRuntime {
       pane.foregroundCli === held.cli && !pane.stopped && !pane.failed && !pane.archived;
   }).map(pane => pane.record.thread);
   controllerReady?: (thread: string, role: "ideation" | "executor", project: string) => Promise<void>;
+  // T-229: keeps one user submission of a managed Claude Code or Codex pane, as its UserPromptSubmit hook reported it.
+  recordUserSubmission?: (pane: Pane, text: string, received_at: string) => void;
   constructor(root: string, store: OrchestrationStore, config: LaunchConfig, onEventWriteFailed: (reason: string) => void) {
     this.root = root; this.store = store; this.config = config;
     this.onEventWriteFailed = onEventWriteFailed;
@@ -366,7 +372,7 @@ export class Panes implements GateRuntime {
     // The hc terminal survives this daemon. Its unfinished user line must survive too, without becoming a user-input record.
     const draft = JSON.parse(readFileSync(join(this.root, "shell-drafts", record.id + ".json"), "utf8")) as InputDraft & { pending: boolean };
     check(draft.pending === false && Array.isArray(draft.chars) && draft.chars.every(char => typeof char === "string") &&
-      Array.isArray(draft.keys) && draft.keys.every(key => typeof key === "string") && typeof draft.uncertain === "boolean" &&
+      typeof draft.uncertain === "boolean" &&
       Number.isSafeInteger(draft.cursor) && draft.cursor >= 0 && draft.cursor <= draft.chars.length, "shell_draft_unverified");
     pane.draft = draft; pane.userDraft = Boolean(draft.chars.length || draft.uncertain);
     this.restoreShellInbox(pane);
@@ -522,6 +528,37 @@ export class Panes implements GateRuntime {
       return true;
     }
     return false;
+  }
+  // T-229: one submission a managed Claude Code or Codex pane reported, noted before the pane's state changes. Our own
+  // dispatches (task brief, gate feedback, controller answer) are pasted by drain only into an idle pane, each followed by
+  // its own submission; so the one that can be ours is the last pasted dispatch while no submission has been noted since
+  // its paste. A submission equal to its full text is that dispatch (the T-216 rule); every other submission is the
+  // user's, the same text sent again included. T-206 stays fail-closed: a submission that cannot be noted fails the hook
+  // request, which the hook command turns into a block (gates/cli.ts), whichever step of the request failed.
+  // Returns whether the submission was one of our dispatches (claimed), not the user's.
+  private noteSubmission(pane: Pane, text: string, submission: string | null, received_at: string) {
+    try {
+      const pasted = this.store.db.prepare(`SELECT seq, json_extract(data,'$.dispatch') AS dispatch FROM orchestration_events
+        WHERE launch=? AND type='paste_intent' ORDER BY seq DESC LIMIT 1`).get(pane.record.id);
+      const pending = pasted && !this.store.db.prepare(`SELECT 1 FROM orchestration_events WHERE launch=? AND seq>?
+        AND type IN ('turn_start_signal','claude_prompt_queued','dispatch_prompt_claimed') LIMIT 1`).get(pane.record.id, pasted.seq);
+      const ours = pending ? this.store.dispatchRecord(String(pasted.dispatch)) : undefined;
+      if (ours && ours.text === text) { this.store.event("dispatch_prompt_claimed", { dispatch: ours.id, submission }, pane.record); return true; }
+      this.recordUserSubmission!(pane, text, received_at);
+      return false;
+    } catch (error) {
+      // The user-input observer is marked failed, so the pane takes no further input until it is fixed.
+      this.onEventWriteFailed(`user_submission_unnoted: ${String(error)}`);
+      throw error;
+    }
+  }
+  // T-229: a recorded user submission is the one the CLI runs, so what its hook request still does after the record does
+  // not fail the request (the hook would then block a recorded submission): a failure there marks the pane failed instead.
+  // The user's draft stays reserved if any input came after this submission's Enter: typed keys, an IME composition that
+  // has not committed yet, an interrupt.
+  private afterRecord(pane: Pane, steps: () => void) {
+    try { pane.userDraft = pane.inputGeneration !== pane.submitGeneration; steps(); }
+    catch (error) { this.recordFailure(pane, "user_submission_bookkeeping_failed", error); }
   }
   private async shellReady(pane: Pane) {
     const held = this.approvedController?.(pane.record.thread);
@@ -1574,13 +1611,17 @@ export class Panes implements GateRuntime {
     // prevents the CR of a paste that is already waiting inside this stream.
     pane.pendingInputs++;
     if (!protocolReport) pane.inputGeneration++;
+    const generation = pane.inputGeneration;
     if (!binary && data === "\x1b") { pane.interrupted = true; pane.state = "busy"; }
     try { await this.serializeWrite(pane, async () => {
       await assertCurrent();
       // T-206: the draft is kept only once the bytes are written; a message is recorded before its Enter is written.
       const draft = structuredClone(pane.draft);
       const entries = protocolReport ? [] : feedInput(draft, data, pasted, binary);
-      if (!protocolReport) for (const entry of entries) await record(entry.text, entry.content);
+      // T-229: Claude Code and Codex report the text they actually took (history and completion included) through their
+      // UserPromptSubmit hook, and the record comes from there (noteSubmission). agy and opencode have no submit hook:
+      // their record is the composed draft, marked text_uncertain when keys the draft cannot follow were pressed.
+      if (!protocolReport && !submitHook(pane)) for (const entry of entries) await record(entry.text, entry.uncertain ? { text_uncertain: true } : undefined);
       check(!pane.failed && !pane.stopped && !pane.archived, "pane_unavailable");
       if (!binary && !protocolReport) pane.userDraft = true;
       this.store.event("terminal_input_write_intent", { ...receipt, encoding,
@@ -1588,15 +1629,15 @@ export class Panes implements GateRuntime {
       const permissionControl = Boolean(!binary && data === "\r" && pane.record.cli === "Claude Code" &&
         pane.permission && pane.active && pane.permission.prompt_id === pane.claudePromptId && pane.permission.submission === pane.active.id);
       if (!binary && !pasted && /[\r\n]/.test(data) && !permissionControl) {
-        pane.state = "busy"; pane.userDraft = false;
         pane.permission = null;
-        // Claude owns steering/queueing while it works. Enter is input evidence,
-        // not a native turn transition; a fresh UPS or verified queued transcript
-        // owns the next turn. In particular, do not invalidate an in-flight Stop.
-        if (pane.record.cli !== "Claude Code") {
+        // T-229: on Claude Code and Codex, Enter is input evidence, not a turn transition: the submission exists once the
+        // daemon confirms its UserPromptSubmit, which starts the turn and releases the draft (signal). Until then the
+        // draft stays reserved, so no dispatch is pasted onto it; a submission the hook blocks changes nothing.
+        if (!submitHook(pane)) {
+          pane.state = "busy"; pane.userDraft = false;
           pane.active = { id: randomUUID(), dispatch: `input:${receipt.request_id}`, at: new Date().toISOString(), nativeTurn: null, interruption: pane.interrupted ? pane.interruption : null };
           this.store.event("turn_submit_intent", { ...pane.active, source: "user", request_id: receipt.request_id }, pane.record);
-        }
+        } else pane.submitGeneration = generation;
       }
       if (permissionControl) { pane.userDraft = false; pane.permission = null; }
       try {
@@ -2097,8 +2138,12 @@ export class Panes implements GateRuntime {
             check(enter, 'claude_prompt_id_reused');
             pane.nativeFile ??= nativeSessionFile(pane.record, pane.native!);
             check(realpathSync(value.transcript_path) === realpathSync(pane.nativeFile), 'question_origin_unverified');
-            (pane.claudeQueuedPrompts ??= []).push({ prompt: claudeSubmittedText(value.prompt), received_at });
-            this.store.event('claude_prompt_queued', { ...value, input_seq: enter.seq, received_at }, pane.record);
+            const queued = () => {
+              (pane.claudeQueuedPrompts ??= []).push({ prompt: claudeSubmittedText(value.prompt), received_at });
+              this.store.event('claude_prompt_queued', { ...value, input_seq: enter.seq, received_at }, pane.record);
+            };
+            if (this.noteSubmission(pane, String(claudeSubmittedText(value.prompt)), value.prompt_id, received_at)) queued();
+            else this.afterRecord(pane, queued);
             return;
           }
           check(pane.claudePromptIds && !pane.claudePromptIds.has(value.prompt_id),"claude_prompt_id_reused");
@@ -2110,18 +2155,24 @@ export class Panes implements GateRuntime {
             pane.state = "busy";
             return { decision: "block" as const, reason };
           }
-          // Source comes from the current structured submission, never text markers.
-          // Hand-typed submissions and retired injections cannot trigger this guard.
-          if (!item) {
-            this.store.event("user_prompt_unregistered", value, pane.record);
-            pane.active = { id: randomUUID(), dispatch: `input:${value.prompt_id}`, at: received_at, nativeTurn: null, interruption: pane.interrupted ? pane.interruption : null };
-            pane.claudePromptId = null; pane.state = 'busy';
-            this.store.event('turn_submit_intent', { ...pane.active, source: 'user', origin: 'native-hook' }, pane.record);
-            this.store.event('turn_submitted', { ...pane.active, source: 'user', origin: 'native-hook' }, pane.record);
-          }
-          check(pane.state === "busy" && !pane.claudePromptId, "claude_submission_unmatched");
-          pane.permission = null;
-          pane.claudePromptIds.add(value.prompt_id);pane.claudePromptId=value.prompt_id;this.store.event("turn_start_signal", value, pane.record); return;
+          check(typeof value.prompt === "string", "claude_prompt_required");
+          const claimed = this.noteSubmission(pane, String(claudeSubmittedText(value.prompt)), value.prompt_id, received_at);
+          const start = () => {
+            // Source comes from the current structured submission, never text markers.
+            // Hand-typed submissions and retired injections cannot trigger this guard.
+            if (!item) {
+              this.store.event("user_prompt_unregistered", value, pane.record);
+              pane.active = { id: randomUUID(), dispatch: `input:${value.prompt_id}`, at: received_at, nativeTurn: null, interruption: pane.interrupted ? pane.interruption : null };
+              pane.claudePromptId = null; pane.state = 'busy';
+              this.store.event('turn_submit_intent', { ...pane.active, source: 'user', origin: 'native-hook' }, pane.record);
+              this.store.event('turn_submitted', { ...pane.active, source: 'user', origin: 'native-hook' }, pane.record);
+            }
+            check(pane.state === "busy" && !pane.claudePromptId, "claude_submission_unmatched");
+            pane.permission = null;
+            pane.claudePromptIds!.add(value.prompt_id);pane.claudePromptId=value.prompt_id;this.store.event("turn_start_signal", value, pane.record);
+          };
+          if (claimed) start(); else this.afterRecord(pane, start);
+          return;
         }
         check(value.hook_event_name === "Stop", "unsupported_hook");
         this.store.event("turn_end_signal", value, pane.record);
@@ -2132,7 +2183,27 @@ export class Panes implements GateRuntime {
         this.store.event("permission_wait", { ...value, ...fact() }, pane.record);
         return;
       }
-      if (value.hook_event_name === "UserPromptSubmit") { this.store.event("turn_start_signal", value, pane.record); return; }
+      if (value.hook_event_name === "UserPromptSubmit") {
+        check(typeof value.prompt === "string", "codex_prompt_required");
+        // A user submission starts its turn here, not at its Enter (T-229).
+        if (this.noteSubmission(pane, value.prompt, value.turn_id ?? null, received_at)) {
+          this.store.event("turn_start_signal", value, pane.record);
+          return;
+        }
+        this.afterRecord(pane, () => {
+          // Input steered into the running turn keeps its submission. An active from before the latest interrupt is the
+          // interrupted turn, whose nativeTurn the rollout scan may already have moved to this new turn (task_started).
+          const steered = pane.active?.nativeTurn === value.turn_id && !(pane.interrupted && pane.active!.interruption !== pane.interruption);
+          if (!steered) {
+            pane.active = { id: randomUUID(), dispatch: `input:${value.turn_id}`, at: received_at, nativeTurn: value.turn_id, interruption: pane.interrupted ? pane.interruption : null };
+            pane.state = "busy";
+            this.store.event("turn_submit_intent", { ...pane.active, source: "user", origin: "native-hook" }, pane.record);
+            this.store.event("turn_submitted", { ...pane.active, source: "user", origin: "native-hook" }, pane.record);
+          }
+          this.store.event("turn_start_signal", value, pane.record);
+        });
+        return;
+      }
       check(value.hook_event_name === "Stop", "unsupported_hook");
       this.store.event("turn_end_signal", value, pane.record);
       const active = pane.active;

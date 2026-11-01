@@ -13,12 +13,15 @@ const pre=samples.codex.find(h=>h.hook_event_name==='PreToolUse');
 const post=samples.codex.find(h=>h.hook_event_name==='PostToolUse');
 const root=mkdtempSync('/private/tmp/t108-hook-replay-');
 const store=new OrchestrationStore(root),panes=new Panes(root,store,{},()=>{});
+// T-229: the daemon records hook-reported submissions; recording is not under test in this state fixture. Its
+// submissions stand for a window Enter at input generation 0 (submitGeneration), with no input after it.
+panes.recordUserSubmission=()=>{};
 const record={id:'recorded-codex',thread:'recorded-thread',task:'replay',project:'replay',attempt:'replay-attempt',role:'worker',
   session:pre.session_id,cli:'Codex',worktree:pre.cwd};store.launch(record);
 const writes=[],inputs=[];
 const pane={record,native:pre.session_id,nativeFile:pre.transcript_path,turn:pre.turn_id,state:'busy',
   active:{id:'recorded-submission',dispatch:'recorded-dispatch',at:'2026-10-20T00:00:00Z',nativeTurn:pre.turn_id},
-  failed:null,stopped:false,archived:false,interrupted:false,inputGeneration:0,userDraft:false,writes:Promise.resolve(),
+  failed:null,stopped:false,archived:false,interrupted:false,inputGeneration:0,userDraft:false,submitGeneration:0,writes:Promise.resolve(),
   queue:[],writing:false,pendingInputs:0,
   pty:{write:data=>writes.push(data)}};
 panes.panes.set(record.thread,pane);

@@ -22,6 +22,8 @@ const record = { id: "claude-launch", thread: "claude-thread", task: "task", att
   role: "worker", session: "native-session", worktree: root, cli: "Claude Code", turn_limit: 1 };
 store.launch(record);
 const item = store.register(record.id, "独立输入 P1_NONCE");
+// The pane's drain writes this before pasting a dispatch (T-229: only the last pasted dispatch can be claimed).
+store.event("paste_intent", { dispatch: item.id, text: item.text }, record as any);
 const pane: any = { record, task: {}, attempt: null, token: "test-only", native: record.session,
   state: "busy", failed: null, stopped: false, archived: false, interrupted: false, stopInProgress: false,
   active: { id: "submission", dispatch: item.id, at: "2026-10-11T00:00:00Z", nativeTurn: null },

@@ -115,7 +115,10 @@ await test('interrupt_only_esc_not_reclaim',async f=>{
   const event=f.store.db.prepare("SELECT details FROM events WHERE type='emergency_interrupt_requested'").get()!;
   assert.equal(JSON.parse(String(event.details)).actor,'executor');
 });
+// T-229: the window input is recorded at attach only for CLIs without a submit hook (agy, opencode).
+const attachRecorded=(f:any)=>{f.pane.record.cli='opencode';};
 await test('recorder_failure_has_no_pty_write',async f=>{
+  attachRecorded(f);
   await assert.rejects(f.panes.userInput(f.record.id,'禁止写出\r',{request_id:'failed-record'},async()=>{throw new Error('fixture recorder failure');},async()=>{}));
   assert.equal(f.writes.length,0);
 });
@@ -125,6 +128,7 @@ function barrier() {
   return {promise,release};
 }
 await test('input_admission_holds_injection',async f=>{
+  attachRecorded(f);
   f.pane.state='idle';f.pane.active=null;
   const entered=barrier(),held=barrier();
   const input=f.panes.userInput(f.record.id,'人工草稿\r',{request_id:'first'},async()=>{
@@ -138,6 +142,7 @@ await test('input_admission_holds_injection',async f=>{
   assert.deepEqual(f.writes.map(x=>x.data),['人工草稿\r']);assert.equal(f.pane.queue.length,1);
 });
 await test('input_recording_cannot_reorder_keys',async f=>{
+  attachRecorded(f);
   const entered=barrier(),held=barrier();
   // T-206: only a sent message is recorded, so the held record is the Enter's.
   const first=f.panes.userInput(f.record.id,'字\r',{request_id:'first'},async()=>{

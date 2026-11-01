@@ -7,7 +7,7 @@ import { parseArgs } from "node:util";
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { request as daemonRequest, startDaemon } from "../transport.ts";
+import { request as daemonRequest, requestAt, socketPath, startDaemon } from "../transport.ts";
 import { queueSessionRequest, readWorkerRequests } from "../relayFiles.ts";
 import { readOperatorCredential } from "../credentials.ts";
 import { HookTrace } from "../hookTrace.ts";
@@ -74,6 +74,18 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
   inbox_ready: { required: ["project"] },
   stop: { required: ["thread", "stop-id"] },
 };
+
+// T-229: Claude Code and Codex submissions are recorded from this hook, so a submission the daemon did not confirm it
+// noted is blocked (T-206 fail-closed), whichever step failed. The CLIs act on a block only with exit code 0, and only
+// before their own hook timeout (10 s, panes.ts), so the hook stops waiting for the daemon first. The daemon refuses the
+// request once submit_deadline has passed (daemon.ts), 1 s before the hook gives up, so a submission the hook blocked is
+// never recorded or started as a turn; the second leaves room for the reply to reach the hook.
+const PROMPT_SUBMIT_DEADLINE_MS = 8000;
+const PROMPT_SUBMIT_HANDLED_BY_MS = 7000;
+const promptSubmit = (request: Record<string, unknown>) =>
+  request.command === "signal" && JSON.parse(String(request.raw_stdin)).hook_event_name === "UserPromptSubmit";
+const unnoted = (error: unknown, details: unknown) =>
+  ({ decision: "block", reason: `这次提交没能确认记入用户输入，已阻断（${String(error)}：${String(details)}）。` });
 
 async function emit(result: unknown, trace?: HookTrace) {
   const bytes=JSON.stringify(result)+"\n";
@@ -219,12 +231,15 @@ export async function main(argv = process.argv.slice(2)) {
     const operator = request.command === "daemon_start" || identity ? undefined : readOperatorCredential(root);
     const result = request.command === "daemon_start"
       ? await startDaemon(root, request["launch-config"] ? JSON.parse(readFileSync(String(request["launch-config"]), "utf8")) : {})
-      : await daemonRequest(root, request, identity ?? operator);
-    const hookOutput = request.command === "signal" && result.ok &&
-      JSON.parse(String(request.raw_stdin)).hook_event_name === "UserPromptSubmit" ? result.hook_output : undefined;
+      : promptSubmit(request)
+        ? await requestAt(socketPath(root), { ...request, submit_deadline: Date.now() + PROMPT_SUBMIT_HANDLED_BY_MS }, identity,
+          undefined, AbortSignal.timeout(PROMPT_SUBMIT_DEADLINE_MS))
+        : await daemonRequest(root, request, identity ?? operator);
+    const hookOutput = promptSubmit(request) ? (result.ok ? result.hook_output : unnoted(result.error, result.details)) : undefined;
     await emit(hookOutput ?? (request.command === "signal" && result.ok ? {} : result), trace);
-    return finish(result.ok ? 0 : 1);
+    return finish(result.ok || hookOutput ? 0 : 1);
   } catch (error) {
+    if (promptSubmit(request)) { await emit(unnoted("daemon_call_failed", String(error)), trace); return finish(0); }
     await emit({
       ok: false,
       error: "daemon_call_failed",

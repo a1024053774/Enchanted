@@ -28,6 +28,9 @@ for (const scenario of ['busy-input-queued', 'no-enter-reused']) {
     stopInProgress: false, writing: false, queue: [], writes: Promise.resolve(), pendingInputs: 0, inputGeneration: 0,
     draft: { chars: [], cursor: 0, keys: [], uncertain: false },
     pty: { pid: 101, write: (data: string) => bytes.push(data) } };
+  // T-229: the queued UserPromptSubmit is the user's submission, recorded through this callback.
+  const submissions: string[] = [];
+  panes.recordUserSubmission = (_p: any, text: string) => { submissions.push(text); };
   panes.panes.set(record.thread, pane);
   panes.processInfo = async () => ({ leader: 102, failed: pane.failed });
   const projects = join(root, 'projects'); mkdirSync(projects);
@@ -56,6 +59,7 @@ for (const scenario of ['busy-input-queued', 'no-enter-reused']) {
     assert.equal(pane.active, original, 'queued input must not replace the working turn');
     assert.equal(pane.claudePromptId, 'prompt-1');
     assert.equal(pane.claudeQueuedPrompts?.length, 1, 'busy input is queued');
+    assert.deepEqual(submissions, [note], 'T-229: the queued submission is recorded once, from the hook');
     // The queued transcript entry is already present when the original Stop arrives.
     writeFileSync(file, JSON.stringify({ type: 'user', isSidechain: false, sessionId: pane.native, cwd: root, promptId: 'prompt-2',
       timestamp: '2026-10-24T00:00:32Z', uuid: 'native-user-2', promptSource: 'queued', turnOrigin: 'human', origin: { kind: 'human' },
