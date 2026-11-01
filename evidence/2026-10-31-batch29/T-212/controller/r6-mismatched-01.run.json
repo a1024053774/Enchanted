@@ -1,0 +1,243 @@
+{
+  "status": "PASS",
+  "command": [
+    "/opt/miniconda3/bin/python3",
+    "workbench/tests/test_t212_shell_hc_e2e.py",
+    "--electron-screen",
+    "--mismatched-screen",
+    "--output",
+    "/Users/luckye/Documents/Code/a2a-worktrees/T-212-controller/r6-mismatched-01"
+  ],
+  "fixture": "/private/tmp/t212-r7b8qwqi",
+  "checks": [
+    "原 pid、数百行中文历史及离线输出在后台重启后保留",
+    "OSC 7501 实时透传且新 viewer 第一屏补发最新报告",
+    "真实 Electron 接回窗格：xterm buffer 与 hc terminal.read 的全部编号中文历史逐行一致，原程序仍在",
+    "接回原终端后 a2a whoami 成功，socket 与身份仍有效",
+    "逐字打字、粘贴、中文、CR、Esc、Ctrl-C 原样到达；改尺寸到达真实终端；查询只应答一次",
+    "6000 行、超过 512 KiB 的 attach 输出完整到达，CREDIT 持续归还",
+    "普通项目终端的输入没有被记为 agent 用户输入或人工介入"
+  ],
+  "commands": [
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-worktrees/T-212/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t212-r7b8qwqi/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":18760,\"root\":\"/private/tmp/t212-r7b8qwqi/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a-worktrees/T-212/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-worktrees/T-212/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t212-r7b8qwqi/state",
+        "shell_start",
+        "--project",
+        "alpha",
+        "--cwd",
+        "/private/tmp/t212-r7b8qwqi/项目 alpha"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"launch\":{\"id\":\"fba0e983-3a7c-4267-bf55-769e5f42b165\",\"project\":\"alpha\",\"task\":null,\"attempt\":null,\"session\":null,\"fence\":null,\"spec_rev\":null,\"thread\":\"cb4f5416-2598-45b2-b560-bd67ea02f952\",\"role\":\"shell\",\"created_at\":\"2026-11-01T03:54:55.219Z\",\"shell\":\"/bin/zsh\",\"shell_argv\":[\"-l\",\"-i\"],\"worktree\":\"/private/tmp/t212-r7b8qwqi/项目 alpha\",\"env\":{\"A2A_PROJECT\":\"alpha\"}}}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-worktrees/T-212/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t212-r7b8qwqi/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":18760,\"stopping\":true}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-worktrees/T-212/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t212-r7b8qwqi/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":18813,\"root\":\"/private/tmp/t212-r7b8qwqi/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a-worktrees/T-212/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-worktrees/T-212/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t212-r7b8qwqi/state",
+        "shell_close",
+        "--launch",
+        "fba0e983-3a7c-4267-bf55-769e5f42b165"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-worktrees/T-212/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t212-r7b8qwqi/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":18813,\"stopping\":true}\n",
+      "stderr": ""
+    }
+  ],
+  "forced_hc_size": [
+    193,
+    120
+  ],
+  "survival": {
+    "pid": 18808,
+    "shell_pid": 18805,
+    "before": 412,
+    "after": 432,
+    "ps": "18808 S+   /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/t212-r7b8qwqi/项目 alpha/numbered.py\n"
+  },
+  "hc_size_before_electron": {
+    "cols": 200,
+    "rows": 120
+  },
+  "xterm_size": {
+    "cols": 159,
+    "rows": 49,
+    "cursorY": 48
+  },
+  "hc_size_after_electron": {
+    "cols": 159,
+    "rows": 49
+  },
+  "screen_comparison": {
+    "command": [
+      "/private/tmp/t212-r7b8qwqi/state/hc/bin/herdr-core",
+      "--json",
+      "read",
+      "t1",
+      "--lines",
+      "10000"
+    ],
+    "xterm_lines": 460,
+    "hc_lines": 460,
+    "first": [
+      "编号-000001-中文"
+    ],
+    "last": [
+      "编号-000460-中文"
+    ],
+    "missing": [],
+    "extra": [],
+    "program_pid": 18808
+  },
+  "raw_io": {
+    "query": {
+      "hex": "1b5b3f36323b323263",
+      "answers": 1
+    },
+    "received": {
+      "hex": "61621b5b3230307ee7b298e8b4b4e4b8ade696870de5a49ae8a18c1b5b3230317e1b03",
+      "size": [
+        93,
+        31
+      ]
+    }
+  },
+  "core_cleanup": {
+    "exit": 0,
+    "stdout": "{\"stopped\":true}\n",
+    "stderr": "",
+    "session": "enchanted-9f3b24c8-8ec5-4b91-81a8-d6a99f6c63e8"
+  },
+  "cleanup": "PASS",
+  "user_core_observations": {
+    "before": {
+      "directory": "/Users/luckye/.local/state/herdr-core",
+      "listing": [
+        "default",
+        "default/core.json",
+        "default/core.lock",
+        "default/core.log",
+        "default/default.holder.60091534.sock",
+        "default/default.sock",
+        "default/docs.json",
+        "default/holder.log",
+        "default/screens",
+        "default/screens/t2.snap",
+        "default/terminals.json"
+      ],
+      "processes": [
+        {
+          "pid": 87319,
+          "started": "Sat Oct 31 10:05:36 2026",
+          "executable": "/Users/luckye/.local/bin/herdr-core"
+        },
+        {
+          "pid": 87320,
+          "started": "Sat Oct 31 10:05:36 2026",
+          "executable": "/Users/luckye/.local/bin/herdr-core"
+        },
+        {
+          "pid": 87407,
+          "started": "Sat Oct 31 10:06:10 2026",
+          "executable": "/Users/luckye/.local/bin/herdr-core"
+        }
+      ]
+    },
+    "after": {
+      "directory": "/Users/luckye/.local/state/herdr-core",
+      "listing": [
+        "default",
+        "default/core.json",
+        "default/core.lock",
+        "default/core.log",
+        "default/default.holder.60091534.sock",
+        "default/default.sock",
+        "default/docs.json",
+        "default/holder.log",
+        "default/screens",
+        "default/screens/t2.snap",
+        "default/terminals.json"
+      ],
+      "processes": [
+        {
+          "pid": 87319,
+          "started": "Sat Oct 31 10:05:36 2026",
+          "executable": "/Users/luckye/.local/bin/herdr-core"
+        },
+        {
+          "pid": 87320,
+          "started": "Sat Oct 31 10:05:36 2026",
+          "executable": "/Users/luckye/.local/bin/herdr-core"
+        },
+        {
+          "pid": 87407,
+          "started": "Sat Oct 31 10:06:10 2026",
+          "executable": "/Users/luckye/.local/bin/herdr-core"
+        }
+      ]
+    }
+  },
+  "user_core_directory_unchanged": true,
+  "user_core_processes_unchanged": true,
+  "private_socket_outside_user_home": true,
+  "evidence_boundary": {
+    "private_hc_state_files": 0,
+    "known_token_plaintext_matches": 0,
+    "checked_files": 7
+  },
+  "successful_fixture_removed": true
+}

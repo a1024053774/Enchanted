@@ -75,6 +75,8 @@
 - [T-219 既有测试在基线上失败](tickets/T-219-baseline-test-failures.md): 九项里八项是测试过时，已按 T-108/T-123/T-124/T-141/T-187/T-189/T-191/T-193/T-203 的现行契约修订；夏令时漏扫次日是产品缺陷（T-221）；另有 17 个旧套件两边都失败，留给 T-222
 - [T-222 门禁与质量串的旧测试在 main 上失败](tickets/T-222-legacy-gate-suites-broken.md): 17 个套件的业务检查多数仍有效，只是入口、协议或个别预期过时，其中大部分现在没人守；建议受管窗格换 hc 前先恢复 P0-1～P0-6；处置交 T-225
 - [T-224 换运行时之前计划过的功能盘点](tickets/T-224-pre-hc-feature-inventory.md): 50 项里依据最实的改善是后台重启保住原进程、接回原 attempt；状态统一、只读 observe、父子通知、HC_SCOPE 清理各有待证接线，给出探针 P1～P9；任务合同、授权、输入来源、审查结论等 hc 帮不上；方向问题交 T-225、T-226
+- [T-225 旧套件处置与受管窗格换 hc 前的基线](tickets/T-225-legacy-suites-disposition.md): 17 个旧套件逐个拆分迁移；P0-1～P0-6 先在现有运行时迁好、取得基线，再换受管窗格；尾注矩阵先迁 bad-worker；业务检查只在后台入口跑
+- [T-226 hc 后续切片的方向问题](tickets/T-226-hc-slicing-open-questions.md): 失联或身份不明时仍显示未知并写明原因；父子通知先做探针 P5 比较 hc 直写与经收件箱；多开窗口只读；本批只报 blocked、error、exit；崩溃后谁重启与 T-220 一起定
 
 ## Not yet specified
 
@@ -95,7 +97,7 @@
 - 2026-10-27 两次真实使用（findings/2026-10-27-two-real-uses.md，NO_GO）后的方案见 [T-189](tickets/T-189-real-use-fixes-decisions.md)；切为 T-190 项目移除与失效项目隔离、T-191 CLI 图标与 worker 状态、T-192 任务页门禁全程与关闭状态、T-193 主控跨项目、T-194 MCP 派发入口、T-195 复制会话链接；均未就绪，待用户开工。
 - 路径限制按 [T-196](tickets/T-196-path-judgement-by-controller.md) 切为 T-197 认领重叠交主控判断、T-198 卡外改动交主控判断；未就绪，待用户开工。
 - T-119 之后待切：主控之间、worker 与主控之间经 `a2a` 通信；在界面上编辑每个角色的边界与权限默认值（T-121、T-122 关闭后再切）
-- hc 运行时待切（T-211、T-212、T-216 关闭后按 [spec](specs/hc-runtime-2026-10-31.md) 再切，预留编号 T-213～T-215、T-217、T-218）：受管窗格走 hc 并重新证明交付与编排；后台重启接回原 attempt 与恢复规格修订；状态统一取 hc 事件；worker 卡住经父子通知推给主控；跨项目“等你”分组与问题界面默认视图。用户 2026-10-31：“最好能把 Core 移植过来之后，能把我们原先想设计的功能，就是之前没换运行时时候想做的东西更好的实现”，盘点已由 [T-224](tickets/T-224-pre-hc-feature-inventory.md) 完成；切片还等 T-220 的结论和 [T-225](tickets/T-225-legacy-suites-disposition.md)、[T-226](tickets/T-226-hc-slicing-open-questions.md) 的用户裁定
+- hc 运行时待切（T-211、T-212 已关闭，T-216 关闭后按 [spec](specs/hc-runtime-2026-10-31.md) 再切，预留编号 T-213～T-215、T-217、T-218）：受管窗格走 hc 并重新证明交付与编排；后台重启接回原 attempt 与恢复规格修订；状态统一取 hc 事件；worker 卡住经父子通知推给主控；跨项目“等你”分组与问题界面默认视图。用户 2026-10-31：“最好能把 Core 移植过来之后，能把我们原先想设计的功能，就是之前没换运行时时候想做的东西更好的实现”，盘点已由 [T-224](tickets/T-224-pre-hc-feature-inventory.md) 完成，方向已由 T-225、T-226 裁定；切片还等 T-216 关闭与 T-220 的结论，切片时请用户选 T-225 留下的两处二选一
 
 ## Out of scope
 

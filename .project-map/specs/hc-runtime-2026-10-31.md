@@ -13,14 +13,16 @@
 - Enchanted 随应用打包固定版本的 Herdr `hc`，编排后台用独立 `HC_SESSION` 启动私有 core。项目终端、主控、worker、审查员、监视器都是这个 core 里的终端。用户自己的 Herdr 与它互不相连。
 - 界面照旧显示 xterm.js 窗格；输出来自 hc 的 attach 流，按键和派发文字都经编排后台写进 attach 通道。门禁、任务卡、钩子、用户输入与派发记录留在编排后台。
 - 编排后台重启后接回仍在运行的终端，原 attempt 继续；只有程序真的没了才走原生会话续接。
-- 状态统一取 hc 的 OSC 7501 事件（Claude Code、Codex、agy、opencode），侧栏不再出现“未知”。
-- worker 是主控终端的子终端：worker 卡住、出错、退出时，hc 给主控终端写一条通知；worker 上报问题时，门禁立即投给执行主控。主控能答的自己答，答不了或属于只交用户的类别才交给用户。
+- 状态统一以 hc 的 OSC 7501 事件为来源（Claude Code、Codex、agy、opencode）；程序没上报、失联或身份不明时仍显示“未知”，并写明原因（T-226）。
+- worker 是主控终端的子终端：worker 卡住、出错、退出时通知主控终端（hc 直接写，还是关掉 hc 通知、由后台经收件箱投递，待探针 P5 比较后由用户定，T-226）；worker 上报问题时，门禁立即投给执行主控。主控能答的自己答，答不了或属于只交用户的类别才交给用户。
 - 侧栏顶部有跨项目的“等你”分组，标签页有红点，应用内有提示；问题界面默认只显示“等你决定”。
 
 ## Decisions
 
 - [T-209 用 Herdr 的 hc 当 Enchanted 的终端运行时](../tickets/T-209-hc-as-runtime.md)
 - [T-210 问题先给主控处理，主控答不了的才交给用户](../tickets/T-210-issues-controller-first.md)
+- [T-225 旧套件处置与受管窗格换 hc 前的基线](../tickets/T-225-legacy-suites-disposition.md)
+- [T-226 hc 后续切片的方向问题](../tickets/T-226-hc-slicing-open-questions.md)
 - 沿用：[T-124](../tickets/T-124-terminal-controller-answers-attach-run.md)（主控回答记为主控的话）、[T-051](../tickets/T-051-issue-reports-and-panel.md)（其余部分）、[T-206](../tickets/T-206-record-input-on-send.md)（发送时记录输入）
 
 ## Test seam
@@ -35,7 +37,7 @@
 2. [T-212](../tickets/T-212-private-core-and-shell-panes.md) 私有 core 与项目终端走 hc（依赖 T-211）。
 3. [T-216](../tickets/T-216-issues-pushed-to-controller.md) 问题上报即推给执行主控（无依赖，与 T-211、T-212 并行）。
 
-前三张关闭后，按实际情况再切：受管窗格（worker、审查员、监视器）走 hc 并重新证明交付与编排场景；后台重启接回原 attempt 并修订恢复规格；状态统一取 hc 事件；worker 卡住经父子通知推给主控；跨项目“等你”分组与问题界面默认视图。
+前三张关闭后，按实际情况再切：先在现有运行时迁好 T-225 的 P0 基线，再让受管窗格（worker、审查员、监视器）走 hc 并重新证明交付与编排场景；后台重启接回原 attempt 并修订恢复规格；状态统一取 hc 事件；worker 卡住经父子通知推给主控；跨项目“等你”分组与问题界面默认视图。
 
 ## Out of scope
 
@@ -43,3 +45,6 @@
 - 兼容 Herdr 的 mods。
 - 改 hc 源码或 fork；碰到 hc 做不到的需求时另开决定票。
 - 改门禁检查串本身的语义（只换运行时）。
+- 多个窗口直接写入同一终端：写入一律经后台，多开的窗口只读（T-226）。
+- 心跳、超时换人、预算等更多自动化；本批只报 hc 已证实的 blocked、error、exit（T-226）。
+- 旧 Enchanted 的分析类功能、补卡的界面入口、跨仓库一起审查与集成（T-226）。

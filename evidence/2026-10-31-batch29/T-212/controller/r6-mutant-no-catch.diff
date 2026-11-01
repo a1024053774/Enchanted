@@ -1,0 +1,16 @@
+--- /Users/luckye/Documents/Code/a2a-worktrees/T-212/workbench/src/panes.ts	2026-10-31 23:39:21
++++ /private/tmp/t212-ctl-mutant-2gqHZz/repo/workbench/src/panes.ts	2026-10-31 23:55:22
+@@ -342,11 +342,8 @@
+       // A paint is a new byte stream, independent of a partial old UTF-8/OSC chunk.
+       decoder = new StringDecoder("utf8");
+       pane.oscCarry = "";
+-      try {
+-        const offset = statSync(trace).size;
+-        appendFileSync(trace, "\x1bc");
+-        pane.shellPaintOffset = offset;
+-      } catch (error) { this.recordFailure(pane, "trace_write_failed", error); }
++      pane.shellPaintOffset = statSync(trace).size;
++      appendFileSync(trace, "\x1bc");
+     });
+     terminal.on("data", (bytes: Buffer) => {
+       const data = decoder.write(bytes);
