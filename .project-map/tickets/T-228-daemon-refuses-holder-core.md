@@ -2,7 +2,7 @@
 id: T-228
 title: core 崩溃约 3 秒后，编排后台起不来：holder 重拉的 core 被当成外来的拒掉
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -28,16 +28,23 @@ T-220 实测（[结果记录](../../evidence/2026-10-31-batch29/T-220/RESULTS.md
 
 ## Acceptance
 
-- [ ] 先写下认 core 可能出错的方式，测试对着它写。
-- [ ] 修前经真实入口留下红态，沿用 T-220 探针二的做法：
+- [x] 先写下认 core 可能出错的方式，测试对着它写。
+- [x] 修前经真实入口留下红态，沿用 T-220 探针二的做法：
   - 停后台，杀 core，等 holder 重拉，再启动后台：后台退出，报 `private hc core did not detach`；
   - 终端里的 hc 调用抢先拉起 core 后重启后台：后台接受，并在上面开出终端。
-- [ ] 修后同两种场景：
+- [x] 修后同两种场景：
   - holder 重拉的 core 被接受，原终端接回，`shell_reattached` 记 `screen: inexact`，shell 进程号不变；
   - 外来 core 不被接受，后台不在上面开终端，事件里有原因。
-- [ ] T-212 的 `test_t212_shell_hc_e2e.py --core-crash` 与 `--electron-screen --mismatched-screen` 回归通过；用户自己的 core 与状态目录前后不变。
-- [ ] 独立审查（GPT 只读，新开干净会话）无未处理的阻塞意见。用户 2026-11-01 改分工：“antigravity 换用里面的 4 argon 模型可以做一些小任务, gpt 做审核,work 的工作由你在当前会话中做.”
+- [x] T-212 的 `test_t212_shell_hc_e2e.py --core-crash` 与 `--electron-screen --mismatched-screen` 回归通过；用户自己的 core 与状态目录前后不变。
+- [x] 独立审查（GPT 只读，新开干净会话）无未处理的阻塞意见。用户 2026-11-01 改分工：“antigravity 换用里面的 4 argon 模型可以做一些小任务, gpt 做审核,work 的工作由你在当前会话中做.”
 
 ## Resolution
 
-（未开始）
+PASS（2026-11-01）。代码提交 `10e4fcbfd`。后台改为在同一连接上用 `server.status` 取 core 的 pid，再核对两件事：这个 pid 不在后台的进程组里；它经 `lsof -a -p <pid> -Fp -- <lock>` 打开着本会话私有状态目录里的 `core.lock`。认不出的 core 记 `hc_start_failed`（带原因）后退出。
+
+- 修前红态两种都复现：holder 重拉的 core 被误拒，外来 core 被接受。修后两种都对，加 `--non-ascii` 也对。变异被测出来。
+- T-212 的 `--core-crash` 与 electron mismatched-screen 回归通过，用户自己的 core 前后不变。
+- GPT 审查三轮：FAIL、FAIL、PASS，意见都已修正。
+- 只做了静态核对、没有端到端证据的：核对期间换 core、lsof 故障或超时、事件写入失败。
+
+证据见 [结果记录](../../evidence/2026-10-31-batch29/T-228/RESULTS.md)。
