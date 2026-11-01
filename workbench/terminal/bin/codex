@@ -14,7 +14,10 @@ start='{type="command",command="\"$A2A_TERMINAL_BIN/a2a\" session-context",timeo
 # tools need no approval prompt, the gate and the role the user approves in Enchanted decide; a role request waits up to
 # 10 minutes for that approval.
 mcp=mcp_servers.enchanted
-set -- -c "hooks.SessionStart=[{hooks=[$start]}]" -c "hooks.UserPromptSubmit=[{hooks=[$hook]}]" -c "hooks.Stop=[{hooks=[$hook]}]" \
+# T-216: near the quota Codex ends a turn with a "switch model?" prompt while reporting done; the next inbox dispatch
+# was pasted into it and its Enter switched the controller's model. Same setting as managed workers (T-167); the quota
+# banner still shows, and a -c the user passes comes later and wins.
+set -- -c "notice.hide_rate_limit_model_nudge=true" -c "hooks.SessionStart=[{hooks=[$start]}]" -c "hooks.UserPromptSubmit=[{hooks=[$hook]}]" -c "hooks.Stop=[{hooks=[$hook]}]" \
   -c "hooks.PreToolUse=[{matcher=\"request_user_input_async\",hooks=[$hook]}]" \
   -c "$mcp.command=\"$A2A_TERMINAL_BIN/a2a\"" -c "$mcp.args=[\"mcp\",\"codex\"]" \
   -c "$mcp.env_vars=[\"A2A_NODE\",\"A2A_TERMINAL_CLI\",\"A2A_TERMINAL_SOCKET\",\"A2A_TERMINAL\",\"A2A_TERMINAL_TOKEN\",\"CODEX_HOME\"]" \

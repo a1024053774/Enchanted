@@ -1,5 +1,5 @@
 """T-132：面板里的问题上报。真实后台、门禁、终端主控，真实 Claude Code worker（模型是本地脚本化接口），
-真实 Electron 窗口经 DevTools 协议操作。期望值来自 ticket 与门禁既有规则（问题状态、blocking 只有用户能关、
+真实 Electron 窗口经 DevTools 协议操作。期望值来自 ticket 与 T-210（主控先处理、附理由交给用户、
 答复写进上报方会话并记为 answer 用户输入）。
 
 失败方式（先列再写）：
@@ -96,12 +96,17 @@ def main():
         assert dispatched.get('ok'), dispatched
         worker = dispatched['attempt']['runtime_identity']['launch']
         views = fixture.wait('三条问题进门禁', lambda: (lambda r: r['issues'] if len(r['issues']) == 3 else None)(gate_issues()), 180)
+        blocking_issue = next(v['issue'] for v in views if v['issue']['blocking'])
+        escalated = fixture.request('disposition', fixture.terminal, task='T-1', issue=blocking_issue['id'],
+                                    action='needs-user', reason='涉及范围与验收条件，由用户决定')
+        assert escalated['ok'], escalated
+        views = escalated['issues']
         report['gate_states_before'] = {view['issue']['title']: view['state'] for view in views}
 
         electron = Electron(fixture, 't132-' + fixture.dir.name[5:])
         electron.until('项目出现', "!!document.querySelector('[data-project-id=\"demo\"]')")
         electron.evaluate("document.querySelector('[data-project-id=\"demo\"]').click()")
-        # 2: one issue (the blocking one) waits for the user's decision from the start.
+        # 2: the controller escalated one issue to the user (T-210).
         badge = electron.until('项目行提示', "document.querySelector('[data-project-issues]')?.dataset.projectIssues ?? null", 30)
         tab = electron.evaluate("document.querySelector('[data-issues-tab] .tab-needs')?.textContent ?? null")
         report['badges'] = dict(project=badge, tab=tab)

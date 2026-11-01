@@ -38,7 +38,7 @@
 - **用户输入（user input）**：用户本人的输入记录，形态有 message、answer、approval/denial、choice、action；含义（建议、指令、纠正、偏好……）是事后的推断标注，v1 不产生。不含主控、agent、自动化发出的提示词。
 - **人工介入（human intervention）**：落进受管 attempt 的用户输入；在门禁里是指向该输入的派生事件 `human_intervention`。不另称“人工输入”。
 - **派发记录（dispatch record）**：主控发给 worker 的文本及其标记与日志，与用户输入分开保存。
-- **问题上报（issue report）**：worker、reviewer、monitor 在执行中主动上报的待处理条目；状态为待判断、等你决定、已转交、已关闭、稍后、已答复、已送达。有别于 `findings/` 里事后复盘的“发现”。
+- **问题上报（issue report）**：worker、reviewer、monitor 在执行中主动上报、先交执行主控处理的条目；状态为待判断、等你决定、已转交、已关闭、稍后、主控已答、已答复、已送达。有别于 `findings/` 里事后复盘的“发现”。
 - **主控提问（controller question）**：构思主控放上面板、等用户答复的问题，带类型、选项、推荐与依据；答复记为 answer 形态的用户输入。
 - **收件箱（inbox）**：带收件人的追加式条目流（assign、report、issue 等）；确认、处置也是新条目，不改旧条目。
 - **就绪（ready）**：ticket 已获执行授权，由构思主控标记，或由执行主控在自主边界内自建；正文冻结，修订时 `ready_rev` 加 1。

@@ -49,7 +49,7 @@ type Snapshot = {
   launch: { id: string; project: string; worktree?: string; thread: string; attempt: string | null; role: string;
     preset: string | null; cli_version: string; model_requested: string } | null;
   pane: { launch: string; state: string; lifecycle: string; state_source: string; historical?: boolean; failed: string | null;
-    delivery?: WorkerDeliveryStatus | null; start_missing?: boolean; silent_foreground?: { command: string; since: string } | null; unwired_cli?: { command: string; since: string } | null;
+    delivery?: WorkerDeliveryStatus | null; start_missing?: boolean; inbox_unknown?: string | null; silent_foreground?: { command: string; since: string } | null; unwired_cli?: { command: string; since: string } | null;
     writing?: boolean; user_draft?: boolean; queued?: string[];
     restoration?: { status: string; error: string | null; details: string | null } | null;
     size?: { cols: number; rows: number } | null; interrupted?: boolean; interruption?: number | null; input_generation?: number; active?: { dispatch: string } | null } | null;
@@ -63,7 +63,7 @@ type ProjectItem = { project_id: string; repo: string | null; repo_missing?: boo
 type NativeLink = { available: true; cli: string; session: string; record: string; text: string } | { available: false; cli: string | null; reason: string };
 type AgentItem = { id: string; project: string; task: string | null; task_name: string | null; attempt: string | null; parent: string | null;
   role: string; preset: string | null; role_label: string; cli: string; state: string; state_label: string; created_at?: string | null; ended_at?: string | null; terminal?: boolean;
-  delivery?: WorkerDeliveryStatus | null; start_missing?: boolean; history?: boolean; reclaimable?: boolean;
+  delivery?: WorkerDeliveryStatus | null; start_missing?: boolean; inbox_unknown?: string | null; history?: boolean; reclaimable?: boolean;
   descendants: { count: number; state: string; state_label: string; counts: { state: string; label: string; count: number }[] } };
 type RoleRequest = { id: string; launch: string; project: string; role: string; role_label: string; cli: string | null; requested_at: string;
   terminal_cwd: string | null; terminal_opened_at: string | null };
@@ -513,6 +513,9 @@ function SessionPane({ paneKey, active, screenReader, fontFamily, name, confirme
         </div>
         {pane?.start_missing && <div className="connection-error" role="status" data-start-missing>
           <p>消息已写入终端并按了提交键，但 CLI 没有开始新回合。终端里可能有等待回答的提示，请查看终端并自行处理；后台不会重发，也不会替你按键。</p>
+        </div>}
+        {pane?.inbox_unknown && <div className="connection-error" role="status" data-inbox-unknown={pane.inbox_unknown}>
+          <p>投递确认未知。请核对终端；后台不会重发这条消息。派发编号：{pane.inbox_unknown}</p>
         </div>}
         {pane?.silent_foreground && <div className="connection-error" role="status" data-silent-foreground={pane.silent_foreground.command}>
           <p>{pane.silent_foreground.command} 启动后还没有任何输出。如果它本该有输出（例如 claude、codex 启动后会画出界面），可能在等 macOS 的权限弹窗（例如“想访问‘文稿’文件夹”），弹窗可能被其他窗口挡住了，请移开其他窗口找一找；sleep 这类本来就不输出的命令不用管。有输出后这条提示自动消失。</p>
@@ -976,6 +979,7 @@ function Workbench() {
             <span className="agent-meta">{agent.terminal ? '' : (agent.task_name ?? '任务未知') + ' · '}{cliNames[agent.cli] ?? agent.cli}</span>
             <span className={agent.state === 'ended' ? 'agent-state' : 'sr-only agent-state'}>{agent.state_label}</span>
             {isTurnRejection(agent.delivery) && <span className="agent-state" data-delivery-refusal title={agent.delivery.reason ?? ''}>旧回合交付被拒</span>}
+            {agent.inbox_unknown && <span className="agent-state" data-inbox-unknown={agent.inbox_unknown}>投递确认未知</span>}
             {agent.start_missing && <span className="agent-state" data-start-missing>回合未开始</span>}
           </span>
           <span className="row-time" title={agent.state === 'ended' && agent.ended_at ? '结束于 ' + new Date(agent.ended_at).toLocaleString() : agent.created_at ? '启动于 ' + new Date(agent.created_at).toLocaleString() : undefined}>

@@ -12,7 +12,7 @@
 - 验收时顺手打分：每个 attempt 最终集成或放弃时，按 [spec](../specs/native-cli-orchestration-2026-10-10.md) 第 8 节的打分表写一行到 `records/scores.jsonl`（[T-073](../tickets/T-073-herdr-period-task-card-trailers-scoring.md) 提供）；放弃只记结果与理由。不另起一轮提问。新 worker 用 `scripts/launch-worker` 启动。
 - 证据大小：单个证据文件超过 5 MB 的原始输出，压缩后提交或放外置盘 `/Volumes/WD-Elements` 归档，仓库里只留摘要、重放命令和归档路径（2026-10-11 用户决定，仓库开源）。
 - 在 T-004 的自主边界内，发现缺陷级后续可以自建 ticket 并执行（`ready: yes`、`ready_by: executor`），完成报告里列出。
-- 问题上报：判断任务级的。可以关闭"不是问题 / 已解决 / 重复 / 已登记为后续工作"，写 `disposition close`，附理由和依据，不删不改原条目。直接进"等你决定"、不得自行关闭：标 blocking 的；涉及权限、范围、验收条件、安全、不可逆操作的；明确问用户的选择题；你自己拿不准的。设计、目标、权限级的写 `disposition forward` 交构思主控。你只能关闭，不能替用户回答。
+- 问题上报（T-210）：worker、审查员、监视器的上报（含 blocking）立即经收件箱交给你。用 `issues` 查看，用 `answer_issue` 回答，答复记为主控的话并送回上报会话，不算用户输入。可以关闭“不是问题 / 已解决 / 重复 / 已登记为后续工作”，用 `disposition` 的 `close`，附 `reason` 和 `basis`，不删不改原条目，用户可重开。涉及权限、范围、验收条件、安全、不可逆操作的，你不回答、不关闭，只用 `disposition` 的 `needs-user` 附 `reason` 交给用户；你自己拿不准的也交给用户。15 分钟未处理的问题照旧进入“等你决定”。 四家 CLI 的通知统一由私有 hc 送入：只在终端报 idle/done 且没有用户草稿时发送，忙碌、权限框或问答框时排队。看到“投递确认未知”要核对终端和派发记录，不要主动重复提交同一通知；后台不会重发。终端在未知之后又完成一个新回合，后台才继续送后面的通知，原条仍显示未知。
 - 收到 `answer`：用 `scripts/dispatch` 把正文原样发给 `refs` 里的 worker，成功后对每个问题写 `disposition delivered`，再 `ack`；会话已结束就写 `disposition forward`（理由 `session-ended`），并在 `report` 里列出。
 - 收到 `stop`：下一个工具轮次执行并回 `ack`。
 - 没有可执行的就绪 ticket 时才停。停下前写 `report`（每个 ticket 的状态逐字、证据、提交号、局限；问题上报计数；自建 ticket；待用户决定的事；没做完的就绪 ticket 与原因），再用跨会话消息唤醒构思主控。被阻塞或在等用户决定而停下时，报告里写明，不写成"做完了"。

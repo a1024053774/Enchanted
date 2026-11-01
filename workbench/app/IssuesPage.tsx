@@ -28,7 +28,7 @@ export function IssuesPage({ project }: { project: string | null }) {
     .sort((a, b) => Number(open.has(b.view.state)) - Number(open.has(a.view.state)));
   return <div className="records-page issues-page">
     <div className="records-intro"><h2>问题上报</h2>
-      <p>worker、审查员和监视器发现任务范围外的问题时报到这里。答复会写进上报它的会话；标了“阻塞”的只有你能关闭。关闭的问题保留记录。</p></div>
+      <p>问题先交给执行主控处理，需要你决定或 15 分钟未处理时再交给你。答复会送回上报的会话，关闭的问题保留记录。</p></div>
     {error && <p className="catalog-error" role="alert">{error}</p>}
     {!project ? <p className="records-empty">先在左侧选一个项目。</p>
       : tasks === null && !error ? <p className="records-empty" role="status">正在读取…</p>
@@ -46,6 +46,7 @@ function Issue({ task, view, changed }: { task: TaskIssues; view: A2AIssueView; 
   const [restarted, setRestarted] = useState(false);
   const role = issue.from.split(':')[0];
   const settled = view.state === '已关闭';
+  const handling = ['主控已答', '已答复', '已送达'].includes(view.state) ? undefined : view.disposition;
   let protocol: { error: string; raw: string } | null = null;
   if (issue.from === 'system' && issue.body) {
     try {
@@ -66,6 +67,11 @@ function Issue({ task, view, changed }: { task: TaskIssues; view: A2AIssueView; 
       {issue.blocking && <span className="record-badge">阻塞</span>}
     </header>
     <p className="record-meta">{roles[role] ?? role} 上报 · {time(issue.created_at)}</p>
+    <p className="record-meta" data-issue-processor>{handling
+      ? `${handling.from === 'user' ? '你' : '主控'}${handling.action === 'close' ? '已关' : handling.action === 'needs-user' ? '交给你决定' : '处理'}（${handling.from}）`
+      : view.answer
+        ? view.answer.from === 'user' ? '你答' : `主控已答（${view.answer.from}）`
+        : '待执行主控处理'}</p>
     {protocol ? <section className="record-body" data-review-protocol-error={protocol.error}>
       <p>{protocol.error === 'review_result_missing'
         ? '审查员结束回合时没有用 review_submit 交出合格的结论（工具当场报的错在审查会话里）。'
@@ -89,6 +95,8 @@ function Issue({ task, view, changed }: { task: TaskIssues; view: A2AIssueView; 
     {view.answer && <p className="record-reply"><span>答复</span>{view.answer.body}</p>}
     {view.disposition && <p className="record-reply"><span>处置</span>{({ close: '已关闭', dismiss: '不处理', snooze: '稍后再看', forward: '转交构思主控', 'needs-user': '交给你决定', reopen: '重新打开', delivered: '答复已送达' } as Record<string, string>)[view.disposition.action ?? ''] ?? view.disposition.action}
       {view.disposition.reason ? `：${view.disposition.reason}` : ''}</p>}
+    {settled && <button type="button" className="text-button" disabled={busy}
+      onClick={() => act(() => window.a2a.disposeIssue(task.task, issue.id, 'reopen'))}>重新打开</button>}
     {!settled && !view.answer && <form className="record-actions" onSubmit={event => { event.preventDefault(); act(() => window.a2a.answerIssue(task.task, issue.id, answer)); }}>
       <label>答复<textarea value={answer} maxLength={4000} rows={2} disabled={busy} onChange={event => setAnswer(event.target.value)} /></label>
       <div className="record-buttons">

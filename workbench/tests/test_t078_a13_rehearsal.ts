@@ -364,7 +364,7 @@ try {
       equal("registered inbox queue", executor.pane.queue.length, 1);
       equal("queue admission is not delivered", latestDelivery().state, "queued");
       equal("no I2 while target is unknown", gateFeedback().length, 0);
-      await gates.resumeControllerInbox(executor.record.thread);
+      await gates.resumeControllerInbox(executor.record.thread, executor.record.preset, executor.record.project);
       equal("registration replay creates no second dispatch", executor.pane.queue.length, 1);
       for (const id of faultIds) equal("uncertain historical write not replayed", panes.store.inboxDispatch(id), undefined);
     });

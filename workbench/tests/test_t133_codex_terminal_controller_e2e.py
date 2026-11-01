@@ -89,7 +89,7 @@ def main():
         # immediate {"accepted":true} then ends the wait before the user answers.
         'post-hook-passed': [('terminal/bin/codex', '-c "hooks.PreToolUse=', '-c "hooks.PostToolUse=[{matcher=\\"request_user_input_async\\",hooks=[$hook]}]" -c "hooks.PreToolUse=')],
         # The user's reply kept as an ordinary message.
-        'reply-as-message': [('src/daemon.ts', 'const reply = codex ? codexQuestionReply(payload.prompt) : null;', 'const reply = null as any;')],
+        'reply-as-message': [('src/daemon.ts', 'const reply = codex && name === "UserPromptSubmit" ? codexQuestionReply(payload.prompt) : null;', 'const reply = null as any;')],
         # The project row no longer says how many of its sessions wait for the user.
         'project-needs-hidden': [('app/renderer.tsx', '{waiting > 0 && <span className="project-needs">', '{false && <span className="project-needs">')],
     }.get(args.mutant, [])

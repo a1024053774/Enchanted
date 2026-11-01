@@ -240,6 +240,8 @@ type Pane = {
   // T-195: the native session a terminal's Claude Code or Codex last reported through its hook, bound to the reporting
   // CLI's process: a later CLI in the same terminal is never given it.
   nativeReport?: ShellNativeReport | null;
+  shellOscSequence?: number;
+  inboxUnknown?: string | null;
   // T-187: a managed agy or opencode session; its turns come from its OSC 7501 reports (reportedTurns).
   reports?: boolean; reportedEnding?: boolean; trustWritten?: number;
   claudePromptId?: string | null;
@@ -283,6 +285,13 @@ export class Panes implements GateRuntime {
   readonly hc: HcRuntime;
   // The terminal-only socket the daemon opened (T-126); project terminals reach the daemon only through it.
   terminalSocket: string | null = null;
+  approvedController?: (thread: string) => { role: "ideation" | "executor"; project: string; cli: string | null } | undefined;
+  controllerThreads = (role: string, project: string, launch?: string): string[] => [...this.panes.values()].filter(pane => {
+    const held = this.approvedController?.(pane.record.thread);
+    return held?.role === role && (launch ? pane.record.id === launch : held.project === project) && held.cli &&
+      pane.foregroundCli === held.cli && !pane.stopped && !pane.failed && !pane.archived;
+  }).map(pane => pane.record.thread);
+  controllerReady?: (thread: string, role: "ideation" | "executor", project: string) => Promise<void>;
   constructor(root: string, store: OrchestrationStore, config: LaunchConfig, onEventWriteFailed: (reason: string) => void) {
     this.root = root; this.store = store; this.config = config;
     this.onEventWriteFailed = onEventWriteFailed;
@@ -320,6 +329,9 @@ export class Panes implements GateRuntime {
     writeFileSync(join(credentials, launch + ".json"), JSON.stringify({ tokenHash }) + "\n", { flag: "wx", mode: 0o600 });
     this.store.event("shell_created", { role: "shell", cwd: worktree, shell_pid: terminal.pid,
       hc_terminal: terminal.address, hc_session: this.hc.session, screen: terminal.screen }, record);
+    const drafts = join(this.root, "shell-drafts");
+    mkdirSync(drafts, { recursive: true, mode: 0o700 });
+    writeFileSync(join(drafts, launch + ".json"), JSON.stringify({ ...emptyDraft(), pending: false }), { flag: "wx", mode: 0o600 });
     await this.attachShell(record, tokenHash, terminal);
     this.rememberOpen(launch, this.store.openPanes(undefined, project ?? undefined).length);
     return record;
@@ -337,6 +349,13 @@ export class Panes implements GateRuntime {
       inputGeneration: 0, interruption: null, offsets: new Map(), model: "unknown", effort: "unknown", terminalBuffer: "" };
     const nativeReport = this.store.lastEvent(record.id, ["shell_native_session"]);
     if (nativeReport) pane.nativeReport = nativeReport.data as ShellNativeReport;
+    // The hc terminal survives this daemon. Its unfinished user line must survive too, without becoming a user-input record.
+    const draft = JSON.parse(readFileSync(join(this.root, "shell-drafts", record.id + ".json"), "utf8")) as InputDraft & { pending: boolean };
+    check(draft.pending === false && Array.isArray(draft.chars) && draft.chars.every(char => typeof char === "string") &&
+      Array.isArray(draft.keys) && draft.keys.every(key => typeof key === "string") && typeof draft.uncertain === "boolean" &&
+      Number.isSafeInteger(draft.cursor) && draft.cursor >= 0 && draft.cursor <= draft.chars.length, "shell_draft_unverified");
+    pane.draft = draft; pane.userDraft = Boolean(draft.chars.length || draft.uncertain);
+    this.restoreShellInbox(pane);
     this.panes.set(record.thread, pane);
     let decoder = new StringDecoder("utf8");
     terminal.on("paint", () => {
@@ -355,7 +374,14 @@ export class Panes implements GateRuntime {
       const reports = readOsc7501(pane.oscCarry ?? "", data);
       pane.oscCarry = reports.carry;
       // While a CLI reports its state, look at the foreground every few seconds: it can exit without a line typed after.
-      if (reports.turns.length) { pane.cliTurn = reports.turns.at(-1); pane.wiringCheckAt ??= Date.now() + WIRING_RECHECK_MS; }
+      for (const turn of reports.turns) {
+        pane.cliTurn = turn;
+        pane.shellOscSequence = (pane.shellOscSequence ?? 0) + 1;
+        pane.state = ["idle", "done"].includes(turn.state) ? "idle" : turn.state === "working" ? "busy" : "unknown";
+        this.store.event("shell_osc7501", { ...turn, sequence: pane.shellOscSequence, terminal: terminal.address }, record);
+        pane.wiringCheckAt ??= Date.now() + WIRING_RECHECK_MS;
+        if (["idle", "done"].includes(turn.state)) void this.shellReady(pane).catch(error => this.recordFailure(pane, "inbox_resume_failed", error));
+      }
       try { appendFileSync(trace, bytes); }
       catch (error) { this.recordFailure(pane, "trace_write_failed", error); }
     });
@@ -376,6 +402,21 @@ export class Panes implements GateRuntime {
     if (terminal.screen !== "exact") this.store.event("shell_screen_inexact", {
       hc_terminal: terminal.address, screen: terminal.screen, reason: "hc_history_lost" }, record);
   }
+  private restoreShellInbox(pane: Pane) {
+    // Only a durable no-write outcome is safe to queue again. A disconnected RPC is not a rejected send.
+    const rows = this.store.db.prepare("SELECT id FROM dispatch_records WHERE launch=? AND json_extract(data,'$.source')='inbox' ORDER BY seq").all(pane.record.id);
+    for (const row of rows) {
+      const item = this.store.dispatchRecord(String(row.id))!;
+      const event = this.store.db.prepare("SELECT seq,type,data FROM orchestration_events WHERE launch=? AND json_extract(data,'$.dispatch')=? AND type IN ('hc_send_intent','hc_send_rejected','hc_send_result','dispatch_unknown') ORDER BY seq DESC LIMIT 1").get(pane.record.id, item.id);
+      if (item.recipient && (!event || event.type === "hc_send_rejected")) { pane.queue.push(item); continue; }
+      const data = event ? JSON.parse(String(event.data)) : null;
+      if (event?.type === "hc_send_result" && data.confirmation === "confirmed") continue;
+      if (!event || event.type === "hc_send_intent") this.store.event("dispatch_unknown", {
+        dispatch: item.id, terminal: (pane.pty as HcTerminal).address, result: null, confirmation: "unknown",
+        reason: event ? "hc_send_interrupted" : "inbox_dispatch_unverified", intent_seq: event ? Number(event.seq) : null }, pane.record);
+      pane.inboxUnknown = item.id;
+    }
+  }
   async resizeShell(launch: string, cols: number, rows: number) {
     const pane = this.byLaunch(launch);
     check(pane.record.role === "shell", "shell_required");
@@ -389,15 +430,26 @@ export class Panes implements GateRuntime {
   async shellInput(launch: string, data: string, encoding: "utf8" | "binary", assertCurrent: () => Promise<void>) {
     const pane = this.byLaunch(launch);
     check(pane.record.role === "shell", "shell_required");
-    await this.serializeWrite(pane, async () => {
+    pane.pendingInputs++;
+    try { await this.serializeWrite(pane, async () => {
       await assertCurrent();
       check(!pane.failed && !pane.stopped && !pane.archived && !pane.closing, "pane_unavailable");
+      // Intent before the external write: a crash in between must never restore a falsely empty draft.
+      try { writeFileSync(join(this.root, "shell-drafts", launch + ".json"), JSON.stringify({ ...pane.draft, pending: true }), { mode: 0o600 }); }
+      catch (error) { this.recordFailure(pane, "shell_draft_write_failed", error); throw error; }
       try { pane.pty.write(encoding === "binary" ? Buffer.from(data, "latin1") : data); }
       catch (error) { this.recordFailure(pane, "shell_input_write_unknown", error); throw error; }
       pane.silenceCheck = true;
+      // Attach is the source of user composition; hc.send never enters this channel.
+      feedInput(pane.draft, data, encoding === "utf8" && data.startsWith("\x1b[200~") && data.endsWith("\x1b[201~"), encoding === "binary");
+      pane.userDraft = Boolean(pane.draft.chars.length || pane.draft.uncertain);
+      try { writeFileSync(join(this.root, "shell-drafts", launch + ".json"), JSON.stringify({ ...pane.draft, pending: false }), { mode: 0o600 }); }
+      catch (error) { this.recordFailure(pane, "shell_draft_write_unknown", error); throw error; }
       // T-184: a submitted line may start a CLI; its argv is read once it has had time to exec.
       if (data.includes("\r")) pane.wiringCheckAt = Date.now() + WIRING_CHECK_DELAY_MS;
     });
+    } finally { pane.pendingInputs--; }
+    if (!pane.userDraft) await this.drain(pane);
   }
   // The program in front of a project terminal: its process, launch facts, and which registered CLI it runs, if any.
   private async foreground(pane: Pane): Promise<{ pid: number; launch: LaunchFacts; cli: string | undefined } | null> {
@@ -420,6 +472,48 @@ export class Panes implements GateRuntime {
     const pane = this.byLaunch(launch);
     check(pane.record.role === "shell", "shell_required");
     this.noteNativeReport(pane, report);
+    pane.native = report.session;
+  }
+  // T-133 records every native submission except an unclaimed inbox send of our own (T-216).
+  // History/completion change the CLI's text without typing it through attach; keys cannot decide provenance.
+  claimShellInboxPrompt(launch: string, prompt: unknown): boolean {
+    if (typeof prompt !== "string") return false;
+    const pane = this.byLaunch(launch);
+    // Claude's pasted_content envelope is observed in T-122 GUI round 01. Its UPS strips trailing
+    // terminal newlines (store.register); Codex's real UPS preserves the sent body (T-216 round 6).
+    // Normalize only those transport rewrites, not internal whitespace or content.
+    const text = this.approvedController?.(pane.record.thread)?.cli === "claude"
+      ? String(claudeSubmittedText(prompt)).replace(/[\r\n]+$/, "") : prompt;
+    const rows = this.store.db.prepare(`SELECT d.id FROM dispatch_records d
+      WHERE d.launch=? AND json_extract(d.data,'$.source')='inbox'
+      AND EXISTS (SELECT 1 FROM orchestration_events e WHERE e.launch=d.launch
+        AND e.type='hc_send_intent' AND json_extract(e.data,'$.dispatch')=d.id)
+      AND NOT EXISTS (SELECT 1 FROM orchestration_events e WHERE e.launch=d.launch
+        AND e.type='hc_inbox_prompt_claimed' AND json_extract(e.data,'$.dispatch')=d.id)
+      ORDER BY d.seq`).all(launch);
+    for (const row of rows) {
+      const id = String(row.id), item = this.store.dispatchRecord(id)!;
+      const latest = this.store.db.prepare(`SELECT type FROM orchestration_events WHERE launch=?
+        AND json_extract(data,'$.dispatch')=? AND type IN ('hc_send_intent','hc_send_rejected','hc_send_result','dispatch_unknown')
+        ORDER BY seq DESC LIMIT 1`).get(launch, id);
+      // Provenance by our own marker (executor decision, T-216 round 7): every inbox dispatch starts with its
+      // unique ⟦主控 #seq⟧ label and carries the inbox entry's UUID, so a submission equal to the full text of an
+      // unclaimed dispatch whose hc_send_intent is written is that dispatch. This holds without hc's return: hc
+      // may have typed it just before the daemon died, and the hook arrives after restart. Accepted cost: if
+      // the daemon died after the intent but before the RPC, the text never reached the terminal, and a user who
+      // later submits that exact text, label and UUID included, is claimed as system. hc_send_rejected as the
+      // latest event means hc typed nothing for this dispatch.
+      if (latest?.type === "hc_send_rejected" || item.text !== text) continue;
+      this.store.event("hc_inbox_prompt_claimed", { dispatch: id, terminal: (pane.pty as HcTerminal).address }, pane.record);
+      return true;
+    }
+    return false;
+  }
+  private async shellReady(pane: Pane) {
+    const held = this.approvedController?.(pane.record.thread);
+    if (held && this.controllerThreads(held.role, held.project).includes(pane.record.thread))
+      await this.controllerReady?.(pane.record.thread, held.role, held.project);
+    await this.drain(pane);
   }
   // T-195: the CLI in front of this terminal now, and the session it reported, if the same process reported one.
   async shellNative(launch: string): Promise<{ cli: string | null; report: ShellNativeReport | null }> {
@@ -443,9 +537,12 @@ export class Panes implements GateRuntime {
       const { pid, launch, cli: command } = front;
       const cli = command === undefined ? undefined : terminalClis[command];
       // Reports belong to the CLI in front; another program in front (`opencode; sleep 60`) leaves none standing.
-      if (cli?.turns !== "osc7501") pane.cliTurn = null;
+      if (!cli) pane.cliTurn = null;
       // T-191: the sidebar shows the state of the CLI in front; recheck while one is there so it clears when it exits.
+      const previousCli = pane.foregroundCli;
       pane.foregroundCli = cli ? command! : null;
+      if (pane.foregroundCli !== previousCli && ["idle", "done"].includes(pane.cliTurn?.state ?? ""))
+        await this.shellReady(pane);
       const unwired = Boolean(cli) && !cli!.wired(launch);
       pane.unwiredCli = !unwired ? null : pane.unwiredCli?.pid === pid ? pane.unwiredCli
         : { command: command!, pid, since: new Date().toISOString() };
@@ -1480,11 +1577,12 @@ export class Panes implements GateRuntime {
     });
     } finally { pane.pendingInputs--; }
   }
-  async dispatch(pane: Pane, text: string, source: DispatchSource = "executor", inbox?: { id: string; sender: string }, context?: { kind: string; rejection_id: string }) {
-    check(pane.record.role !== "shell", "agent_pane_required");
+  async dispatch(pane: Pane, text: string, source: DispatchSource = "executor", inbox?: { id: string; sender: string; recipient: string }, context?: { kind: string; rejection_id: string }) {
+    check(pane.record.role !== "shell" || source === "inbox" && Boolean(this.approvedController?.(pane.record.thread)),
+      "agent_pane_required");
     const previous = inbox ? this.store.inboxDispatch(inbox.id) : undefined;
     if (previous) {
-      check(previous.launch === pane.record.id && previous.sender === inbox!.sender &&
+      check(previous.launch === pane.record.id && previous.sender === inbox!.sender && previous.recipient === inbox!.recipient &&
         previous.text === `⟦主控 #${previous.seq}⟧\n${text}`, "inbox_dispatch_conflict");
       return previous;
     }
@@ -1493,12 +1591,22 @@ export class Panes implements GateRuntime {
     const item = this.store.register(pane.record.id, text, source, context, inbox, this.parentLaunch.getStore());
     pane.queue.push(item);
     this.store.event("dispatch_queued", item, pane.record);
-    await this.drain(pane);
+    // hc wait may outlive the reporting gate call. Keep its task lock available for the controller's answer.
+    if (pane.record.role === "shell") void this.drain(pane).catch(error => this.recordFailure(pane, "dispatch_failed", error));
+    else await this.drain(pane);
     return item;
   }
   wakeThread = async (thread: string, entry: A2AInboxEntry) => {
     const pane = this.get(thread);
-    const item = await this.dispatch(pane, `收件箱 ${entry.kind} ${entry.id}\n${entry.body}`, "inbox", { id: entry.id, sender: entry.from });
+    const issue = entry as A2AInboxEntry & { task_id?: string; number?: number };
+    const detail = entry.kind === "issue" && issue.task_id
+      ? `问题 ${issue.number}：${entry.title}\n上报者：${entry.from}\n阻塞：${entry.blocking ? "是" : "否"}\n${entry.body}\n\n` +
+        `答复：a2a call '${JSON.stringify({ command: "answer_issue", task: issue.task_id, issue: entry.id, answer: "<答复>" })}'\n` +
+        `关闭：a2a call '${JSON.stringify({ command: "disposition", task: issue.task_id, issue: entry.id, action: "close", reason: "<理由>", basis: "<依据>" })}'\n` +
+        `交给用户：a2a call '${JSON.stringify({ command: "disposition", task: issue.task_id, issue: entry.id, action: "needs-user", reason: "<理由>" })}'\n` +
+        "涉及权限、范围、验收条件、安全、不可逆操作时，不回答、不关闭，只附理由交给用户。"
+      : entry.body;
+    const item = await this.dispatch(pane, `收件箱 ${entry.kind} ${entry.id}\n${detail}`, "inbox", { id: entry.id, sender: entry.from, recipient: entry.to });
     return { message: item.id, state: (await this.readWakeDelivery(thread, item.id)).state };
   };
   readWakeDelivery = async (thread: string, message: string): Promise<{ state: "queued" | "delivered" | "unknown"; at: string }> => {
@@ -1506,6 +1614,12 @@ export class Panes implements GateRuntime {
     check(item, "unknown_dispatch");
     const record = this.store.launchRecord(item.launch);
     check(record?.thread === thread, "wake_identity_mismatch");
+    if (record.role === "shell") {
+      const event = this.store.db.prepare("SELECT time,type,data FROM orchestration_events WHERE launch=? AND json_extract(data,'$.dispatch')=? AND type IN ('hc_send_result','dispatch_unknown') ORDER BY seq DESC LIMIT 1").get(item.launch, item.id);
+      if (event) return { state: event.type === "hc_send_result" && JSON.parse(String(event.data)).confirmation === "confirmed" ? "delivered" : "unknown", at: String(event.time) };
+      const pane = this.panes.get(thread);
+      return { state: pane && !pane.failed && !pane.stopped && pane.queue.some(item => item.id === message) ? "queued" : "unknown", at: item.registered_at };
+    }
     const last = this.store.db.prepare("SELECT time,type FROM orchestration_events WHERE launch=? AND json_extract(data,'$.dispatch')=? AND type IN ('turn_submitted','dispatch_unknown','dispatch_interrupted_before_submit') ORDER BY seq DESC LIMIT 1")
       .get(item.launch, item.id);
     if (last) return { state: last.type === "turn_submitted" ? "delivered" : "unknown", at: String(last.time) };
@@ -1514,7 +1628,82 @@ export class Panes implements GateRuntime {
       (pane.sending === message || pane.queue.some(row => row.id === message));
     return { state: queued ? "queued" : "unknown", at: item.registered_at };
   };
+  private shellUnknownConsumed(pane: Pane): boolean {
+    const dispatch = pane.inboxUnknown!, terminal = (pane.pty as HcTerminal).address;
+    const unknown = this.store.db.prepare(`SELECT seq FROM orchestration_events WHERE launch=?
+      AND type='dispatch_unknown' AND json_extract(data,'$.dispatch')=? ORDER BY seq DESC LIMIT 1`).get(pane.record.id, dispatch);
+    if (!unknown) return false;
+    const resumed = this.store.db.prepare(`SELECT 1 FROM orchestration_events WHERE launch=?
+      AND type='hc_unknown_consumed' AND json_extract(data,'$.dispatch')=? AND seq>?`).get(pane.record.id, dispatch, unknown.seq);
+    if (resumed) return true;
+    // hc 0.1.15 probe (T-216 round 6): retained input stays unsubmitted after not_started;
+    // when the CLI consumes it, a new working -> idle/done pair follows. Require both AFTER
+    // the unknown receipt. Persisted OSC event order survives daemon restart; no timeout or resend.
+    // The original dispatch stays unknown: this fact releases only later queued messages.
+    const pair = this.store.db.prepare(`SELECT w.seq AS working_seq, r.seq AS ready_seq
+      FROM orchestration_events w JOIN orchestration_events r ON r.launch=w.launch AND r.seq>w.seq
+      WHERE w.launch=? AND w.seq>? AND w.type='shell_osc7501' AND json_extract(w.data,'$.terminal')=?
+      AND json_extract(w.data,'$.state')='working' AND r.type='shell_osc7501'
+      AND json_extract(r.data,'$.terminal')=? AND json_extract(r.data,'$.state') IN ('idle','done')
+      ORDER BY r.seq,w.seq LIMIT 1`).get(pane.record.id, unknown.seq, terminal, terminal);
+    if (!pair) return false;
+    this.store.event("hc_unknown_consumed", { dispatch, terminal, unknown_seq: Number(unknown.seq),
+      working_seq: Number(pair.working_seq), ready_seq: Number(pair.ready_seq) }, pane.record);
+    return true;
+  }
+  private async drainShell(pane: Pane) {
+    if (pane.writing || pane.pendingInputs > 0 || pane.userDraft || pane.stopped || pane.failed || pane.archived || !pane.queue.length) return;
+    if (pane.inboxUnknown && !this.shellUnknownConsumed(pane)) return;
+    const state = pane.cliTurn?.state;
+    if (!["idle", "done"].includes(state ?? "")) return;
+    pane.writing = true;
+    const sequence = pane.shellOscSequence;
+    let attempted = false;
+    try { await this.serializeWrite(pane, async () => {
+      const front = await this.foreground(pane);
+      const held = this.approvedController?.(pane.record.thread), item = pane.queue[0]!;
+      if (!held?.cli || held.role !== item.recipient || held.project !== pane.record.project || front?.cli !== held.cli ||
+        pane.pendingInputs > 0 || pane.userDraft || pane.stopped || pane.failed || pane.cliTurn?.state !== state) return;
+      const terminal = pane.pty as HcTerminal;
+      // hc 0.1.15 cannot condition on done. If the CLI starts a turn here, it queues this input itself (once).
+      // When packaged hc supports if:done, condition this send too and remove this note (T-216).
+      const params = { terminal: terminal.address, text: item.text, caller: terminal.address, wait: true as const, timeout: 1,
+        ...(state === "idle" ? { if: "idle" as const } : {}) };
+      this.store.event("hc_send_intent", { dispatch: item.id, ...params, state, osc_sequence: sequence }, pane.record);
+      attempted = true;
+      let result: any;
+      try {
+        pane.sending = item.id;
+        result = await terminal.send(params);
+      }
+      catch (error) {
+        const hc = (error as { hc?: any }).hc;
+        if (["status_mismatch", "blocked"].includes(hc?.data?.kind)) {
+          this.store.event("hc_send_rejected", { dispatch: item.id, terminal: terminal.address, error: hc }, pane.record);
+          return; // Nothing was typed. Resume only on a later state/input event, never on a retry timer.
+        }
+        pane.queue.shift(); pane.inboxUnknown = item.id;
+        this.store.event("dispatch_unknown", { dispatch: item.id, terminal: terminal.address, error: hc ?? String(error) }, pane.record);
+        return;
+      }
+      pane.queue.shift();
+      const confirmed = result.started === true && result.wait?.terminal === terminal.address && result.wait.reason !== "not_started" &&
+        Number.isSafeInteger(result.turn) && result.wait.turn >= result.turn;
+      this.store.event("hc_send_result", { dispatch: item.id, terminal: terminal.address, result, confirmation: confirmed ? "confirmed" : "unknown" }, pane.record);
+      if (!confirmed) {
+        pane.inboxUnknown = item.id;
+        this.store.event("dispatch_unknown", { dispatch: item.id, terminal: terminal.address, result, reason: "hc_send_unconfirmed" }, pane.record);
+        // Unknown is final: the text may already be in the CLI. Never resend.
+      }
+    }); } finally {
+      pane.sending = null; pane.writing = false;
+      // A ready event can arrive during wait. It may release the next queued message, not repeat the attempted one.
+      if (attempted && pane.shellOscSequence !== sequence && ["idle", "done"].includes(pane.cliTurn?.state ?? ""))
+        void this.drain(pane).catch(error => this.recordFailure(pane, "dispatch_failed", error));
+    }
+  }
   async drain(pane: Pane) {
+    if (pane.record.role === "shell") { await this.drainShell(pane); return; }
     if (pane.state !== "idle" || pane.writing || pane.pendingInputs > 0 || pane.userDraft || pane.interrupted || !pane.queue.length || pane.failed) return;
     const submitted = this.store.db.prepare("SELECT count(*) AS n FROM orchestration_events WHERE launch=? AND type='turn_submit_intent'").get(pane.record.id)!;
     if (Number(submitted.n) >= pane.record.turn_limit) {
@@ -1722,7 +1911,7 @@ export class Panes implements GateRuntime {
       return { thread, launch: pane.record.id, state: pane.failed || pane.stopped ? "unknown" : pane.state,
         lifecycle: pane.archived || pane.nativeEnded || pane.record.role === "shell" && pane.stopped ? "ended" : pane.stopped ? "interrupted" : "running", shell_pid: pane.pty.pid,
         size: pane.gone ? null : { cols: pane.pty.cols, rows: pane.pty.rows },
-        ...(pane.record.role === "shell" ? { screen: (pane.pty as HcTerminal).screen } : {}),
+        ...(pane.record.role === "shell" ? { screen: (pane.pty as HcTerminal).screen, inbox_unknown: pane.inboxUnknown ?? null } : {}),
         state_source: pane.failed ? "runtime_failure" : "host_events", active: pane.active, native_session: pane.native,
         start_missing: this.startMissing(pane), silent_foreground: pane.silentForeground ?? null,
         unwired_cli: pane.unwiredCli ? { command: pane.unwiredCli.command, since: pane.unwiredCli.since } : null,

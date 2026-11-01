@@ -71,6 +71,8 @@ export interface A2AInboxEntry {
   basis?: string;
   certainty?: "relayed";
   bundle_id?: string;
+  /** Host-recorded executor launch that dispatched the reporting session, never selected by the sender. */
+  controller_launch?: string;
 }
 export interface A2AInboxDelivery {
   state: "pending" | "queued" | "delivered" | "undelivered" | "unknown";

@@ -8,7 +8,7 @@ export type DispatchSource = "executor" | "gate" | "inbox" | "user";
 // The sender a worker sees on each dispatched message; a user's answer is labelled as the user's (T-124).
 const dispatchLabel = (source: DispatchSource) => source === "gate" ? "门禁" : source === "user" ? "用户" : "主控";
 export type DispatchItem = { id: string; seq: number; source: DispatchSource; text: string; registered_at: string;
-  inbox_entry?: string; sender?: string; parent_launch?: string | null; context?: { kind: string; rejection_id: string } };
+  inbox_entry?: string; sender?: string; recipient?: string; parent_launch?: string | null; context?: { kind: string; rejection_id: string } };
 
 // The gate owns its existing tables. All new orchestration records share its file.
 export class OrchestrationStore {
@@ -146,7 +146,7 @@ export class OrchestrationStore {
     const row = this.db.prepare("SELECT * FROM dispatch_records WHERE id=?").get(id);
     return row ? { ...this.dispatchItem(row), launch: String(row.launch) } : undefined;
   }
-  register(launch: string, text: string, source: DispatchSource = "executor", context?: { kind: string; rejection_id: string }, inbox?: { id: string; sender: string }, parentLaunch?: string | null): DispatchItem {
+  register(launch: string, text: string, source: DispatchSource = "executor", context?: { kind: string; rejection_id: string }, inbox?: { id: string; sender: string; recipient: string }, parentLaunch?: string | null): DispatchItem {
     const id = randomUUID();
     const registered_at = new Date().toISOString();
     // Claude's UserPromptSubmit payload removes terminal line breaks from a
@@ -155,9 +155,9 @@ export class OrchestrationStore {
     const canonicalText = text.replace(/[\r\n]+$/, "");
     const seq = Number(this.db.prepare("INSERT INTO dispatch_records(id,launch,data) VALUES (?,?,?)")
       .run(id, launch, JSON.stringify({ text: canonicalText, registered_at, source, parent_launch: parentLaunch ?? null, ...(context ? { context } : {}),
-        ...(inbox ? { inbox_entry: inbox.id, sender: inbox.sender } : {}) })).lastInsertRowid);
+        ...(inbox ? { inbox_entry: inbox.id, sender: inbox.sender, recipient: inbox.recipient } : {}) })).lastInsertRowid);
     return { id, seq, source, text: `⟦${dispatchLabel(source)} #${seq}⟧\n${canonicalText}`, registered_at, parent_launch: parentLaunch ?? null, ...(context ? { context } : {}),
-      ...(inbox ? { inbox_entry: inbox.id, sender: inbox.sender } : {}) };
+      ...(inbox ? { inbox_entry: inbox.id, sender: inbox.sender, recipient: inbox.recipient } : {}) };
   }
   read(task?: string) {
     const rows = this.db.prepare(`SELECT * FROM orchestration_events${task ? " WHERE task=?" : ""} ORDER BY seq`).all(...(task ? [task] : []));

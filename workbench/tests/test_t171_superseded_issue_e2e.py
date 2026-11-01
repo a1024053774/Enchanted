@@ -6,7 +6,7 @@
 1. revise 作废 a1、重派 a2 后，a1 的 blocking 问题仍是“等你决定”，项目行与“问题”页签仍把它算进角标（N07 原样）。
 2. 提示放得太宽：a2（未被修订作废）的 blocking 问题也被标成失效、不再计数。
 3. 失效的问题被自动关闭或删除，而不是等用户确认。
-4. 主控（终端身份）借“失效”关闭了 blocking 问题。
+4. 主控（终端身份）替用户确认了“已随修订失效”。
 5. 一键确认后状态没变成已关闭，或没记成用户输入（form=action，channel=issue-panel，回指该问题）。
 6. 一键确认的确认处看不到原问题全文。
 --revision 在该版本源码上跑同一场景（修前应复现 1）；--mutant 跑已知坏实现。
@@ -93,6 +93,11 @@ def main():
         new_attempt = second['attempt']['attempt_id']
         views = fixture.wait('a2 的问题进门禁', lambda: (lambda v: v if by_title(v, NEW[0]) else None)(gate_issues()['issues']), 180)
         old, new = by_title(views, OLD[0]), by_title(views, NEW[0])
+        escalated = fixture.request('disposition', fixture.terminal, task='T-1', issue=new['issue']['id'],
+                                    action='needs-user', reason='涉及新卡验收条件，由用户决定')
+        assert escalated['ok'], escalated
+        views = escalated['issues']
+        old, new = by_title(views, OLD[0]), by_title(views, NEW[0])
         report['observed']['gate_before'] = {v['issue']['title']: dict(state=v['state'], attempt=v['issue']['attempt_id'],
                                              superseded=v.get('superseded_by_revision')) for v in views}
         check('old_issue_under_a1', old['issue']['attempt_id'] == old_attempt, old['issue']['attempt_id'])
@@ -100,10 +105,10 @@ def main():
         # 1 and 3: the revised-away issue is marked, still open, not closed for the user.
         check('old_issue_marked_superseded', old['state'] == '可能已随修订失效' and
               (old.get('superseded_by_revision') or {}).get('attempt') == old_attempt, old['state'])
-        # 2: the current attempt's blocking issue keeps waiting for the user.
+        # 2: the current attempt's escalated issue waits for the user (T-210).
         check('new_issue_still_waiting', new['state'] == '等你决定' and not new.get('superseded_by_revision'), new['state'])
 
-        # 4: the controller cannot close the blocking issue, superseded or not.
+        # 4: only the user confirms that the revised-away issue is obsolete (T-171).
         refused = fixture.request('disposition', fixture.terminal, task='T-1', issue=old['issue']['id'], action='close',
                                   reason='已随修订失效', basis='主控判断')
         report['observed']['controller_close'] = dict(ok=refused.get('ok'), error=refused.get('error'))

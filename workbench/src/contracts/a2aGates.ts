@@ -388,6 +388,8 @@ export interface A2AIssueRecord {
   title: string;
   blocking: boolean;
   issue_id: string;
+  /** The reporting session's host-recorded parent executor launch. */
+  controller_launch?: string;
   input_id?: string;
   message_id?: string;
   bundle_id?: string;
@@ -398,7 +400,7 @@ export interface A2AIssueRecord {
 
 export interface A2AIssueView {
   issue: A2AIssueRecord;
-  state: "待判断" | "等你决定" | "已答复" | "已送达" | "已转交" | "已关闭" | "稍后" | "可能已随修订失效";
+  state: "待判断" | "等你决定" | "主控已答" | "已答复" | "已送达" | "已转交" | "已关闭" | "稍后" | "可能已随修订失效";
   answer?: A2AIssueRecord;
   /** The open issue's attempt was revoked by a revise; only the user confirms closing it (T-171). */
   superseded_by_revision?: { attempt: string; reason: string };

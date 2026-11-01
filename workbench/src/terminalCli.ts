@@ -51,6 +51,9 @@ const usage = `a2a：Enchanted 工作台的编排命令（在 Enchanted 的项�
                               worker_working 时先核对旧回合与输入队列，停止或归档未确认时保留现场并上报。
                               回收后脏工作区仍保留、上报；保留证据不继续占用路径。
                               回答 worker 上报的问题：issues / answer_issue，记为主控的回答。
+                              问题（含 blocking）会经收件箱送到执行主控；可 answer_issue 答复，
+                              或 disposition（action 为 close，附 reason、basis；或 needs-user，附 reason）。
+                              涉及权限、范围、验收条件、安全、不可逆操作时，不回答、不关闭，只附理由交给用户。
                               attach（role 为 monitor）挂一个只读观察会话。
   a2a mcp <CLI>               以 MCP 服务器提供同一组命令（Enchanted 的 CLI 启动参数自动挂上，不手动运行）
   a2a help                    显示这段说明

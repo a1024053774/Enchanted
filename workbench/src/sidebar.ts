@@ -222,10 +222,10 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
     // T-187: agy and opencode report their own state to the terminal (OSC 7501); none yet is unknown.
     const reportsItself = roleRequest.cli !== null && terminalClis[roleRequest.cli]?.turns === 'osc7501';
     const state: AgentState = pane?.failed ? 'unknown' : pane?.lifecycle === 'ended' ? 'ended' : pane?.unwired_cli ? 'unknown'
-      : reportsItself ? osc7501State(pane?.cli_turn) : last ?? (roleRequest.cli === 'claude' && roleRequest.native_session ? 'running' : 'unknown');
+      : pane?.inbox_unknown ? 'unknown' : reportsItself ? osc7501State(pane?.cli_turn) : last ?? (roleRequest.cli === 'claude' && roleRequest.native_session ? 'running' : 'unknown');
     agents.push({ id: roleRequest.launch, project: roleRequest.project, task: null, task_name: null, attempt: null, thread: record.thread,
       role: 'controller', preset: roleRequest.role, role_label: roleLabel({ role: 'controller', preset: roleRequest.role }), cli: roleRequest.cli ?? '未知',
-      parent: roleRequest.parent_launch, state, question_id: null, state_label: stateLabels[state], created_at: roleRequest.decided_at, ended_at: ended(roleRequest.launch, state),
+      parent: roleRequest.parent_launch, state, inbox_unknown: pane?.inbox_unknown ?? null, question_id: null, state_label: stateLabels[state], created_at: roleRequest.decided_at, ended_at: ended(roleRequest.launch, state),
       active_at: activeAt.get(roleRequest.launch) ?? roleRequest.decided_at, history: state === 'ended', reclaimable: false, terminal: true } as any);
   }
   // Ordinary project terminals have their own selectable view too. A terminal

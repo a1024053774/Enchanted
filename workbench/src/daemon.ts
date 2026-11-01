@@ -61,6 +61,12 @@ export async function serve(
   gates.openedProjectRepo = project => store.openedProjects().find(opened => opened.project_id === project)?.repo;
   const relay = new RequestRelay(store);
   const roleRequests = new RoleRequests(store, launch => panes.terminalAlive(launch));
+  panes.approvedController = thread => {
+    const record = store.launches().find(record => record.thread === thread);
+    const held = record && roleRequests.approved(record.id);
+    return held ? { role: held.role, project: held.project, cli: held.cli } : undefined;
+  };
+  panes.controllerReady = (thread, role, project) => gates.resumeControllerInbox(thread, role, project);
   // A terminal controller's usage limit, read from its own session log (T-124).
   const quota = new ControllerQuota(store);
   const quotaTimer = setInterval(() => {
@@ -309,6 +315,9 @@ export async function serve(
     if (input.command === "role_request_confirm") {
       const confirmed = roleRequests.confirm(terminal.id, input.role_request);
       if (!confirmed) throw new Refusal("request_not_granted");
+      const thread = store.launchRecord(terminal.id)!.thread;
+      if (panes.controllerThreads(confirmed.role, confirmed.project).includes(thread))
+        await gates.resumeControllerInbox(thread, confirmed.role, confirmed.project);
       return { ok: true, role_request: confirmed };
     }
     if (input.command === "role_release") {
@@ -337,12 +346,14 @@ export async function serve(
         : ["PostToolUse", "PostToolUseFailure"].includes(name) && tool ? "running"
         : name === "Stop" || name === "Notification" && payload.notification_type === "idle_prompt" ? "idle" : null;
       if (!state) return { ok: true, kept: false };
-      if (name === "UserPromptSubmit") {
+      // Native question selections carry Codex's structured reply, not the user's literal attach keys (T-133).
+      // Keep that independent user-answer path; inbox text is never a question-reply envelope.
+      const reply = codex && name === "UserPromptSubmit" ? codexQuestionReply(payload.prompt) : null;
+      if (name === "UserPromptSubmit" && (reply || !panes.claimShellInboxPrompt(terminal.id, payload.prompt))) {
         // Codex gives a submission no id of its own: a reply shares its turn_id with the prompt that asked.
         const submission = codex ? payload.turn_id : payload.prompt_id;
         if (typeof payload.prompt !== "string" || typeof submission !== "string" || !submission) return { ok: true, kept: false };
-        const reply = codex ? codexQuestionReply(payload.prompt) : null;
-        // The whole prompt the user submitted to their controller (T-133 option A); a2a injects nothing into project terminals.
+        // The whole user submission (T-133 option A); only a claimed inbox dispatch of our own is system input.
         // A Codex hook call is one submission, so its record gets an id of its own.
         try {
           gates.appendUserInput({ id: randomUUID(), schema: 1, form: reply ? "answer" : "message", text: reply ? reply.text : claudeSubmittedText(payload.prompt) as string,
@@ -807,7 +818,7 @@ export async function serve(
       const launch = await panes.startController(status.task, { ...input.manifest,
         execution: executionOverrides({ ...input.manifest.execution, ...overrides }) });
       gates.registerController(launch.thread);
-      await gates.resumeControllerInbox(launch.thread);
+      await gates.resumeControllerInbox(launch.thread, launch.preset, launch.project);
       return { ok: true, launch };
     }
     if (input.command === "daemon_stop") {

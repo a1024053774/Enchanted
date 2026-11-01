@@ -175,8 +175,9 @@ def main():
             if messages[index]['role'] != 'user':
                 continue
             joined = '\n'.join(texts(messages[index]))
-            found = next((name for marker, name in (('用户答复', 'after-user'), ('主控答复', 'after-controller'), ('显式交付', 'dispatch'))
-                          if marker in joined), None)
+            # Match the actual answer field, not words in the worker's role card (T-216 also explains 主控答复).
+            found = next((name for marker, name in (('用户答复：', 'after-user'), ('主控答复：', 'after-controller'), ('显式交付：', 'dispatch'))
+                          if (marker + '\n' in joined if name == 'dispatch' else re.search(r'^' + re.escape(marker), joined, re.M))), None)
             if found:
                 phase, start = found, index
                 break

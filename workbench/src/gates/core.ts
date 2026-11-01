@@ -118,6 +118,7 @@ function pathInside(root: string, target: string): boolean {
 // Host-owned lifecycle boundary. The gate does not implement a CLI/provider runtime.
 // T-075-1 exercises it with an isolated service; the pane host is supplied by T-075-3.
 export interface GateRuntime {
+  controllerThreads?(role: string, project: string, launch?: string): ReadonlyArray<string>;
   controllerLaunch?(thread: string): { id: string; thread: string; task: string; project: string; preset: "ideation" | "executor"; session: string; spec_rev: number } | undefined;
   ensureProject(project: string, repo: string): Promise<void>;
   createThread(task: A2ATask, attempt: A2AAttempt, overrides?: { model?: string; effort?: string; fast?: boolean }): Promise<void>;
@@ -675,9 +676,9 @@ export class A2AGates {
         const elapsed = Math.max(0, this.now() - Date.parse(last.created_at));
         const state: A2AIssueView["state"] =
           last.kind === "answer"
-            ? "已答复"
+            ? answer?.from === "user" ? "已答复" : "主控已答"
             : last.action === "delivered"
-              ? "已送达"
+              ? answer && answer.from !== "user" ? "主控已答" : "已送达"
               : last.action === "close" || last.action === "dismiss"
                 ? "已关闭"
                 : last.action === "forward"
@@ -688,7 +689,7 @@ export class A2AGates {
                     ? elapsed < 3_600_000
                       ? "稍后"
                       : "等你决定"
-                    : last.kind === "disposition" || issue.blocking || elapsed >= 900_000
+                    : last.kind === "disposition" || elapsed >= 900_000
                       ? "等你决定"
                       : "待判断";
         // A worker's open issue under an attempt that a revise revoked may no longer apply; it
@@ -751,6 +752,8 @@ export class A2AGates {
         "identity_conflict",
       );
       await caller.assertActive();
+      const facts = await this.runtime.sessionFacts?.(caller.thread);
+      await caller.assertActive();
       const issueId = randomUUID();
       const number = this.issueNumber(attempt?.attempt_id ?? null, caller.thread);
       const issue: A2AIssueRecord = {
@@ -758,7 +761,7 @@ export class A2AGates {
         schema: 1,
         kind: "issue",
         from: `${binding.role}:${caller.thread}`,
-        to: "triage",
+        to: "executor",
         reply_to: null,
         refs: [
           `task:${task.task_id}`,
@@ -777,6 +780,7 @@ export class A2AGates {
         title: input.title,
         blocking: input.blocking,
         issue_id: issueId,
+        ...(facts?.launch.parent_launch ? { controller_launch: facts.launch.parent_launch } : {}),
       };
       this.db.exec("BEGIN IMMEDIATE");
       try {
@@ -785,7 +789,8 @@ export class A2AGates {
       } finally {
         if (this.db.isTransaction) this.db.exec("ROLLBACK");
       }
-      return { ok: true, id: issueId, number };
+      const delivery = await this.deliverInbox(issue);
+      return { ok: true, id: issueId, number, delivery };
     } finally {
       lock.close();
     }
@@ -794,6 +799,7 @@ export class A2AGates {
     args: A2AGateRequest,
     caller?: SubmitCaller,
     actor = caller ? (caller.address ?? `controller:${caller.thread}`) : "user",
+    controller?: TerminalController,
   ): Promise<A2AGateResult> {
     const view = this.readIssues(args.task).issues.find((entry) => entry.issue.id === args.issue);
     requireGate(view, "unknown_issue");
@@ -801,9 +807,10 @@ export class A2AGates {
     if (args.action === "dismiss" || args.action === "snooze" || args.action === "reopen")
       requireGate(actor === "user", "user_required");
     if (args.action === "close") {
-      requireGate(!view.issue.blocking || actor === "user", "blocking_requires_user");
+      requireGate(!view.superseded_by_revision || actor === "user", "superseded_requires_user");
       requireGate(args.reason?.trim() && args.basis?.trim(), "close_requires_reason_basis");
     }
+    if (args.action === "needs-user") requireGate(args.reason?.trim(), "needs_user_requires_reason");
     if (args.action === "delivered")
       requireGate(
         view.answer?.input_id &&
@@ -849,6 +856,7 @@ export class A2AGates {
         ...view.issue.refs,
         `issue:${view.issue.id}`,
         ...(caller ? [`actor-thread:${caller.thread}`] : []),
+        ...(controller ? [`controller-launch:${controller.launch}`, `role-request:${controller.role_request}`] : []),
       ],
     };
     const sequence = this.appendIssue(record);
@@ -3303,7 +3311,7 @@ export class A2AGates {
       )
       .at(-1);
     if (!last)
-      return Boolean(issue.blocking) || this.now() - Date.parse(issue.created_at) >= 900_000;
+      return this.now() - Date.parse(issue.created_at) >= 900_000;
     if (last.kind === "answer" || ["close", "dismiss", "delivered"].includes(last.action ?? ""))
       return false;
     if (last.action === "forward") return this.now() - Date.parse(last.created_at) >= 900_000;
@@ -3368,13 +3376,29 @@ export class A2AGates {
     this.inboxEntry(entryId);
     return await this.refreshInboxDelivery(entryId);
   }
-  async resumeControllerInbox(thread: string): Promise<void> {
+  private inboxTargets(entry: A2AInboxEntry): string[] {
+    const task = entry.refs.find(ref => ref.startsWith("task:"))?.slice(5);
+    const project = task ? this.load(task).project_id : undefined;
+    // A cross-project dispatch still belongs to its actual executor (T-193), not the task project's other executor.
+    const controller = entry.to === "executor" ? entry.controller_launch : undefined;
+    const targets = [...new Set([...this.membership.presetThreads(entry.to).filter(thread => {
+      const owned = this.ownedThread(thread);
+      return owned && (controller ? this.runtime?.controllerLaunch?.(thread)?.id === controller : !project || owned.task.project_id === project);
+    }), ...(project ? this.runtime?.controllerThreads?.(entry.to, project, controller) ?? [] : [])])];
+    if (entry.to.includes(":")) {
+      const [role, thread] = entry.to.split(":");
+      if (thread && this.ownedThread(thread)?.role === role) targets.push(thread);
+    }
+    return targets;
+  }
+  async resumeControllerInbox(thread: string, role: "ideation" | "executor", project: string): Promise<void> {
     requireGate(!this.shuttingDown, "daemon_stopping");
     const launch = this.runtime?.controllerLaunch?.(thread);
-    requireGate(launch && this.ownedThread(thread)?.role === "controller", "controller_launch_required");
+    requireGate((launch?.preset === role && launch.project === project && this.ownedThread(thread)?.role === "controller") ||
+      this.runtime?.controllerThreads?.(role, project).includes(thread), "controller_launch_required");
     for (const entry of this.inboxRecords()) {
       requireGate(!this.shuttingDown, "daemon_stopping");
-      if (entry.to === launch.preset && this.waitingForRole(this.inboxDelivery(entry.id))) {
+      if (entry.to === role && this.waitingForRole(this.inboxDelivery(entry.id)) && this.inboxTargets(entry).includes(thread)) {
         await this.deliverInbox(entry, true);
       }
     }
@@ -3391,13 +3415,7 @@ export class A2AGates {
       let receipt: A2AInboxDelivery;
       try {
         requireGate(this.runtime?.wakeThread, "wake_runtime_required");
-        const targets = this.membership
-          .presetThreads(entry.to)
-          .filter((thread) => this.ownedThread(thread));
-        if (entry.to.includes(":")) {
-          const [role, thread] = entry.to.split(":");
-          if (thread && this.ownedThread(thread)?.role === role) targets.push(thread);
-        }
+        const targets = this.inboxTargets(entry);
         if (!targets.length && ["ideation", "executor"].includes(entry.to)) {
           const receipt: A2AInboxDelivery = { state: "pending", entry_id: entry.id,
             created_at, reason: "role_session_missing" };
@@ -3580,9 +3598,8 @@ export class A2AGates {
         ["executor", "ideation", "user", "system"].includes(role),
         "disposition_sender_required",
       );
-      if (args.action === "close" || args.action === "dismiss")
-        requireGate(!parent.blocking || role === "user", "blocking_requires_user");
       if (args.action === "dismiss") requireGate(role === "user", "user_required");
+      if (args.action === "needs-user") requireGate(args.reason?.trim(), "needs_user_requires_reason");
       if (args.action === "close")
         requireGate(args.reason?.trim() && args.basis?.trim(), "close_requires_reason_basis");
       const legacy = this.db.prepare("SELECT data FROM issue_records WHERE id=?").get(parent.id);
@@ -3809,7 +3826,7 @@ export class A2AGates {
           );
           await caller.assertActive();
         }
-        return await this.disposeIssue(args, caller, actor?.address);
+        return await this.disposeIssue(args, caller, actor?.address, actor?.controller);
       }
       if (args.command === "answer_issue" || args.command === "answer_issues")
         return await this.answerIssues(args, actor);

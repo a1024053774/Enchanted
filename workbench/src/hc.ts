@@ -152,6 +152,10 @@ export class HcTerminal extends EventEmitter {
     // dimensions before taking the full paint, with live bytes ordered after it.
     await this.attach();
   }
+  // 0.1.15 correlates wait with this send (caller), rather than with an arbitrary later working report.
+  send(params: { terminal: string; text: string; caller: string; wait: true; timeout: number; if?: "idle" }) {
+    return this.connection.call('terminal.send', params);
+  }
   async kill() { await this.connection.call('terminal.kill', { terminal: this.address }); }
 }
 
