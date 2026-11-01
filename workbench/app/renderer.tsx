@@ -50,7 +50,7 @@ type Snapshot = {
     preset: string | null; cli_version: string; model_requested: string } | null;
   pane: { launch: string; state: string; lifecycle: string; state_source: string; historical?: boolean; failed: string | null;
     delivery?: WorkerDeliveryStatus | null; start_missing?: boolean; inbox_unknown?: string | null; silent_foreground?: { command: string; since: string } | null; unwired_cli?: { command: string; since: string } | null;
-    writing?: boolean; user_draft?: boolean; queued?: string[];
+    screen?: 'exact' | 'inexact'; writing?: boolean; user_draft?: boolean; queued?: string[];
     restoration?: { status: string; error: string | null; details: string | null } | null;
     size?: { cols: number; rows: number } | null; interrupted?: boolean; interruption?: number | null; input_generation?: number; active?: { dispatch: string } | null } | null;
 };
@@ -500,6 +500,8 @@ function SessionPane({ paneKey, active, screenReader, fontFamily, name, confirme
             <span className="pane-state" data-state={error ? 'unknown' : agentState ?? 'unknown'}>{error ? '未知' : stateNames[agentState ?? 'unknown'] ?? '未知'}</span>
             {turnRejection && <span className="pane-state" data-delivery-refusal>旧回合交付被拒</span>}
             {pane?.start_missing && <span className="pane-state" data-start-missing>回合未开始</span>}
+            {/* T-230: hc rebuilt this terminal's screen from the holder's tail after its core restarted; older output is gone. */}
+            {pane?.screen === 'inexact' && <span className="pane-state" data-screen-inexact title="终端服务重启过，之前的输出只接回了最后一段">历史不完整</span>}
           </span>
           {!shell && snapshot?.launch?.role !== 'reviewer' && pane?.interrupted && <button className="release-queue" disabled={!snapshot?.input_enabled || !declarationReady || releasing || Boolean(inputError || error)}
             onClick={() => releaseQueue.current()}>输入框已空，放行</button>}

@@ -8,6 +8,7 @@ hc 的固定版本、来源和校验值只定义在 `src/hcDistribution.mjs`。�
 每个后台数据目录保存自己的 `HC_SESSION` 与 `HC_SOCKET` 身份。socket 位于随机私有临时目录，
 与用户 default core 无关；核对长度时包含 holder 后缀。hc 的状态和配置通过 XDG 变量放在后台私有 `hc/` 目录，
 启动 core 前去掉编排、Git、agent 会话与继承的 `HC_*` 标记；终端启动时还原用户原有 XDG 值，未设置的则删除。
+终端里不带私有 core 的地址：启动时去掉 hc 给终端设的 `HC_SOCKET`、`HC_SESSION`、`HC_TERMINAL_ID`、`HC_TERMINAL_SOCKET`（T-230）。终端之间发字、查看只经 a2a 命令，后台留记录；在终端里敲 `hc` 用的是用户自己的 hc 设置，看不到 Enchanted 的终端。core 被杀后，终端里的 hc 调用因此碰不到私有 socket，私有 core 由 holder 或后台按受控环境拉回。
 后台启动时只接受打开着本会话私有 `hc/state/herdr-core/<session>/core.lock` 的 core（把锁路径交给 `lsof` 按文件身份核对，不比对它输出的路径文本），且它不在后台的进程组里：
 core 死后 holder 约 3 秒按原受控环境重拉的 core 被接受，原终端接回、屏幕记 inexact；同 session、同 socket 但状态在默认 XDG
 目录的 core 被拒，后台不启动，记 `hc_start_failed` 事件与原因（T-228）。运行中的后台断开后不自动重连。
@@ -30,7 +31,7 @@ core 死后 holder 约 3 秒按原受控环境重拉的 core 被接受，原终�
 其中含明文 token；这是同一用户可读的运行数据，**整个 hc 私有运行目录永久排除在证据复制之外**。
 测试用 `tests/hc_evidence.py` 核对证据中没有 hc 状态文件、没有已知 token 明文，并只读比较用户 core 的目录及 pid/启动时间。
 显式关闭终端调用 `terminal.kill`，再核对子进程；macOS 上已知的系统二进制逃逸不被当作清理成功。
-core 崩溃后的屏幕可能为 `inexact`、历史可能丢失，不能将其报告为完整；后台重启与 core 崩溃是两个不同场景。
+core 崩溃后的屏幕可能为 `inexact`、历史可能丢失，不能将其报告为完整，界面在这类窗格的标题栏显示“历史不完整”（T-230）；后台重启与 core 崩溃是两个不同场景。
 运行中连接丢失而窗格带 `failed` 时，普通终端和主控的侧栏状态均为 unknown；终端进程仍在，主控身份不因此结束。
 
 项目行的右键菜单提供“编辑项目”：主目录保持不变，可以通过目录选择器添加或移除额外目录。

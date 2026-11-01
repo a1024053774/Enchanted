@@ -326,7 +326,10 @@ export class Panes implements GateRuntime {
     // restoring the user's original values (including an explicitly empty value).
     const xdg = ["XDG_STATE_HOME", "XDG_CONFIG_HOME"].flatMap(key => process.env[key] === undefined ? ["-u", key] : []);
     const originals = ["XDG_STATE_HOME", "XDG_CONFIG_HOME"].flatMap(key => process.env[key] === undefined ? [] : [`${key}=${process.env[key]}`]);
-    const terminal = await this.hc.run(launch, ["/usr/bin/env", ...xdg, ...originals, record.shell, ...record.shell_argv], worktree, environment);
+    // T-230: no address of the private core reaches the terminal (hc sets these for its terminals). A2A terminals reach
+    // other terminals only through a2a commands, which the daemon records; a bare hc there is the user's own hc.
+    const addresses = ["HC_SOCKET", "HC_SESSION", "HC_TERMINAL_ID", "HC_TERMINAL_SOCKET"].flatMap(key => ["-u", key]);
+    const terminal = await this.hc.run(launch, ["/usr/bin/env", ...xdg, ...addresses, ...originals, record.shell, ...record.shell_argv], worktree, environment);
     const credentials = join(this.root, "shell-credentials");
     mkdirSync(credentials, { recursive: true, mode: 0o700 });
     const tokenHash = createHash("sha256").update(token).digest("hex");

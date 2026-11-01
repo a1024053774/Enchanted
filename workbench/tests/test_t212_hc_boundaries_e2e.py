@@ -2,6 +2,7 @@
 
 失败方式：损坏缓存被忽略或下载覆盖；只检查 core socket 而漏算 holder 后缀；
 core 私有 XDG 覆盖泄漏进终端；用户原值/空值/未设置的区别丢失；继承 HC_*；
+私有 core 的 HC_SESSION、HC_SOCKET、HC_TERMINAL_ID、HC_TERMINAL_SOCKET 进了终端（T-230）；
 访问用户 core；hc 私有 registry 或 bearer token 被复制进证据。
 """
 import argparse
@@ -19,6 +20,8 @@ from hc_evidence import assert_public_evidence, private_tokens, user_core_snapsh
 from test_t212_shell_hc_e2e import stop_private_core
 
 ROOT = Path(__file__).resolve().parents[2]
+# The pinned hc archive the daemon already uses; a worktree checkout keeps it beside the worktrees.
+CACHE = Path(os.environ.get('ENCHANTED_HC_CACHE_DIR') or ROOT.parent / 'hc-cache')
 
 
 def main():
@@ -35,9 +38,10 @@ def main():
         subprocess.run(['/bin/cp', '-cR', str(ROOT / 'workbench/node_modules'), str(source / 'workbench/node_modules')], check=True)
         path = source / 'workbench/src/panes.ts'
         text = path.read_text(encoding='utf-8')
-        old = '["/usr/bin/env", ...xdg, ...originals, record.shell, ...record.shell_argv]'
+        old = '["/usr/bin/env", ...xdg, ...addresses, ...originals, record.shell, ...record.shell_argv]'
         assert text.count(old) == 1
-        path.write_text(text.replace(old, '[record.shell, ...record.shell_argv]'), encoding='utf-8')
+        # Leak only the core's XDG overrides; the HC_* addresses stay removed, so the XDG assertion is what fails.
+        path.write_text(text.replace(old, '["/usr/bin/env", ...addresses, record.shell, ...record.shell_argv]'), encoding='utf-8')
     before = user_core_snapshot()
     report = dict(status='INCOMPLETE', command=[__file__, *os.sys.argv[1:]], fixture=str(root), cases=[], commands=[])
     tokens = set()
@@ -52,7 +56,7 @@ def main():
                 A2A_OPERATOR_CREDENTIAL=str(fixture / 'operator.json'), HC_SCOPE='inherited-must-disappear',
                 HC_SESSION='default', HC_SOCKET=str(fixture / 'never-connect.sock'))
             if args.mutant:
-                env['ENCHANTED_HC_CACHE_DIR'] = str(ROOT.parent / 'hc-cache')
+                env['ENCHANTED_HC_CACHE_DIR'] = str(CACHE)
             expected = {}
             if case == 'xdg-values':
                 expected = dict(XDG_STATE_HOME=str(fixture / '用户状态'), XDG_CONFIG_HOME=str(fixture / '用户配置'))
@@ -62,7 +66,7 @@ def main():
             env.update(expected)
             if case == 'corrupt-cache':
                 cache = fixture / 'cache'; cache.mkdir()
-                archive = ROOT.parent / 'hc-cache/herdr-core-0.1.15-macos-aarch64.tar.gz'
+                archive = CACHE / 'herdr-core-0.1.15-macos-aarch64.tar.gz'
                 data = bytearray(archive.read_bytes()); data[0] ^= 1
                 (cache / archive.name).write_bytes(data)
                 env['ENCHANTED_HC_CACHE_DIR'] = str(cache)
@@ -110,7 +114,7 @@ def main():
                 assert opened.returncode == 0, opened.stdout
                 launch = json.loads(opened.stdout)['launch']
                 script = cwd / 'environment.mjs'
-                script.write_text("import{writeFileSync}from'node:fs';const e=process.env;writeFileSync('environment.json',JSON.stringify({xdg:Object.fromEntries(['XDG_STATE_HOME','XDG_CONFIG_HOME'].map(k=>[k,{set:Object.hasOwn(e,k),value:e[k]??null}])),session:e.HC_SESSION,socket:e.HC_SOCKET,scope:e.HC_SCOPE}));", encoding='utf-8')
+                script.write_text("import{writeFileSync}from'node:fs';const e=process.env;writeFileSync('environment.json',JSON.stringify({xdg:Object.fromEntries(['XDG_STATE_HOME','XDG_CONFIG_HOME'].map(k=>[k,{set:Object.hasOwn(e,k),value:e[k]??null}])),hc:Object.fromEntries(['HC_SESSION','HC_SOCKET','HC_TERMINAL_ID','HC_TERMINAL_SOCKET'].map(k=>[k,Object.hasOwn(e,k)])),scope:e.HC_SCOPE}));", encoding='utf-8')
                 # The existing window input public endpoint, via the same raw transport as UI tests.
                 import socket as net
                 def request(command, identity, **data):
@@ -131,8 +135,10 @@ def main():
                 for key in ('XDG_STATE_HOME','XDG_CONFIG_HOME'):
                     assert observed['xdg'][key]==dict(set=key in expected,value=expected.get(key)),observed
                 identity=json.loads((state/'hc-runtime.json').read_text())
-                assert observed['session']==identity['session']!='default'
-                assert observed['socket']==identity['socket'] and observed['scope']!='inherited-must-disappear'
+                assert identity['session']!='default'
+                # T-230: an Enchanted terminal carries no address of the private core; terminals reach it only through a2a.
+                assert not any(observed['hc'].values()),observed
+                assert observed['scope']!='inherited-must-disappear'
                 private=state/'hc/state/herdr-core'/identity['session']
                 assert private.stat().st_mode & 0o777 == 0o700
                 result.update(status='PASS',observed=observed,private_state_mode='0700')
