@@ -55,10 +55,15 @@ export class Retrospectives {
   due(project: string, now: Date) {
     const schedule = this.schedule();
     if (!schedule.enabled) return null;
-    const slot = new Date(now);
-    slot.setHours(schedule.hour, schedule.minute, 0, 0);
-    slot.setDate(slot.getDate() - ((slot.getDay() - schedule.weekday + 7) % 7));
-    if (slot > now) slot.setDate(slot.getDate() - 7);
+    // MakeDay resolves the numeric calendar date before UTC(t) applies the scheduled wall time.
+    // Never carry the query's wall time into the target date: a gap ending at midnight could
+    // normalize that intermediate time onto the next day. Reconstruct last week's date too.
+    // ECMAScript UTC(t) uses the pre-transition offset for gaps (advance by the gap) and the
+    // earlier instant for overlaps.
+    const year = now.getFullYear(), month = now.getMonth();
+    const day = now.getDate() - ((now.getDay() - schedule.weekday + 7) % 7);
+    let slot = new Date(year, month, day, schedule.hour, schedule.minute, 0, 0);
+    if (slot > now) slot = new Date(year, month, day - 7, schedule.hour, schedule.minute, 0, 0);
     if (slot < new Date(schedule.effective_from)) return null;
     const ran = this.runs(project).some(run => run.scheduled_for === slot.toISOString());
     return ran ? null : slot.toISOString();
