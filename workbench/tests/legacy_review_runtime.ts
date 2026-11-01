@@ -4,9 +4,9 @@ export function withReviewerRuntime(worker: any, panes: any) {
   const reviewers = new Set<string>();
   return {
     ...worker,
-    createReview: async (task: any, review: any, prompt: string) => {
+    createReview: async (task: any, review: any, prompt: string, template: Record<string, unknown>) => {
       reviewers.add(review.thread_id);
-      await panes.createReview(task, review, prompt);
+      await panes.createReview(task, review, prompt, template);
     },
     readThread: (thread: string) => reviewers.has(thread) ? panes.readThread(thread) : worker.readThread(thread),
     stopThread: (thread: string) => reviewers.has(thread) ? panes.stopThread(thread) : worker.stopThread(thread),

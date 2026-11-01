@@ -118,21 +118,25 @@ async function signal(value: Record<string, unknown>, launch = ideation.record.i
 }
 
 const task: any = {
-  task_id: "a13-rehearsal-task", project_id: "a13-rehearsal-project", repo: join(scratch, "repo"),
+  task_id: "a13-rehearsal-project+a13-rehearsal-task", project_id: "a13-rehearsal-project", repo: join(scratch, "repo"),
   spec_rev: 1, state: "registered", current_attempt: null,
 };
 const makeController = (preset: "ideation" | "executor") => {
   const record: any = {
     id: randomUUID(), task: task.task_id, thread: randomUUID(), project: task.project_id,
     preset, session: randomUUID(), spec_rev: 1, role: "controller", cli: "Claude Code",
-    attempt: null, turn_limit: offlineRecipient ? 4 : 2, env: { A2A_REQUEST_DIR: requestDir },
+    attempt: null, worktree: task.repo, turn_limit: offlineRecipient ? 4 : 2,
+    env: { A2A_REQUEST_DIR: requestDir, HOME: join(scratch, "home") },
   };
+  const transcript = join(scratch, "home", ".claude", "projects", preset, record.session + ".jsonl");
+  mkdirSync(join(scratch, "home", ".claude", "projects", preset), { recursive: true });
+  writeFileSync(transcript, JSON.stringify({ sessionId: record.session, cwd: task.repo }) + "\n");
   panes.store.launch(record);
   const writes: string[] = [];
   const pane: any = {
     record, task, attempt: null, token: randomUUID(),
     pty: { pid: preset === "ideation" ? 11001 : 11002, write: (data: string) => writes.push(data) },
-    state: preset === "executor" ? "idle" : "busy", native: record.session, active: null,
+    state: preset === "executor" ? "idle" : "busy", native: record.session, nativeFile: transcript, active: null,
     claudePromptId: null, claudePromptIds: new Set(), failed: null, stopped: false,
     archived: false, stopInProgress: false, interrupted: false, writes: Promise.resolve(),
     pendingInputs: 0, inputGeneration: 0, userDraft: false, queue: [], writing: false,
@@ -175,7 +179,7 @@ async function shutdownAndArchive() {
     const source = join(state, name);
     if (existsSync(source)) copyFileSync(source, join(output, name));
   }
-  rmSync(scratch, { recursive: true, force: true });
+  if (!failure) rmSync(scratch, { recursive: true, force: true });
 }
 
 // A stalled daemon, database operation, or child must not leave the runner
@@ -243,10 +247,12 @@ try {
   ];
   const up = {
     session_id: ideation.record.session, hook_event_name: "UserPromptSubmit",
+    cwd: task.repo, transcript_path: ideation.pane.nativeFile,
     prompt_id: promptId, prompt: first.text,
   };
   const stop = {
     session_id: ideation.record.session, hook_event_name: "Stop",
+    cwd: task.repo, transcript_path: ideation.pane.nativeFile,
     prompt_id: promptId, stop_hook_active: false,
   };
 

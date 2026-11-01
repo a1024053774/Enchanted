@@ -25,11 +25,14 @@ function fixture() {
   const panes=new Panes(root,store,{codex_home:home,turn_limit:5},()=>{});
   const gates=new A2AGates(root,panes);
   const attempt={task_id:'unit-task',attempt_id:'unit-attempt',session_id:'unit-session',fence:1,spec_rev:1,
-    thread_id:'unit-thread',workspace:root,turn_id:'turn-0',reclaimed:false};
+    thread_id:'unit-thread',workspace:root,turn_id:'turn-0',reclaimed:false,card_snapshot_id:'unit-card'};
   const task={task_id:'unit-task',project_id:'unit-project',repo:root,state:'claimed',spec_rev:1,current_attempt:attempt};
   store.db.prepare('INSERT INTO tasks(id,data) VALUES (?,?)').run(task.task_id,JSON.stringify(task));
   store.db.prepare('INSERT INTO attempts(id,data) VALUES (?,?)').run(attempt.attempt_id,JSON.stringify(attempt));
-  const record={id:'unit-launch',thread:'unit-thread',task:'unit-task',attempt:'unit-attempt',role:'worker',
+  // T-124: emergency stop verifies the provider against the attempt's card snapshot.
+  store.db.prepare('INSERT INTO task_card_snapshots(id,task,version,attempt,data) VALUES (?,?,?,?,?)')
+    .run('unit-card',task.task_id,1,attempt.attempt_id,JSON.stringify({executor:{cli:'Codex'}}));
+  const record={id:'unit-launch',thread:'unit-thread',task:'unit-task',attempt:'unit-attempt',role:'worker',cli:'Codex',
     project:'unit-project',session:'unit-session',fence:1,spec_rev:1,turn_limit:5,worktree:root,env:{CODEX_HOME:home}};
   store.launch(record);mkdirSync(join(root,'traces',record.id),{recursive:true});
   const writes:any[]=[],kills:any[]=[];
@@ -106,7 +109,7 @@ await test('interrupt_only_esc_not_reclaim',async f=>{
     refs:['thread:unit-thread','input:requested-stop'],body:'URGENT 停止 unit-thread',created_at:new Date().toISOString()};
   f.store.db.prepare('INSERT INTO inbox_records(id,data) VALUES (?,?)').run(stop.id,JSON.stringify(stop));
   const result=await f.gates.call({command:'stop',thread:'unit-thread',stop_id:'stop-1',actor:'user'},undefined,actor);
-  assert.equal(result.ok,true);assert.deepEqual(f.writes.map(x=>x.data),['\x1b']);assert.deepEqual(f.kills,[]);
+  assert.equal(result.ok,true,JSON.stringify(result));assert.deepEqual(f.writes.map(x=>x.data),['\x1b']);assert.deepEqual(f.kills,[]);
   assert.equal(f.pane.stopped,false);assert.equal(f.pane.archived,false);assert.equal(f.pane.state,'busy');
   assert.equal(JSON.parse(String(f.store.db.prepare('SELECT data FROM tasks').get()!.data)).state,'claimed');
   const event=f.store.db.prepare("SELECT details FROM events WHERE type='emergency_interrupt_requested'").get()!;

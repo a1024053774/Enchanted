@@ -91,14 +91,16 @@ class TaskCardsCLI(unittest.TestCase):
 
     def save_card(self, expected=0, card=None):
         self.card_file.write_text(json.dumps(card or self.card, ensure_ascii=False), encoding='utf-8')
-        return self.cli('card_save', '--card', self.card_file, '--expected-version', str(expected))
+        return self.cli('card_save', '--project', 'fixture', '--card', self.card_file, '--expected-version', str(expected))
 
     def register_task(self):
         template = self.cli('card_template', '--repo', self.repo, '--project', 'fixture')['card']
         self.assertEqual(set(template), FIELDS)
         self.assertEqual(template['id'], self.task)
         self.save_card()
-        self.cli('create', '--repo', self.repo, '--branch', 'refs/heads/main', '--card-version', '1', '--project', 'fixture')
+        created = self.cli('create', '--repo', self.repo, '--branch', 'refs/heads/main', '--card-version', '1', '--project', 'fixture')
+        self.assertEqual(created['task']['task_id'], 'fixture+' + self.card['id'])
+        self.task = created['task']['task_id']
 
     def create(self):
         self.register_task()

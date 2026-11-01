@@ -1,4 +1,3 @@
-// 历史测试：只针对 5f7f9816eb9a996377c5b255695244d99c0259e7，当前 main 不跑
 // Shared controlled PTY/process boundary. No gate verdict or provider execution.
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -39,6 +38,7 @@ export function installControlledPTY(source: string, control: string, config: an
       const terminal = { pid: 31000 + terminals.length * 10, callbacks: [] as Function[], turns: 0,
         exited: false, launch: env.A2A_LAUNCH, native, log, env, restrictedOpened: false };
       terminals.push(terminal);
+      let onData: (data: string) => void;
       // All credentials here are newly generated test capabilities. There is no
       // copied auth file, user home, native model session or provider credential.
       writeFileSync(join(control, env.A2A_LAUNCH + ".json"), JSON.stringify({
@@ -50,6 +50,7 @@ export function installControlledPTY(source: string, control: string, config: an
         pid: terminal.pid,
         // Codex 0.163 opens an untrusted folder with this question (T-127 probe-01); the daemon answers it.
         onData(callback: Function) {
+          onData = callback as (data: string) => void;
           setTimeout(() => callback("Do you trust the contents of this directory?\r\n\x1b[1m› 1. Open restricted\x1b[0m\r\n  2. Quit\r\n"), 20);
         },
         onExit(callback: Function) { terminal.callbacks.push(callback); },
@@ -61,6 +62,8 @@ export function installControlledPTY(source: string, control: string, config: an
           if (data === "\r" && !terminal.restrictedOpened) {
             terminal.restrictedOpened = true;
             audit("runtime.jsonl", { method: "restricted-opened", launch: terminal.launch });
+            // T-141: opening restricted is not readiness. The native CLI then emits this packet.
+            setTimeout(() => onData('\x1b]7501;state=idle:app=codex\x07'), 0);
             return;
           }
           if (data === "\r") {
@@ -70,6 +73,7 @@ export function installControlledPTY(source: string, control: string, config: an
             if (!(env.A2A_ROLE === "worker" && current.omit_worker_context)) {
               appendFileSync(log, JSON.stringify({ type: "turn_context", payload: { turn_id: turn, model: "gpt-6.1-sol", effort: "xhigh" } }) + "\n");
             }
+            setTimeout(() => onData('Controlled CLI turn started.\r\n'), 0);
           }
         },
         kill(signal: string) {

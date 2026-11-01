@@ -86,16 +86,20 @@ class QualityDriver:
             if pane['state'] == 'busy' and pane['turn'] == 'fixture-turn-1': break
             if time.monotonic() >= deadline: raise RuntimeError('Reviewer input did not reach its bounded turn.')
             time.sleep(0.03)
-        packet = dict(schema=1, request_id='review-' + review['review_id'], command='review_submit', task=task,
-                      attempt=review['attempt']['attempt_id'], session=review['session_id'], fence=review['attempt']['fence'],
-                      spec_rev=review['spec_rev'], review_id=review['review_id'], candidate_commit=review['candidate_commit'],
-                      verdict='可合并', findings=[],
-                      review_requirements={'completion_conditions_sufficiency': True,
-                        'mutation_checks': {'min': 2, 'max': 5, 'workspace': review['candidate_workspace'],
-                                            'report_section': '完成条件与变异检查'}},
+        fields = dict(verdict='可合并', findings=[],
                       report={'完成条件与变异检查': '受控 reviewer 报告输入；不声称模型判断已验证'})
+        fields_file = self.control / ('review-fields-' + review['review_id'] + '.json')
+        fields_file.write_text(json.dumps(fields, ensure_ascii=False) + '\n', encoding='utf-8')
+        # T-203: use the real review_submit file entry; Stop no longer trusts final prose.
+        argv = ['node', self.cli.parents[1] / 'reviewResult.ts', 'submit', record['env']['A2A_REQUEST_DIR'], fields_file]
+        submitted = subprocess.run(list(map(str, argv)), env=self.env, capture_output=True, text=True, timeout=15)
+        self.record('review-submit', argv=list(map(str, argv)), exit=submitted.returncode,
+                    stdout=submitted.stdout, stderr=submitted.stderr)
+        if submitted.returncode or not json.loads(submitted.stdout).get('saved'):
+            raise RuntimeError('Controlled reviewer submission failed: ' + submitted.stdout + submitted.stderr)
         stop = dict(session_id=record['native'], turn_id=pane['turn'], hook_event_name='Stop',
-                    last_assistant_message=json.dumps(packet, ensure_ascii=False))
+                    cwd=review['candidate_workspace'], transcript_path=record['log'],
+                    last_assistant_message='受控审查已通过 review_submit 提交。')
         self.command('signal', '--launch', review['launch_id'], env={**self.env, **record['env']}, stdin=json.dumps(stop))
         while True:
             events = self.command('events', '--task', task)['events']

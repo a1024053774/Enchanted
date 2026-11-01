@@ -35,9 +35,13 @@ const gates = new A2AGates(root, runtime, () => now);
 const db = new DatabaseSync(join(root, "state.sqlite3"));
 const task = { task_id: "domain-task", project_id: "domain-project", repo, state: "claimed", spec_rev: 1,
   current_attempt: { task_id: "domain-task", attempt_id: "domain-attempt", session_id: "domain-session", fence: 1,
-    thread_id: "domain-worker", workspace: repo, turn_id: "domain-turn", reclaimed: false } };
+    thread_id: "domain-worker", workspace: repo, turn_id: "domain-turn", reclaimed: false,
+    card_snapshot_id: "domain-card" } };
 db.prepare("INSERT INTO tasks(id,data) VALUES (?,?)").run(task.task_id, JSON.stringify(task));
 db.prepare("INSERT INTO attempts(id,data) VALUES (?,?)").run(task.current_attempt.attempt_id, JSON.stringify(task.current_attempt));
+// T-124 resolves the worker's provider from its immutable attempt card, never a Codex default.
+db.prepare("INSERT INTO task_card_snapshots(id,task,version,attempt,data) VALUES (?,?,?,?,?)")
+  .run("domain-card", task.task_id, 1, task.current_attempt.attempt_id, JSON.stringify({ executor: { cli: "Codex" } }));
 const membership = new A2AMembership(root);
 for (const preset of ["ideation", "executor"] as const) {
   const thread = "domain-" + preset;

@@ -158,7 +158,8 @@ def main():
         time.sleep(8)
         seen = settle('N_shim_claude', n, None, 3)
         check('shim_claude_not_warned', seen is None, report['observed']['N_shim_claude'])
-        check('shim_claude_state_known', state(n) == 'running', report['observed']['N_shim_claude'])
+        # T-191: a wired Claude without an approved role has no turn source yet.
+        check('shim_claude_without_role_state_unknown', state(n) == 'unknown', report['observed']['N_shim_claude'])
 
         # 3. Codex both ways, each held at its own start screen (an empty home: no login, no model).
         c = terminal('C')

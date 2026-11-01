@@ -62,7 +62,7 @@ def main():
     parser.add_argument('--claude', default=shutil.which('claude') or str(Path.home() / '.local/bin/claude'))
     target = parser.add_mutually_exclusive_group()
     target.add_argument('--revision')
-    target.add_argument('--mutant', choices=['recorded-without-role', 'terminal-state-unknown', 'parent-not-saved', 'issue-not-waiting'])
+    target.add_argument('--mutant', choices=['recorded-without-role', 'terminal-state-unknown', 'parent-not-saved', 'issue-not-waiting', 'empty-shell-running'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
     report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant, checks=[], observed={})
@@ -79,6 +79,7 @@ def main():
         'parent-not-saved': [('src/roleRequests.ts', "...(parent ? { parent_launch: parent } : {})", "")],
         # An unanswered issue report not shown in the sidebar, as before T-107 #3.
         'issue-not-waiting': [('src/sidebar.ts', "waiting?.has(record.thread) ? 'waiting_controller_answer' : native", "native")],
+        'empty-shell-running': [('src/sidebar.ts', "front === null ? 'idle'", "front === null ? 'running'")],
     }.get(args.mutant, [])
 
     def plan(body):
@@ -242,7 +243,9 @@ def main():
               [o['value'] for o in offered['options']] == [ideation['launch'], ''], offered)
         electron.screenshot(fixture.out / '03-executor-request.png')
         approve(request_card)
-        electron.until('执行主控出现', f"!!document.querySelector('.agent-row[data-agent-launch=\"{executor['launch']}\"]')", 40)
+        # T-191: the ordinary shell row can already be idle before role confirmation arrives.
+        # Wait for the role transition itself before checking completion and hierarchy.
+        electron.until('执行主控出现', f"document.querySelector('.agent-row[data-agent-launch=\"{executor['launch']}\"] .agent-role')?.textContent === '执行主控'", 40)
         electron.until('执行主控回合结束', state_is(executor['launch'], 'idle'), 60)
         rows = {launch: agent(launch) for launch in (ideation['launch'], executor['launch'])}
         report['observed']['rows'] = rows
@@ -315,7 +318,7 @@ def main():
         report['observed']['ended_row_time'] = ended_time
         check('ended_row_time_says_ended', ended_time.startswith('结束'), ended_time, soft=True)
 
-        # T-176 review 01: a home-directory terminal is in the same catalog, so its header is not left unknown.
+        # T-176/T-191: an empty home-directory shell is idle, and its header shares the catalog state.
         electron.evaluate("document.querySelector('.free-terminals').click()")
         time.sleep(1)
         electron.evaluate("[...document.querySelectorAll('button')].find(b=>b.textContent==='新建终端').click()")
@@ -323,7 +326,7 @@ def main():
         time.sleep(3)  # a few catalog refreshes
         home_header = electron.evaluate("document.querySelector('.pane .pane-state').textContent")
         report['observed']['home_terminal_header'] = home_header
-        check('home_terminal_header_known', home_header == '运行中', home_header, soft=True)
+        check('home_terminal_header_known', home_header == '空闲', home_header, soft=True)
 
         # The ideation controller gives its role back; what the user says after that is not a controller prompt.
         submit(ideation, RELEASE)

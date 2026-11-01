@@ -1,7 +1,7 @@
 """T-142：批准的项目主控开普通终端，期望来自任务卡。
 失败方式（先列再写）：
 1. terminal_open 仍被 role_command_not_scoped 拒绝，或 CLI 不识别命名参数。
-2. 未批准的会话能开终端，或已批准角色能指定另一个项目。
+2. 未批准的会话能开终端；已批准角色不能跨已打开项目，或能访问未打开项目（T-193）。
 3. cwd 越界、同前缀的兄弟目录、符号链接逃逸被放行。
 4. 主目录、子目录或额外目录不能开，返回 id 不对应真实 shell/cwd。
 5. 新终端没有出现在界面项目层，混进任务层，或点开后的 pwd 不对。
@@ -33,7 +33,7 @@ def main():
     parser.add_argument('--backend-only', action='store_true')
     target = parser.add_mutually_exclusive_group()
     target.add_argument('--revision')
-    target.add_argument('--mutant', choices=['cwd-unchecked'])
+    target.add_argument('--mutant', choices=['cwd-unchecked', 'cross-project-denied'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
     report = dict(status='INCOMPLETE', argv=sys.argv, checks=[], observed={}, revision=args.revision, mutant=args.mutant,
@@ -46,7 +46,12 @@ def main():
         return 'controller', [('Bash', dict(command='a2a request executor', timeout=600000, description='request role')),
                               *[('Bash', dict(command=line, description='open project terminal')) for line in commands]], 'T-142 完成。'
 
-    patches = [('src/daemon.ts', 'if (!withinProject) throw new Refusal("terminal_cwd_outside_project");', '')] if args.mutant else []
+    patches = {
+        'cwd-unchecked': [('src/daemon.ts', 'if (!withinProject) throw new Refusal("terminal_cwd_outside_project");', '')],
+        'cross-project-denied': [('src/daemon.ts', '    if (input.command === "terminal_open") {',
+            '    if (input.command === "terminal_open") {\n'
+            '      if (input.project !== undefined && input.project !== roleRequest.project) throw new Refusal("role_project_mismatch");')],
+    }.get(args.mutant, [])
 
     def check(name, condition, detail=None):
         assert condition, f'{name}: {detail}'
@@ -182,10 +187,19 @@ def main():
         anonymous = fixture.run_cli('shell_start', '--project', 'demo', '--cwd', str(fixture.repo))['launch']['id']
         value = cli_call(open_input(anonymous), f'a2a call terminal_open --cwd {quote(str(fixture.repo))}', fixture.out / 'unapproved.json')
         check('unapproved_refused', value.get('error') == 'approved_role_required', value)
-        # This controller belongs to demo. another is a real opened project with its own directory.
+        # T-193: the role belongs to the terminal; another opened project is reachable in both directions.
+        unopened = fixture.request('terminal_open', fixture.terminal, project='demo-sibling', cwd=str(outside))
+        check('unopened_project_refused', unopened.get('error') == 'project_not_opened', unopened)
         assert fixture.request('project_open', fixture.operator, repo=str(outside))['ok']
         other = fixture.request('terminal_open', fixture.terminal, project='demo-sibling', cwd=str(outside))
-        check('approved_foreign_project_refused', other.get('error') == 'role_project_mismatch', other)
+        check('approved_opened_project_allowed', other.get('ok') is True and other['launch']['project'] == 'demo-sibling' and
+              other['launch']['role'] == 'shell' and other['launch']['task'] is None and other['launch']['worktree'] == str(outside), other)
+        pwd = fixture.out / 'cross-project-pwd.txt'
+        type_in(open_input(other['launch']['id'], 'demo-sibling'), f'pwd > {quote(str(pwd))}\r')
+        fixture.wait('跨项目终端 pwd', lambda: pwd.exists() and pwd.stat().st_size, 30)
+        check('cross_project_actual_pwd', pwd.read_text(encoding='utf-8').strip() == str(outside))
+        wrong_cwd = fixture.request('terminal_open', fixture.terminal, project='demo-sibling', cwd=str(fixture.repo))
+        check('cross_project_cwd_boundary_kept', wrong_cwd.get('error') == 'terminal_cwd_outside_project', wrong_cwd)
         report['observed']['foreign_project'] = other
         foreign = fixture.run_cli('shell_start', '--project', 'demo-sibling', '--cwd', str(outside))['launch']['id']
         foreign_term = open_input(foreign, 'demo-sibling')
@@ -197,7 +211,8 @@ def main():
         assert result(granted)['ok'], result(granted)
         line = 'a2a call ' + quote(json.dumps(dict(command='terminal_open', project='demo', cwd=str(fixture.repo))))
         other_to_demo = cli_call(foreign_term, line, fixture.out / 'foreign-to-demo.json')
-        check('other_approved_controller_cannot_open_this_project', other_to_demo.get('error') == 'role_project_mismatch', other_to_demo)
+        check('other_approved_controller_can_open_this_project', other_to_demo.get('ok') is True and
+              other_to_demo['launch']['project'] == 'demo' and other_to_demo['launch']['worktree'] == str(fixture.repo), other_to_demo)
         report['observed']['other_to_demo'] = other_to_demo
         if electron:
             report['observed']['scripted_api'] = fixture.api.snapshot()

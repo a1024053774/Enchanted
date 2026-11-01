@@ -121,9 +121,11 @@ def main():
                 'base_commit': None, 'writer': None}
         card_file = fixture / 'card.json'
         card_file.write_text(json.dumps(card, ensure_ascii=False) + '\n', encoding='utf-8')
-        call('card_save', '--task', task, '--card', card_file, '--expected-version', '0')
+        call('card_save', '--task', task, '--project', project, '--card', card_file, '--expected-version', '0')
         call('create', '--task', task, '--repo', repo, '--branch', 'refs/heads/main',
              '--card-version', '1', '--project', project, '--title', title)
+        task = project + '+' + task
+        verdict['task'] = task
         attempt = call('claim', '--task', task, '--owner', 'independent-ui-check')['attempt']
         save('attempt.json', attempt)
         current = call('status', '--task', task)['task']
@@ -174,7 +176,9 @@ def main():
             verdict['electron_started'] = True
             def window_contract():
                 value = window.wait(lambda item: title in item['text'] and item['gate'] == 'claimed')
-                assert project in value['text'] and '只读' in value['text']
+                # T-200 displays the directory name; the backend identity remains project-qualified (T-123).
+                assert repo.name in value['text'] and '只读' in value['text'], value['text']
+                assert value['snapshot']['task']['project_id'] == project
                 assert value['state'] == 'unknown' and value['offset'] == 0
                 expected_bridge = {'beginComposition', 'closePane', 'input', 'observeFocus', 'output',
                                    'paneKeys', 'releaseQueue', 'snapshot'}
@@ -184,10 +188,17 @@ def main():
                     expected_bridge |= {'newTerminal'}
                 if args.ipc_contract in ('panes', 'creation', 'sidebar'):
                     expected_bridge |= {'paneAction', 'resize'}
-                if args.ipc_contract in ('creation', 'sidebar'):
+                if args.ipc_contract == 'creation':
                     expected_bridge |= {'creationRepository', 'creationSubmit', 'creationCancel'}
                 if args.ipc_contract == 'sidebar':
                     expected_bridge |= {'sidebar', 'selectAgent', 'notificationSetting'}
+                    # Public additions since T-107: T-108, T-112, T-119, T-133--137,
+                    # T-140, T-171, T-180, T-190, T-192, T-195, T-207, T-208.
+                    expected_bridge |= {'home', 'workBranchPrefix', 'executionSettings', 'flow', 'decideRoleRequest',
+                        'issues', 'restartReview', 'reclaim', 'hideSessions', 'nativeLink', 'copyText', 'answerIssue',
+                        'disposeIssue', 'records', 'receipts', 'taskHistory', 'metrics', 'archiveUsage', 'reflect',
+                        'retrospectives', 'startRetrospective', 'saveRetrospectiveSchedule', 'decideRetrospectiveSuggestion',
+                        'openProject', 'projectSettings', 'pickExtraDirectory', 'removeProject', 'selectProject', 'theme', 'answer'}
                 assert set(value['bridge']) == expected_bridge, (value['bridge'], sorted(expected_bridge))
                 assert len(value['bridge']) == len(expected_bridge), 'Public bridge names must not repeat'
                 assert value['node'] == 'undefined'

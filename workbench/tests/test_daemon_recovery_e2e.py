@@ -102,6 +102,13 @@ class DaemonRecovery(DaemonCards):
         (self.root / 'fault-owner.json').write_text(json.dumps({'pid': pid, 'signal': 'SIGKILL',
                                                               'ps': observation.stdout}) + '\n', encoding='utf-8')
         self.assertEqual(self.host.pid, pid)
+        # T-096 allows removal of a proven-dead endpoint. A live owner must
+        # still be refused without replacing its socket or PID record.
+        refused = self.process(['node', records.GATE, '--state', self.state, 'daemon_start'])
+        self.assertEqual(refused.returncode, 1, 'Product must refuse the live owner')
+        self.assertIn('daemon owner is still alive', json.loads(refused.stdout)['details'])
+        self.assertTrue((self.state / 'control.sock').is_socket())
+        self.assertEqual(int((self.state / 'daemon.pid').read_text()), pid)
         os.kill(pid, signal.SIGKILL)
         self._daemon_state = None
         result = self.finish(handle)
@@ -117,13 +124,13 @@ class DaemonRecovery(DaemonCards):
                 break
             self.assertLess(time.monotonic(), deadline, 'Owned daemon must exit before endpoint cleanup')
             time.sleep(0.05)
-        refused = self.process(['node', records.GATE, '--state', self.state, 'daemon_start'])
-        self.assertEqual(refused.returncode, 1, 'Product must refuse the stale socket')
-        self.assertTrue((self.state / 'control.sock').exists())
         for name in ('control.sock', 'daemon.pid'):
             (self.state / name).unlink()
+        # The controlled host creates one bootstrap credential per epoch.
+        # Its old owner is reaped above; remove only that fixture's credential.
+        self.operator_credential.unlink()
         (self.root / 'endpoint-cleanup.json').write_text(json.dumps({'owner': pid, 'confirmed_exited': True,
-                                                                   'removed': ['control.sock', 'daemon.pid']}) + '\n', encoding='utf-8')
+                                                                   'removed': ['control.sock', 'daemon.pid', str(self.operator_credential)]}) + '\n', encoding='utf-8')
 
     def restart(self):
         env_path = self.env['PATH']
