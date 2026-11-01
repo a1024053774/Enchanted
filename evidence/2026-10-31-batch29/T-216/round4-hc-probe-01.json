@@ -1,0 +1,272 @@
+{
+  "root": "/private/tmp/t216-r4-hc-yjuabvq1",
+  "calls": [
+    {
+      "params": {
+        "terminal": "t1",
+        "text": "sent-['idle', 'done']",
+        "if": [
+          "idle",
+          "done"
+        ]
+      },
+      "reply": {
+        "error": {
+          "code": -32602,
+          "data": {
+            "hint": "see `hc schema`",
+            "kind": "invalid_params"
+          },
+          "message": "invalid type: sequence, expected string or map"
+        },
+        "id": 1,
+        "jsonrpc": "2.0"
+      }
+    },
+    {
+      "params": {
+        "terminal": "t1",
+        "text": "sent-idle,done",
+        "if": "idle,done"
+      },
+      "reply": {
+        "error": {
+          "code": -32602,
+          "data": {
+            "hint": "see `hc schema`",
+            "kind": "invalid_params"
+          },
+          "message": "unknown variant `idle,done`, expected `idle` or `working`"
+        },
+        "id": 1,
+        "jsonrpc": "2.0"
+      }
+    },
+    {
+      "params": {
+        "terminal": "t1",
+        "text": "sent-done",
+        "if": "done"
+      },
+      "reply": {
+        "error": {
+          "code": -32602,
+          "data": {
+            "hint": "see `hc schema`",
+            "kind": "invalid_params"
+          },
+          "message": "unknown variant `done`, expected `idle` or `working`"
+        },
+        "id": 1,
+        "jsonrpc": "2.0"
+      }
+    },
+    {
+      "params": {
+        "terminal": "t1",
+        "text": "sent-idle",
+        "if": "idle"
+      },
+      "reply": {
+        "error": {
+          "code": -32000,
+          "data": {
+            "hint": "nothing was typed",
+            "kind": "status_mismatch"
+          },
+          "message": "t1 is done, not idle"
+        },
+        "id": 1,
+        "jsonrpc": "2.0"
+      }
+    },
+    {
+      "params": {
+        "terminal": "t1",
+        "text": "sent-blocked",
+        "if": "blocked"
+      },
+      "reply": {
+        "error": {
+          "code": -32602,
+          "data": {
+            "hint": "see `hc schema`",
+            "kind": "invalid_params"
+          },
+          "message": "unknown variant `blocked`, expected `idle` or `working`"
+        },
+        "id": 1,
+        "jsonrpc": "2.0"
+      }
+    },
+    {
+      "params": {
+        "terminal": "t1",
+        "text": "sent-working",
+        "if": "working"
+      },
+      "reply": {
+        "error": {
+          "code": -32000,
+          "data": {
+            "hint": "nothing was typed",
+            "kind": "status_mismatch"
+          },
+          "message": "t1 is done, not working"
+        },
+        "id": 1,
+        "jsonrpc": "2.0"
+      }
+    },
+    {
+      "params": {
+        "wait": true,
+        "timeout": 1
+      },
+      "reply": {
+        "error": {
+          "code": -32000,
+          "data": {
+            "hint": "nothing was typed",
+            "kind": "status_mismatch"
+          },
+          "message": "t1 is done, not working"
+        },
+        "id": 1,
+        "jsonrpc": "2.0"
+      }
+    },
+    {
+      "params": {
+        "wait": false
+      },
+      "reply": {
+        "error": {
+          "code": -32000,
+          "data": {
+            "hint": "nothing was typed",
+            "kind": "status_mismatch"
+          },
+          "message": "t1 is done, not working"
+        },
+        "id": 1,
+        "jsonrpc": "2.0"
+      }
+    },
+    {
+      "params": {
+        "wait": "idle"
+      },
+      "reply": {
+        "error": {
+          "code": -32602,
+          "data": {
+            "hint": "see `hc schema`",
+            "kind": "invalid_params"
+          },
+          "message": "invalid type: string \"idle\", expected a boolean"
+        },
+        "id": 1,
+        "jsonrpc": "2.0"
+      }
+    }
+  ],
+  "help": "Paste text into a terminal and press Enter (waits for a person to pause)\n\nUsage: herdr-core send [OPTIONS] <TERMINAL> <TEXT>\n\nArguments:\n  <TERMINAL>  The terminal: `t7`, a name, or `machine/t7`\n  <TEXT>      Pasted, then submitted with Enter\n\nOptions:\n      --force              Type even if the program is blocked (it may answer its dialog)\n      --json               JSON output even in a terminal\n      --if <STATUS>        Only type if the status is exactly this [possible values: idle, working]\n      --wait               Then wait for the turn this send started\n      --timeout <TIMEOUT>  With wait: seconds before it checks in (default: config, else 180)\n  -h, --help               Print help\n",
+  "start": "{\"core\":{\"id\":\"1e2aec95d61a92fca03080c5858bafe4\",\"name\":\"luckyedemacbook-air\"},\"finished\":0,\"holder\":null,\"holders\":[],\"installed_by\":null,\"live\":0,\"pid\":75495,\"uptime_ms\":7,\"version\":\"0.1.15\"}\n",
+  "made": {
+    "id": 1,
+    "jsonrpc": "2.0",
+    "result": {
+      "address": "t1",
+      "argv": [
+        "/usr/bin/python3",
+        "-u",
+        "/private/tmp/t216-r4-hc-yjuabvq1/fake.py"
+      ],
+      "cols": 200,
+      "created_ms": 1793508534725,
+      "cwd": "/private/tmp/t216-r4-hc-yjuabvq1",
+      "die_with_parent": false,
+      "exit_code": null,
+      "finished_ms": null,
+      "identity": "ghostty",
+      "keep": false,
+      "labels": {},
+      "name": null,
+      "notify": false,
+      "parent": null,
+      "pid": 75514,
+      "reason": null,
+      "reported": false,
+      "rm": false,
+      "rows": 120,
+      "screen": "exact",
+      "signal": null,
+      "state": "live",
+      "status": null,
+      "status_ms": null,
+      "template": null,
+      "title": "",
+      "turn": 0
+    }
+  },
+  "get": {
+    "id": 1,
+    "jsonrpc": "2.0",
+    "result": {
+      "address": "t1",
+      "argv": [
+        "/usr/bin/python3",
+        "-u",
+        "/private/tmp/t216-r4-hc-yjuabvq1/fake.py"
+      ],
+      "cols": 200,
+      "created_ms": 1793508534725,
+      "cwd": "/private/tmp/t216-r4-hc-yjuabvq1",
+      "die_with_parent": false,
+      "exit_code": null,
+      "finished_ms": null,
+      "foreground": {
+        "argv": [
+          "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+          "-u",
+          "/private/tmp/t216-r4-hc-yjuabvq1/fake.py"
+        ],
+        "cwd": "/private/tmp/t216-r4-hc-yjuabvq1",
+        "name": "Python",
+        "pid": 75514
+      },
+      "identity": "ghostty",
+      "keep": false,
+      "labels": {},
+      "name": null,
+      "notify": false,
+      "parent": null,
+      "pid": 75514,
+      "reason": null,
+      "reported": true,
+      "rm": false,
+      "rows": 120,
+      "screen": "exact",
+      "signal": null,
+      "state": "live",
+      "status": {
+        "state": "done"
+      },
+      "status_ms": 1793508535204,
+      "template": null,
+      "title": "",
+      "turn": 0
+    }
+  },
+  "read": {
+    "id": 1,
+    "jsonrpc": "2.0",
+    "result": {
+      "complete": true,
+      "how": "history",
+      "text": ""
+    }
+  },
+  "stop": "{\"stopped\":true}\n"
+}
