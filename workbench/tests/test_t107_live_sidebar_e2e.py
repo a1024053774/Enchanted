@@ -14,6 +14,7 @@
 3. 两个 worker 不能同时出现在侧栏。
 4. 分支领先/落后数与 git 不一致。
 5. 点击不聚焦。
+6. 受管 worker 改变布局尺寸时被项目终端的重绘流程隐藏，闪“恢复中”。
 """
 import argparse
 import json
@@ -39,7 +40,7 @@ def main():
     parser.add_argument('--claude', default=shutil.which('claude') or str(Path.home() / '.local/bin/claude'))
     target = parser.add_mutually_exclusive_group()
     target.add_argument('--revision')
-    target.add_argument('--mutant', choices=['terminal-shown-idle', 'parent-launch-ignored'])
+    target.add_argument('--mutant', choices=['terminal-shown-idle', 'parent-launch-ignored', 'managed-resize-hidden'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
     report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant, checks=[], observed={})
@@ -50,6 +51,9 @@ def main():
                                  "const state: AgentState = 'idle';")],
         # The saved parent launch not used for the tree.
         'parent-launch-ignored': [('src/sidebar.ts', "    if (typeof record.parent_launch === 'string') senders.add(record.parent_launch);\n", '')],
+        'managed-resize-hidden': [('app/renderer.tsx',
+            '} else void window.a2a.resize(paneKey, term.cols, term.rows).catch(failInput);',
+            '} else { hidden = true; setRestoring(true); void window.a2a.resize(paneKey, term.cols, term.rows).catch(failInput); }')],
     }.get(args.mutant, [])
 
     def plan(body):
@@ -73,6 +77,8 @@ def main():
         return 'worker:' + task, steps, '已交付。'
 
     fixture = Fixture('t107-', plan, revision=args.revision, patches=patches)
+    if args.mutant:
+        fixture.env['ENCHANTED_HC_CACHE_DIR'] = str(Path(__file__).resolve().parents[2].parent / 'hc-cache')
     report['fixture'] = str(fixture.dir)
     electron = None
 
@@ -191,6 +197,22 @@ def main():
         electron.evaluate(f"document.querySelector('.agent-row[data-agent-launch=\"{workers['T-2']}\"]').click()")
         electron.until('聚焦', f"document.querySelector('.agent-row[data-agent-launch=\"{workers['T-2']}\"]').getAttribute('aria-current')==='true'", 20)
         check('click_focuses_worker', True)
+        selector = f'.pane[data-launch-id="{workers["T-2"]}"]'
+        electron.until('可写受管窗格恢复完成', f'''(()=>{{const s=document.querySelector({json.dumps(selector)})?.querySelector('[data-restoring]');
+            return s?.dataset.restoring==='false'&&s.dataset.readonly==='false'}})()''', 30)
+        managed_resize = electron.evaluate(f'''(async()=>{{
+          const p=document.querySelector({json.dumps(selector)}), s=p.querySelector('[data-restoring]'), changes=[];
+          const observer=new MutationObserver(records=>changes.push(...records.map(r=>({{old:r.oldValue,current:s.dataset.restoring}}))));
+          observer.observe(s,{{attributes:true,attributeFilter:['data-restoring'],attributeOldValue:true}});
+          const widths=[];
+          for(let i=0;i<24;i++){{p.style.width=(900+i*8)+'px';p.style.height=(350+(i%2)*14)+'px';
+            await new Promise(r=>setTimeout(r,25));widths.push(p.querySelector('.terminal-mount').clientWidth)}}
+          await new Promise(r=>setTimeout(r,250));observer.disconnect();
+          return {{layout_changes:24,distinct_widths:new Set(widths).size,restoring_changes:changes}}
+        }})()''')
+        report['observed']['managed_resize'] = managed_resize
+        check('managed_resize_does_not_hide_or_restore', managed_resize['distinct_widths'] >= 20 and
+              not managed_resize['restoring_changes'], managed_resize)
 
         # The reviewer of T-2 appears under the executor while it reviews, and ends when reclaimed.
         verified = fixture.request('verify', fixture.terminal, task='T-2')

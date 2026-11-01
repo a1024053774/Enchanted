@@ -57,7 +57,8 @@ export class RoleRequests {
       if (row.type === "role_request_confirmed" && roleRequest.state === "granted") { roleRequest.state = "approved"; roleRequest.confirmed_at = String(row.time); }
       if (row.type === "role_request_ended") { roleRequest.state = "ended"; roleRequest.ended_reason = data.reason; roleRequest.ended_at = String(row.time); }
     }
-    // A closed terminal or a restarted daemon ends every role request it held.
+    // Reattaching the same hc terminal after a daemon restart preserves its approved role.
+    // Only a closed terminal or one this daemon could not reattach ends the role (terminalAlive).
     for (const roleRequest of roleRequests.values()) {
       if (["pending", "granted", "approved"].includes(roleRequest.state) && !this.alive(roleRequest.launch)) {
         roleRequest.state = "ended"; roleRequest.ended_reason = "terminal_gone";

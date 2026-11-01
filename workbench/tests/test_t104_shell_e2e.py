@@ -2,7 +2,7 @@
 
 仅操作自建的隔离 HOME、数据库和进程。--revision 在隔离源码上运行同一
 场景；--mutant 注入正文日志、逐次输入事件或自动重启错误，验证独立断言。
-原始现场归档到调用者指定的外置盘目录；摘要文件不覆盖。
+现场归档到调用者指定的外置盘目录；hc 的私有运行数据不进入证据；摘要文件不覆盖。
 """
 import argparse
 import json
@@ -18,6 +18,7 @@ import tempfile
 import time
 import traceback
 import uuid
+from hc_evidence import assert_public_evidence, private_tokens
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -34,7 +35,7 @@ def wait_for(read, description, seconds=10):
 
 
 def inventory(path):
-    files = [p for p in path.rglob('*') if p.is_file() or p.is_symlink()]
+    files = [p for p in path.rglob('*') if (p.is_file() or p.is_symlink()) and 'hc' not in p.relative_to(path).parts]
     return len(files), sum(p.lstat().st_size for p in files)
 
 
@@ -81,8 +82,8 @@ def main():
                 old = 'if (record.role !== "shell") store.event("window_request_admitted", { ...receipt, command: input.command }, record as any);'
                 new = 'store.event("window_request_admitted", { ...receipt, command: input.command }, record as any);'
             else:
-                old = "// A user's terminal is never resumed or turned into an agent session."
-                new = old + '\n        this.startShell(record.project, record.worktree);'
+                old = 'await this.attachShell(record as any, tokenHash, terminal);'
+                new = old + '\n                await this.startShell(record.project, record.worktree);'
             assert text.count(old) == 1, '变异定位必须唯一'
             path.write_text(text.replace(old, new), encoding='utf-8')
         # This is an isolated source fixture, never a build-output directory.
@@ -205,12 +206,15 @@ def main():
         second = open_shell('t104-beta', other_cwd)
         marker = 'stdout-' + uuid.uuid4().hex
         completion = 'complete-' + uuid.uuid4().hex
-        assert send(first, f"printf '\\n%s\\n' '{marker}'; pwd; print -r -- LOGIN=$options[login],INTERACTIVE=$options[interactive],RC=$T104_LOGIN_RC; /usr/bin/env | /usr/bin/grep '^A2A_'; printf '\\n%s\\n' '{completion}'\r")['ok']
+        # Inspect exported names only: env values include the terminal bearer token.
+        assert send(first, f"printf '\\n%s\\n' '{marker}'; pwd; print -r -- LOGIN=$options[login],INTERACTIVE=$options[interactive],RC=$T104_LOGIN_RC; /usr/bin/env | /usr/bin/sed -n 's/^\\(A2A_[^=]*\\)=.*/\\1/p'; printf '\\n%s\\n' '{completion}'\r")['ok']
         lines = wait_for(lambda: (lambda rows: rows if completion in rows else None)(output_lines(first)), 'zsh 环境读回未完成')
         assert str(cwd) in lines
         assert 'LOGIN=on,INTERACTIVE=on,RC=loaded' in lines
         assert marker in lines
-        assert [line for line in lines if line.startswith('A2A_')] == ['A2A_PROJECT=t104-alpha']
+        assert sorted(line for line in lines if line.startswith('A2A_')) == [
+            'A2A_NODE', 'A2A_PROJECT', 'A2A_TERMINAL', 'A2A_TERMINAL_BIN', 'A2A_TERMINAL_CLI',
+            'A2A_TERMINAL_PLUGIN', 'A2A_TERMINAL_SOCKET', 'A2A_TERMINAL_TOKEN']
         assert request('pane_layout', project='t104-alpha')['panes'][0]['launch'] == first['record']['id']
         assert len(request('pane_layout', project='t104-alpha')['panes']) == 1
         report['checks'].append('真实 zsh 登录、交互、echo/pwd、项目环境和项目隔离')
@@ -261,18 +265,19 @@ def main():
         assert set(before_restart['launches']) == {first['record']['id'], second['record']['id']}
         assert len(before_restart['created']) == 2
         stop()
-        wait_for(lambda: process_state(second_pid), 'daemon 停止后 shell 没退出')
+        assert not process_state(second_pid), 'T-209：后台停止不应结束项目终端'
         start(2)
         after_restart = shell_inventory()
         report['restart_inventory'] = dict(before=before_restart, after=after_restart)
         assert after_restart == before_restart, '后台重启新增了 shell launch 或创建事件'
         snapshot = request('workbench_snapshot', launch=second['record']['id'], project='t104-beta')
-        assert snapshot['ok'] and snapshot['task'] is None and snapshot['pane']['lifecycle'] == 'ended'
-        assert snapshot['pane']['shell_pid'] is None and snapshot['pane']['historical'] is True
+        assert snapshot['ok'] and snapshot['task'] is None and snapshot['pane']['lifecycle'] == 'running'
+        assert snapshot['pane']['shell_pid'] == second_pid
         assert [p['launch'] for p in request('pane_layout', project='t104-beta')['panes']] == [second['record']['id']]
         assert request('pane_layout', project='t104-alpha')['panes'] == []
         assert send(second, nonce)['error'] == 'invalid_window_identity'
-        report['checks'].append('后台重启保留打开集，shell 结束且不续接，旧窗口身份失效')
+        report['checks'].append('T-209：后台重启保留打开集与原 shell pid，旧窗口身份失效')
+        run_cli('shell_close', '--launch', second['record']['id'])
         checkpoint = 'privacy'
         events = request('orchestration_events')['events']
         assert nonce not in json.dumps(events, ensure_ascii=False), 'shell 输入内容泄漏进事件流'
@@ -302,8 +307,12 @@ def main():
     except Exception as error:
         report.update(error=str(error), traceback=traceback.format_exc(), checkpoint=checkpoint)
     finally:
+        tokens = private_tokens(state)
         try:
             stop()
+            from test_t212_shell_hc_e2e import stop_private_core
+            report['core_cleanup'] = stop_private_core(fixture, env)
+            assert report['core_cleanup'] is None or report['core_cleanup']['exit'] == 0
             for pid in processes:
                 wait_for(lambda: process_state(pid), f'测试进程 {pid} 退出未确认')
             report['cleanup_complete'] = True
@@ -316,8 +325,9 @@ def main():
         # Preserve all failure evidence. A live/unknown fixture is kept in place.
         if report.get('cleanup_complete'):
             args.archive.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copytree(fixture, args.archive, symlinks=True)
+            shutil.copytree(fixture, args.archive, symlinks=True, ignore=shutil.ignore_patterns('hc'))
             assert inventory(fixture) == inventory(args.archive), '归档文件数或字节数不一致，保留原目录'
+            report['archive_evidence_boundary'] = assert_public_evidence(args.archive, tokens)
             count, size = inventory(fixture)
             report['archive'] = dict(original=str(fixture), archive=str(args.archive), files=count, bytes=size,
                                      replay=' '.join(sys.argv))

@@ -1,12 +1,14 @@
-import { accessSync, appendFileSync, closeSync, constants, existsSync, fstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, realpathSync, statSync } from "node:fs";
+import { accessSync, appendFileSync, closeSync, constants, existsSync, fstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { AsyncLocalStorage } from "node:async_hooks";
+import { StringDecoder } from "node:string_decoder";
+import { HcRuntime, HcTerminal } from './hc.ts';
 import { validateHookEnvelope, questionFromHook, questionPermission, questionAnswerConfirmed, projectQuestions, nativeAnswerKeys, currentTurnBinding, noncurrentHook, currentTurnTrust } from './questions.ts';
 import type { A2AAttachment, A2AAttempt, A2ATask, A2AReview, A2ARepair } from "./contracts/a2aGates.ts";
 import { Refusal, treeWritable, type GateRuntime, type SubmitCaller } from "./gates/core.ts";
@@ -222,6 +224,7 @@ type Pane = {
   inputGeneration: number; interruption: number | null;
   offsets: Map<string, number>; model: string; effort: string;
   terminalBuffer: string;
+  shellPaintOffset?: number;
   nativeFile?: string;
   // Claude worker start-up: the folder-trust screen as read so far, and whether it was answered.
   startupScreen?: string; trustAnswered?: boolean; startupOutputAt?: number; started?: boolean;
@@ -260,6 +263,14 @@ const agentSessionMarkers = new Set(["CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "CL
   "CLAUDE_CODE_SESSION_ID", "CLAUDE_CODE_SESSION_ATTENDED", "CLAUDE_CODE_EXECPATH", "CLAUDE_CODE_PLUGIN_DIRS",
   "CLAUDE_CODE_MESSAGING_SOCKET", "CLAUDE_CODE_MESSAGING_TOKEN", "CLAUDE_CODE_SSE_PORT", "CLAUDE_PID", "CLAUDE_EFFORT",
   "CODEX_THREAD_ID", "CODEX_SANDBOX", "CODEX_SANDBOX_NETWORK_DISABLED"]);
+function shellBaseEnvironment() {
+  const environment = { ...process.env };
+  for (const key of Object.keys(environment)) {
+    if (key.startsWith("A2A_") || key.startsWith("GIT_CONFIG_") || key.startsWith("HC_") || agentSessionMarkers.has(key)) delete environment[key];
+  }
+  delete environment.ELECTRON_RUN_AS_NODE;
+  return environment;
+}
 export class Panes implements GateRuntime {
   // Bound by the authenticated controller request, isolated across awaits.
   // This is ancestry metadata only; gate authority still uses SubmitCaller.
@@ -269,27 +280,25 @@ export class Panes implements GateRuntime {
   readonly config: LaunchConfig;
   readonly panes = new Map<string, Pane>();
   readonly onEventWriteFailed: (reason: string) => void;
+  readonly hc: HcRuntime;
   // The terminal-only socket the daemon opened (T-126); project terminals reach the daemon only through it.
   terminalSocket: string | null = null;
   constructor(root: string, store: OrchestrationStore, config: LaunchConfig, onEventWriteFailed: (reason: string) => void) {
     this.root = root; this.store = store; this.config = config;
     this.onEventWriteFailed = onEventWriteFailed;
+    this.hc = new HcRuntime(root, shellBaseEnvironment());
   }
   ensureProject = async (_project: string, _repo: string) => {};
-  startShell(project: string | null, cwd: string) {
+  async startShell(project: string | null, cwd: string) {
     check(project === null || typeof project === "string" && /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(project), "invalid_project");
     check(typeof cwd === "string" && isAbsolute(cwd) && statSync(cwd).isDirectory(), "invalid_shell_cwd");
     check(this.terminalSocket, "terminal_socket_unavailable");
     const worktree = realpathSync(cwd), launch = randomUUID(), thread = randomUUID();
-    const environment = { ...process.env };
-    for (const key of Object.keys(environment)) {
-      if (key.startsWith("A2A_") || key.startsWith("GIT_CONFIG_") || agentSessionMarkers.has(key)) delete environment[key];
-    }
-    // The packaged daemon itself runs Electron as Node; the user's shell must not.
-    delete environment.ELECTRON_RUN_AS_NODE;
+    // Only per-terminal overrides go to terminal.run: the sanitized core owns the base environment.
+    const environment: Record<string, string> = { TERM: "xterm-256color" };
     if (project !== null) environment.A2A_PROJECT = project;
     const token = randomBytes(32).toString("hex");
-    if (environment.ZDOTDIR !== undefined) Object.assign(environment, { A2A_USER_ZDOTDIR: environment.ZDOTDIR, A2A_USER_ZDOTDIR_SET: "1" });
+    if (process.env.ZDOTDIR !== undefined) Object.assign(environment, { A2A_USER_ZDOTDIR: process.env.ZDOTDIR, A2A_USER_ZDOTDIR_SET: "1" });
     Object.assign(environment, { ZDOTDIR: join(terminalResources, "zdotdir"), A2A_TERMINAL_ZDOTDIR: join(terminalResources, "zdotdir"),
       A2A_TERMINAL_BIN: join(terminalResources, "bin"), A2A_TERMINAL_PLUGIN: join(terminalResources, "plugin/enchanted-a2a"),
       A2A_TERMINAL_CLI: terminalCli, A2A_NODE: process.execPath, A2A_TERMINAL_SOCKET: this.terminalSocket, A2A_TERMINAL: launch, A2A_TERMINAL_TOKEN: token });
@@ -300,34 +309,82 @@ export class Panes implements GateRuntime {
     const trace = join(this.root, "traces", launch, "pty.raw");
     mkdirSync(dirname(trace), { recursive: true, mode: 0o700 });
     appendFileSync(trace, "", { flag: "wx", mode: 0o600 });
-    const terminal = require("node-pty").spawn(record.shell, record.shell_argv, {
-      name: "xterm-256color", cols: 160, rows: 45, cwd: worktree, env: environment, encoding: "utf8",
-    });
-    const pane: Pane = { record, token, task: null, attempt: null, pty: terminal, state: "unknown",
+    // terminal.run cannot delete inherited variables. Undo only the core's private XDG overrides,
+    // restoring the user's original values (including an explicitly empty value).
+    const xdg = ["XDG_STATE_HOME", "XDG_CONFIG_HOME"].flatMap(key => process.env[key] === undefined ? ["-u", key] : []);
+    const originals = ["XDG_STATE_HOME", "XDG_CONFIG_HOME"].flatMap(key => process.env[key] === undefined ? [] : [`${key}=${process.env[key]}`]);
+    const terminal = await this.hc.run(launch, ["/usr/bin/env", ...xdg, ...originals, record.shell, ...record.shell_argv], worktree, environment);
+    const credentials = join(this.root, "shell-credentials");
+    mkdirSync(credentials, { recursive: true, mode: 0o700 });
+    const tokenHash = createHash("sha256").update(token).digest("hex");
+    writeFileSync(join(credentials, launch + ".json"), JSON.stringify({ tokenHash }) + "\n", { flag: "wx", mode: 0o600 });
+    this.store.event("shell_created", { role: "shell", cwd: worktree, shell_pid: terminal.pid,
+      hc_terminal: terminal.address, hc_session: this.hc.session, screen: terminal.screen }, record);
+    await this.attachShell(record, tokenHash, terminal);
+    this.rememberOpen(launch, this.store.openPanes(undefined, project ?? undefined).length);
+    return record;
+  }
+  private async attachShell(record: Record<string, any> & { id: string; task: null; attempt: null }, tokenHash: string, terminal: HcTerminal) {
+    const trace = join(this.root, "traces", record.id, "pty.raw");
+    // hc attach starts with a full paint, not a delta. Replaying it after the
+    // previous viewer's bytes must reset xterm's screen and scrollback first.
+    // The trace remains append-only; the paint supplies hc's retained history.
+    // For shell panes this field contains only a verifier, never the bearer token.
+    const pane: Pane = { record, token: tokenHash, task: null, attempt: null, pty: terminal, state: "unknown",
       stopped: false, archived: false, failed: null, leader: null, native: null, turn: null,
       nativeEnded: false, active: null, queue: [], writing: false, stopInProgress: false,
       writes: Promise.resolve(), pendingInputs: 0, userDraft: false, draft: emptyDraft(), interrupted: false, sending: null,
       inputGeneration: 0, interruption: null, offsets: new Map(), model: "unknown", effort: "unknown", terminalBuffer: "" };
-    this.panes.set(thread, pane);
-    terminal.onData((data: string) => {
+    const nativeReport = this.store.lastEvent(record.id, ["shell_native_session"]);
+    if (nativeReport) pane.nativeReport = nativeReport.data as ShellNativeReport;
+    this.panes.set(record.thread, pane);
+    let decoder = new StringDecoder("utf8");
+    terminal.on("paint", () => {
+      // A paint is a new byte stream, independent of a partial old UTF-8/OSC chunk.
+      decoder = new StringDecoder("utf8");
+      pane.oscCarry = "";
+      try {
+        const offset = statSync(trace).size;
+        appendFileSync(trace, "\x1bc");
+        pane.shellPaintOffset = offset;
+      } catch (error) { this.recordFailure(pane, "trace_write_failed", error); }
+    });
+    terminal.on("data", (bytes: Buffer) => {
+      const data = decoder.write(bytes);
       pane.outputAt = Date.now(); pane.silentForeground = null;
       const reports = readOsc7501(pane.oscCarry ?? "", data);
       pane.oscCarry = reports.carry;
       // While a CLI reports its state, look at the foreground every few seconds: it can exit without a line typed after.
       if (reports.turns.length) { pane.cliTurn = reports.turns.at(-1); pane.wiringCheckAt ??= Date.now() + WIRING_RECHECK_MS; }
-      try { appendFileSync(trace, data); }
+      try { appendFileSync(trace, bytes); }
       catch (error) { this.recordFailure(pane, "trace_write_failed", error); }
     });
     const silence = setInterval(() => { void this.watchSilence(pane); void this.watchWiring(pane); }, 1000);
-    terminal.onExit((event: unknown) => {
+    terminal.once("detach", () => clearInterval(silence));
+    terminal.on("exit", (event: unknown) => {
       clearInterval(silence);
       pane.stopped = true;
       try { this.store.event("shell_closed", { role: "shell", reason: "process_exit", event, shell_pid: terminal.pid }, record); }
       catch (error) { this.recordFailure(pane, "shell_close_write_failed", error); }
     });
-    this.store.event("shell_created", { role: "shell", cwd: worktree, shell_pid: terminal.pid }, record);
-    this.rememberOpen(launch, this.store.openPanes(undefined, project ?? undefined).length);
-    return record;
+    terminal.on("lost", (error: Error) => {
+      clearInterval(silence);
+      this.recordFailure(pane, "hc_connection_lost", error);
+    });
+    await terminal.attach();
+    check(!pane.failed, "pane_unavailable");
+    if (terminal.screen !== "exact") this.store.event("shell_screen_inexact", {
+      hc_terminal: terminal.address, screen: terminal.screen, reason: "hc_history_lost" }, record);
+  }
+  async resizeShell(launch: string, cols: number, rows: number) {
+    const pane = this.byLaunch(launch);
+    check(pane.record.role === "shell", "shell_required");
+    await this.serializeWrite(pane, async () => {
+      check(!pane.failed && !pane.stopped && !pane.archived && !pane.closing, "pane_unavailable");
+      await pane.pty.resize(cols, rows);
+      check(!pane.failed, "pane_unavailable");
+    });
+    return pane.shellPaintOffset!;
   }
   async shellInput(launch: string, data: string, encoding: "utf8" | "binary", assertCurrent: () => Promise<void>) {
     const pane = this.byLaunch(launch);
@@ -580,13 +637,28 @@ export class Panes implements GateRuntime {
     this.store.event("pane_layout_closed", {}, record as any);
   }
   async recover(daemon: string) {
+    await this.hc.start();
     for (const record of this.store.launches()) {
       if (record.role === "shell") {
-        // A user's terminal is never resumed or turned into an agent session.
         if (!this.store.lastEvent(record.id, ["shell_closed"])) {
           const start = this.store.lastEvent(record.id, ["shell_created"]);
           const pid = start?.data.shell_pid;
           try {
+            if (start?.data.hc_terminal) {
+              check(start.data.hc_session === this.hc.session, "shell_hc_session_mismatch");
+              const terminal = await this.hc.find(record.id, start.data.hc_terminal);
+              if (terminal) {
+                check(terminal.pid === pid, "shell_hc_pid_changed");
+                const { tokenHash } = JSON.parse(readFileSync(join(this.root, "shell-credentials", record.id + ".json"), "utf8"));
+                check(typeof tokenHash === "string" && /^[a-f0-9]{64}$/.test(tokenHash), "shell_token_unavailable");
+                await this.attachShell(record as any, tokenHash, terminal);
+                this.store.event("shell_reattached", { daemon, shell_pid: terminal.pid, hc_terminal: terminal.address,
+                  hc_session: this.hc.session, screen: terminal.screen }, record as any);
+                continue;
+              }
+            }
+            // Pre-T-212 node-pty records have no hc address: retain their PID exit check
+            // until all supported data directories have migrated or archived those records.
             if (Number.isSafeInteger(pid) && pid > 1) {
               const result = await exec("/usr/bin/python3", ["-I", "-S", "-B", processQuery, String(pid)], { timeout: 5000 });
               check(JSON.parse(result.stdout).rows.length === 0, "shell_exit_unconfirmed");
@@ -1650,6 +1722,7 @@ export class Panes implements GateRuntime {
       return { thread, launch: pane.record.id, state: pane.failed || pane.stopped ? "unknown" : pane.state,
         lifecycle: pane.archived || pane.nativeEnded || pane.record.role === "shell" && pane.stopped ? "ended" : pane.stopped ? "interrupted" : "running", shell_pid: pane.pty.pid,
         size: pane.gone ? null : { cols: pane.pty.cols, rows: pane.pty.rows },
+        ...(pane.record.role === "shell" ? { screen: (pane.pty as HcTerminal).screen } : {}),
         state_source: pane.failed ? "runtime_failure" : "host_events", active: pane.active, native_session: pane.native,
         start_missing: this.startMissing(pane), silent_foreground: pane.silentForeground ?? null,
         unwired_cli: pane.unwiredCli ? { command: pane.unwiredCli.command, since: pane.unwiredCli.since } : null,
@@ -2059,7 +2132,7 @@ export class Panes implements GateRuntime {
   authenticateTerminal(identity: any) {
     const pane = typeof identity.launch === "string" ? this.panes.get(this.store.launchRecord(identity.launch)?.thread) : undefined;
     check(pane && pane.record.role === "shell" && pane.record.id === identity.launch && typeof identity.token === "string" &&
-      identity.token.length === pane.token.length && identity.token === pane.token, "invalid_terminal_identity");
+      /^[a-f0-9]{64}$/.test(identity.token) && timingSafeEqual(createHash("sha256").update(identity.token).digest(), Buffer.from(pane.token, "hex")), "invalid_terminal_identity");
     return pane!;
   }
   terminalAlive(launch: string) {
@@ -2211,10 +2284,18 @@ export class Panes implements GateRuntime {
       pane.closing = true;
       await Promise.allSettled([pane.writes]);
       if (!pane.stopped) pane.shellChildren = (await this.processInfo(pane.record.thread)).processes.map(row => row.pid);
+      if (!pane.stopped) {
+        this.store.event("pane_stop_intent", { reason, shell_pid: pane.pty.pid }, pane.record);
+        await (pane.pty as HcTerminal).kill();
+        const deadline = Date.now() + 5000;
+        while (!pane.stopped && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 20));
+        check(pane.stopped, "pane_stop_unconfirmed");
+      }
+      await this.confirmShellExit(pane);
+      return;
     }
     if (pane.stopped) {
       await pane.loginCleanup;
-      if (pane.record.role === "shell") await this.confirmShellExit(pane);
       return;
     }
     this.store.event("pane_stop_intent", { reason, shell_pid: pane.pty.pid }, pane.record);
@@ -2224,7 +2305,6 @@ export class Panes implements GateRuntime {
       pane.pty.kill("SIGHUP");
     });
     await pane.loginCleanup;
-    if (pane.record.role === "shell") await this.confirmShellExit(pane);
   }
   async confirmShellExit(pane: Pane) {
     const pids = pane.shellChildren ?? [pane.pty.pid];
@@ -2248,5 +2328,11 @@ export class Panes implements GateRuntime {
     this.store.event("shell_exit_unconfirmed", { role: "shell", pids: alive }, pane.record);
     throw new Refusal("shell_children_alive", { pids: alive });
   }
-  async shutdown() { for (const pane of this.panes.values()) await this.terminate(pane, "daemon_shutdown_interruption"); }
+  async shutdown() {
+    for (const pane of this.panes.values()) {
+      if (pane.record.role !== "shell") await this.terminate(pane, "daemon_shutdown_interruption");
+      else { pane.closing = true; await pane.writes; }
+    }
+    this.hc.detach();
+  }
 }

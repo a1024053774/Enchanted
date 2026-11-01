@@ -221,7 +221,7 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
     // T-184: a CLI started around the shim reports no turns; its state is not known.
     // T-187: agy and opencode report their own state to the terminal (OSC 7501); none yet is unknown.
     const reportsItself = roleRequest.cli !== null && terminalClis[roleRequest.cli]?.turns === 'osc7501';
-    const state: AgentState = pane?.lifecycle === 'ended' ? 'ended' : pane?.unwired_cli ? 'unknown'
+    const state: AgentState = pane?.failed ? 'unknown' : pane?.lifecycle === 'ended' ? 'ended' : pane?.unwired_cli ? 'unknown'
       : reportsItself ? osc7501State(pane?.cli_turn) : last ?? (roleRequest.cli === 'claude' && roleRequest.native_session ? 'running' : 'unknown');
     agents.push({ id: roleRequest.launch, project: roleRequest.project, task: null, task_name: null, attempt: null, thread: record.thread,
       role: 'controller', preset: roleRequest.role, role_label: roleLabel({ role: 'controller', preset: roleRequest.role }), cli: roleRequest.cli ?? '未知',
@@ -237,7 +237,7 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
     // T-191: the state is the agent's in front, not the shell's. A shell with no CLI in front is idle; agy and opencode
     // report their own turns; Claude Code and Codex report turns only once they hold a role, so before that unknown.
     const front = pane?.foreground_cli ?? null;
-    const state: AgentState = pane?.lifecycle === 'ended' ? 'ended' : pane?.unwired_cli ? 'unknown' : pane?.lifecycle !== 'running' ? 'unknown'
+    const state: AgentState = pane?.failed ? 'unknown' : pane?.lifecycle === 'ended' ? 'ended' : pane?.unwired_cli ? 'unknown' : pane?.lifecycle !== 'running' ? 'unknown'
       : front === null ? 'idle' : terminalClis[front]?.turns === 'osc7501' ? osc7501State(pane?.cli_turn) : 'unknown';
     terminals.push({ id: record.id, project: record.project, task: null, task_name: null, attempt: null, thread: record.thread,
       role: 'shell', preset: null, role_label: '普通终端', cli: front ?? 'zsh', parent: null, state, question_id: null,

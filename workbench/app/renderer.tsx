@@ -132,7 +132,7 @@ declare global { interface Window { a2a: { readonly paneKeys: readonly string[];
   selectProject(project: string | null): Promise<Selection>; theme(theme: Theme): Promise<void>;
   newTerminal(): Promise<Selection>;
   paneAction(key: string, action: { type: string; direction?: string; name?: string }): Promise<Selection>;
-  resize(key: string, cols: number, rows: number): Promise<void>;
+  resize(key: string, cols: number, rows: number): Promise<{ ok: true; output_offset?: number }>;
   snapshot(key: string): Promise<Snapshot>; output(key: string, offset: number): Promise<Chunk>;
   closePane(key: string): Promise<Selection & { ok: boolean }>;
   input(key: string, data: string, encoding?: 'utf8' | 'binary'): Promise<void>; beginComposition(key: string): Promise<void>;
@@ -255,7 +255,8 @@ function SessionPane({ paneKey, active, screenReader, fontFamily, name, confirme
     // T-175: the WebGL renderer draws box drawing, block and powerline separators itself (customGlyphs), so a prompt
     // like powerlevel10k lines up without a patched font. A lost GPU context drops back to xterm's DOM renderer.
     const webgl = new WebglAddon(); webgl.onContextLoss(() => webgl.dispose()); term.loadAddon(webgl);
-    let writable = false, dimensions = '';
+    let writable = false, dimensions = '', shell = false;
+    let shellSize: { cols: number; rows: number; after: number } | null = null;
     let ptySize: { cols: number; rows: number } | null = null;
     const resize = () => {
       if (!mount.current?.clientWidth || !mount.current?.clientHeight) return;
@@ -269,7 +270,11 @@ function SessionPane({ paneKey, active, screenReader, fontFamily, name, confirme
       const next = `${term.cols}:${term.rows}`;
       if (writable && !closingRef.current && dimensions !== next) {
         dimensions = next;
-        void window.a2a.resize(paneKey, term.cols, term.rows).catch(failInput);
+        if (shell) {
+          // One trailing size per layout burst. read() alone sends it, so only
+          // one full-history paint can be in flight; newer sizes replace this one.
+          shellSize = { cols: term.cols, rows: term.rows, after: Date.now() + 150 };
+        } else void window.a2a.resize(paneKey, term.cols, term.rows).catch(failInput);
       }
     };
     refit.current = resize;
@@ -297,7 +302,7 @@ function SessionPane({ paneKey, active, screenReader, fontFamily, name, confirme
       if (type === 'focus-mode-intercept' && writable) void window.a2a.observeFocus(paneKey, detail.raw_sequence).catch(failInput);
     });
     ownTerminalQueries(term, () => {});
-    const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
+    let decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
     let composing = false;
     let clearInputTimer: ReturnType<typeof setTimeout> | undefined;
     term.onData(data => {
@@ -349,7 +354,11 @@ function SessionPane({ paneKey, active, screenReader, fontFamily, name, confirme
             if (value.launch && !boundLaunch) { setRestoring(true); hidden = true; }
             if (value.launch) boundLaunch = value.launch.id;
             term.options.disableStdin = inputFailed || !value.input_enabled;
-            writable = value.input_enabled; ptySize = value.pane?.size ?? null; resize();
+            writable = value.input_enabled; ptySize = value.pane?.size ?? null; shell = value.launch?.role === 'shell';
+            // A reopened shell needs a fresh paint even when its fitted size is
+            // unchanged: trace may contain a newer paint made for another size.
+            if (shell && seenVisibility !== visibleVersion) dimensions = '';
+            resize();
             const p = value.pane;
             releaseBasis = settled && pendingInput === 0 && version === inputVersion && value.input_enabled && value.window_id &&
               value.launch && p?.interrupted && Number.isSafeInteger(p.interruption) && Number.isSafeInteger(p.input_generation)
@@ -361,8 +370,19 @@ function SessionPane({ paneKey, active, screenReader, fontFamily, name, confirme
             nextSnapshot = Date.now() + 1000;
           }
           if (!boundLaunch) { setRestoring(false); await delay(); continue; }
+          if (shell && shellSize) {
+            if (Date.now() < shellSize.after) { await delay(); continue; }
+            const size = shellSize; shellSize = null;
+            hidden = true; setRestoring(true);
+            const resized = await window.a2a.resize(paneKey, size.cols, size.rows);
+            if (!Number.isSafeInteger(resized.output_offset) || resized.output_offset < cursor) throw new Error('重绘偏移无效');
+            cursor = resized.output_offset;
+            decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
+            if (shellSize) continue; // A newer layout replaces the in-flight size.
+          }
           const chunk = await window.a2a.output(paneKey, cursor);
           if (!mounted) break;
+          if (shell && shellSize) continue; // This chunk predates the pending shell paint.
           const bytes = Uint8Array.from(atob(chunk.data_base64), (char) => char.charCodeAt(0));
           if (chunk.launch !== boundLaunch || chunk.start_offset !== cursor || chunk.next_offset !== cursor + bytes.length ||
               chunk.total_bytes < total || chunk.next_offset > chunk.total_bytes) throw new Error('输出不完整，已停止读取');

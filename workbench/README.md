@@ -1,5 +1,32 @@
 # a2a 门禁、编排后台与工作台
 
+项目终端由编排后台的私有 hc core 托管；worker、审查员、监视器和主控预设的受管窗格仍走 node-pty（T-212）。
+hc 的固定版本、来源和校验值只定义在 `src/hcDistribution.mjs`。开发启动、测试和打包共用取用逻辑：
+缓存 tarball 每次核验 SHA-256；存在但损坏就报错，不下载替换；没有缓存才下载并核验。开发默认读取仓库相邻的
+`hc-cache/`，可用 `ENCHANTED_HC_CACHE_DIR` 指定缓存目录。应用包内含 hc 与 Apache-2.0 许可、第三方声明，并核对二进制签名。
+
+每个后台数据目录保存自己的 `HC_SESSION` 与 `HC_SOCKET` 身份。socket 位于随机私有临时目录，
+与用户 default core 无关；核对长度时包含 holder 后缀。hc 的状态和配置通过 XDG 变量放在后台私有 `hc/` 目录，
+启动 core 前去掉编排、Git、agent 会话与继承的 `HC_*` 标记；终端启动时还原用户原有 XDG 值，未设置的则删除。
+项目终端经 framed attach 收发数据、归还输出 credit 和调整尺寸，pid 来自 hc 记录。attach 的完整重绘前追加 reset，
+避免重放 trace 时重复历史。项目终端窗格打开或布局稳定 150 毫秒后，后台先发送 RESIZE，再重新 attach，取得该尺寸下的完整重绘，
+返回 reset 所在的 trace 偏移；界面等尺寸请求完成后从该偏移回放，避免把大屏重绘写进小窗格而覆盖末行。
+连续布局变化只保留最新尺寸，同时最多一个尺寸请求在途；后台在重绘边界清零 UTF-8/OSC 解析状态。
+重绘 reset 和 DATA 的 trace 写入失败按窗格记录；初次 attach 或 resize 拒绝返回成功/偏移，
+不把 trace IO 异常抛进共享 hc 连接。RPC 回调若意外抛错，当前调用也会先 reject，避免写入队列悬挂。
+受管窗格仍即时改尺寸，不隐藏等待 hc 重绘。所有显示仍经同一个追加式 trace 和按偏移读取的接口。
+`tests/test_t212_shell_hc_e2e.py --electron-screen --mismatched-screen` 核对大尺寸 hc 重绘接入小窗格后，
+实际 xterm buffer 与 hc 保留的编号中文历史逐行一致，防止尺寸错配再次覆盖末行。
+同一测试的 `--electron-screen --resize-burst` 场景核对连续 24 次布局变化仅产生少量完整重绘，最终尺寸和输出完整。
+
+后台重启只断开项目终端的 viewer，接回原 hc 终端与原 pid；终端专用 socket 地址保持不变，`a2a` 身份继续有效。
+后台自有的终端凭据文件只保存 token 哈希，文件为 0600、目录为 0700。hc 自己会在私有 registry 中保存终端环境，
+其中含明文 token；这是同一用户可读的运行数据，**整个 hc 私有运行目录永久排除在证据复制之外**。
+测试用 `tests/hc_evidence.py` 核对证据中没有 hc 状态文件、没有已知 token 明文，并只读比较用户 core 的目录及 pid/启动时间。
+显式关闭终端调用 `terminal.kill`，再核对子进程；macOS 上已知的系统二进制逃逸不被当作清理成功。
+core 崩溃后的屏幕可能为 `inexact`、历史可能丢失，不能将其报告为完整；后台重启与 core 崩溃是两个不同场景。
+运行中连接丢失而窗格带 `failed` 时，普通终端和主控的侧栏状态均为 unknown；终端进程仍在，主控身份不因此结束。
+
 项目行的右键菜单提供“编辑项目”：主目录保持不变，可以通过目录选择器添加或移除额外目录。
 保存设置会追加 `project_settings_saved` 事件；旧设置记录保留。项目的额外目录只决定主控 `terminal_open` 能开普通终端的目录，
 不再自动给 worker（T-193）。worker 能写哪些项目外目录由主控按任务决定：`dispatch` 或 `run` 带 `extra_directories`
@@ -189,7 +216,7 @@ T-177：已结束的会话和被新 attempt 取代的会话折进每个任务下
   `project_not_opened`，`details` 带目标项目、已打开的项目和下一步。`create` 与 `inbox_ready` 须带 `project`，
   `create` 的 `repo` 须为该项目打开的目录。`answer_issue(s)`、`attach`、`run` 也是任务命令（T-124，见下文）。收件箱的其他命令与 stop 还没有项目字段、也不看 task 字段，
   终端角色调用它们一律返回 `role_command_not_scoped`；主控之间的收件箱通信留给后续票，届时先给条目加上项目。
-- 终端关闭或后台重启后身份结束，侧栏保留最近一次确认生效的主控角色并标“已结束”；历史展示不授予命令权限。
+- 后台重启后接回原 hc 终端，lifecycle 仍为 running，已生效的主控身份保持；只有终端关闭或接不回原 hc 终端时才结束。终端已结束时，侧栏保留最近一次确认生效的主控角色并标“已结束”；历史展示不授予命令权限。
 - 侧栏把已批准的终端显示为对应主控（“项目终端”）。批准执行主控时，申请卡片上可以选它的上级构思主控（本项目里在跑的构思主控，
   默认第一个，也可选“不归属”），选择随 `role_request_decide` 的 `parent_launch` 存进批准事件，侧栏据此把执行主控挂在构思主控下（T-107）。
 - 记录与状态（T-133 方案 A、T-107）：`claude` 包装加载的插件带钩子（`hooks/hooks.json`），在提交、回合结束、空闲 60 秒通知、
@@ -295,8 +322,9 @@ agent 窗格的输入、人工介入和门禁事实仍按原路径记录。布�
 
 显式 `shell_close` 或 shell 的 `pane_layout_close` 会结束该终端，核对关闭前观察到的
 shell 和子进程退出后才确认关闭。`window_close` 只撤销视图凭据，不结束终端。
-关闭 Electron 的既有行为仍为断开视图。后台重启保留普通终端的打开集，但不自动拉起
-zsh；历史快照返回 `lifecycle: ended`。退出无法核对时保留 unknown／明确错误，不伪称结束。
+关闭 Electron 的既有行为仍为断开视图。后台重启保留普通终端的打开集并接回原 hc 终端，
+不重新启动 zsh；接回后的 `lifecycle` 仍为 `running`，已生效的主控身份保持。
+只有终端关闭或接不回原 hc 终端时，主控身份才结束。退出无法核对时保留 unknown／明确错误，不伪称结束。
 打开界面即可点击“新建终端”（⌘T），无需先创建项目或任务。选中项目时，新终端直接在项目目录启动；
 未选项目（“独立终端”）时在家目录启动。renderer 不传路径，目录由主进程按当前视图确定。
 左侧点项目进入任务总览；点任务显示其 Agent 会话，点单个 agent 或项目普通终端只显示它自己。
@@ -677,8 +705,8 @@ cd workbench
 npm run package:mac -- --slot mac-新的编号
 ```
 
-构建目录为 `os.tmpdir()/a2a-build-<槽名>`，不依赖外置盘。npm 与 Electron 缓存位置见上文，
-可复用的 Electron 头文件放在 `~/Library/Caches/a2a-workbench/electron-gyp`。
+构建目录为 `os.tmpdir()/a2a-build-<槽名>`，不依赖外置盘；可通过 `TMPDIR=/private/tmp` 固定临时位置。
+打包时 npm、Electron 下载缓存及 Electron 头文件都放在本次构建的 `work/cache/`，不写用户全局缓存。
 UI 构建、stage、重建与临时文件集中在本次构建目录的 `work/`；打包、签名核对成功后
 自动清理 `work/`，目录里只保留 `Enchanted.app`。已有槽不复用，失败时保留现场。
 显示名和主可执行文件名为 Enchanted，helper 为 `Enchanted Helper*.app`；bundle id 仍为 `org.a2a.workbench`。
@@ -699,7 +727,7 @@ Electron 的 `ELECTRON_RUN_AS_NODE=1` 模式运行编排后台；后台无需外
 数据默认仍在 `~/Library/Application Support/a2a-orchestrator`，界面数据在其 `ui/`。
 缺省 task 进入独立终端区；项目由界面打开目录登记，任务由主控经门禁 CLI 注册。
 无需项目也能新建普通 zsh 终端。
-退出界面不结束后台或终端，再次打开会重连；普通终端在后台停止后仍按原合同显示已结束。
+退出界面不结束后台或终端，再次打开会重连；后台重启后项目终端接回仍活着的 hc 终端，只有程序确实结束才显示已结束。
 
 应用启动者创建独有的 0600 `desktop-operator-<UUID>.json`，私有连接描述文件
 `desktop-connection.json` 只保存凭据路径，不保存 token。两者都不在后台数据目录里（T-126）：正式版放在
@@ -1055,7 +1083,7 @@ active dispatch 与输入可用状态供驱动核对；驱动发键只代表尝�
 
 窗口经同一个 Unix socket 查询后台，不加载 node-pty 或 SQLite。显示一个项目、任务、
 多个会话窗格和共享的当前任务门禁状态；终端网格固定为 160×45。当前输入候选在固定的活动 launch 上启用
-键盘、IME 和粘贴入口，历史窗格保持只读；全部输入由后台写入 node-pty，renderer
+键盘、IME 和粘贴入口，历史窗格保持只读；项目终端输入由后台写入 hc attach，受管窗格仍写入 node-pty，renderer
 没有后台凭据、PTY 或数据库权限。每个窗格的窗口输入凭据绑定一个 launch，关闭时撤销，不随
 current_attempt 更换目标。后台在等待前占用窗口序号和 request_id，重用请求号会被拒绝；
 输入调用失败时停止后续发送，不自动重投。

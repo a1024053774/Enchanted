@@ -1,5 +1,5 @@
-import { createServer } from "node:net";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmdirSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { createServer, createConnection } from "node:net";
+import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { basename, isAbsolute, join } from "node:path";
 import { A2AGates, Refusal, type TerminalController } from "./gates/core.ts";
@@ -54,6 +54,10 @@ export async function serve(
   const store = new OrchestrationStore(root);
   const panes = new Panes(root, store, config, (reason) => gates.setUserInputObserverStatus("failed", { reason }));
   const gates = createGates(root, panes);
+  // Startup must fail before publishing a ready endpoint if the pinned runtime
+  // cannot start (for example a corrupt archive). Recovery itself stays behind
+  // the existing recovering gate, but installing hc is not background recovery.
+  await panes.hc.start();
   gates.openedProjectRepo = project => store.openedProjects().find(opened => opened.project_id === project)?.repo;
   const relay = new RequestRelay(store);
   const roleRequests = new RoleRequests(store, launch => panes.terminalAlive(launch));
@@ -89,7 +93,7 @@ export async function serve(
     // The run is recorded before its terminal opens, so its slot is taken; a start that fails says so on the run
     // (T-136 review 01) instead of leaving it "in progress". It is not retried by itself: the user can start one.
     try {
-      const shell = panes.startShell(project, opened.repo);
+      const shell = await panes.startShell(project, opened.repo);
       store.event("retrospective_started", { run: run.id, cli: run.cli, model: run.model, effort: run.effort, argv,
         native_session: run.cli === "Claude Code" ? session : null,
         native_home: run.cli === "Claude Code" ? process.env.CLAUDE_CONFIG_DIR ?? join(process.env.HOME ?? "", ".claude")
@@ -388,7 +392,7 @@ export async function serve(
       const cwd = realpathSync(input.cwd);
       const withinProject = [project.repo, ...project.extra_directories].some(root => cwd === root || cwd.startsWith(root.endsWith('/') ? root : root + '/'));
       if (!withinProject) throw new Refusal("terminal_cwd_outside_project");
-      return { ok: true, launch: panes.startShell(project.project_id, cwd) };
+      return { ok: true, launch: await panes.startShell(project.project_id, cwd) };
     }
     if (input.command === "inbox_ready") {
       if (input.project !== target) throw new Refusal("project_required");
@@ -625,7 +629,7 @@ export async function serve(
     }
     if (input.command === "shell_start") {
       if (authority.kind !== "operator") throw new Refusal("operator_required");
-      return { ok: true, launch: panes.startShell(input.project ?? null, input.cwd) };
+      return { ok: true, launch: await panes.startShell(input.project ?? null, input.cwd) };
     }
     if (input.command === "shell_close") {
       if (authority.kind !== "operator") throw new Refusal("operator_required");
@@ -690,6 +694,7 @@ export async function serve(
         if (!Number.isInteger(input.cols) || input.cols < 2 || input.cols > 1000 || !Number.isInteger(input.rows) || input.rows < 1 || input.rows > 1000) throw new Refusal("invalid_terminal_size");
         const pane = panes.byLaunch(record.id);
         if (pane.stopped || pane.archived || pane.failed || pane.closing) throw new Refusal("pane_unavailable");
+        if (record.role === "shell") return { ok: true, output_offset: await panes.resizeShell(record.id, input.cols, input.rows) };
         pane.pty.resize(input.cols, input.rows);
         return { ok: true };
       }
@@ -1050,11 +1055,26 @@ export async function serve(
   };
   const server = createServer(serveConnection(false));
   const terminalServer = createServer(serveConnection(true));
-  // A private directory with a random name: its path says nothing about the daemon's data directory.
-  const terminalDirectory = mkdtempSync(join(tmpdir(), "enchanted-"));
+  // Terminals outlive this daemon. Preserve their endpoint without exposing the state directory (T-126).
+  const endpointFile = join(root, "terminal-endpoint.json");
+  const terminalDirectory = existsSync(endpointFile) ? JSON.parse(readFileSync(endpointFile, "utf8")).directory : mkdtempSync(join(tmpdir(), "enchanted-"));
+  if (!existsSync(endpointFile)) writeFileSync(endpointFile, JSON.stringify({ directory: terminalDirectory }) + "\n", { flag: "wx", mode: 0o600 });
+  if (!existsSync(terminalDirectory)) mkdirSync(terminalDirectory, { mode: 0o700 });
+  const directoryStat = lstatSync(terminalDirectory);
+  if (!directoryStat.isDirectory() || directoryStat.uid !== process.getuid!() || (directoryStat.mode & 0o077)) throw new Error("terminal directory is not private");
   const terminalSocket = join(terminalDirectory, "terminal.sock");
   try {
     if (Buffer.byteLength(terminalSocket) > 103) throw new Error("terminal socket path exceeds 103 bytes");
+    if (existsSync(terminalSocket)) {
+      if (!lstatSync(terminalSocket).isSocket()) throw new Error("terminal endpoint is not a socket; preserved");
+      await new Promise<void>((resolve, reject) => {
+        const probe = createConnection(terminalSocket);
+        probe.once("connect", () => { probe.destroy(); reject(new Error("terminal endpoint is live; preserved")); });
+        probe.once("error", error => error.code === "ECONNREFUSED" ? resolve() : reject(error));
+        probe.setTimeout(1000, () => probe.destroy(new Error("terminal endpoint state unknown; preserved")));
+      });
+      unlinkSync(terminalSocket);
+    }
     await new Promise<void>((resolve, reject) => { terminalServer.once("error", reject); terminalServer.listen(terminalSocket, resolve); });
     chmodSync(terminalSocket, 0o600);
     panes.terminalSocket = terminalSocket;
@@ -1062,8 +1082,7 @@ export async function serve(
     chmodSync(socket, 0o600);
     writeFileSync(join(root, "daemon.pid"), String(process.pid) + "\n", { flag: "wx", mode: 0o600 });
   } catch (error) {
-    // Nothing in the data directory names this directory, so no later start could remove it.
-    rmSync(terminalDirectory, { recursive: true, force: true });
+    // Keep endpoint identity and diagnostics; an unknown/live endpoint is never removed here.
     throw error;
   }
   gates.recoverReviews();
