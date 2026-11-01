@@ -1,0 +1,6 @@
+1258d1257
+<     if (pane.traceFailed) return false;
+1260c1259
+<     catch (error) { pane.traceFailed = true; this.recordFailure(pane, "trace_write_failed", error); return false; }
+---
+>     catch (error) { if (!pane.traceFailed) { pane.traceFailed = true; this.recordFailure(pane, "trace_write_failed", error); } return false; }
