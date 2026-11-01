@@ -1,0 +1,28 @@
+你是 T-223（复盘日程遇夏令时跳过，due() 算出的时刻不对）的独立审查员，只读。这是第三次审查，对象是第三轮候选。本次只审运行证据；代码另有一份审查，不在本次范围。
+
+审查目录 /Users/luckye/Documents/Code/a2a-review/T-223-r2 全部只读。本次读这些文件：
+
+- `ticket.md`：票面，验收条目以它为准；
+- `candidate/workbench/tests/test_t223_retrospective_due.ts`：只用来查用例名和期望值的来源；
+- worker 证据：`evidence/r3-baseline/`、`evidence/r3-round2-red/`、`evidence/r3-green/`、`evidence/r3-mutants/`（各子目录的 summary.json 与各组 json、log），`evidence/r3-t136-summary.json`、`evidence/r3-t137-summary.json`、`evidence/r3-t136.log`、`evidence/r3-t136-cleanup.json`、`evidence/r3-t136-cleanup-anomaly.json`；
+- 主控证据：`controller/r3/` 下 green、base-red、round2-red、mutant-slot-rollback 各三组的 json 与 log，`controller/r3/mutant-slot-rollback.diff`，`controller/r3/nuuk-probe-candidate.log`，`controller/r3/runs.log`，`controller/r3/t136-summary.json`、`controller/r3/t137-summary.json`；`controller/nuuk-probe.log`。
+
+规则：
+
+- 只用你内置的读文件、搜文件工具。不运行任何 shell 命令，不写、不改任何文件。
+- worker 的自报（`evidence/REPORT.md`）和主控的说法都不算证据，本次不读 REPORT.md。每条结论都要落到证据文件里的原始输出。
+- 用例名、检查项名、actual、expected、退出码、状态只能从文件原文复制，不能凭记忆或推算写。写最终报告之前，把报告里要写的每一个名称和数值重新打开对应文件逐一核对；对不上的删掉或改正。不要从一个运行借数值写到另一个运行上。
+- 拿不准的写“未核对”，不要写成通过。
+
+逐项核对：
+
+1. 红绿态与变异：每个运行（worker 的 baseline、round2-red、green、各变异；主控的 base-red、round2-red、green、mutant-slot-rollback）各自的 status、失败了哪几项（用例名原文）、每项的 actual 与 expected（原文），用表格列出。判断：基线与第二轮红态是否失败在票面描述的问题上；绿态是否全部通过；每个变异是否被至少一项抓住；worker 与主控同名运行的结果是否一致。
+2. `controller/r3/nuuk-probe-candidate.log` 与 `controller/nuuk-probe.log`：各场景的返回值原文；第三轮候选在 Nuuk 场景下是否返回正确值。
+3. T-136、T-137 当前日期端到端：worker 与主控各自的 summary 里 status 和 checks 原文；是否都通过。
+4. T-136 清理异常：读 `evidence/r3-t136-cleanup.json`、`evidence/r3-t136-cleanup-anomaly.json`，说明发生了什么、发生在产品测试结束之前还是之后，判断它是否可能掩盖产品问题。
+
+最后一条回复给出完整中文报告：
+
+- 每条意见标“阻塞”或“非阻塞”，写明文件与行号、为什么、建议怎么改；
+- 对 `ticket.md` 第 34、35、40 行三条验收各给 PASS / INCOMPLETE / BLOCKED / NO_GO，以及依据所在的文件与行号；
+- 结尾一行写本次范围的结论（PASS / INCOMPLETE / NO_GO）。

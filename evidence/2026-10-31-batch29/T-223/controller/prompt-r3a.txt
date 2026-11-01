@@ -1,0 +1,31 @@
+你是 T-223（复盘日程遇夏令时跳过，due() 算出的时刻不对）的独立审查员，只读。这是第三次审查，对象是第三轮候选。本次只审代码、规则与测试；证据另有一份审查，不在本次范围。
+
+审查目录 /Users/luckye/Documents/Code/a2a-review/T-223-r2 全部只读。本次只读下面这些文件，不读 evidence/ 和 controller/r3/：
+
+- `ticket.md`：票面，验收条目以它为准；
+- `brief.md`：发给 worker 的任务书（后面附第二轮、第三轮要求）；
+- `change.diff`：候选相对基线 76f969963 的完整差异；
+- `candidate/workbench/src/retrospective.ts`、`candidate/workbench/README.md`、`candidate/workbench/tests/test_t223_retrospective_due.ts`；需要时可查 `candidate/workbench/src/` 下的调用方；
+- `controller/REVIEW-agy-r1.md`、`controller/REVIEW-agy-r1-controller-check.md`、`controller/nuuk-probe.ts`、`controller/scan_midnight_gaps.mjs`。
+
+规则：
+
+- 只用你内置的读文件、搜文件工具。不运行任何 shell 命令，不写、不改任何文件。
+- worker 的自报和主控的说法都不算证据。每条结论都要落到差异或源码里的具体行。
+- 名称、数值、原文引用只能从文件里复制，不能凭记忆写。写最终报告之前，把报告里要写的每一个文件路径、行号、函数名、用例名、数值重新打开文件逐一核对；对不上的删掉或改正。你自己推算出来的日期与数值要写明“推算”，和文件原文分开。
+- 拿不准的写“未核对”，不要写成通过。
+
+逐项核对：
+
+1. 根因与改动：`due()` 现在怎样确定目标日期与时刻；本周未到点回退一周的分支怎样处理；是否还有任何一步依赖查询时刻的墙钟时间；改动是否只在 retrospective.ts、README 和新测试，有没有动去重、存储或其他调用方。
+2. 规则与边界：注释与 README 写的规则是否与代码行为一致。依据 ECMAScript 的 MakeDay、MakeDate、UTC(t) 推理，逐一说明当前实现下会得到什么：日期数字小于 1 或超过当月天数（跨月、跨年回退）；目标日期上日程时刻不存在（跳过 1 小时，以及 Australia/Lord_Howe 的半小时跳过）；跳过段延到本地午夜（America/Nuuk）；秋季重复时刻。有没有遗漏的边界，会不会阻塞本票。
+3. 测试 `test_t223_retrospective_due.ts`：Nuuk、Scoresbysund 组每个期望值能否按日历手算出来，写出推算；是否经真实 `Retrospectives.due()` 运行；每组是否在显式 TZ 下运行，TZ 不对是否拒绝；断言会不会被放宽、跳过或吞掉。
+4. 第一次审查的意见：主控把一条非阻塞意见改判为阻塞，依据是 `REVIEW-agy-r1-controller-check.md`、`nuuk-probe.ts`、`scan_midnight_gaps.mjs`。从代码与脚本推理，这个依据是否成立；第三轮代码是否解决了它。
+5. 设计：有没有为兼容或“保险”加的 fallback、重试、双写、平行 API、吞异常。
+6. 边界：测试只用内存 SQLite 与本地脚本化接口，不碰用户数据、Herdr、hc。
+
+最后一条回复给出完整中文报告：
+
+- 每条意见标“阻塞”或“非阻塞”，写明文件与行号、为什么、建议怎么改；
+- 对 `ticket.md` 里第 35 行那条验收的“另核对”各项，从代码与测试角度给出 PASS / INCOMPLETE / NO_GO 与依据；运行结果不在本次范围，写“运行结果见证据审查”；
+- 结尾一行写本次范围的结论（PASS / INCOMPLETE / NO_GO）。

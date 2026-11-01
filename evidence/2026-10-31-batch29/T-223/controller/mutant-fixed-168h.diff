@@ -1,0 +1,12 @@
+--- /Users/luckye/Documents/Code/a2a-worktrees/T-223/workbench/src/retrospective.ts	2026-11-01 00:28:26
++++ /private/tmp/t223-ctl-mutant-JOiqBD/workbench/src/retrospective.ts	2026-11-01 00:35:11
+@@ -62,8 +62,7 @@
+     slot.setDate(slot.getDate() - ((slot.getDay() - schedule.weekday + 7) % 7));
+     slot.setHours(schedule.hour, schedule.minute, 0, 0);
+     if (slot > now) {
+-      slot.setDate(slot.getDate() - 7);
+-      slot.setHours(schedule.hour, schedule.minute, 0, 0);
++      slot.setTime(slot.getTime() - 7 * 24 * 60 * 60 * 1000);
+     }
+     if (slot < new Date(schedule.effective_from)) return null;
+     const ran = this.runs(project).some(run => run.scheduled_for === slot.toISOString());
