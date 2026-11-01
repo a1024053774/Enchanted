@@ -2,7 +2,7 @@
 id: T-219
 title: 既有测试在基线上失败：终端状态、紧急中断、旧恢复与 Electron 夹具、跨项目开终端
 type: research
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -34,4 +34,20 @@ T-216 关闭时，这些证据会随它归档进 `evidence/2026-10-31-batch29/T-
 
 ## Resolution
 
-（未开始）
+2026-10-31 关闭。九项都在给定基线上复现到票面失败点，逐项查明：八项是测试过时，按现行契约修订；第 6 项是产品缺陷。
+
+- 测试过时、已修订（各附修前红态、绿态和变异反例）：
+  - 第 1 项：T-191，没有前台 CLI 的普通终端显示空闲；
+  - 第 2、3 项：T-124，provider 取自 attempt 的任务卡快照；T-187，按启动记录的 `cli` 判定；
+  - 第 4 项：T-108，hook 必须带 `cwd`、`transcript_path`；
+  - 第 5 项：T-191，Claude/Codex 在角色获批前为未知；
+  - 第 7 项：T-123 任务 id 带项目、T-141 原生 idle、T-203 `review_submit`、T-096 活所有者拒绝重启，五场全过；
+  - 第 8 项：T-123；
+  - 第 9 项：T-189/T-193，主控可在任一已打开项目开终端。
+- 第 6 项交 [T-221](T-221-dst-day-scan.md)：夏令时回拨当天，按天扫描 Codex 记录的循环漏掉次日。
+- 第 7、8 项现已能当后续受管窗格切片的真实入口；换到 hc 后要重新取得红绿态，不复用本票结果。
+- 第二轮对照：共享夹具的 23 个非历史调用者在基线和候选上各跑一次，没有“基线过、候选不过”的。另有 17 个旧套件两边都失败，与本票无关，登记为 [T-222](T-222-legacy-gate-suites-broken.md)。
+- `workbench/tests/HISTORICAL.md`：`controlled_quality_pty.ts` 移入“已迁移到现行契约”，写明各直接导入方的实际复验范围。
+- 边界偏差：worker 初轮漏设 `TMPDIR`，UI 构建在系统临时目录留下 4 个构建槽。主控删除了这 4 个槽，并接受该轮证据。
+
+提交：worktree `5d1d9b6fc`，main `4fa0d4ca4`。主控独立重跑 10 个入口，结果全部符合预期。证据在 [evidence/2026-10-31-batch29/T-219/](../../evidence/2026-10-31-batch29/T-219/RESULTS.md)，整份目录与 110 个现场已归档到外置盘，清单在同目录的 `archive/` 下。

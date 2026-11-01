@@ -1,0 +1,36 @@
+diff --git a/workbench/tests/HISTORICAL.md b/workbench/tests/HISTORICAL.md
+index fe243883b..1c7bcf612 100644
+--- a/workbench/tests/HISTORICAL.md
++++ b/workbench/tests/HISTORICAL.md
+@@ -4,13 +4,12 @@
+ 
+ ## 只针对历史版本的辅助文件
+ 
+-这 3 个文件的统一文件头为“历史测试：只针对 <revision>，当前 main 不跑”。标记不改变代码、导出或 import，也不替依赖它们的测试给出通过结论。当前 main 的回归入口 `RUN-MERGE-REGRESSION-06.sh` 不调用这些历史 host；离线导入诊断 handler 的请求回放仍可执行。
++剩余这 2 个文件的统一文件头为“历史测试：只针对 <revision>，当前 main 不跑”。标记不改变代码、导出或 import，也不替依赖它们的测试给出通过结论。当前 main 的回归入口 `RUN-MERGE-REGRESSION-06.sh` 不调用这些历史 host；离线导入诊断 handler 的请求回放仍可执行。
+ 
+ | 文件 | 对应 revision | 用途与调用者 |
+ | --- | --- | --- |
+ | [diagnose_t112_reviewer.py](diagnose_t112_reviewer.py) | `5f19062f52154914123e3796fdff87caaa22fc1f` | T-112 固定 Codex 0.162.1 的 reviewer 原生写入边界诊断。由 `run_t112_native.py` 调用；`test_t112_request_replay.py` 只离线回放其 handler。旧关网络断言不符合 T-141。 |
+ | [t112_reviewer_record.mjs](t112_reviewer_record.mjs) | `5f19062f52154914123e3796fdff87caaa22fc1f` | 上述诊断使用的 daemon/reviewer host。`test_t112_reviewer_startup.mjs` 是针对旧放行流程的 VM 检查，不能当成现行原生运行证明。 |
+-| [controlled_quality_pty.ts](controlled_quality_pty.ts) | `5f7f9816eb9a996377c5b255695244d99c0259e7` | 旧质量串共用的受控 PTY/process 输入层；被 quality、daemon、conflict、multiturn host 导入。只发受限目录屏幕、不发 native idle 的旧输入不能代表 T-141 后的启动协议。 |
+ 
+ 复跑须同时取得该 revision 的 **host、测试和产品源码**，并核对当时的 CLI、输入和运行约束。不能将当前文件、历史 host 和当前产品混用，不能把旧 PASS 当成当前 main 的通过证明。T-112 的 revision 来自当时完整原生验收的 `source_head`；受控 PTY 的 revision 对应 T-082 冻结候选，不表示整个 T-076 runner 都曾全绿。具体证据边界见 DISPOSITION。
+ 
+@@ -31,7 +30,7 @@
+ 
+ 离线依赖保持原样：`test_t112_closed_fixture.py` 导入 `closed_fixture_launches` 并运行旧 Node producer，`test_t112_counterfactuals.py` 调用旧 Node producer；它们的旧断言未在本票迁移。`Tracer` 仍被质量、坏 worker、受保护验收、副本生命周期等测试导入，`run_t076_quality_green.py` 仍导入 `CASES`。文件可导入不使这些调用者自动符合现行契约。
+ 
+-## 已迁移到现行契约（T-150～T-153）
++## 已迁移到现行契约（T-150～T-153、T-219）
+ 
+ | 文件 | 迁移票与状态 | 保留的检查范围 |
+ | --- | --- | --- |
+@@ -39,6 +38,7 @@
+ | [test_t078_claude_signals.ts](test_t078_claude_signals.ts) | [T-151](../../.project-map/tickets/T-151-migrate-t078-claude-signals.md)，已合入。 | 已登记 active submission 的 UserPromptSubmit/Stop 关联、重复 Stop 不重复产生 `pane_idle`、异会话拒收。 |
+ | [test_t082_review_boundary_e2e.py](test_t082_review_boundary_e2e.py) | [T-152](../../.project-map/tickets/T-152-migrate-t082-review-boundary.md)，已合入。 | 审查副本生命周期、共享 refs 改动作废、`review_requirements.workspace` 绑定、结束核对前拒绝集成及 held socket 竞争。 |
+ | [run_worker_delivery.py](run_worker_delivery.py) | [T-153](../../.project-map/tickets/T-153-migrate-worker-delivery.md)，已合入。 | 原生 Stop 批次与重复请求只处理一次、门禁回执只注入一次且收据回合无工具、实际 turn_context→delivery→尾注。 |
++| [controlled_quality_pty.ts](controlled_quality_pty.ts) | [T-219](../../.project-map/tickets/T-219-baseline-test-failures.md)，工作树候选已迁移；不以迁移宣布所有调用者通过。 | 按 T-141 在受限目录打开后发送原生 OSC 7501 idle 就绪包，回车写入 turn 记录后发输出触发生产 scan，仍只替换 PTY/process 输入。原历史版本为 `5f7f9816eb9a996377c5b255695244d99c0259e7`。本轮四个共享文件的 23 个非历史测试已做基线/候选对照，结果见 T-219 交付报告“第二轮”。直接导入方中，`daemon_acceptance_host.ts` 由 recovery 五场全部复验通过；`quality_chain_host.ts` 已经质量测试及凭据探针运行，但质量套件仍有旧 `pane_release` 等失败；`t152_review_host.ts` 已经 T-082/T-090 运行，仍在旧审查提交协议失败；`multiturn_identity_host.ts` 已尝试启动，但缺操作员凭据，未到 PTY 行为；`conflict_acceptance_host.ts` 的 worktree 调用者在前置检查/源码归档失败，未触及该 host。未复验整份历史 `test_quality_tracer_e2e.py`、其余历史列表入口及 `run_*.py` runner；不把模块被导入或前置失败当成业务覆盖。 |
+ 
+ 迁移的红态、绿态和独立验收以各票绑定候选的证据为准；本索引不代替验收。T-152、T-153 的合入状态已由执行主控在集成时核对（2026-10-23）。
+ 

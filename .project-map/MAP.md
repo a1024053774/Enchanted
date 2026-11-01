@@ -72,6 +72,7 @@
 - [T-209 用 Herdr 的 hc 当终端运行时](tickets/T-209-hc-as-runtime.md): 打包固定版本 hc、私有 `HC_SESSION`、不改 hc 源码；门禁与记录留在编排后台；后台重启接回原 attempt（取代 T-096 裁定 B）；受管 Claude 打开 OSC 7501；本批建造票由 Claude Code 主控在侧边栏终端派 Codex 写、agy 审
 - [T-210 问题先给主控](tickets/T-210-issues-controller-first.md): 上报即推执行主控；主控可答、可关、可交用户；blocking 也先给主控；权限、范围、验收、安全、不可逆只交用户；15 分钟兜底不变
 - [T-211 hc 事实探针](tickets/T-211-hc-facts-probe.md): 终端环境只能靠 core 启动环境控制，用 `HC_SOCKET` 加 `env -u` 去掉 XDG 变量；后台重启不丢屏幕，core 崩溃丢历史；Claude 不设或设空标题变量就上报；Codex 启动可能多计一个 turn；macOS 上被收养的系统二进制逃过清理
+- [T-219 既有测试在基线上失败](tickets/T-219-baseline-test-failures.md): 九项里八项是测试过时，已按 T-108/T-123/T-124/T-141/T-187/T-189/T-191/T-193/T-203 的现行契约修订；夏令时漏扫次日是产品缺陷（T-221）；另有 17 个旧套件两边都失败，留给 T-222
 
 ## Not yet specified
 

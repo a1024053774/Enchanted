@@ -1,0 +1,433 @@
+diff --git a/workbench/tests/controlled_quality_pty.ts b/workbench/tests/controlled_quality_pty.ts
+index 8e6539f209..3809952c29 100644
+--- a/workbench/tests/controlled_quality_pty.ts
++++ b/workbench/tests/controlled_quality_pty.ts
+@@ -1,4 +1,3 @@
+-// 历史测试：只针对 5f7f9816eb9a996377c5b255695244d99c0259e7，当前 main 不跑
+ // Shared controlled PTY/process boundary. No gate verdict or provider execution.
+ import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+ import { join } from "node:path";
+@@ -39,6 +38,7 @@ export function installControlledPTY(source: string, control: string, config: an
+       const terminal = { pid: 31000 + terminals.length * 10, callbacks: [] as Function[], turns: 0,
+         exited: false, launch: env.A2A_LAUNCH, native, log, env, restrictedOpened: false };
+       terminals.push(terminal);
++      let onData: (data: string) => void;
+       // All credentials here are newly generated test capabilities. There is no
+       // copied auth file, user home, native model session or provider credential.
+       writeFileSync(join(control, env.A2A_LAUNCH + ".json"), JSON.stringify({
+@@ -50,6 +50,7 @@ export function installControlledPTY(source: string, control: string, config: an
+         pid: terminal.pid,
+         // Codex 0.163 opens an untrusted folder with this question (T-127 probe-01); the daemon answers it.
+         onData(callback: Function) {
++          onData = callback as (data: string) => void;
+           setTimeout(() => callback("Do you trust the contents of this directory?\r\n\x1b[1m› 1. Open restricted\x1b[0m\r\n  2. Quit\r\n"), 20);
+         },
+         onExit(callback: Function) { terminal.callbacks.push(callback); },
+@@ -61,6 +62,8 @@ export function installControlledPTY(source: string, control: string, config: an
+           if (data === "\r" && !terminal.restrictedOpened) {
+             terminal.restrictedOpened = true;
+             audit("runtime.jsonl", { method: "restricted-opened", launch: terminal.launch });
++            // T-141: opening restricted is not readiness. The native CLI then emits this packet.
++            setTimeout(() => onData('\x1b]7501;state=idle:app=codex\x07'), 0);
+             return;
+           }
+           if (data === "\r") {
+@@ -70,6 +73,7 @@ export function installControlledPTY(source: string, control: string, config: an
+             if (!(env.A2A_ROLE === "worker" && current.omit_worker_context)) {
+               appendFileSync(log, JSON.stringify({ type: "turn_context", payload: { turn_id: turn, model: "gpt-6.1-sol", effort: "xhigh" } }) + "\n");
+             }
++            setTimeout(() => onData('Controlled CLI turn started.\r\n'), 0);
+           }
+         },
+         kill(signal: string) {
+diff --git a/workbench/tests/legacy_quality_driver.py b/workbench/tests/legacy_quality_driver.py
+index d695818a5c..9175bef6ac 100644
+--- a/workbench/tests/legacy_quality_driver.py
++++ b/workbench/tests/legacy_quality_driver.py
+@@ -86,16 +86,20 @@ class QualityDriver:
+             if pane['state'] == 'busy' and pane['turn'] == 'fixture-turn-1': break
+             if time.monotonic() >= deadline: raise RuntimeError('Reviewer input did not reach its bounded turn.')
+             time.sleep(0.03)
+-        packet = dict(schema=1, request_id='review-' + review['review_id'], command='review_submit', task=task,
+-                      attempt=review['attempt']['attempt_id'], session=review['session_id'], fence=review['attempt']['fence'],
+-                      spec_rev=review['spec_rev'], review_id=review['review_id'], candidate_commit=review['candidate_commit'],
+-                      verdict='可合并', findings=[],
+-                      review_requirements={'completion_conditions_sufficiency': True,
+-                        'mutation_checks': {'min': 2, 'max': 5, 'workspace': review['candidate_workspace'],
+-                                            'report_section': '完成条件与变异检查'}},
++        fields = dict(verdict='可合并', findings=[],
+                       report={'完成条件与变异检查': '受控 reviewer 报告输入；不声称模型判断已验证'})
++        fields_file = self.control / ('review-fields-' + review['review_id'] + '.json')
++        fields_file.write_text(json.dumps(fields, ensure_ascii=False) + '\n', encoding='utf-8')
++        # T-203: use the real review_submit file entry; Stop no longer trusts final prose.
++        argv = ['node', self.cli.parents[1] / 'reviewResult.ts', 'submit', record['env']['A2A_REQUEST_DIR'], fields_file]
++        submitted = subprocess.run(list(map(str, argv)), env=self.env, capture_output=True, text=True, timeout=15)
++        self.record('review-submit', argv=list(map(str, argv)), exit=submitted.returncode,
++                    stdout=submitted.stdout, stderr=submitted.stderr)
++        if submitted.returncode or not json.loads(submitted.stdout).get('saved'):
++            raise RuntimeError('Controlled reviewer submission failed: ' + submitted.stdout + submitted.stderr)
+         stop = dict(session_id=record['native'], turn_id=pane['turn'], hook_event_name='Stop',
+-                    last_assistant_message=json.dumps(packet, ensure_ascii=False))
++                    cwd=review['candidate_workspace'], transcript_path=record['log'],
++                    last_assistant_message='受控审查已通过 review_submit 提交。')
+         self.command('signal', '--launch', review['launch_id'], env={**self.env, **record['env']}, stdin=json.dumps(stop))
+         while True:
+             events = self.command('events', '--task', task)['events']
+diff --git a/workbench/tests/legacy_review_runtime.ts b/workbench/tests/legacy_review_runtime.ts
+index e027ebeb7a..374a981963 100644
+--- a/workbench/tests/legacy_review_runtime.ts
++++ b/workbench/tests/legacy_review_runtime.ts
+@@ -4,9 +4,9 @@ export function withReviewerRuntime(worker: any, panes: any) {
+   const reviewers = new Set<string>();
+   return {
+     ...worker,
+-    createReview: async (task: any, review: any, prompt: string) => {
++    createReview: async (task: any, review: any, prompt: string, template: Record<string, unknown>) => {
+       reviewers.add(review.thread_id);
+-      await panes.createReview(task, review, prompt);
++      await panes.createReview(task, review, prompt, template);
+     },
+     readThread: (thread: string) => reviewers.has(thread) ? panes.readThread(thread) : worker.readThread(thread),
+     stopThread: (thread: string) => reviewers.has(thread) ? panes.stopThread(thread) : worker.stopThread(thread),
+diff --git a/workbench/tests/test_daemon_recovery_e2e.py b/workbench/tests/test_daemon_recovery_e2e.py
+index 2a7f867b6b..1ca19e48fc 100644
+--- a/workbench/tests/test_daemon_recovery_e2e.py
++++ b/workbench/tests/test_daemon_recovery_e2e.py
+@@ -102,6 +102,13 @@ class DaemonRecovery(DaemonCards):
+         (self.root / 'fault-owner.json').write_text(json.dumps({'pid': pid, 'signal': 'SIGKILL',
+                                                               'ps': observation.stdout}) + '\n', encoding='utf-8')
+         self.assertEqual(self.host.pid, pid)
++        # T-096 allows removal of a proven-dead endpoint. A live owner must
++        # still be refused without replacing its socket or PID record.
++        refused = self.process(['node', records.GATE, '--state', self.state, 'daemon_start'])
++        self.assertEqual(refused.returncode, 1, 'Product must refuse the live owner')
++        self.assertIn('daemon owner is still alive', json.loads(refused.stdout)['details'])
++        self.assertTrue((self.state / 'control.sock').is_socket())
++        self.assertEqual(int((self.state / 'daemon.pid').read_text()), pid)
+         os.kill(pid, signal.SIGKILL)
+         self._daemon_state = None
+         result = self.finish(handle)
+@@ -117,13 +124,13 @@ class DaemonRecovery(DaemonCards):
+                 break
+             self.assertLess(time.monotonic(), deadline, 'Owned daemon must exit before endpoint cleanup')
+             time.sleep(0.05)
+-        refused = self.process(['node', records.GATE, '--state', self.state, 'daemon_start'])
+-        self.assertEqual(refused.returncode, 1, 'Product must refuse the stale socket')
+-        self.assertTrue((self.state / 'control.sock').exists())
+         for name in ('control.sock', 'daemon.pid'):
+             (self.state / name).unlink()
++        # The controlled host creates one bootstrap credential per epoch.
++        # Its old owner is reaped above; remove only that fixture's credential.
++        self.operator_credential.unlink()
+         (self.root / 'endpoint-cleanup.json').write_text(json.dumps({'owner': pid, 'confirmed_exited': True,
+-                                                                   'removed': ['control.sock', 'daemon.pid']}) + '\n', encoding='utf-8')
++                                                                   'removed': ['control.sock', 'daemon.pid', str(self.operator_credential)]}) + '\n', encoding='utf-8')
+ 
+     def restart(self):
+         env_path = self.env['PATH']
+diff --git a/workbench/tests/test_electron_e2e.py b/workbench/tests/test_electron_e2e.py
+index 84155e2e19..4c687133c5 100644
+--- a/workbench/tests/test_electron_e2e.py
++++ b/workbench/tests/test_electron_e2e.py
+@@ -121,9 +121,11 @@ def main():
+                 'base_commit': None, 'writer': None}
+         card_file = fixture / 'card.json'
+         card_file.write_text(json.dumps(card, ensure_ascii=False) + '\n', encoding='utf-8')
+-        call('card_save', '--task', task, '--card', card_file, '--expected-version', '0')
++        call('card_save', '--task', task, '--project', project, '--card', card_file, '--expected-version', '0')
+         call('create', '--task', task, '--repo', repo, '--branch', 'refs/heads/main',
+              '--card-version', '1', '--project', project, '--title', title)
++        task = project + '+' + task
++        verdict['task'] = task
+         attempt = call('claim', '--task', task, '--owner', 'independent-ui-check')['attempt']
+         save('attempt.json', attempt)
+         current = call('status', '--task', task)['task']
+@@ -174,7 +176,9 @@ def main():
+             verdict['electron_started'] = True
+             def window_contract():
+                 value = window.wait(lambda item: title in item['text'] and item['gate'] == 'claimed')
+-                assert project in value['text'] and '只读' in value['text']
++                # T-200 displays the directory name; the backend identity remains project-qualified (T-123).
++                assert repo.name in value['text'] and '只读' in value['text'], value['text']
++                assert value['snapshot']['task']['project_id'] == project
+                 assert value['state'] == 'unknown' and value['offset'] == 0
+                 expected_bridge = {'beginComposition', 'closePane', 'input', 'observeFocus', 'output',
+                                    'paneKeys', 'releaseQueue', 'snapshot'}
+@@ -184,10 +188,17 @@ def main():
+                     expected_bridge |= {'newTerminal'}
+                 if args.ipc_contract in ('panes', 'creation', 'sidebar'):
+                     expected_bridge |= {'paneAction', 'resize'}
+-                if args.ipc_contract in ('creation', 'sidebar'):
++                if args.ipc_contract == 'creation':
+                     expected_bridge |= {'creationRepository', 'creationSubmit', 'creationCancel'}
+                 if args.ipc_contract == 'sidebar':
+                     expected_bridge |= {'sidebar', 'selectAgent', 'notificationSetting'}
++                    # Public additions since T-107: T-108, T-112, T-119, T-133--137,
++                    # T-140, T-171, T-180, T-190, T-192, T-195, T-207, T-208.
++                    expected_bridge |= {'home', 'workBranchPrefix', 'executionSettings', 'flow', 'decideRoleRequest',
++                        'issues', 'restartReview', 'reclaim', 'hideSessions', 'nativeLink', 'copyText', 'answerIssue',
++                        'disposeIssue', 'records', 'receipts', 'taskHistory', 'metrics', 'archiveUsage', 'reflect',
++                        'retrospectives', 'startRetrospective', 'saveRetrospectiveSchedule', 'decideRetrospectiveSuggestion',
++                        'openProject', 'projectSettings', 'pickExtraDirectory', 'removeProject', 'selectProject', 'theme', 'answer'}
+                 assert set(value['bridge']) == expected_bridge, (value['bridge'], sorted(expected_bridge))
+                 assert len(value['bridge']) == len(expected_bridge), 'Public bridge names must not repeat'
+                 assert value['node'] == 'undefined'
+diff --git a/workbench/tests/test_t078_a13_rehearsal.ts b/workbench/tests/test_t078_a13_rehearsal.ts
+index 130087a1d2..f3b742c713 100644
+--- a/workbench/tests/test_t078_a13_rehearsal.ts
++++ b/workbench/tests/test_t078_a13_rehearsal.ts
+@@ -118,21 +118,25 @@ async function signal(value: Record<string, unknown>, launch = ideation.record.i
+ }
+ 
+ const task: any = {
+-  task_id: "a13-rehearsal-task", project_id: "a13-rehearsal-project", repo: join(scratch, "repo"),
++  task_id: "a13-rehearsal-project+a13-rehearsal-task", project_id: "a13-rehearsal-project", repo: join(scratch, "repo"),
+   spec_rev: 1, state: "registered", current_attempt: null,
+ };
+ const makeController = (preset: "ideation" | "executor") => {
+   const record: any = {
+     id: randomUUID(), task: task.task_id, thread: randomUUID(), project: task.project_id,
+     preset, session: randomUUID(), spec_rev: 1, role: "controller", cli: "Claude Code",
+-    attempt: null, turn_limit: offlineRecipient ? 4 : 2, env: { A2A_REQUEST_DIR: requestDir },
++    attempt: null, worktree: task.repo, turn_limit: offlineRecipient ? 4 : 2,
++    env: { A2A_REQUEST_DIR: requestDir, HOME: join(scratch, "home") },
+   };
++  const transcript = join(scratch, "home", ".claude", "projects", preset, record.session + ".jsonl");
++  mkdirSync(join(scratch, "home", ".claude", "projects", preset), { recursive: true });
++  writeFileSync(transcript, JSON.stringify({ sessionId: record.session, cwd: task.repo }) + "\n");
+   panes.store.launch(record);
+   const writes: string[] = [];
+   const pane: any = {
+     record, task, attempt: null, token: randomUUID(),
+     pty: { pid: preset === "ideation" ? 11001 : 11002, write: (data: string) => writes.push(data) },
+-    state: preset === "executor" ? "idle" : "busy", native: record.session, active: null,
++    state: preset === "executor" ? "idle" : "busy", native: record.session, nativeFile: transcript, active: null,
+     claudePromptId: null, claudePromptIds: new Set(), failed: null, stopped: false,
+     archived: false, stopInProgress: false, interrupted: false, writes: Promise.resolve(),
+     pendingInputs: 0, inputGeneration: 0, userDraft: false, queue: [], writing: false,
+@@ -175,7 +179,7 @@ async function shutdownAndArchive() {
+     const source = join(state, name);
+     if (existsSync(source)) copyFileSync(source, join(output, name));
+   }
+-  rmSync(scratch, { recursive: true, force: true });
++  if (!failure) rmSync(scratch, { recursive: true, force: true });
+ }
+ 
+ // A stalled daemon, database operation, or child must not leave the runner
+@@ -243,10 +247,12 @@ try {
+   ];
+   const up = {
+     session_id: ideation.record.session, hook_event_name: "UserPromptSubmit",
++    cwd: task.repo, transcript_path: ideation.pane.nativeFile,
+     prompt_id: promptId, prompt: first.text,
+   };
+   const stop = {
+     session_id: ideation.record.session, hook_event_name: "Stop",
++    cwd: task.repo, transcript_path: ideation.pane.nativeFile,
+     prompt_id: promptId, stop_hook_active: false,
+   };
+ 
+diff --git a/workbench/tests/test_t078_inbox_domain.ts b/workbench/tests/test_t078_inbox_domain.ts
+index 3f4c263459..bb7d14f681 100644
+--- a/workbench/tests/test_t078_inbox_domain.ts
++++ b/workbench/tests/test_t078_inbox_domain.ts
+@@ -35,9 +35,13 @@ const gates = new A2AGates(root, runtime, () => now);
+ const db = new DatabaseSync(join(root, "state.sqlite3"));
+ const task = { task_id: "domain-task", project_id: "domain-project", repo, state: "claimed", spec_rev: 1,
+   current_attempt: { task_id: "domain-task", attempt_id: "domain-attempt", session_id: "domain-session", fence: 1,
+-    thread_id: "domain-worker", workspace: repo, turn_id: "domain-turn", reclaimed: false } };
++    thread_id: "domain-worker", workspace: repo, turn_id: "domain-turn", reclaimed: false,
++    card_snapshot_id: "domain-card" } };
+ db.prepare("INSERT INTO tasks(id,data) VALUES (?,?)").run(task.task_id, JSON.stringify(task));
+ db.prepare("INSERT INTO attempts(id,data) VALUES (?,?)").run(task.current_attempt.attempt_id, JSON.stringify(task.current_attempt));
++// T-124 resolves the worker's provider from its immutable attempt card, never a Codex default.
++db.prepare("INSERT INTO task_card_snapshots(id,task,version,attempt,data) VALUES (?,?,?,?,?)")
++  .run("domain-card", task.task_id, 1, task.current_attempt.attempt_id, JSON.stringify({ executor: { cli: "Codex" } }));
+ const membership = new A2AMembership(root);
+ for (const preset of ["ideation", "executor"] as const) {
+   const thread = "domain-" + preset;
+diff --git a/workbench/tests/test_t078_pane_runtime.ts b/workbench/tests/test_t078_pane_runtime.ts
+index d72e079c0b..f95356db22 100644
+--- a/workbench/tests/test_t078_pane_runtime.ts
++++ b/workbench/tests/test_t078_pane_runtime.ts
+@@ -25,11 +25,14 @@ function fixture() {
+   const panes=new Panes(root,store,{codex_home:home,turn_limit:5},()=>{});
+   const gates=new A2AGates(root,panes);
+   const attempt={task_id:'unit-task',attempt_id:'unit-attempt',session_id:'unit-session',fence:1,spec_rev:1,
+-    thread_id:'unit-thread',workspace:root,turn_id:'turn-0',reclaimed:false};
++    thread_id:'unit-thread',workspace:root,turn_id:'turn-0',reclaimed:false,card_snapshot_id:'unit-card'};
+   const task={task_id:'unit-task',project_id:'unit-project',repo:root,state:'claimed',spec_rev:1,current_attempt:attempt};
+   store.db.prepare('INSERT INTO tasks(id,data) VALUES (?,?)').run(task.task_id,JSON.stringify(task));
+   store.db.prepare('INSERT INTO attempts(id,data) VALUES (?,?)').run(attempt.attempt_id,JSON.stringify(attempt));
+-  const record={id:'unit-launch',thread:'unit-thread',task:'unit-task',attempt:'unit-attempt',role:'worker',
++  // T-124: emergency stop verifies the provider against the attempt's card snapshot.
++  store.db.prepare('INSERT INTO task_card_snapshots(id,task,version,attempt,data) VALUES (?,?,?,?,?)')
++    .run('unit-card',task.task_id,1,attempt.attempt_id,JSON.stringify({executor:{cli:'Codex'}}));
++  const record={id:'unit-launch',thread:'unit-thread',task:'unit-task',attempt:'unit-attempt',role:'worker',cli:'Codex',
+     project:'unit-project',session:'unit-session',fence:1,spec_rev:1,turn_limit:5,worktree:root,env:{CODEX_HOME:home}};
+   store.launch(record);mkdirSync(join(root,'traces',record.id),{recursive:true});
+   const writes:any[]=[],kills:any[]=[];
+@@ -106,7 +109,7 @@ await test('interrupt_only_esc_not_reclaim',async f=>{
+     refs:['thread:unit-thread','input:requested-stop'],body:'URGENT 停止 unit-thread',created_at:new Date().toISOString()};
+   f.store.db.prepare('INSERT INTO inbox_records(id,data) VALUES (?,?)').run(stop.id,JSON.stringify(stop));
+   const result=await f.gates.call({command:'stop',thread:'unit-thread',stop_id:'stop-1',actor:'user'},undefined,actor);
+-  assert.equal(result.ok,true);assert.deepEqual(f.writes.map(x=>x.data),['\x1b']);assert.deepEqual(f.kills,[]);
++  assert.equal(result.ok,true,JSON.stringify(result));assert.deepEqual(f.writes.map(x=>x.data),['\x1b']);assert.deepEqual(f.kills,[]);
+   assert.equal(f.pane.stopped,false);assert.equal(f.pane.archived,false);assert.equal(f.pane.state,'busy');
+   assert.equal(JSON.parse(String(f.store.db.prepare('SELECT data FROM tasks').get()!.data)).state,'claimed');
+   const event=f.store.db.prepare("SELECT details FROM events WHERE type='emergency_interrupt_requested'").get()!;
+diff --git a/workbench/tests/test_t133_t107_terminal_controller_e2e.py b/workbench/tests/test_t133_t107_terminal_controller_e2e.py
+index 6ae8c2720b..18d9285f32 100644
+--- a/workbench/tests/test_t133_t107_terminal_controller_e2e.py
++++ b/workbench/tests/test_t133_t107_terminal_controller_e2e.py
+@@ -62,7 +62,7 @@ def main():
+     parser.add_argument('--claude', default=shutil.which('claude') or str(Path.home() / '.local/bin/claude'))
+     target = parser.add_mutually_exclusive_group()
+     target.add_argument('--revision')
+-    target.add_argument('--mutant', choices=['recorded-without-role', 'terminal-state-unknown', 'parent-not-saved', 'issue-not-waiting'])
++    target.add_argument('--mutant', choices=['recorded-without-role', 'terminal-state-unknown', 'parent-not-saved', 'issue-not-waiting', 'empty-shell-running'])
+     args = parser.parse_args()
+     assert not args.summary.exists(), '保留既有证据，改用新路径'
+     report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant, checks=[], observed={})
+@@ -79,6 +79,7 @@ def main():
+         'parent-not-saved': [('src/roleRequests.ts', "...(parent ? { parent_launch: parent } : {})", "")],
+         # An unanswered issue report not shown in the sidebar, as before T-107 #3.
+         'issue-not-waiting': [('src/sidebar.ts', "waiting?.has(record.thread) ? 'waiting_controller_answer' : native", "native")],
++        'empty-shell-running': [('src/sidebar.ts', "front === null ? 'idle'", "front === null ? 'running'")],
+     }.get(args.mutant, [])
+ 
+     def plan(body):
+@@ -242,7 +243,9 @@ def main():
+               [o['value'] for o in offered['options']] == [ideation['launch'], ''], offered)
+         electron.screenshot(fixture.out / '03-executor-request.png')
+         approve(request_card)
+-        electron.until('执行主控出现', f"!!document.querySelector('.agent-row[data-agent-launch=\"{executor['launch']}\"]')", 40)
++        # T-191: the ordinary shell row can already be idle before role confirmation arrives.
++        # Wait for the role transition itself before checking completion and hierarchy.
++        electron.until('执行主控出现', f"document.querySelector('.agent-row[data-agent-launch=\"{executor['launch']}\"] .agent-role')?.textContent === '执行主控'", 40)
+         electron.until('执行主控回合结束', state_is(executor['launch'], 'idle'), 60)
+         rows = {launch: agent(launch) for launch in (ideation['launch'], executor['launch'])}
+         report['observed']['rows'] = rows
+@@ -315,7 +318,7 @@ def main():
+         report['observed']['ended_row_time'] = ended_time
+         check('ended_row_time_says_ended', ended_time.startswith('结束'), ended_time, soft=True)
+ 
+-        # T-176 review 01: a home-directory terminal is in the same catalog, so its header is not left unknown.
++        # T-176/T-191: an empty home-directory shell is idle, and its header shares the catalog state.
+         electron.evaluate("document.querySelector('.free-terminals').click()")
+         time.sleep(1)
+         electron.evaluate("[...document.querySelectorAll('button')].find(b=>b.textContent==='新建终端').click()")
+@@ -323,7 +326,7 @@ def main():
+         time.sleep(3)  # a few catalog refreshes
+         home_header = electron.evaluate("document.querySelector('.pane .pane-state').textContent")
+         report['observed']['home_terminal_header'] = home_header
+-        check('home_terminal_header_known', home_header == '运行中', home_header, soft=True)
++        check('home_terminal_header_known', home_header == '空闲', home_header, soft=True)
+ 
+         # The ideation controller gives its role back; what the user says after that is not a controller prompt.
+         submit(ideation, RELEASE)
+diff --git a/workbench/tests/test_t142_terminal_open_e2e.py b/workbench/tests/test_t142_terminal_open_e2e.py
+index 70ce2f0b03..b5307eaba3 100644
+--- a/workbench/tests/test_t142_terminal_open_e2e.py
++++ b/workbench/tests/test_t142_terminal_open_e2e.py
+@@ -1,7 +1,7 @@
+ """T-142：批准的项目主控开普通终端，期望来自任务卡。
+ 失败方式（先列再写）：
+ 1. terminal_open 仍被 role_command_not_scoped 拒绝，或 CLI 不识别命名参数。
+-2. 未批准的会话能开终端，或已批准角色能指定另一个项目。
++2. 未批准的会话能开终端；已批准角色不能跨已打开项目，或能访问未打开项目（T-193）。
+ 3. cwd 越界、同前缀的兄弟目录、符号链接逃逸被放行。
+ 4. 主目录、子目录或额外目录不能开，返回 id 不对应真实 shell/cwd。
+ 5. 新终端没有出现在界面项目层，混进任务层，或点开后的 pwd 不对。
+@@ -33,7 +33,7 @@ def main():
+     parser.add_argument('--backend-only', action='store_true')
+     target = parser.add_mutually_exclusive_group()
+     target.add_argument('--revision')
+-    target.add_argument('--mutant', choices=['cwd-unchecked'])
++    target.add_argument('--mutant', choices=['cwd-unchecked', 'cross-project-denied'])
+     args = parser.parse_args()
+     assert not args.summary.exists(), '保留既有证据，改用新路径'
+     report = dict(status='INCOMPLETE', argv=sys.argv, checks=[], observed={}, revision=args.revision, mutant=args.mutant,
+@@ -46,7 +46,12 @@ def main():
+         return 'controller', [('Bash', dict(command='a2a request executor', timeout=600000, description='request role')),
+                               *[('Bash', dict(command=line, description='open project terminal')) for line in commands]], 'T-142 完成。'
+ 
+-    patches = [('src/daemon.ts', 'if (!withinProject) throw new Refusal("terminal_cwd_outside_project");', '')] if args.mutant else []
++    patches = {
++        'cwd-unchecked': [('src/daemon.ts', 'if (!withinProject) throw new Refusal("terminal_cwd_outside_project");', '')],
++        'cross-project-denied': [('src/daemon.ts', '    if (input.command === "terminal_open") {',
++            '    if (input.command === "terminal_open") {\n'
++            '      if (input.project !== undefined && input.project !== roleRequest.project) throw new Refusal("role_project_mismatch");')],
++    }.get(args.mutant, [])
+ 
+     def check(name, condition, detail=None):
+         assert condition, f'{name}: {detail}'
+@@ -182,10 +187,19 @@ def main():
+         anonymous = fixture.run_cli('shell_start', '--project', 'demo', '--cwd', str(fixture.repo))['launch']['id']
+         value = cli_call(open_input(anonymous), f'a2a call terminal_open --cwd {quote(str(fixture.repo))}', fixture.out / 'unapproved.json')
+         check('unapproved_refused', value.get('error') == 'approved_role_required', value)
+-        # This controller belongs to demo. another is a real opened project with its own directory.
++        # T-193: the role belongs to the terminal; another opened project is reachable in both directions.
++        unopened = fixture.request('terminal_open', fixture.terminal, project='demo-sibling', cwd=str(outside))
++        check('unopened_project_refused', unopened.get('error') == 'project_not_opened', unopened)
+         assert fixture.request('project_open', fixture.operator, repo=str(outside))['ok']
+         other = fixture.request('terminal_open', fixture.terminal, project='demo-sibling', cwd=str(outside))
+-        check('approved_foreign_project_refused', other.get('error') == 'role_project_mismatch', other)
++        check('approved_opened_project_allowed', other.get('ok') is True and other['launch']['project'] == 'demo-sibling' and
++              other['launch']['role'] == 'shell' and other['launch']['task'] is None and other['launch']['worktree'] == str(outside), other)
++        pwd = fixture.out / 'cross-project-pwd.txt'
++        type_in(open_input(other['launch']['id'], 'demo-sibling'), f'pwd > {quote(str(pwd))}\r')
++        fixture.wait('跨项目终端 pwd', lambda: pwd.exists() and pwd.stat().st_size, 30)
++        check('cross_project_actual_pwd', pwd.read_text(encoding='utf-8').strip() == str(outside))
++        wrong_cwd = fixture.request('terminal_open', fixture.terminal, project='demo-sibling', cwd=str(fixture.repo))
++        check('cross_project_cwd_boundary_kept', wrong_cwd.get('error') == 'terminal_cwd_outside_project', wrong_cwd)
+         report['observed']['foreign_project'] = other
+         foreign = fixture.run_cli('shell_start', '--project', 'demo-sibling', '--cwd', str(outside))['launch']['id']
+         foreign_term = open_input(foreign, 'demo-sibling')
+@@ -197,7 +211,8 @@ def main():
+         assert result(granted)['ok'], result(granted)
+         line = 'a2a call ' + quote(json.dumps(dict(command='terminal_open', project='demo', cwd=str(fixture.repo))))
+         other_to_demo = cli_call(foreign_term, line, fixture.out / 'foreign-to-demo.json')
+-        check('other_approved_controller_cannot_open_this_project', other_to_demo.get('error') == 'role_project_mismatch', other_to_demo)
++        check('other_approved_controller_can_open_this_project', other_to_demo.get('ok') is True and
++              other_to_demo['launch']['project'] == 'demo' and other_to_demo['launch']['worktree'] == str(fixture.repo), other_to_demo)
+         report['observed']['other_to_demo'] = other_to_demo
+         if electron:
+             report['observed']['scripted_api'] = fixture.api.snapshot()
+diff --git a/workbench/tests/test_t184_unwired_cli_e2e.py b/workbench/tests/test_t184_unwired_cli_e2e.py
+index b1d7a37800..1f49fa2e77 100644
+--- a/workbench/tests/test_t184_unwired_cli_e2e.py
++++ b/workbench/tests/test_t184_unwired_cli_e2e.py
+@@ -158,7 +158,8 @@ def main():
+         time.sleep(8)
+         seen = settle('N_shim_claude', n, None, 3)
+         check('shim_claude_not_warned', seen is None, report['observed']['N_shim_claude'])
+-        check('shim_claude_state_known', state(n) == 'running', report['observed']['N_shim_claude'])
++        # T-191: a wired Claude without an approved role has no turn source yet.
++        check('shim_claude_without_role_state_unknown', state(n) == 'unknown', report['observed']['N_shim_claude'])
+ 
+         # 3. Codex both ways, each held at its own start screen (an empty home: no login, no model).
+         c = terminal('C')
+diff --git a/workbench/tests/test_task_cards_e2e.py b/workbench/tests/test_task_cards_e2e.py
+index e071d38817..9e1771e927 100644
+--- a/workbench/tests/test_task_cards_e2e.py
++++ b/workbench/tests/test_task_cards_e2e.py
+@@ -91,14 +91,16 @@ class TaskCardsCLI(unittest.TestCase):
+ 
+     def save_card(self, expected=0, card=None):
+         self.card_file.write_text(json.dumps(card or self.card, ensure_ascii=False), encoding='utf-8')
+-        return self.cli('card_save', '--card', self.card_file, '--expected-version', str(expected))
++        return self.cli('card_save', '--project', 'fixture', '--card', self.card_file, '--expected-version', str(expected))
+ 
+     def register_task(self):
+         template = self.cli('card_template', '--repo', self.repo, '--project', 'fixture')['card']
+         self.assertEqual(set(template), FIELDS)
+         self.assertEqual(template['id'], self.task)
+         self.save_card()
+-        self.cli('create', '--repo', self.repo, '--branch', 'refs/heads/main', '--card-version', '1', '--project', 'fixture')
++        created = self.cli('create', '--repo', self.repo, '--branch', 'refs/heads/main', '--card-version', '1', '--project', 'fixture')
++        self.assertEqual(created['task']['task_id'], 'fixture+' + self.card['id'])
++        self.task = created['task']['task_id']
+ 
+     def create(self):
+         self.register_task()
