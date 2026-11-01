@@ -19,6 +19,7 @@ import { resumeArgv, nativeSessionFile, codexSessionOrigin, codexSessionFileName
 import type { ExecutionOverrides } from './executionSettings.ts';
 import { cliProgram, terminalClis, readOsc7501, type CliTurn, type LaunchFacts } from './terminalClis.ts';
 import { cliProvider } from './gates/taskCards.ts';
+import { codexScanDays } from './codexScanDays.ts';
 import { emptyDraft, feedInput, type InputDraft } from './inputDraft.ts';
 import { claudeReviewMcp, codexReviewMcp, reviewMcpServer, writeReviewTemplate } from './reviewResult.ts';
 
@@ -1241,7 +1242,7 @@ export class Panes implements GateRuntime {
     // directory from the launch's day on and was written since the launch; the rest is never read.
     const since = Date.parse(pane.record.created_at);
     const days: string[] = [];
-    for (const day = new Date(since); day.getTime() <= Date.now() + 86_400_000; day.setDate(day.getDate() + 1))
+    for (const day of codexScanDays(since))
       days.push(join(home, "sessions", String(day.getFullYear()), String(day.getMonth() + 1).padStart(2, "0"), String(day.getDate()).padStart(2, "0")));
     const files = final ? [...pane.offsets.keys()].filter((file) => codexSessionFileName(file, pane.native)) :
       pane.nativeFile ? [pane.nativeFile] : [...new Set([...pane.offsets.keys(), ...days.flatMap(walk).filter((file) => statSync(file).mtimeMs >= since)])];

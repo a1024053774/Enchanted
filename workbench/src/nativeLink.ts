@@ -3,6 +3,7 @@ import { basename, join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import type { ShellNativeReport } from './panes.ts';
 import type { TrajectoryArchive } from './trajectoryArchive.ts';
+import { codexScanDays } from './codexScanDays.ts';
 
 // T-195: what "复制深度链接" copies for a session: the CLI's name, the CLI's own session id, and where the CLI keeps the
 // session's record. Facts: findings/2026-10-27-native-session-ids.zh-CN.md. An id a2a made up (osc7501:<launch>) is never
@@ -136,7 +137,7 @@ function codexRootThreads(record: any): string[] | { unreadable: string } {
   const home = record.env?.CODEX_HOME;
   if (typeof home !== 'string') return { unreadable: '（启动记录里没有 CODEX_HOME）' };
   const since = Date.parse(record.created_at), ids: string[] = [];
-  for (const day = new Date(since); day.getTime() <= Date.now() + 86_400_000; day.setDate(day.getDate() + 1)) {
+  for (const day of codexScanDays(since)) {
     const directory = join(home, 'sessions', String(day.getFullYear()), String(day.getMonth() + 1).padStart(2, '0'), String(day.getDate()).padStart(2, '0'));
     // Any rollout written since the launch may be this worktree's; one that cannot be read, or a day that cannot be looked
     // into, leaves the current thread unknown. Only a day Codex wrote nothing on is skipped (T-195 review 4, R4-F1).

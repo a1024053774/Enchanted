@@ -2,6 +2,7 @@ import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, 
 import { basename, join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import type { DatabaseSync } from 'node:sqlite';
+import { codexScanDays } from './codexScanDays.ts';
 
 // Trajectory archive (native-cli spec section 8, T-135): the native records of every session the daemon started, and
 // of every terminal controller the user approved, copied into the workbench data directory in increments of complete
@@ -79,7 +80,7 @@ export class TrajectoryArchive {
   private codexRolloutIn(home: string, cwd: string, since: number) {
     const known = this.rolloutByCwd.get(cwd);
     if (known) return known;
-    for (const day = new Date(since - 86_400_000); day.getTime() <= Date.now() + 86_400_000; day.setDate(day.getDate() + 1)) {
+    for (const day of codexScanDays(since, Date.now(), -1)) {
       const dir = join(home, 'sessions', String(day.getFullYear()), String(day.getMonth() + 1).padStart(2, '0'), String(day.getDate()).padStart(2, '0'));
       if (!existsSync(dir)) continue;
       for (const name of readdirSync(dir).filter(name => name.startsWith('rollout-') && name.endsWith('.jsonl'))) {
@@ -97,7 +98,7 @@ export class TrajectoryArchive {
 
   // A Codex rollout lives under sessions/YYYY/MM/DD (local date) from the day the session started.
   private codexRollout(home: string, session: string, since: number) {
-    for (const day = new Date(since - 86_400_000); day.getTime() <= Date.now() + 86_400_000; day.setDate(day.getDate() + 1)) {
+    for (const day of codexScanDays(since, Date.now(), -1)) {
       const dir = join(home, 'sessions', String(day.getFullYear()), String(day.getMonth() + 1).padStart(2, '0'), String(day.getDate()).padStart(2, '0'));
       if (!existsSync(dir)) continue;
       const found = readdirSync(dir).find(name => name.endsWith(session + '.jsonl'));

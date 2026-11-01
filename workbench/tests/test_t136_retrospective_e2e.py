@@ -27,6 +27,7 @@ import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from scripted_claude import Electron, Fixture, gate_line, prompt_text, quote, working_directory, review_steps  # noqa: E402
+from local_calendar import local_now  # noqa: E402
 
 FILES = {'T-1': 'a.txt', 'T-2': 'b.txt'}
 ISSUE = 'a.txt 的格式没写'
@@ -285,7 +286,7 @@ def main():
               'suggestions.json 不是合法 JSON' in shown and any(e['type'] == 'imported' for e in run2()['events']), report['broken_suggestions'])
 
         # 6: the schedule: a slot two days ahead fires once at its time (injected clock), not twice; switched off on the page, the next week does not.
-        local = datetime.now().astimezone() + timedelta(days=2)
+        local = local_now(fixture.env) + timedelta(days=2)
         slot = local.replace(hour=10, minute=0, second=0, microsecond=0)
         # Since T-137 the schedule starts off; the user turns it on with the slot.
         saved = fixture.request('retrospective_schedule_save', fixture.operator, enabled=True, weekday=(slot.weekday() + 1) % 7, hour=10, minute=0, model=MODEL, effort='low')

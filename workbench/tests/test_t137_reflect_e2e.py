@@ -23,7 +23,7 @@
 --revision 在该版本源码上跑（修前没有 Reflect 页）；--mutant 跑已知坏实现。
 """
 import argparse
-from datetime import datetime, timedelta
+from datetime import timedelta
 import json
 from pathlib import Path
 import re
@@ -34,6 +34,7 @@ import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from scripted_claude import Electron, Fixture, prompt_text, quote, working_directory, review_steps  # noqa: E402
+from local_calendar import local_now  # noqa: E402
 
 FILES = {'T-1': 'a.txt', 'T-2': 'b.txt', 'T-3': 'c.txt'}
 MODEL = 'claude-haiku-5-5'
@@ -159,7 +160,7 @@ def main():
         return slot if slot > after else slot + timedelta(days=7)
 
     def tick(when):
-        ticked = fixture.request('retrospective_tick', fixture.operator, now=when.astimezone().isoformat())
+        ticked = fixture.request('retrospective_tick', fixture.operator, now=when.isoformat())
         assert ticked.get('ok'), ticked
         return ticked
 
@@ -175,7 +176,7 @@ def main():
         fixture.start(args.claude, {'README.md': 'demo\n', 'findings/README.md': '发现\n',
                                     **{f'check_{t}.py': f'import pathlib, sys\nsys.exit(0 if pathlib.Path("{f}").is_file() else 1)\n' for t, f in FILES.items()}})
         # 1: off by default; the default slot passes without a run.
-        start = datetime.now().astimezone()
+        start = local_now(fixture.env)
         slot = next_monday_nine(start)
         report['observed']['default_schedule'] = listing()['schedule']
         off = tick(slot)
@@ -261,7 +262,7 @@ def main():
         fixture.wait('执行者已存', lambda: (lambda s: s['model'] == MODEL and s['effort'] == 'low')(listing()['schedule']), 20)
         electron.screenshot(fixture.out / '02-schedule.png')
         schedule = listing()['schedule']
-        fired = tick(next_monday_nine(datetime.now().astimezone()))
+        fired = tick(next_monday_nine(local_now(fixture.env)))
         report['observed']['schedule'] = dict(saved=schedule, fired=fired['started'])
         check('schedule_on_fires_with_chosen_runner', schedule['enabled'] is True and len(fired['started']) == 1 and fired['started'][0]['trigger'] == 'schedule' and
               fired['started'][0]['cli'] == 'Claude Code' and fired['started'][0]['model'] == MODEL and fired['started'][0]['effort'] == 'low', report['observed']['schedule'])
