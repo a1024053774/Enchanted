@@ -2,7 +2,7 @@
 id: T-220
 title: 私有 core 崩溃后，由谁拉起新 core、新 core 继承谁的环境
 type: research
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -31,15 +31,16 @@ T-212 已经做到：core 断开后，侧栏把该终端标为未知；接回时
 
 ## Resolution
 
-2026-11-01 事实部分查明（PASS），[结果记录](../../evidence/2026-10-31-batch29/T-220/RESULTS.md)。第 4 点的处理方式和界面两点等用户定，本票暂不关闭。
+2026-11-01 事实查明（PASS），[结果记录](../../evidence/2026-10-31-batch29/T-220/RESULTS.md)。
 
 1. holder 发现 core 不在后，约 3.1 秒自己重拉，新 core 用原受控环境与私有状态目录；运行中的编排后台不重拉、不重连。没有 holder 时，测过的九条 hc 命令都会拉起 core。
 2. 终端里的 hc 调用能抢先：它是即时的，holder 要等约 3 秒。
 3. 由终端拉起时，新 core 和它开的终端带着那个窗格的环境，包括它的 `A2A_TERMINAL_TOKEN`；状态写进用户默认的 XDG 目录；原来的终端全部丢失，后台重启后记为 `shell_exit_unconfirmed`，关不掉。
 4. 后台 `HcRuntime.start()` 要求 core 父进程是 1：holder 重拉的 core 被拒，后台起不来；终端拉起的外来 core 反而被接受。
 
-执行主控建议：
-- 终端里去掉私有 core 的 `HC_*` 变量；
-- 后台按身份认 core，断开后自己接回；
-- inexact 的窗格显示“历史不完整”，复位与接回不变。
-详见结果记录末节。
+用户决定（2026-11-01，执行主控会话）。执行主控提出：Enchanted 终端里只用 a2a 命令，a2a 命令建在 hc 上，身份取终端令牌；终端去掉私有 core 的 `HC_*` 地址变量；理由是 agent 若用裸 hc 往别的终端发字，后台没有记录，那段文字会被记成用户输入。用户回答：“确认”。
+
+- 项目终端启动时去掉 `HC_SOCKET`、`HC_SESSION`、`HC_TERMINAL_ID`、`HC_TERMINAL_SOCKET`。终端里敲 `hc` 用的是用户自己的 hc 设置，碰不到私有 core；终端之间发字、查看都经 a2a 命令。建造票 [T-230](T-230-enchanted-terminals-a2a-only.md)。
+- 后台按身份认 core、断开后自己接回、认不出的不接受：[T-228](T-228-daemon-refuses-holder-core.md)，先做。
+- 界面：标 inexact 的窗格显示“历史不完整”；后台对 inexact 屏幕照常复位并接回，不改。并入 T-230。
+- T-226 Q3 随之定为 A（后台独占重启，画面不完整时明确提示，身份核对通过才继续）。
