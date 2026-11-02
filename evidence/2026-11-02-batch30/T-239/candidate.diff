@@ -1,0 +1,24 @@
+diff --git a/workbench/app/renderer.tsx b/workbench/app/renderer.tsx
+index 4153037f1..9ed25d4df 100644
+--- a/workbench/app/renderer.tsx
++++ b/workbench/app/renderer.tsx
+@@ -302,7 +302,9 @@ function SessionPane({ paneKey, active, screenReader, fontFamily, name, confirme
+       if (type === 'focus-mode-intercept' && writable) void window.a2a.observeFocus(paneKey, detail.raw_sequence).catch(failInput);
+     });
+     ownTerminalQueries(term, () => {});
+-    let decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
++    // A terminal shows bytes that are not valid UTF-8 as U+FFFD and keeps reading (T-239): the record may hold half a
++    // character before a paint's ESC c (a restart reattached the terminal mid-character), or a program printed such bytes.
++    let decoder = new TextDecoder('utf-8', { ignoreBOM: true });
+     let composing = false;
+     let clearInputTimer: ReturnType<typeof setTimeout> | undefined;
+     term.onData(data => {
+@@ -377,7 +379,7 @@ function SessionPane({ paneKey, active, screenReader, fontFamily, name, confirme
+             const resized = await window.a2a.resize(paneKey, size.cols, size.rows);
+             if (!Number.isSafeInteger(resized.output_offset) || resized.output_offset < cursor) throw new Error('重绘偏移无效');
+             cursor = resized.output_offset;
+-            decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
++            decoder = new TextDecoder('utf-8', { ignoreBOM: true });
+             if (shellSize) continue; // A newer layout replaces the in-flight size.
+           }
+           const chunk = await window.a2a.output(paneKey, cursor);

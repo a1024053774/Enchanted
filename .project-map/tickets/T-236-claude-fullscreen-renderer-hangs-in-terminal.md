@@ -1,6 +1,6 @@
 ---
 id: T-236
-title: 项目终端里启动 Claude Code 没有任何输出（卡在打开 ~/Documents/SKILLS 下的 skill 文件，原因待查）
+title: 项目终端里启动 Claude Code 没有任何输出（卡在 macOS 对 ~/Documents 的 TCC 检查，等重启后复测）
 type: build
 status: open
 blocked_by: []
@@ -33,3 +33,10 @@ ready_rev: 1
 - 打开 `~/Documents/SKILLS` 下的几个 SKILL.md 会在内核 `open` 里停约 5 秒后以 `Interrupted system call` 失败；同一现象在打包应用的终端、源码后台的终端、Codex 自己的进程里都出现，**不是 Enchanted 独有**；主控工具进程里读同样的文件 0.02 秒内返回。`~/Documents` 下别处的文件（如 `~/Documents/Code/a2a/AGENTS.md`）读得出来。
 - 已否定：“新包在等文稿文件夹授权”（从没启动过的新包读 `~/Documents` 0.11 秒返回，`tccd` 无该请求）；已排除：文件被占用、iCloud、Endpoint Security 扩展。`~/Documents/SKILLS` 及部分子目录带 `com.apple.macl`，与此是否有关未查；再往下需要 `sudo fs_usage` 一类的系统工具，主控没有这个权限。
 - 目前没有证据表明是 Enchanted 的代码缺陷，也没有可做的代码修复；状态 **INCOMPLETE**，等用户决定是否继续查。
+
+2026-11-02 第 3 轮（[结果](../../evidence/2026-11-02-batch30/T-236/r3/RESULTS.md)），状态 **BLOCKED**，等用户重启 macOS 后复测：
+
+- 根因层定位到 macOS：卡住的是 TCC“文稿”文件夹访问检查。凡是需要 TCC 新做判定的进程（Enchanted 项目终端、与 Claude 桌面应用和 Enchanted 都无关的 launchd 独立任务、上午 Codex 的进程），打开 `~/Documents` 下的文件都停在内核 `open`；卡住期间 `tccd` 没收到任何“文稿”文件夹请求，所以既不弹框也不拒绝。已有授权的 Claude 桌面应用的进程，以及在 Enchanted 里用“打开目录”对话框选过的目录（`com.apple.macl` 里有同一个应用标识），不受影响。不只 SKILLS，`~/Documents` 下大多数目录都一样。
+- 现象时好时坏：11:26–11:29 同一个旧包里一切正常，11:5x 起新包又卡；两个包的代码只差 T-239 的界面解码。
+- 不是 Enchanted 的代码缺陷，不在终端里加超时或重试。给包加 `NSDocumentsFolderUsageDescription` 等用途说明的实验没有改变结果（检查根本没送到 `tccd`），没有提交；系统恢复后再复测要不要加。
+- 用户回来后：重启 macOS；在打包应用的项目终端里 `cat ~/Documents/Code/VibeGame/README.md`，应立即读出或弹出授权框（是否允许由用户决定；每个新 ad-hoc 包是新身份，授权不沿用）。仍卡则需用户运行 `sudo fs_usage -w -f filesys <pid>`。

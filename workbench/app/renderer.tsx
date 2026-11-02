@@ -302,7 +302,10 @@ function SessionPane({ paneKey, active, screenReader, fontFamily, name, confirme
       if (type === 'focus-mode-intercept' && writable) void window.a2a.observeFocus(paneKey, detail.raw_sequence).catch(failInput);
     });
     ownTerminalQueries(term, () => {});
-    let decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
+    // Invalid UTF-8 in the middle of the record shows as U+FFFD and reading goes on (T-239): the record may hold half a
+    // character before a paint's ESC c (a restart reattached the terminal mid-character), or a program printed such bytes.
+    // Half a character at the very end stays in the stream decoder until more bytes come.
+    let decoder = new TextDecoder('utf-8', { ignoreBOM: true });
     let composing = false;
     let clearInputTimer: ReturnType<typeof setTimeout> | undefined;
     term.onData(data => {
@@ -377,7 +380,7 @@ function SessionPane({ paneKey, active, screenReader, fontFamily, name, confirme
             const resized = await window.a2a.resize(paneKey, size.cols, size.rows);
             if (!Number.isSafeInteger(resized.output_offset) || resized.output_offset < cursor) throw new Error('重绘偏移无效');
             cursor = resized.output_offset;
-            decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
+            decoder = new TextDecoder('utf-8', { ignoreBOM: true });
             if (shellSize) continue; // A newer layout replaces the in-flight size.
           }
           const chunk = await window.a2a.output(paneKey, cursor);

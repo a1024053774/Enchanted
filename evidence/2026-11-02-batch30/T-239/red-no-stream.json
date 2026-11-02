@@ -1,0 +1,39 @@
+{
+  "status": "INCOMPLETE",
+  "argv": [
+    "workbench/tests/test_t239_pane_invalid_utf8_e2e.py",
+    "--mutant",
+    "no-stream",
+    "--summary",
+    "evidence/2026-11-02-batch30/T-239/red-no-stream.json"
+  ],
+  "revision": null,
+  "mutant": "no-stream",
+  "fixture": "/private/tmp/t239-6j_vzrgx",
+  "checks": [
+    "trigger_present_half_character_before_paint",
+    "history_only_pane",
+    "replayed_history_no_decode_error",
+    "replayed_history_reaches_live_end",
+    "live_invalid_byte_no_decode_error",
+    "output_after_invalid_byte_shown"
+  ],
+  "observed": {
+    "C_trace_bytes": 90852,
+    "A": {
+      "errors": [],
+      "restoring": "false",
+      "tail": "                                                                                                        \nT239> print T239-''A2\nT239-A2\n%                                                                                                                                                              \nT239>"
+    },
+    "B": {
+      "errors": [],
+      "tail": "T239> printf 'T239-B1 \\377 T239-B2\\n'; print T239-''B3\nT239-B1 � T239-B2\nT239-B3\nT239>"
+    },
+    "C": {
+      "errors": [],
+      "han": 5341,
+      "replacement": 1
+    }
+  },
+  "error": "AssertionError: split_characters_decoded_intact: {'errors': [], 'han': 5341, 'replacement': 1}"
+}
