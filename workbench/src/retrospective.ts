@@ -93,6 +93,23 @@ export class Retrospectives {
   record(run: string, type: string, data: unknown) {
     this.db.prepare('INSERT INTO retrospective_events(run,type,data,created_at) VALUES (?,?,?,?)').run(run, type, JSON.stringify(data), new Date().toISOString());
   }
+  // T-237: runs whose terminal opened and that have neither been imported nor marked ended.
+  unfinished() {
+    return this.runs().flatMap(run => {
+      const events = this.events(run.id);
+      const started = events.find(event => event.type === 'started');
+      if (!started || events.some(event => ['imported', 'start_failed', 'ended'].includes(event.type))) return [];
+      return [{ run, launch: String(started.data.launch), startedAt: started.created_at }];
+    });
+  }
+  // T-237: an end check that cannot tell whether the run's CLI is still there is recorded when that starts or its
+  // reason changes, and the return to a known answer once, so a check that keeps failing does not repeat every minute.
+  noteEndCheck(run: string, seen: { front: string; reason?: string }) {
+    const last = this.events(run).filter(event => ['end_check_unknown', 'end_check_known'].includes(event.type)).at(-1);
+    if (seen.front === 'unknown') {
+      if (last?.type !== 'end_check_unknown' || last.data.reason !== seen.reason) this.record(run, 'end_check_unknown', seen);
+    } else if (last?.type === 'end_check_unknown') this.record(run, 'end_check_known', { front: seen.front });
+  }
   events(run: string) {
     return this.db.prepare('SELECT type, data, created_at FROM retrospective_events WHERE run=? ORDER BY seq').all(run)
       .map(row => ({ type: String(row.type), data: json(row.data), created_at: String(row.created_at) }));

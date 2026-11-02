@@ -229,8 +229,8 @@ export class HcRuntime {
     const result = await this.connection!.call('terminal.list');
     const record: TerminalRecord | undefined = result.terminals.find((terminal: TerminalRecord) =>
       terminal.address === address && terminal.labels.enchanted_launch === launch);
-    if (!record) throw new Error('recorded hc terminal identity missing');
-    return record.state === 'live' ? new HcTerminal(this.connection!, record) : null;
+    // Not there (a core started after it, T-237) or no longer live: the caller confirms its shell process is gone.
+    return record?.state === 'live' ? new HcTerminal(this.connection!, record) : null;
   }
   detach() { this.connection?.close(); }
 }

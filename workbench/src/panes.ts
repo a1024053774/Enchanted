@@ -631,6 +631,27 @@ export class Panes implements GateRuntime {
   async runInShell(launch: string, argv: string[]) {
     await this.shellInput(launch, shellCommand(argv) + "\r", "utf8", async () => {});
   }
+  // T-237: what is in front of a project terminal. Gone only once its close is recorded; a terminal this daemon holds
+  // no pane for (not restored yet, or its exit could not be confirmed, where the program may still run) is unknown,
+  // as is one whose processes cannot be read. With zsh job control off a program shares the shell's process group,
+  // so any process besides the shell in the terminal's foreground group counts as a program in front.
+  async shellFront(launch: string): Promise<{ front: "gone" | "prompt" | "program" } |
+      { front: "unknown"; reason: string; error?: string; process_query?: unknown }> {
+    const record = this.launchRecord(launch);
+    check(record.role === "shell", "shell_required");
+    if (this.store.lastEvent(launch, ["shell_closed"])) return { front: "gone" };
+    const pane = this.panes.get(record.thread);
+    if (!pane) return { front: "unknown", reason: "terminal_not_restored" };
+    if (pane.stopped) return { front: "unknown", reason: "close_not_recorded" };
+    let rows: { pid: number; pgid: number; tpgid: number }[];
+    try { rows = (await this.processInfo(record.thread)).processes; }
+    catch (error) { return { front: "unknown", reason: "process_query_failed", error: String(error), process_query: (error as any).process_query ?? null }; }
+    const shell = rows.find(row => row.pid === pane.pty.pid);
+    if (!shell) return { front: "unknown", reason: "shell_not_in_snapshot" };
+    const others = rows.filter(row => row.pid !== pane.pty.pid);
+    if (!others.length) return { front: "prompt" };
+    return others.some(row => row.pgid === shell.tpgid) ? { front: "program" } : { front: "unknown", reason: "background_only" };
+  }
   async closeShell(launch: string) {
     const record = this.launchRecord(launch);
     check(record.role === "shell", "shell_required");
@@ -810,8 +831,8 @@ export class Panes implements GateRuntime {
                 continue;
               }
             }
-            // Pre-T-212 node-pty records have no hc address: retain their PID exit check
-            // until all supported data directories have migrated or archived those records.
+            // The shell's own process must be gone: for a terminal its core no longer has (T-237: a core that died
+            // with the daemon and was started anew), and for pre-T-212 node-pty records, which have no hc address.
             if (Number.isSafeInteger(pid) && pid > 1) {
               const result = await exec("/usr/bin/python3", ["-I", "-S", "-B", processQuery, String(pid)], { timeout: 5000 });
               check(JSON.parse(result.stdout).rows.length === 0, "shell_exit_unconfirmed");

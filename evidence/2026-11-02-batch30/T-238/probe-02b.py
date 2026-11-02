@@ -1,0 +1,6 @@
+exec(open('evidence/2026-11-02-batch30/T-238/probe-02.py').read().split('ls=[]')[0])
+l,i=start();time.sleep(3);send(i,'codex -c check_for_update_on_startup=false\r');time.sleep(8)
+(OUT/'codex-before-input-02.txt').write_text(output(l))
+send(i,'请回复：测试正常。不要操作文件。\r');time.sleep(15)
+(OUT/'codex-after-input-02.txt').write_text(output(l))
+print(l)

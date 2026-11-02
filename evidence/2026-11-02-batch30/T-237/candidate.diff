@@ -1,0 +1,346 @@
+diff --git a/workbench/README.md b/workbench/README.md
+index 86a27ed69b..cd25e6d2de 100644
+--- a/workbench/README.md
++++ b/workbench/README.md
+@@ -1232,6 +1232,9 @@ Reflect、侧栏与流程的会话状态共用侧栏投影；终端关闭或 CLI
+ `out/`、不许写项目目录；Codex 以 `out/` 为工作目录、workspace-write 沙箱，并只在本次会话里把 `out/` 记为信任，不写用户的 Codex 配置。
+ 会话写完 `report.md` 和 `suggestions.json` 后，后台每分钟检查一次，把报告复制到项目的 `findings/`（没有这个目录就留在工作台数据目录），
+ 建议逐条列在 Reflect 页（建议和“已导入”标记在同一个事务里写入，中途失败不会在重试时重复）。用户批准或不采纳都有记录；批准的建议先只记在这里，不送构思主控，后台也不自动写 ticket。
++同一次检查里，还没导入的复盘再看它的终端（T-237）：终端已不在（被关掉，或后台重启后没有恢复），或启动一分钟后终端已回到提示符、前台没有程序，
++就记一条 `ended`（原因 `terminal_gone` 或 `cli_not_running`），Reflect 页显示“已结束，没有报告”，不再一直显示“进行中”。
++只看前台有没有程序：用户在复盘退出后又在这个终端里跑了别的程序，那段时间仍显示“进行中”。已结束的复盘之后若写出了报告，照常导入并显示“已完成”。
+ 已知边界：Claude Code 复盘会话用用户自己的 Claude 配置，在项目目录启动；用户没有在自己的 Claude 里信任过这个项目时，
+ Claude 会在终端里问是否信任，a2a 不代答（代答会写进用户的配置），定期复盘会停在这一步，等用户在终端里回答。
+ 
+diff --git a/workbench/app/RetrospectiveSections.tsx b/workbench/app/RetrospectiveSections.tsx
+index 39b9b2a2cc..0cba424181 100644
+--- a/workbench/app/RetrospectiveSections.tsx
++++ b/workbench/app/RetrospectiveSections.tsx
+@@ -100,10 +100,12 @@ export function RetrospectiveSections({ project }: { project: string }) {
+             const imported = run.events.find(event => event.type === 'imported');
+             const failed = !imported && run.events.find(event => event.type === 'import_failed');
+             const notStarted = run.events.find(event => event.type === 'start_failed');
+-            return <tr key={run.id} data-run-id={run.id} data-run-state={imported ? 'done' : notStarted ? 'start-failed' : failed ? 'failed' : 'running'}>
++            // T-237: the CLI exited, or its terminal is gone, without leaving a report.
++            const ended = run.events.find(event => event.type === 'ended');
++            return <tr key={run.id} data-run-id={run.id} data-run-state={imported ? 'done' : notStarted ? 'start-failed' : failed ? 'failed' : ended ? 'ended' : 'running'}>
+               <td>{time(run.created_at)}</td><td>{run.trigger === 'schedule' ? '定期' : '手动'}</td>
+               <td>{time(run.since)} – {time(run.until)}</td><td>{run.cli} · {run.model} · {run.effort}</td>
+-              <td>{imported ? '已完成' : notStarted ? `没能启动：${notStarted.data.error}` : failed ? `导入失败（${failed.data.reason === 'suggestions_not_json' ? 'suggestions.json 不是合法 JSON' : 'suggestions.json 不是建议列表'}），修好后自动重试` : '进行中'}</td><td className="record-text">{imported?.data.report ?? '—'}</td></tr>;
++              <td>{imported ? '已完成' : notStarted ? `没能启动：${notStarted.data.error}` : failed ? `导入失败（${failed.data.reason === 'suggestions_not_json' ? 'suggestions.json 不是合法 JSON' : 'suggestions.json 不是建议列表'}），修好后自动重试` : ended ? `已结束，没有报告（${ended.data.reason === 'terminal_gone' ? '终端已不在' : 'CLI 已退出或没有启动'}）` : '进行中'}</td><td className="record-text">{imported?.data.report ?? '—'}</td></tr>;
+           })}</tbody>
+         </table>}
+       </section>
+diff --git a/workbench/src/daemon.ts b/workbench/src/daemon.ts
+index 57e3df6818..7fed7b51c7 100644
+--- a/workbench/src/daemon.ts
++++ b/workbench/src/daemon.ts
+@@ -30,6 +30,9 @@ import { Retrospectives, retrospectiveArgv, retrospectivePrompt } from './retros
+ import { RoleRequests, confirmWindowMs, type RoleRequest } from './roleRequests.ts';
+ import { executionRole, executionOverrides } from './executionSettings.ts';
+ 
++// T-237: how long after a retrospective's start an empty prompt still counts as the CLI not having started yet.
++const RETROSPECTIVE_START_GRACE_MS = 60_000;
++
+ // Window payloads can contain shell passwords, even when identity/validation
+ // fails. Agent input still has its existing dedicated recorder below.
+ function eventInput(input: any) {
+@@ -136,7 +139,19 @@ export async function serve(
+       try { started.push(await startRetrospective(project.project_id, schedule, "schedule", slot, now)); }
+       catch (error) { store.event("retrospective_tick_failed", { project: project.project_id, error: String(error) }); }
+     }
+-    return { started, imported: retrospectives.importFinished() };
++    const imported = retrospectives.importFinished();
++    // T-237: a run that was not imported and whose terminal is gone, or back at its prompt a minute after the start
++    // (the CLI has exited or never ran), has ended without a report. Anything still in front keeps it in progress.
++    const ended = [];
++    for (const { run, launch, startedAt } of retrospectives.unfinished()) {
++      let front;
++      try { front = await panes.shellFront(launch); }
++      catch (error) { store.event("retrospective_end_check_failed", { run: run.id, error: String(error) }); continue; }
++      if (front === "program" || (front === "prompt" && now.getTime() - Date.parse(startedAt) < RETROSPECTIVE_START_GRACE_MS)) continue;
++      retrospectives.record(run.id, "ended", { reason: front === "gone" ? "terminal_gone" : "cli_not_running" });
++      ended.push(run.id);
++    }
++    return { started, imported, ended };
+   };
+   const retrospectiveTimer = setInterval(() => {
+     retrospectiveTick(new Date()).catch(error => store.event("retrospective_tick_failed", { error: String(error) }));
+diff --git a/workbench/src/panes.ts b/workbench/src/panes.ts
+index 4719f65641..e13efd1e2c 100644
+--- a/workbench/src/panes.ts
++++ b/workbench/src/panes.ts
+@@ -631,6 +631,18 @@ export class Panes implements GateRuntime {
+   async runInShell(launch: string, argv: string[]) {
+     await this.shellInput(launch, shellCommand(argv) + "\r", "utf8", async () => {});
+   }
++  // T-237: whether a project terminal is gone, back at its prompt, or has a program in front. A terminal from an
++  // earlier daemon that was not restored is gone.
++  async shellFront(launch: string): Promise<"gone" | "prompt" | "program"> {
++    const record = this.launchRecord(launch);
++    check(record.role === "shell", "shell_required");
++    const pane = this.panes.get(record.thread);
++    if (!pane || pane.stopped) return "gone";
++    const info = await this.processInfo(record.thread);
++    const leader = (info.processes as { pid: number; pgid: number; tpgid: number }[])
++      .find(row => row.pid !== pane.pty.pid && row.pid === row.pgid && row.pgid === row.tpgid);
++    return leader ? "program" : "prompt";
++  }
+   async closeShell(launch: string) {
+     const record = this.launchRecord(launch);
+     check(record.role === "shell", "shell_required");
+diff --git a/workbench/src/retrospective.ts b/workbench/src/retrospective.ts
+index 303b8b66bd..0f16fc1a34 100644
+--- a/workbench/src/retrospective.ts
++++ b/workbench/src/retrospective.ts
+@@ -93,6 +93,15 @@ export class Retrospectives {
+   record(run: string, type: string, data: unknown) {
+     this.db.prepare('INSERT INTO retrospective_events(run,type,data,created_at) VALUES (?,?,?,?)').run(run, type, JSON.stringify(data), new Date().toISOString());
+   }
++  // T-237: runs whose terminal opened and that have neither been imported nor marked ended.
++  unfinished() {
++    return this.runs().flatMap(run => {
++      const events = this.events(run.id);
++      const started = events.find(event => event.type === 'started');
++      if (!started || events.some(event => ['imported', 'start_failed', 'ended'].includes(event.type))) return [];
++      return [{ run, launch: String(started.data.launch), startedAt: started.created_at }];
++    });
++  }
+   events(run: string) {
+     return this.db.prepare('SELECT type, data, created_at FROM retrospective_events WHERE run=? ORDER BY seq').all(run)
+       .map(row => ({ type: String(row.type), data: json(row.data), created_at: String(row.created_at) }));
+diff --git a/workbench/tests/test_t237_retrospective_end_e2e.py b/workbench/tests/test_t237_retrospective_end_e2e.py
+new file mode 100644
+index 0000000000..93141487c8
+--- /dev/null
++++ b/workbench/tests/test_t237_retrospective_end_e2e.py
+@@ -0,0 +1,229 @@
++"""T-237：复盘的 CLI 退出、或它的终端已不在之后，复盘不再一直显示“进行中”。真实后台、门禁 CLI、项目终端与 zsh；
++复盘的 CLI 换成本地替身脚本（按控制文件决定退出、一直运行、或写出报告后退出），无 Electron、无模型。
++
++场景（期望来自 ticket：CLI 退出或终端不在时显示已结束；没退出的、写出了报告的照旧）：
++A. 替身启动 1 秒后退出，什么都不写。启动后 5 秒的检查仍算进行中（CLI 可能还没起来）；61 秒的检查记为 ended（cli_not_running）。
++B. 替身一直运行、不输出。61 秒的检查仍是进行中。
++C. 替身写出 report.md、suggestions.json 后退出。61 秒的检查导入（已完成），不记 ended。
++D. 后台停止、它的 core 与终端里的程序都被结束（第二轮实测的情形）后重启再检查，B 记为 ended（terminal_gone）；A 的 ended 只有一条。
++
++失败方式（先列再写）：
++1. CLI 退出后一直显示进行中（修前的缺陷）。
++2. 后台重启后终端已不在，仍显示进行中。
++3. 过头：还在运行、只是没输出的 CLI 被记成结束。
++4. 写完报告再退出的复盘被记成结束，而不是导入。
++5. 刚启动、CLI 还没 exec 时的检查就把它记成结束。
++6. 每次检查都重复记一条 ended。
++--revision 在该版本源码上跑（修前应失败）；--mutant 跑已知坏实现。
++"""
++import argparse
++from datetime import datetime, timedelta, timezone
++import json
++import os
++from pathlib import Path
++import shutil
++import socket
++import subprocess
++import sys
++import tempfile
++import time
++import uuid
++
++ROOT = Path(__file__).resolve().parents[2]
++FAKE = r'''#!/usr/bin/python3
++import json, sys, time
++from pathlib import Path
++args = sys.argv
++out = Path(json.loads(args[args.index('--settings') + 1])['sandbox']['filesystem']['allowWrite'][0])
++mode = Path(%r).read_text().strip()
++(out / 'fake-started').write_text(mode)
++if mode == 'exit':
++    time.sleep(1)
++elif mode == 'sleep':
++    time.sleep(3600)
++elif mode == 'report':
++    (out / 'report.md').write_text('# 复盘\n\nT-237 替身报告。\n')
++    (out / 'suggestions.json').write_text(json.dumps([{'title': 'T-237 建议', 'body': '', 'kind': 'other'}], ensure_ascii=False))
++'''
++MUTANTS = {
++    # Known-bad: nothing checks the terminal (the defect as reported).
++    'no-end-check': [('src/daemon.ts', 'for (const { run, launch, startedAt } of retrospectives.unfinished()) {',
++                      'for (const { run, launch, startedAt } of [] as ReturnType<typeof retrospectives.unfinished>) {')],
++    # Known-bad: an empty prompt ends the run at once, before the CLI had time to start.
++    'no-grace': [('src/daemon.ts', ' || (front === "prompt" && now.getTime() - Date.parse(startedAt) < RETROSPECTIVE_START_GRACE_MS)', '')],
++    # Known-bad: a gone terminal counts as still running.
++    'gone-is-running': [('src/panes.ts', 'if (!pane || pane.stopped) return "gone";', 'if (!pane || pane.stopped) return "program";')],
++    # Known-bad: the end check runs before the import, so a run that wrote its report is also marked ended.
++    'end-before-import': [('src/daemon.ts', '    const imported = retrospectives.importFinished();\n', ''),
++                          ('src/daemon.ts', '    return { started, imported, ended };', '    const imported = retrospectives.importFinished();\n    return { started, imported, ended };')],
++}
++
++
++def main():
++    parser = argparse.ArgumentParser()
++    parser.add_argument('--summary', type=Path, required=True)
++    target = parser.add_mutually_exclusive_group()
++    target.add_argument('--revision')
++    target.add_argument('--mutant', choices=sorted(MUTANTS))
++    args = parser.parse_args()
++    assert not args.summary.exists(), '保留既有证据，改用新路径'
++    fixture = Path(tempfile.mkdtemp(prefix='t237-', dir='/private/tmp')).resolve()
++    state, home, repo = fixture / 'state', fixture / 'home', fixture / 'demo'
++    for path in (state, home):
++        path.mkdir()
++    (home / '.zshrc').write_text("PS1='T237% '\n", encoding='utf-8')
++    source = ROOT
++    if args.revision or args.mutant:
++        source = fixture / 'source'
++        if args.revision:
++            for name in subprocess.check_output(['git', 'ls-tree', '-r', '--name-only', args.revision, 'workbench/src'],
++                                                cwd=ROOT, text=True).splitlines():
++                path = source / name
++                path.parent.mkdir(parents=True, exist_ok=True)
++                path.write_bytes(subprocess.check_output(['git', 'show', f'{args.revision}:{name}'], cwd=ROOT))
++        else:
++            shutil.copytree(ROOT / 'workbench/src', source / 'workbench/src')
++            for relative, old, new in MUTANTS[args.mutant]:
++                path = source / 'workbench' / relative
++                text = path.read_text(encoding='utf-8')
++                assert text.count(old) == 1, f'变异定位必须唯一：{old}'
++                path.write_text(text.replace(old, new), encoding='utf-8')
++        (source / 'workbench/node_modules').symlink_to(ROOT / 'workbench/node_modules', target_is_directory=True)
++    cli = source / 'workbench/src/gates/cli.ts'
++    mode = fixture / 'mode'
++    fake = fixture / 'claude'
++    fake.write_text(FAKE % str(mode), encoding='utf-8')
++    fake.chmod(0o755)
++    (fixture / 'launch-config.json').write_text(json.dumps(dict(claude_bin=str(fake))), encoding='utf-8')
++    env = {key: os.environ[key] for key in ['PATH', 'LANG', 'TMPDIR'] if key in os.environ}
++    # A copied source tree resolves the hc archive cache inside the fixture; point it at the checkout's cache.
++    env['ENCHANTED_HC_CACHE_DIR'] = os.environ.get('ENCHANTED_HC_CACHE_DIR') or str(ROOT.parent / 'hc-cache')
++    env.update(HOME=str(home), SHELL='/bin/zsh', TERM='xterm-256color', A2A_OPERATOR_CREDENTIAL=str(fixture / 'operator.json'),
++               GIT_AUTHOR_NAME='fixture', GIT_AUTHOR_EMAIL='fixture@example.invalid',
++               GIT_COMMITTER_NAME='fixture', GIT_COMMITTER_EMAIL='fixture@example.invalid')
++    report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant, fixture=str(fixture), checks=[], observed={})
++    running = False
++
++    def run_cli(*arguments):
++        run = subprocess.run(['node', str(cli), '--state', str(state), *arguments], env=env, capture_output=True, text=True, timeout=60)
++        assert run.returncode == 0, f'{arguments[0]}: {run.stderr or run.stdout}'
++        return json.loads(run.stdout)
++
++    def request(command, identity=None, **data):
++        with socket.socket(socket.AF_UNIX) as connection:
++            connection.settimeout(60)
++            connection.connect(str(state / 'control.sock'))
++            connection.sendall((json.dumps(dict(id=str(uuid.uuid4()), input=dict(command=command, **data), identity=identity)) + '\n').encode())
++            response = b''
++            while b'\n' not in response:
++                part = connection.recv(65536)
++                assert part, 'daemon 在回执前断开'
++                response += part
++        return json.loads(response.split(b'\n', 1)[0])
++
++    def wait(label, predicate, timeout=30):
++        deadline = time.monotonic() + timeout
++        while not (value := predicate()):
++            assert time.monotonic() < deadline, f'超时：{label}'
++            time.sleep(.2)
++        return value
++
++    def check(name, condition, detail=None):
++        assert condition, f'{name}: {detail}'
++        report['checks'].append(name)
++
++    def start_daemon():
++        run_cli('daemon_start', '--launch-config', str(fixture / 'launch-config.json'))
++        wait('后台恢复结束', lambda: request('pane_layout').get('recovering') is False, 10)
++        return json.loads((fixture / 'operator.json').read_text(encoding='utf-8'))
++
++    def kill_fixture_processes():
++        # Only processes started for this fixture: their command lines name its directory.
++        subprocess.run(['pkill', '-f', str(fixture)], check=False)
++        wait('夹具进程退出', lambda: subprocess.run(['pgrep', '-f', str(fixture)], capture_output=True).returncode == 1, 15)
++
++    def runs():
++        listing = request('retrospective_list', operator, project='demo')
++        assert listing['ok'], listing
++        return {run['id']: run for run in listing['runs']}
++
++    def kinds(run_id):
++        return [event['type'] for event in runs()[run_id]['events']]
++
++    def start(kind):
++        mode.write_text(kind, encoding='utf-8')
++        started = request('retrospective_start', operator, project='demo', cli='Claude Code', model='fixture-model', effort='low')
++        assert started['ok'], started
++        run = started['run']
++        wait(f'替身 {kind} 启动', lambda: (Path(run['out']) / 'fake-started').exists())
++        return run['id'], datetime.fromisoformat(next(e['created_at'] for e in runs()[run['id']]['events'] if e['type'] == 'started').replace('Z', '+00:00'))
++
++    def tick(when):
++        result = request('retrospective_tick', operator, now=when.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z'))
++        assert result['ok'], result
++        return result
++
++    try:
++        operator = start_daemon()
++        running = True
++        subprocess.run(['git', 'init', '-q', '-b', 'main', str(repo)], check=True, env=env)
++        (repo / 'README.md').write_text('demo\n', encoding='utf-8')
++        subprocess.run(['git', '-C', str(repo), 'add', '.'], check=True, env=env)
++        subprocess.run(['git', '-C', str(repo), 'commit', '-q', '-m', 'init'], check=True, env=env)
++        assert request('project_open', operator, repo=str(repo))['ok']
++
++        run_a, at_a = start('exit')
++        run_b, at_b = start('sleep')
++        time.sleep(3)  # A has exited; B is still running.
++        tick(at_a + timedelta(seconds=5))
++        report['observed']['early'] = {name: kinds(run) for name, run in (('A', run_a), ('B', run_b))}
++        check('exited_cli_not_ended_within_grace', 'ended' not in kinds(run_a), kinds(run_a))
++        # C starts after that check, so its import and its end check fall in the same later check.
++        run_c, at_c = start('report')
++        time.sleep(3)  # C has written its files and exited.
++        late = max(at_a, at_b, at_c) + timedelta(seconds=61)
++        tick(late)
++        tick(late + timedelta(seconds=60))
++        report['observed']['late'] = {name: runs()[run]['events'] for name, run in (('A', run_a), ('B', run_b), ('C', run_c))}
++        ended_a = [e for e in runs()[run_a]['events'] if e['type'] == 'ended']
++        check('exited_cli_marked_ended', len(ended_a) == 1 and ended_a[0]['data'].get('reason') == 'cli_not_running', ended_a)
++        check('running_cli_stays_in_progress', 'ended' not in kinds(run_b), kinds(run_b))
++        check('reported_run_imported_not_ended', 'imported' in kinds(run_c) and 'ended' not in kinds(run_c), kinds(run_c))
++
++        run_cli('daemon_stop')
++        running = False
++        wait('后台停止', lambda: not (state / 'control.sock').exists(), 15)
++        (fixture / 'operator.json').unlink()  # each daemon start issues a new operator credential
++        # The core outlives a daemon restart by design (B's terminal would be restored, still running). Kill the
++        # fixture's core and programs while the daemon is down, as in the reported case, so B's terminal is gone.
++        kill_fixture_processes()
++        operator = start_daemon()
++        running = True
++        tick(late + timedelta(seconds=120))
++        report['observed']['after_restart'] = {name: runs()[run]['events'] for name, run in (('A', run_a), ('B', run_b))}
++        ended_b = [e for e in runs()[run_b]['events'] if e['type'] == 'ended']
++        check('gone_terminal_marked_ended', len(ended_b) == 1 and ended_b[0]['data'].get('reason') == 'terminal_gone', ended_b)
++        check('ended_recorded_once', kinds(run_a).count('ended') == 1, kinds(run_a))
++        report['status'] = 'PASS'
++    except Exception as error:
++        report['error'] = f'{type(error).__name__}: {error}'
++    finally:
++        if running:
++            try:
++                run_cli('daemon_stop')
++                deadline = time.monotonic() + 10
++                while (state / 'control.sock').exists() and time.monotonic() < deadline:
++                    time.sleep(.05)
++            except Exception as error:
++                report['cleanup_error'] = str(error)
++        try: kill_fixture_processes()
++        except Exception as error: report['cleanup_error'] = f"{report.get('cleanup_error', '')} {error}".strip()
++        args.summary.parent.mkdir(parents=True, exist_ok=True)
++        args.summary.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
++        shutil.rmtree(fixture, ignore_errors=True)
++    print(json.dumps({key: report[key] for key in ('status', 'checks', 'error') if key in report}, ensure_ascii=False))
++    return 0 if report['status'] == 'PASS' else 1
++
++
++if __name__ == '__main__':
++    sys.exit(main())

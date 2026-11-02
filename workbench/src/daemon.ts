@@ -30,6 +30,9 @@ import { Retrospectives, retrospectiveArgv, retrospectivePrompt } from './retros
 import { RoleRequests, confirmWindowMs, type RoleRequest } from './roleRequests.ts';
 import { executionRole, executionOverrides } from './executionSettings.ts';
 
+// T-237: how long after a retrospective's start an empty prompt still counts as the CLI not having started yet.
+const RETROSPECTIVE_START_GRACE_MS = 60_000;
+
 // Window payloads can contain shell passwords, even when identity/validation
 // fails. Agent input still has its existing dedicated recorder below.
 function eventInput(input: any) {
@@ -136,7 +139,23 @@ export async function serve(
       try { started.push(await startRetrospective(project.project_id, schedule, "schedule", slot, now)); }
       catch (error) { store.event("retrospective_tick_failed", { project: project.project_id, error: String(error) }); }
     }
-    return { started, imported: retrospectives.importFinished() };
+    const imported = retrospectives.importFinished();
+    // T-237: a run that was not imported and whose terminal's close is recorded, or that is back at its prompt a
+    // minute after the start (the CLI has exited or never ran), has ended without a report. A program in front keeps
+    // it in progress, and so does an answer that cannot be had (recorded on the run): no end is decided while the
+    // daemon is still restoring terminals, nor for a terminal it could not restore.
+    const ended = [];
+    if (!recovering) for (const { run, launch, startedAt } of retrospectives.unfinished()) {
+      const seen = await panes.shellFront(launch);
+      // The import, or a check that overlapped this one, may have settled the run while this one waited.
+      if (!retrospectives.unfinished().some(item => item.run.id === run.id)) continue;
+      retrospectives.noteEndCheck(run.id, seen);
+      if (seen.front === "unknown" || seen.front === "program" ||
+        (seen.front === "prompt" && now.getTime() - Date.parse(startedAt) < RETROSPECTIVE_START_GRACE_MS)) continue;
+      retrospectives.record(run.id, "ended", { reason: seen.front === "gone" ? "terminal_gone" : "cli_not_running" });
+      ended.push(run.id);
+    }
+    return { started, imported, ended };
   };
   const retrospectiveTimer = setInterval(() => {
     retrospectiveTick(new Date()).catch(error => store.event("retrospective_tick_failed", { error: String(error) }));

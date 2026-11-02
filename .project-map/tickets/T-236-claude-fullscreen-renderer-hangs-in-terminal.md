@@ -1,6 +1,6 @@
 ---
 id: T-236
-title: 项目终端里启动 Claude Code 没有任何输出：它的全屏渲染器在 Enchanted 终端里起不来
+title: 项目终端里启动 Claude Code 没有任何输出（卡在打开 ~/Documents/SKILLS 下的 skill 文件，原因待查）
 type: build
 status: open
 blocked_by: []
@@ -27,4 +27,9 @@ ready_rev: 1
 
 ## Resolution
 
-（未开始）
+2026-11-02 进展（未关闭）。原推测“全屏渲染器在 Enchanted 终端里起不来”与第 1 版结论“文稿文件夹授权”都不成立：
+
+- 已查到的（[T-236 结果](../../evidence/2026-11-02-batch30/T-236/RESULTS.md)、[T-238 第 2 轮报告](../../evidence/2026-11-02-batch30/T-238/REPORT-02.md)）：项目终端里的 Claude 停在加载 skill 时打开 `~/Documents/SKILLS/...` 下的文件；Codex、agy 卡住时也各有线程停在 open 类系统调用（路径未取得）。
+- 打开 `~/Documents/SKILLS` 下的几个 SKILL.md 会在内核 `open` 里停约 5 秒后以 `Interrupted system call` 失败；同一现象在打包应用的终端、源码后台的终端、Codex 自己的进程里都出现，**不是 Enchanted 独有**；主控工具进程里读同样的文件 0.02 秒内返回。`~/Documents` 下别处的文件（如 `~/Documents/Code/a2a/AGENTS.md`）读得出来。
+- 已否定：“新包在等文稿文件夹授权”（从没启动过的新包读 `~/Documents` 0.11 秒返回，`tccd` 无该请求）；已排除：文件被占用、iCloud、Endpoint Security 扩展。`~/Documents/SKILLS` 及部分子目录带 `com.apple.macl`，与此是否有关未查；再往下需要 `sudo fs_usage` 一类的系统工具，主控没有这个权限。
+- 目前没有证据表明是 Enchanted 的代码缺陷，也没有可做的代码修复；状态 **INCOMPLETE**，等用户决定是否继续查。

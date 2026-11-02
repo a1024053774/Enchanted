@@ -19,9 +19,9 @@ TOKEN = 'a2a-fixture-key-not-a-secret'
 SERVED_MODEL = 'claude-haiku-5-5-scripted-served'
 
 
-def source_tree(fixture, revision=None, patches=()):
-    """The workbench sources to run: the checkout, a revision's tree, or a patched copy."""
-    if not revision and not patches:
+def source_tree(fixture, revision=None, patches=(), copy=False):
+    """The workbench sources to run: the checkout, a revision's tree, or a patched copy (copy: a copy even unpatched)."""
+    if not revision and not patches and not copy:
         return ROOT
     source = fixture / 'source'
     parts = ['workbench/src', 'workbench/terminal', 'workbench/hooks', 'workbench/roles', 'workbench/app', 'workbench/LICENSE.synara']

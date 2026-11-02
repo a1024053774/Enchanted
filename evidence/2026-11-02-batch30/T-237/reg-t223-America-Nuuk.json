@@ -1,0 +1,165 @@
+{
+  "status": "PASS",
+  "product": "/Users/luckye/Documents/Code/a2a",
+  "argv": [
+    "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+    "/Users/luckye/Documents/Code/a2a/workbench/tests/test_t223_retrospective_due.ts",
+    ".",
+    "evidence/2026-11-02-batch30/T-237/reg-t223-America-Nuuk.json",
+    "America/Nuuk"
+  ],
+  "node": "v26.5.0",
+  "TZ": "America/Nuuk",
+  "TMPDIR": "/private/tmp",
+  "group": "America/Nuuk",
+  "cases": [
+    {
+      "name": "F12/sunday-late-query",
+      "now": "2026-03-29T23:30:00-01:00",
+      "expected": "2026-03-28T12:00:00.000Z"
+    },
+    {
+      "name": "F12/thursday-late-query",
+      "now": "2026-04-02T23:30:00-01:00",
+      "expected": "2026-03-28T12:00:00.000Z"
+    },
+    {
+      "name": "F12/already-ran-Saturday",
+      "now": "2026-03-29T23:30:00-01:00",
+      "expected": null,
+      "stored": [
+        {
+          "project": "demo",
+          "scheduled_for": "2026-03-28T12:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "name": "F12/Saturday-query-control",
+      "now": "2026-03-28T10:30:00-02:00",
+      "expected": "2026-03-28T12:00:00.000Z"
+    },
+    {
+      "name": "F12/gap-target-after-normalized-slot",
+      "hour": 23,
+      "minute": 30,
+      "now": "2026-03-29T12:00:00-01:00",
+      "expected": "2026-03-29T01:30:00.000Z"
+    },
+    {
+      "name": "F12/before-normalized-slot",
+      "hour": 23,
+      "minute": 30,
+      "now": "2026-03-29T00:15:00-01:00",
+      "expected": "2026-03-22T01:30:00.000Z"
+    },
+    {
+      "name": "F12/exact-normalized-slot",
+      "hour": 23,
+      "minute": 30,
+      "now": "2026-03-29T00:30:00-01:00",
+      "expected": "2026-03-29T01:30:00.000Z"
+    },
+    {
+      "name": "F12/next-week-before-slot",
+      "hour": 23,
+      "minute": 30,
+      "now": "2026-04-04T23:29:59.999-01:00",
+      "expected": "2026-03-29T01:30:00.000Z"
+    },
+    {
+      "name": "F12/next-week-exact-slot",
+      "hour": 23,
+      "minute": 30,
+      "now": "2026-04-04T23:30:00-01:00",
+      "expected": "2026-04-05T00:30:00.000Z"
+    },
+    {
+      "name": "F12/gap-target-already-ran",
+      "hour": 23,
+      "minute": 30,
+      "now": "2026-03-29T12:00:00-01:00",
+      "expected": null,
+      "stored": [
+        {
+          "project": "demo",
+          "scheduled_for": "2026-03-29T01:30:00.000Z"
+        }
+      ]
+    },
+    {
+      "name": "F12/2027-sunday-late-query",
+      "now": "2027-03-28T23:30:00-01:00",
+      "expected": "2027-03-27T12:00:00.000Z"
+    },
+    {
+      "name": "F12/2027-before-normalized-slot",
+      "hour": 23,
+      "minute": 30,
+      "now": "2027-03-28T00:15:00-01:00",
+      "expected": "2027-03-21T01:30:00.000Z"
+    }
+  ],
+  "results": [
+    {
+      "name": "F12/sunday-late-query",
+      "pass": true,
+      "actual": "2026-03-28T12:00:00.000Z"
+    },
+    {
+      "name": "F12/thursday-late-query",
+      "pass": true,
+      "actual": "2026-03-28T12:00:00.000Z"
+    },
+    {
+      "name": "F12/already-ran-Saturday",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "F12/Saturday-query-control",
+      "pass": true,
+      "actual": "2026-03-28T12:00:00.000Z"
+    },
+    {
+      "name": "F12/gap-target-after-normalized-slot",
+      "pass": true,
+      "actual": "2026-03-29T01:30:00.000Z"
+    },
+    {
+      "name": "F12/before-normalized-slot",
+      "pass": true,
+      "actual": "2026-03-22T01:30:00.000Z"
+    },
+    {
+      "name": "F12/exact-normalized-slot",
+      "pass": true,
+      "actual": "2026-03-29T01:30:00.000Z"
+    },
+    {
+      "name": "F12/next-week-before-slot",
+      "pass": true,
+      "actual": "2026-03-29T01:30:00.000Z"
+    },
+    {
+      "name": "F12/next-week-exact-slot",
+      "pass": true,
+      "actual": "2026-04-05T00:30:00.000Z"
+    },
+    {
+      "name": "F12/gap-target-already-ran",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "F12/2027-sunday-late-query",
+      "pass": true,
+      "actual": "2027-03-27T12:00:00.000Z"
+    },
+    {
+      "name": "F12/2027-before-normalized-slot",
+      "pass": true,
+      "actual": "2027-03-21T01:30:00.000Z"
+    }
+  ]
+}

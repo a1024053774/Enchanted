@@ -8,6 +8,8 @@ type Suggestion = { id: string; run: string; number: number; title: string; body
 type Listing = { schedule: Schedule; runs: Run[]; suggestions: Suggestion[] };
 const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 const kinds: Record<string, string> = { ticket: '写成 ticket', 'role-card': '改角色卡', other: '其他' };
+const UNKNOWN_REASONS: Record<string, string> = { terminal_not_restored: '后台重启后没能恢复它的终端', close_not_recorded: '终端已退出但没记下',
+  process_query_failed: '读不到终端里的进程', shell_not_in_snapshot: '读不到终端里的进程', background_only: '终端回到提示符，但还有后台程序' };
 const time = (value: string | null) => value ? new Date(value).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '最早';
 const pad = (value: number) => String(value).padStart(2, '0');
 
@@ -100,10 +102,15 @@ export function RetrospectiveSections({ project }: { project: string }) {
             const imported = run.events.find(event => event.type === 'imported');
             const failed = !imported && run.events.find(event => event.type === 'import_failed');
             const notStarted = run.events.find(event => event.type === 'start_failed');
-            return <tr key={run.id} data-run-id={run.id} data-run-state={imported ? 'done' : notStarted ? 'start-failed' : failed ? 'failed' : 'running'}>
+            // T-237: the CLI exited, or its terminal is gone, without leaving a report.
+            const ended = run.events.find(event => event.type === 'ended');
+            // T-237: still counted as in progress, but its end check cannot tell whether the CLI is there.
+            const check = run.events.filter(event => event.type === 'end_check_unknown' || event.type === 'end_check_known').at(-1);
+            const unknown = check?.type === 'end_check_unknown' ? check : null;
+            return <tr key={run.id} data-run-id={run.id} data-run-state={imported ? 'done' : notStarted ? 'start-failed' : failed ? 'failed' : ended ? 'ended' : 'running'}>
               <td>{time(run.created_at)}</td><td>{run.trigger === 'schedule' ? '定期' : '手动'}</td>
               <td>{time(run.since)} – {time(run.until)}</td><td>{run.cli} · {run.model} · {run.effort}</td>
-              <td>{imported ? '已完成' : notStarted ? `没能启动：${notStarted.data.error}` : failed ? `导入失败（${failed.data.reason === 'suggestions_not_json' ? 'suggestions.json 不是合法 JSON' : 'suggestions.json 不是建议列表'}），修好后自动重试` : '进行中'}</td><td className="record-text">{imported?.data.report ?? '—'}</td></tr>;
+              <td>{imported ? '已完成' : notStarted ? `没能启动：${notStarted.data.error}` : failed ? `导入失败（${failed.data.reason === 'suggestions_not_json' ? 'suggestions.json 不是合法 JSON' : 'suggestions.json 不是建议列表'}），修好后自动重试` : ended ? `已结束，没有报告（${ended.data.reason === 'terminal_gone' ? '终端已不在' : 'CLI 已退出或没有启动'}）` : unknown ? `进行中（无法确认 CLI 是否还在：${UNKNOWN_REASONS[unknown.data.reason] ?? unknown.data.reason}）` : '进行中'}</td><td className="record-text">{imported?.data.report ?? '—'}</td></tr>;
           })}</tbody>
         </table>}
       </section>
