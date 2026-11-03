@@ -16,7 +16,6 @@ import argparse,json,re,shutil,sys,threading,time,uuid
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from scripted_claude import Fixture,quote,gate_line,source_tree
-from test_t212_shell_hc_e2e import stop_private_core
 from t112_native_api import message_events,request_source,request_tools,shell_item,tool_events
 
 
@@ -175,7 +174,7 @@ def main():
   if f.running:r['inputs']=inputs()
   try:f.stop()
   finally:
-   r['cleanup']=stop_private_core(f.dir,f.env)
+   r['cleanup']=getattr(f,'core_cleanup',None)  # Fixture.stop stops the private core (T-232)
    if responses:responses.shutdown()
    a.summary.write_text(json.dumps(r,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
  print(json.dumps(dict(status=r['status'],summary=str(a.summary),error=r.get('error')),ensure_ascii=False));return 0 if r['status']=='PASS' else 1

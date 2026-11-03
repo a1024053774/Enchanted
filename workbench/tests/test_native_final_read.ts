@@ -3,7 +3,7 @@
 // ingestion, missing/truncated/malformed/partial log silently ignored, another
 // session read as the bound one, or post-stop queries ingesting later bytes.
 import assert from "node:assert/strict";
-import { appendFileSync, chmodSync, mkdirSync, mkdtempSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createRequire } from "node:module";
 import { randomUUID } from "node:crypto";
@@ -14,30 +14,37 @@ const require = createRequire(import.meta.url);
 const output = process.argv[2]!; mkdirSync(output);
 const results = [];
 for (const scenario of ["exit", "terminate", "shutdown", "reclaim", "missing", "truncated", "malformed", "partial", "unbound"]) {
-  const root = mkdtempSync("/tmp/a4-final-native-");
-  const home = join(root, "home"); mkdirSync(join(home, "sessions"), { recursive: true });
+  // Real path: the launch records CODEX_HOME resolved, and a Codex hook names its transcript under that home.
+  const root = realpathSync(mkdtempSync("/tmp/a4-final-native-"));
+  const home = join(root, "home");
+  // Codex keeps sessions under sessions/YYYY/MM/DD (local date), the only place the scan reads (T-221).
+  const now = new Date(), sessions = join(home, "sessions", String(now.getFullYear()), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0"));
+  mkdirSync(sessions, { recursive: true });
   const executable = join(root, "version-only");
   writeFileSync(executable, '#!/bin/sh\nprintf "codex-cli 0.162.1\\n"\n'); chmodSync(executable, 0o755);
   const role = join(root, "role.txt"); writeFileSync(role, "offline fixture; no model");
   const store = new OrchestrationStore(root);
   const native = randomUUID(), turn = randomUUID();
-  const file = join(home, "sessions", "rollout-" + native + ".jsonl");
+  const file = join(sessions, "rollout-" + native + ".jsonl");
   const prefix = [{ type: "session_meta", payload: { id: native, source: "cli", cwd: root } },
     { type: "event_msg", payload: { type: "task_started", turn_id: turn } }];
   const context = { type: "turn_context", payload: { turn_id: turn, model: "fixture-model-" + randomUUID(),
     effort: "fixture-effort", approval_policy: "never", sandbox_policy: { network_access: false } } };
   const encode = (items: unknown[]) => items.map((item) => JSON.stringify(item) + "\n").join("");
   const exits: ((event: any) => void)[] = [];
+  const outputs: ((data: string) => void)[] = [];
   let beforeExit = () => {};
   const emitExit = () => { beforeExit(); for (const callback of [...exits]) callback({ exitCode: 129, signal: 1 }); };
   require.cache[require.resolve("node-pty")] = { exports: { spawn: () => ({ pid: 123,
-    onData: () => {}, onExit: (callback: any) => { exits.push(callback); }, write: () => {},
+    onData: (callback: any) => { outputs.push(callback); }, onExit: (callback: any) => { exits.push(callback); }, write: () => {},
     kill: (signal: string) => { assert.equal(signal, "SIGHUP"); emitExit(); },
   }) } } as any;
   const observerFailures: string[] = [];
   const panes = new Panes(root, store, { codex_bin: executable, codex_home: home, role_card: role,
     code_revision: "offline", role_card_revision: "offline", hook_authorization: "offline", turn_limit: 1 },
     (reason: string) => observerFailures.push(reason));
+  // The daemon wires user-input records to the gates; this offline host keeps none (as test_t157_turn_identity).
+  panes.recordUserSubmission = () => {};
   let failure: string | null = null;
   try {
     await panes.createThread({ task_id: "fixture", project_id: "fixture", card: { executor: { cli: "Codex", model: "gpt-6.1-sol", effort: "xhigh" } } } as any,
@@ -45,7 +52,11 @@ for (const scenario of ["exit", "terminate", "shutdown", "reclaim", "missing", "
     const pane = panes.get("thread");
     if (scenario !== "unbound") {
       writeFileSync(file, encode(prefix));
-      await panes.signal(pane.record.id, JSON.stringify({ hook_event_name: "UserPromptSubmit", session_id: native, turn_id: turn }), new Date().toISOString());
+      // The product binds a Codex session by scanning on terminal output, which precedes the prompt's hook (T-231).
+      for (const callback of outputs) callback("\x1b[H");
+      await panes.signal(pane.record.id, JSON.stringify({ hook_event_name: "UserPromptSubmit", session_id: native, turn_id: turn,
+        // The full envelope a Codex hook carries (validateHookEnvelope, T-108).
+        cwd: pane.record.worktree, transcript_path: file, prompt: "offline fixture prompt" }), new Date().toISOString());
       assert.equal(pane.native, native);
       assert.equal(store.read().filter((row) => row.type === "native_record").length, 2);
     }
@@ -60,7 +71,7 @@ for (const scenario of ["exit", "terminate", "shutdown", "reclaim", "missing", "
         if (scenario === "malformed") appendFileSync(file, "not-json\n");
         if (scenario === "partial") appendFileSync(file, '{"unfinished":');
         // A newly discovered, unrelated CLI session must not be adopted.
-        writeFileSync(join(home, "sessions", "other-cli.jsonl"), encode([
+        writeFileSync(join(sessions, "other-cli.jsonl"), encode([
           { type: "session_meta", payload: { source: "cli", id: "unrelated" } }]));
       }
     };

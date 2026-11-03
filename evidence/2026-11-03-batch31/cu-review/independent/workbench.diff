@@ -1,0 +1,308 @@
+diff --git a/workbench/tests/scripted_claude.py b/workbench/tests/scripted_claude.py
+index 502ab14a24..2be3ba90f7 100644
+--- a/workbench/tests/scripted_claude.py
++++ b/workbench/tests/scripted_claude.py
+@@ -19,6 +19,37 @@ TOKEN = 'a2a-fixture-key-not-a-secret'
+ SERVED_MODEL = 'claude-haiku-5-5-scripted-served'
+ 
+ 
++def stop_private_core(state, env):
++    """Stop the fixture's private hc core; its panes, shells and CLIs end with it. The core outlives daemon_stop by
++    design (agents survive a daemon restart), so a test that only stops the daemon leaves it running (T-232)."""
++    manifest = Path(state) / 'hc-runtime.json'
++    if not manifest.exists():
++        return None
++    identity = json.loads(manifest.read_text(encoding='utf-8'))
++    assert identity['session'].startswith('enchanted-') and identity['session'] != 'default'
++    binary = Path(state) / 'hc/bin/herdr-core'
++    if not binary.exists():
++        return None
++    private = dict(env, HC_SESSION=identity['session'], HC_SOCKET=identity['socket'],
++                   XDG_STATE_HOME=str(Path(state) / 'hc/state'), XDG_CONFIG_HOME=str(Path(state) / 'hc/config'))
++    run = subprocess.run([str(binary), 'server', 'stop'], env=private, capture_output=True, text=True, timeout=20,
++                         start_new_session=True)
++    return dict(exit=run.returncode, stdout=run.stdout, stderr=run.stderr, session=identity['session'])
++
++
++def fixture_processes(path):
++    """Live processes whose argv or environment names this fixture directory (ps -E shows our own processes'
++    environment, which carries the fixture HOME or operator credential even when argv does not)."""
++    listing = subprocess.run(['/bin/ps', '-axE', '-ww', '-o', 'pid=,command='], capture_output=True, text=True, check=True).stdout
++    pids = [int(line.split(None, 1)[0]) for line in listing.splitlines() if str(path) in line]
++    pids = [pid for pid in pids if pid != os.getpid()]
++    if not pids:
++        return []
++    shown = subprocess.run(['/bin/ps', '-ww', '-o', 'pid=,ppid=,command=', '-p', ','.join(map(str, pids))],
++                           capture_output=True, text=True).stdout
++    return [line.strip() for line in shown.splitlines() if line.strip()]
++
++
+ def source_tree(fixture, revision=None, patches=(), copy=False):
+     """The workbench sources to run: the checkout, a revision's tree, or a patched copy (copy: a copy even unpatched)."""
+     if not revision and not patches and not copy:
+@@ -200,7 +231,10 @@ class Fixture:
+                         A2A_OPERATOR_CREDENTIAL=str(self.dir / 'operator.json'),
+                         ANTHROPIC_BASE_URL=f'http://127.0.0.1:{self.api.server.server_port}', ANTHROPIC_AUTH_TOKEN=TOKEN,
+                         GIT_AUTHOR_NAME='fixture', GIT_AUTHOR_EMAIL='fixture@example.invalid',
+-                        GIT_COMMITTER_NAME='fixture', GIT_COMMITTER_EMAIL='fixture@example.invalid')
++                        GIT_COMMITTER_NAME='fixture', GIT_COMMITTER_EMAIL='fixture@example.invalid',
++                        # A copied source tree has no hc-cache beside it and would download hc on every start, which
++                        # can pass the 10 s daemon start deadline (T-232). Version and digest still come from the release pin.
++                        ENCHANTED_HC_CACHE_DIR=os.environ.get('ENCHANTED_HC_CACHE_DIR', str(ROOT.parent / 'hc-cache')))
+         self.running = False
+         self.operator = self.terminal = self.terminal_launch = None
+ 
+@@ -294,6 +328,17 @@ class Fixture:
+                 self.run_cli('daemon_stop')
+         finally:
+             self.api.server.shutdown()
++            # A daemon whose start passed the deadline is still running and can start the core after a first stop,
++            # so stop it again while fixture processes remain.
++            deadline = time.monotonic() + 20
++            while True:
++                self.core_cleanup = stop_private_core(self.state, self.env)
++                assert self.core_cleanup is None or self.core_cleanup['exit'] == 0, self.core_cleanup
++                time.sleep(.5)
++                left = fixture_processes(self.dir)
++                if not left or time.monotonic() > deadline:
++                    break
++            assert not left, f'夹具进程残留：{left}'
+ 
+ 
+ class Electron:
+diff --git a/workbench/tests/test_native_final_read.ts b/workbench/tests/test_native_final_read.ts
+index 0fe04d9e25..7a8d994a41 100644
+--- a/workbench/tests/test_native_final_read.ts
++++ b/workbench/tests/test_native_final_read.ts
+@@ -3,7 +3,7 @@
+ // ingestion, missing/truncated/malformed/partial log silently ignored, another
+ // session read as the bound one, or post-stop queries ingesting later bytes.
+ import assert from "node:assert/strict";
+-import { appendFileSync, chmodSync, mkdirSync, mkdtempSync, readFileSync, renameSync, writeFileSync } from "node:fs";
++import { appendFileSync, chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, writeFileSync } from "node:fs";
+ import { join } from "node:path";
+ import { createRequire } from "node:module";
+ import { randomUUID } from "node:crypto";
+@@ -14,30 +14,37 @@ const require = createRequire(import.meta.url);
+ const output = process.argv[2]!; mkdirSync(output);
+ const results = [];
+ for (const scenario of ["exit", "terminate", "shutdown", "reclaim", "missing", "truncated", "malformed", "partial", "unbound"]) {
+-  const root = mkdtempSync("/tmp/a4-final-native-");
+-  const home = join(root, "home"); mkdirSync(join(home, "sessions"), { recursive: true });
++  // Real path: the launch records CODEX_HOME resolved, and a Codex hook names its transcript under that home.
++  const root = realpathSync(mkdtempSync("/tmp/a4-final-native-"));
++  const home = join(root, "home");
++  // Codex keeps sessions under sessions/YYYY/MM/DD (local date), the only place the scan reads (T-221).
++  const now = new Date(), sessions = join(home, "sessions", String(now.getFullYear()), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0"));
++  mkdirSync(sessions, { recursive: true });
+   const executable = join(root, "version-only");
+   writeFileSync(executable, '#!/bin/sh\nprintf "codex-cli 0.162.1\\n"\n'); chmodSync(executable, 0o755);
+   const role = join(root, "role.txt"); writeFileSync(role, "offline fixture; no model");
+   const store = new OrchestrationStore(root);
+   const native = randomUUID(), turn = randomUUID();
+-  const file = join(home, "sessions", "rollout-" + native + ".jsonl");
++  const file = join(sessions, "rollout-" + native + ".jsonl");
+   const prefix = [{ type: "session_meta", payload: { id: native, source: "cli", cwd: root } },
+     { type: "event_msg", payload: { type: "task_started", turn_id: turn } }];
+   const context = { type: "turn_context", payload: { turn_id: turn, model: "fixture-model-" + randomUUID(),
+     effort: "fixture-effort", approval_policy: "never", sandbox_policy: { network_access: false } } };
+   const encode = (items: unknown[]) => items.map((item) => JSON.stringify(item) + "\n").join("");
+   const exits: ((event: any) => void)[] = [];
++  const outputs: ((data: string) => void)[] = [];
+   let beforeExit = () => {};
+   const emitExit = () => { beforeExit(); for (const callback of [...exits]) callback({ exitCode: 129, signal: 1 }); };
+   require.cache[require.resolve("node-pty")] = { exports: { spawn: () => ({ pid: 123,
+-    onData: () => {}, onExit: (callback: any) => { exits.push(callback); }, write: () => {},
++    onData: (callback: any) => { outputs.push(callback); }, onExit: (callback: any) => { exits.push(callback); }, write: () => {},
+     kill: (signal: string) => { assert.equal(signal, "SIGHUP"); emitExit(); },
+   }) } } as any;
+   const observerFailures: string[] = [];
+   const panes = new Panes(root, store, { codex_bin: executable, codex_home: home, role_card: role,
+     code_revision: "offline", role_card_revision: "offline", hook_authorization: "offline", turn_limit: 1 },
+     (reason: string) => observerFailures.push(reason));
++  // The daemon wires user-input records to the gates; this offline host keeps none (as test_t157_turn_identity).
++  panes.recordUserSubmission = () => {};
+   let failure: string | null = null;
+   try {
+     await panes.createThread({ task_id: "fixture", project_id: "fixture", card: { executor: { cli: "Codex", model: "gpt-6.1-sol", effort: "xhigh" } } } as any,
+@@ -45,7 +52,11 @@ for (const scenario of ["exit", "terminate", "shutdown", "reclaim", "missing", "
+     const pane = panes.get("thread");
+     if (scenario !== "unbound") {
+       writeFileSync(file, encode(prefix));
+-      await panes.signal(pane.record.id, JSON.stringify({ hook_event_name: "UserPromptSubmit", session_id: native, turn_id: turn }), new Date().toISOString());
++      // The product binds a Codex session by scanning on terminal output, which precedes the prompt's hook (T-231).
++      for (const callback of outputs) callback("\x1b[H");
++      await panes.signal(pane.record.id, JSON.stringify({ hook_event_name: "UserPromptSubmit", session_id: native, turn_id: turn,
++        // The full envelope a Codex hook carries (validateHookEnvelope, T-108).
++        cwd: pane.record.worktree, transcript_path: file, prompt: "offline fixture prompt" }), new Date().toISOString());
+       assert.equal(pane.native, native);
+       assert.equal(store.read().filter((row) => row.type === "native_record").length, 2);
+     }
+@@ -60,7 +71,7 @@ for (const scenario of ["exit", "terminate", "shutdown", "reclaim", "missing", "
+         if (scenario === "malformed") appendFileSync(file, "not-json\n");
+         if (scenario === "partial") appendFileSync(file, '{"unfinished":');
+         // A newly discovered, unrelated CLI session must not be adopted.
+-        writeFileSync(join(home, "sessions", "other-cli.jsonl"), encode([
++        writeFileSync(join(sessions, "other-cli.jsonl"), encode([
+           { type: "session_meta", payload: { source: "cli", id: "unrelated" } }]));
+       }
+     };
+diff --git a/workbench/tests/test_t212_shell_hc_e2e.py b/workbench/tests/test_t212_shell_hc_e2e.py
+index 10b9243c9d..8addac054c 100644
+--- a/workbench/tests/test_t212_shell_hc_e2e.py
++++ b/workbench/tests/test_t212_shell_hc_e2e.py
+@@ -40,6 +40,7 @@ import traceback
+ import uuid
+ from types import SimpleNamespace
+ from hc_evidence import assert_public_evidence, private_tokens, user_core_snapshot
++from scripted_claude import stop_private_core
+ 
+ ROOT = Path(__file__).resolve().parents[2]
+ RAW_PROGRAM = r'''
+@@ -65,23 +66,6 @@ finally:
+ '''
+ 
+ 
+-def stop_private_core(fixture, env):
+-    state = fixture / 'state'
+-    manifest = state / 'hc-runtime.json'
+-    if not manifest.exists():
+-        return None
+-    identity = json.loads(manifest.read_text(encoding='utf-8'))
+-    assert identity['session'].startswith('enchanted-') and identity['session'] != 'default'
+-    binary = state / 'hc/bin/herdr-core'
+-    if not binary.exists():
+-        return None
+-    private = dict(env, HC_SESSION=identity['session'], HC_SOCKET=identity['socket'],
+-                   XDG_STATE_HOME=str(state / 'hc/state'), XDG_CONFIG_HOME=str(state / 'hc/config'))
+-    run = subprocess.run([str(binary), 'server', 'stop'], env=private, capture_output=True, text=True, timeout=20,
+-                         start_new_session=True)
+-    return dict(exit=run.returncode, stdout=run.stdout, stderr=run.stderr, session=identity['session'])
+-
+-
+ def wait_for(probe, message, seconds=15):
+     end = time.monotonic() + seconds
+     while time.monotonic() < end:
+@@ -247,7 +231,7 @@ def core_crash_scenario(args):
+         try: stop()
+         except Exception as error: cleanup_errors.append(str(error))
+         try:
+-            result = stop_private_core(fixture, env)
++            result = stop_private_core(fixture / 'state', env)
+             report['core_cleanup'] = result
+             assert result is None or result['exit'] == 0, result
+             wait_for(lambda: all(exited(pid) for pid in owned_pids), '测试 core/holder/shell 仍存活', seconds=20)
+@@ -455,12 +439,15 @@ def main():
+             report['hc_size_before_electron'] = request('pane_status', thread=launch['thread']).get('size')
+             try:
+                 from scripted_claude import Electron
++                # A second terminal in the same project, opened last, so the target pane shows only after its row is clicked (T-233).
++                decoy = cli('shell_start', '--project', project, '--cwd', str(cwd))['launch']
++                report['decoy_launch'] = decoy['id']
+                 out = fixture / 'ui-output'; out.mkdir()
+                 ui = SimpleNamespace(source=ROOT, env=env, state=state, dir=fixture, out=out)
+                 electron = Electron(ui, 't212-screen-' + uuid.uuid4().hex[:8])
+                 selector = f'.pane[data-launch-id="{launch["id"]}"]'
+                 electron.until('接回的项目终端窗格',
+-                    f'''(()=>{{const r=document.querySelector('[data-terminal-launch="{launch['id']}"]');r?.click();
++                    f'''(()=>{{const r=document.querySelector('[data-agent-launch="{launch['id']}"]');r?.click();
+                     const p=document.querySelector({json.dumps(selector)});return p&&p.offsetParent!==null&&p.querySelector('[data-restoring]')?.dataset.restoring==='false'}})()''', 45)
+                 # Read the actual Terminal instance held in React state; no test branch or renderer export.
+                 buffer_expression = f'''(()=>{{
+@@ -604,7 +591,7 @@ def main():
+             if launch and running:
+                 cli('shell_close', '--launch', launch['id'])
+             stop()
+-            report['core_cleanup'] = stop_private_core(fixture, env)
++            report['core_cleanup'] = stop_private_core(fixture / 'state', env)
+             assert report['core_cleanup'] is None or report['core_cleanup']['exit'] == 0, report['core_cleanup']
+             report['cleanup'] = 'PASS'
+         except Exception as error:
+diff --git a/workbench/tests/test_t212_trace_failure_e2e.py b/workbench/tests/test_t212_trace_failure_e2e.py
+index 93fee73f8f..77048198ce 100644
+--- a/workbench/tests/test_t212_trace_failure_e2e.py
++++ b/workbench/tests/test_t212_trace_failure_e2e.py
+@@ -31,7 +31,8 @@ import time
+ import traceback
+ import uuid
+ from hc_evidence import assert_public_evidence, private_tokens, user_core_snapshot
+-from test_t212_shell_hc_e2e import stop_private_core, wait_for
++from scripted_claude import stop_private_core
++from test_t212_shell_hc_e2e import wait_for
+ 
+ ROOT = Path(__file__).resolve().parents[2]
+ 
+@@ -204,7 +205,7 @@ def scenario(case, output):
+                     os.kill(daemon_pid, signal.SIGKILL)
+                     report['daemon_cleanup'] = 'SIGKILL after shutdown deadline (known-bad outstanding attach)'
+                 else: report['daemon_cleanup'] = 'normal daemon_stop'
+-            report['core_cleanup'] = stop_private_core(fixture,env)
++            report['core_cleanup'] = stop_private_core(fixture / 'state', env)
+             assert report['core_cleanup'] is None or report['core_cleanup']['exit']==0
+             def exited(pid):
+                 try:os.kill(pid,0);return False
+diff --git a/workbench/tests/test_t216_hc_delivery_e2e.py b/workbench/tests/test_t216_hc_delivery_e2e.py
+index 21f1095549..296a161722 100644
+--- a/workbench/tests/test_t216_hc_delivery_e2e.py
++++ b/workbench/tests/test_t216_hc_delivery_e2e.py
+@@ -20,7 +20,6 @@
+ import argparse,json,os,shutil,subprocess,sys,time,uuid
+ from pathlib import Path
+ from scripted_claude import Fixture,Electron,gate_line,prompt_text,quote,source_tree
+-from test_t212_shell_hc_e2e import stop_private_core
+ 
+ FAKE = r'''#!/usr/bin/env node
+ const fs=require('fs'),cp=require('child_process'),path=require('path');
+@@ -299,7 +298,7 @@ def main():
+   if electron:electron.stop()
+   try:f.stop()
+   except Exception as error:r['stop_error']=repr(error)
+-  finally:r['cleanup']=stop_private_core(f.dir,f.env)
++  finally:r['cleanup']=getattr(f,'core_cleanup',None)  # Fixture.stop stops the private core (T-232)
+   a.summary.write_text(json.dumps(r,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+  print(json.dumps(dict(status=r['status'],checks=len(r['checks']),summary=str(a.summary))))
+  return 0 if r['status']=='PASS' else 1
+diff --git a/workbench/tests/test_t216_prompt_provenance_e2e.py b/workbench/tests/test_t216_prompt_provenance_e2e.py
+index b3d647a816..d559fbab4a 100644
+--- a/workbench/tests/test_t216_prompt_provenance_e2e.py
++++ b/workbench/tests/test_t216_prompt_provenance_e2e.py
+@@ -16,7 +16,6 @@ import argparse,json,re,shutil,sys,threading,time,uuid
+ from pathlib import Path
+ from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
+ from scripted_claude import Fixture,quote,gate_line,source_tree
+-from test_t212_shell_hc_e2e import stop_private_core
+ from t112_native_api import message_events,request_source,request_tools,shell_item,tool_events
+ 
+ 
+@@ -175,7 +174,7 @@ def main():
+   if f.running:r['inputs']=inputs()
+   try:f.stop()
+   finally:
+-   r['cleanup']=stop_private_core(f.dir,f.env)
++   r['cleanup']=getattr(f,'core_cleanup',None)  # Fixture.stop stops the private core (T-232)
+    if responses:responses.shutdown()
+    a.summary.write_text(json.dumps(r,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+  print(json.dumps(dict(status=r['status'],summary=str(a.summary),error=r.get('error')),ensure_ascii=False));return 0 if r['status']=='PASS' else 1
+diff --git a/workbench/tests/test_t228_core_identity_e2e.py b/workbench/tests/test_t228_core_identity_e2e.py
+index af3ea38f81..7aadc0220e 100644
+--- a/workbench/tests/test_t228_core_identity_e2e.py
++++ b/workbench/tests/test_t228_core_identity_e2e.py
+@@ -34,7 +34,8 @@ import uuid
+ ROOT = Path(__file__).resolve().parents[2]
+ sys.path.insert(0, str(ROOT / 'workbench/tests'))
+ from hc_evidence import assert_public_evidence, private_tokens, user_core_snapshot  # noqa: E402
+-from test_t212_shell_hc_e2e import stop_private_core, wait_for  # noqa: E402
++from scripted_claude import stop_private_core  # noqa: E402
++from test_t212_shell_hc_e2e import wait_for  # noqa: E402
+ 
+ 
+ def main():
+@@ -196,7 +197,7 @@ def main():
+         try: daemon_stop()
+         except Exception as error: errors.append(str(error))
+         try:
+-            stop_private_core(fixture, env)
++            stop_private_core(fixture / 'state', env)
+             for pid in owned:
+                 if alive(pid):
+                     os.kill(pid, signal.SIGKILL)

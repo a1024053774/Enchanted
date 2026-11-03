@@ -34,7 +34,8 @@ import uuid
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'workbench/tests'))
 from hc_evidence import assert_public_evidence, private_tokens, user_core_snapshot  # noqa: E402
-from test_t212_shell_hc_e2e import stop_private_core, wait_for  # noqa: E402
+from scripted_claude import stop_private_core  # noqa: E402
+from test_t212_shell_hc_e2e import wait_for  # noqa: E402
 
 
 def main():
@@ -196,7 +197,7 @@ def main():
         try: daemon_stop()
         except Exception as error: errors.append(str(error))
         try:
-            stop_private_core(fixture, env)
+            stop_private_core(fixture / 'state', env)
             for pid in owned:
                 if alive(pid):
                     os.kill(pid, signal.SIGKILL)

@@ -31,7 +31,8 @@ import time
 import traceback
 import uuid
 from hc_evidence import assert_public_evidence, private_tokens, user_core_snapshot
-from test_t212_shell_hc_e2e import stop_private_core, wait_for
+from scripted_claude import stop_private_core
+from test_t212_shell_hc_e2e import wait_for
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -204,7 +205,7 @@ def scenario(case, output):
                     os.kill(daemon_pid, signal.SIGKILL)
                     report['daemon_cleanup'] = 'SIGKILL after shutdown deadline (known-bad outstanding attach)'
                 else: report['daemon_cleanup'] = 'normal daemon_stop'
-            report['core_cleanup'] = stop_private_core(fixture,env)
+            report['core_cleanup'] = stop_private_core(fixture / 'state', env)
             assert report['core_cleanup'] is None or report['core_cleanup']['exit']==0
             def exited(pid):
                 try:os.kill(pid,0);return False

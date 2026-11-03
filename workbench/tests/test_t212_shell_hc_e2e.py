@@ -40,6 +40,7 @@ import traceback
 import uuid
 from types import SimpleNamespace
 from hc_evidence import assert_public_evidence, private_tokens, user_core_snapshot
+from scripted_claude import stop_private_core
 
 ROOT = Path(__file__).resolve().parents[2]
 RAW_PROGRAM = r'''
@@ -63,23 +64,6 @@ try:
 finally:
  termios.tcsetattr(0,termios.TCSANOW,old)
 '''
-
-
-def stop_private_core(fixture, env):
-    state = fixture / 'state'
-    manifest = state / 'hc-runtime.json'
-    if not manifest.exists():
-        return None
-    identity = json.loads(manifest.read_text(encoding='utf-8'))
-    assert identity['session'].startswith('enchanted-') and identity['session'] != 'default'
-    binary = state / 'hc/bin/herdr-core'
-    if not binary.exists():
-        return None
-    private = dict(env, HC_SESSION=identity['session'], HC_SOCKET=identity['socket'],
-                   XDG_STATE_HOME=str(state / 'hc/state'), XDG_CONFIG_HOME=str(state / 'hc/config'))
-    run = subprocess.run([str(binary), 'server', 'stop'], env=private, capture_output=True, text=True, timeout=20,
-                         start_new_session=True)
-    return dict(exit=run.returncode, stdout=run.stdout, stderr=run.stderr, session=identity['session'])
 
 
 def wait_for(probe, message, seconds=15):
@@ -247,7 +231,7 @@ def core_crash_scenario(args):
         try: stop()
         except Exception as error: cleanup_errors.append(str(error))
         try:
-            result = stop_private_core(fixture, env)
+            result = stop_private_core(fixture / 'state', env)
             report['core_cleanup'] = result
             assert result is None or result['exit'] == 0, result
             wait_for(lambda: all(exited(pid) for pid in owned_pids), '测试 core/holder/shell 仍存活', seconds=20)
@@ -455,12 +439,15 @@ def main():
             report['hc_size_before_electron'] = request('pane_status', thread=launch['thread']).get('size')
             try:
                 from scripted_claude import Electron
+                # A second terminal in the same project, opened last, so the target pane shows only after its row is clicked (T-233).
+                decoy = cli('shell_start', '--project', project, '--cwd', str(cwd))['launch']
+                report['decoy_launch'] = decoy['id']
                 out = fixture / 'ui-output'; out.mkdir()
                 ui = SimpleNamespace(source=ROOT, env=env, state=state, dir=fixture, out=out)
                 electron = Electron(ui, 't212-screen-' + uuid.uuid4().hex[:8])
                 selector = f'.pane[data-launch-id="{launch["id"]}"]'
                 electron.until('接回的项目终端窗格',
-                    f'''(()=>{{const r=document.querySelector('[data-terminal-launch="{launch['id']}"]');r?.click();
+                    f'''(()=>{{const r=document.querySelector('[data-agent-launch="{launch['id']}"]');r?.click();
                     const p=document.querySelector({json.dumps(selector)});return p&&p.offsetParent!==null&&p.querySelector('[data-restoring]')?.dataset.restoring==='false'}})()''', 45)
                 # Read the actual Terminal instance held in React state; no test branch or renderer export.
                 buffer_expression = f'''(()=>{{
@@ -604,7 +591,7 @@ def main():
             if launch and running:
                 cli('shell_close', '--launch', launch['id'])
             stop()
-            report['core_cleanup'] = stop_private_core(fixture, env)
+            report['core_cleanup'] = stop_private_core(fixture / 'state', env)
             assert report['core_cleanup'] is None or report['core_cleanup']['exit'] == 0, report['core_cleanup']
             report['cleanup'] = 'PASS'
         except Exception as error:

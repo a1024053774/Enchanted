@@ -1,0 +1,20 @@
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/workbench/tests/test_t216_issue_push_e2e.py", line 76, in main
+    fixture.start(args.claude, {'README.md': 'demo\n', 'check.py': 'raise SystemExit(0)\n'})
+  File "/Users/luckye/Documents/Code/a2a/workbench/tests/scripted_claude.py", line 277, in start
+    self.run_cli('daemon_start', '--launch-config', str(self.dir / 'launch-config.json'))
+  File "/Users/luckye/Documents/Code/a2a/workbench/tests/scripted_claude.py", line 240, in run_cli
+    assert run.returncode == 0, f'{arguments[0]}: {run.stderr or run.stdout}'
+AssertionError: daemon_start: {"ok":false,"error":"daemon_call_failed","details":"Error: daemon start deadline; inspect PID 84404 and logs; no automatic retry"}
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/evidence/2026-11-03-batch31/T-232/forced_failure.py", line 14, in <module>
+    t.main()
+  File "/Users/luckye/Documents/Code/a2a/workbench/tests/test_t216_issue_push_e2e.py", line 190, in main
+    fixture.stop()
+  File "/Users/luckye/Documents/Code/a2a/workbench/tests/scripted_claude.py", line 333, in stop
+    assert not left, f'夹具进程残留：{left}'
+AssertionError: 夹具进程残留：['84477     1 /private/tmp/t216-netdb2z4/state/hc/bin/herdr-core serve']

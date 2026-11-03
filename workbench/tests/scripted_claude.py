@@ -19,6 +19,37 @@ TOKEN = 'a2a-fixture-key-not-a-secret'
 SERVED_MODEL = 'claude-haiku-5-5-scripted-served'
 
 
+def stop_private_core(state, env):
+    """Stop the fixture's private hc core; its panes, shells and CLIs end with it. The core outlives daemon_stop by
+    design (agents survive a daemon restart), so a test that only stops the daemon leaves it running (T-232)."""
+    manifest = Path(state) / 'hc-runtime.json'
+    if not manifest.exists():
+        return None
+    identity = json.loads(manifest.read_text(encoding='utf-8'))
+    assert identity['session'].startswith('enchanted-') and identity['session'] != 'default'
+    binary = Path(state) / 'hc/bin/herdr-core'
+    if not binary.exists():
+        return None
+    private = dict(env, HC_SESSION=identity['session'], HC_SOCKET=identity['socket'],
+                   XDG_STATE_HOME=str(Path(state) / 'hc/state'), XDG_CONFIG_HOME=str(Path(state) / 'hc/config'))
+    run = subprocess.run([str(binary), 'server', 'stop'], env=private, capture_output=True, text=True, timeout=20,
+                         start_new_session=True)
+    return dict(exit=run.returncode, stdout=run.stdout, stderr=run.stderr, session=identity['session'])
+
+
+def fixture_processes(path):
+    """Live processes whose argv or environment names this fixture directory (ps -E shows our own processes'
+    environment, which carries the fixture HOME or operator credential even when argv does not)."""
+    listing = subprocess.run(['/bin/ps', '-axE', '-ww', '-o', 'pid=,command='], capture_output=True, text=True, check=True).stdout
+    pids = [int(line.split(None, 1)[0]) for line in listing.splitlines() if str(path) in line]
+    pids = [pid for pid in pids if pid != os.getpid()]
+    if not pids:
+        return []
+    shown = subprocess.run(['/bin/ps', '-ww', '-o', 'pid=,ppid=,command=', '-p', ','.join(map(str, pids))],
+                           capture_output=True, text=True).stdout
+    return [line.strip() for line in shown.splitlines() if line.strip()]
+
+
 def source_tree(fixture, revision=None, patches=(), copy=False):
     """The workbench sources to run: the checkout, a revision's tree, or a patched copy (copy: a copy even unpatched)."""
     if not revision and not patches and not copy:
@@ -200,7 +231,10 @@ class Fixture:
                         A2A_OPERATOR_CREDENTIAL=str(self.dir / 'operator.json'),
                         ANTHROPIC_BASE_URL=f'http://127.0.0.1:{self.api.server.server_port}', ANTHROPIC_AUTH_TOKEN=TOKEN,
                         GIT_AUTHOR_NAME='fixture', GIT_AUTHOR_EMAIL='fixture@example.invalid',
-                        GIT_COMMITTER_NAME='fixture', GIT_COMMITTER_EMAIL='fixture@example.invalid')
+                        GIT_COMMITTER_NAME='fixture', GIT_COMMITTER_EMAIL='fixture@example.invalid',
+                        # A copied source tree has no hc-cache beside it and would download hc on every start, which
+                        # can pass the 10 s daemon start deadline (T-232). Version and digest still come from the release pin.
+                        ENCHANTED_HC_CACHE_DIR=os.environ.get('ENCHANTED_HC_CACHE_DIR', str(ROOT.parent / 'hc-cache')))
         self.running = False
         self.operator = self.terminal = self.terminal_launch = None
 
@@ -294,6 +328,17 @@ class Fixture:
                 self.run_cli('daemon_stop')
         finally:
             self.api.server.shutdown()
+            # A daemon whose start passed the deadline is still running and can start the core after a first stop,
+            # so stop it again while fixture processes remain.
+            deadline = time.monotonic() + 20
+            while True:
+                self.core_cleanup = stop_private_core(self.state, self.env)
+                assert self.core_cleanup is None or self.core_cleanup['exit'] == 0, self.core_cleanup
+                time.sleep(.5)
+                left = fixture_processes(self.dir)
+                if not left or time.monotonic() > deadline:
+                    break
+            assert not left, f'夹具进程残留：{left}'
 
 
 class Electron:

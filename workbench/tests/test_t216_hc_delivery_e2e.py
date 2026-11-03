@@ -20,7 +20,6 @@
 import argparse,json,os,shutil,subprocess,sys,time,uuid
 from pathlib import Path
 from scripted_claude import Fixture,Electron,gate_line,prompt_text,quote,source_tree
-from test_t212_shell_hc_e2e import stop_private_core
 
 FAKE = r'''#!/usr/bin/env node
 const fs=require('fs'),cp=require('child_process'),path=require('path');
@@ -299,7 +298,7 @@ def main():
   if electron:electron.stop()
   try:f.stop()
   except Exception as error:r['stop_error']=repr(error)
-  finally:r['cleanup']=stop_private_core(f.dir,f.env)
+  finally:r['cleanup']=getattr(f,'core_cleanup',None)  # Fixture.stop stops the private core (T-232)
   a.summary.write_text(json.dumps(r,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
  print(json.dumps(dict(status=r['status'],checks=len(r['checks']),summary=str(a.summary))))
  return 0 if r['status']=='PASS' else 1

@@ -1,0 +1,216 @@
+{
+  "status": "INCOMPLETE",
+  "command": [
+    "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+    "workbench/tests/test_t212_shell_hc_e2e.py",
+    "--electron-screen",
+    "--output",
+    "evidence/2026-11-03-batch31/T-233/red-old-selector"
+  ],
+  "fixture": "/private/tmp/t212-6q6pr4iz",
+  "checks": [
+    "原 pid、数百行中文历史及离线输出在后台重启后保留",
+    "OSC 7501 实时透传且新 viewer 第一屏补发最新报告"
+  ],
+  "commands": [
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t212-6q6pr4iz/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":80850,\"root\":\"/private/tmp/t212-6q6pr4iz/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t212-6q6pr4iz/state",
+        "shell_start",
+        "--project",
+        "alpha",
+        "--cwd",
+        "/private/tmp/t212-6q6pr4iz/项目 alpha"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"launch\":{\"id\":\"8a0dfbb5-3b4e-4cd2-b040-92f65cbeec7e\",\"project\":\"alpha\",\"task\":null,\"attempt\":null,\"session\":null,\"fence\":null,\"spec_rev\":null,\"thread\":\"4a4dc282-82e1-4b8c-82dd-69c0e252fc17\",\"role\":\"shell\",\"created_at\":\"2026-11-03T11:56:05.869Z\",\"shell\":\"/bin/zsh\",\"shell_argv\":[\"-l\",\"-i\"],\"worktree\":\"/private/tmp/t212-6q6pr4iz/项目 alpha\",\"env\":{\"A2A_PROJECT\":\"alpha\"}}}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t212-6q6pr4iz/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":80850,\"stopping\":true}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t212-6q6pr4iz/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":80902,\"root\":\"/private/tmp/t212-6q6pr4iz/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t212-6q6pr4iz/state",
+        "shell_start",
+        "--project",
+        "alpha",
+        "--cwd",
+        "/private/tmp/t212-6q6pr4iz/项目 alpha"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"launch\":{\"id\":\"a76a7987-0704-4ebc-979e-c50f6cb71771\",\"project\":\"alpha\",\"task\":null,\"attempt\":null,\"session\":null,\"fence\":null,\"spec_rev\":null,\"thread\":\"2a70cb8f-90ed-46fe-8700-8fdf36cb24bb\",\"role\":\"shell\",\"created_at\":\"2026-11-03T11:56:08.131Z\",\"shell\":\"/bin/zsh\",\"shell_argv\":[\"-l\",\"-i\"],\"worktree\":\"/private/tmp/t212-6q6pr4iz/项目 alpha\",\"env\":{\"A2A_PROJECT\":\"alpha\"}}}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t212-6q6pr4iz/state",
+        "shell_close",
+        "--launch",
+        "8a0dfbb5-3b4e-4cd2-b040-92f65cbeec7e"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t212-6q6pr4iz/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":80902,\"stopping\":true}\n",
+      "stderr": ""
+    }
+  ],
+  "survival": {
+    "pid": 80894,
+    "shell_pid": 80891,
+    "before": 412,
+    "after": 433,
+    "ps": "80894 S+   /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/t212-6q6pr4iz/项目 alpha/numbered.py\n"
+  },
+  "hc_size_before_electron": {
+    "cols": 200,
+    "rows": 120
+  },
+  "decoy_launch": "a76a7987-0704-4ebc-979e-c50f6cb71771",
+  "error": "超时：接回的项目终端窗格 node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\n[TypeError: fetch failed] {\n  [cause]: Error: connect ECONNREFUSED 127.0.0.1:65364\n      at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16) {\n    errno: -61,\n    code: 'ECONNREFUSED',\n    syscall: 'connect',\n    address: '127.0.0.1',\n    port: 65364\n  }\n}\n\nNode.js v26.5.0\n",
+  "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/workbench/tests/test_t212_shell_hc_e2e.py\", line 465, in main\n    electron.until('接回的项目终端窗格',\n  File \"/Users/luckye/Documents/Code/a2a/workbench/tests/scripted_claude.py\", line 342, in until\n    raise AssertionError(f'超时：{label} {last or \"\"}')\nAssertionError: 超时：接回的项目终端窗格 node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\n[TypeError: fetch failed] {\n  [cause]: Error: connect ECONNREFUSED 127.0.0.1:65364\n      at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16) {\n    errno: -61,\n    code: 'ECONNREFUSED',\n    syscall: 'connect',\n    address: '127.0.0.1',\n    port: 65364\n  }\n}\n\nNode.js v26.5.0\n\n",
+  "core_cleanup": {
+    "exit": 0,
+    "stdout": "{\"stopped\":true}\n",
+    "stderr": "",
+    "session": "enchanted-47f893d6-ca86-4968-8a47-cf14d5106edb"
+  },
+  "cleanup": "PASS",
+  "user_core_observations": {
+    "before": {
+      "directory": "/Users/luckye/.local/state/herdr-core",
+      "listing": [
+        "default",
+        "default/core.json",
+        "default/core.lock",
+        "default/core.log",
+        "default/default.holder.3eb2df25.sock",
+        "default/default.holder.5735ee59.sock",
+        "default/default.holder.60091534.sock",
+        "default/default.sock",
+        "default/docs.json",
+        "default/holder.log",
+        "default/screens",
+        "default/screens/t1.snap",
+        "default/screens/t2.snap",
+        "default/screens/t3.snap",
+        "default/terminals.json"
+      ],
+      "processes": [
+        {
+          "pid": 35971,
+          "started": "Mon Nov 2 20:50:47 2026",
+          "executable": "/Users/luckye/.local/bin/herdr-core"
+        },
+        {
+          "pid": 38227,
+          "started": "Mon Nov 2 21:05:47 2026",
+          "executable": "/Users/luckye/.local/bin/herdr-core"
+        },
+        {
+          "pid": 85343,
+          "started": "Mon Nov 2 11:39:17 2026",
+          "executable": "/Users/luckye/.local/bin/herdr-core"
+        }
+      ]
+    },
+    "after": {
+      "directory": "/Users/luckye/.local/state/herdr-core",
+      "listing": [
+        "default",
+        "default/core.json",
+        "default/core.lock",
+        "default/core.log",
+        "default/default.holder.3eb2df25.sock",
+        "default/default.holder.5735ee59.sock",
+        "default/default.holder.60091534.sock",
+        "default/default.sock",
+        "default/docs.json",
+        "default/holder.log",
+        "default/screens",
+        "default/screens/t1.snap",
+        "default/screens/t2.snap",
+        "default/screens/t3.snap",
+        "default/terminals.json"
+      ],
+      "processes": [
+        {
+          "pid": 35971,
+          "started": "Mon Nov 2 20:50:47 2026",
+          "executable": "/Users/luckye/.local/bin/herdr-core"
+        },
+        {
+          "pid": 38227,
+          "started": "Mon Nov 2 21:05:47 2026",
+          "executable": "/Users/luckye/.local/bin/herdr-core"
+        },
+        {
+          "pid": 85343,
+          "started": "Mon Nov 2 11:39:17 2026",
+          "executable": "/Users/luckye/.local/bin/herdr-core"
+        }
+      ]
+    }
+  },
+  "user_core_directory_unchanged": true,
+  "user_core_processes_unchanged": true,
+  "private_socket_outside_user_home": true,
+  "evidence_boundary": {
+    "private_hc_state_files": 0,
+    "known_token_plaintext_matches": 0,
+    "checked_files": 3
+  }
+}

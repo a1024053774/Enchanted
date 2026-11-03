@@ -1,0 +1,124 @@
+---
+id: T-231
+title: test_native_final_read.ts 在 HEAD 上失败：离线夹具靠 hook 触发扫描，被 noncurrentHook 拒掉
+type: build
+status: open
+blocked_by: []
+claimed_by:
+supersedes:
+ready: yes
+ready_by: executor
+ready_rev: 1
+---
+
+## What to build
+
+T-227 第二轮发现，范围外（[结果记录](../../evidence/2026-10-31-batch29/T-227/RESULTS.md)）：`workbench/tests/test_native_final_read.ts` 在 HEAD（`bbf8d5f80`）的 `panes.ts` 上也失败，九个场景里有八个报 `hook_native_session_mismatch`，只有 `unbound` 通过。
+
+- 测试用 `UserPromptSubmit` hook 让扫描绑定 native 会话；`noncurrentHook`（`workbench/src/questions.ts`）会拒掉 `session_id` 与 `pane.native` 不同的 hook，夹具里 `pane.native` 还是空，所以扫描根本没跑。
+- 不是 T-227 引入的；哪一次提交开始失败还没查。
+- 这份测试本该保护的是退出、终止、关闭、回收时的最后一次原生日志读取（T-075-4），现在它不再提供证据。
+
+要做的：先查清是测试过时，还是产品里 Codex worker 的 native 会话绑定真的坏了；按查到的根因修测试或产品。
+
+## Acceptance
+
+- [ ] 写明从哪次提交开始失败，以及原因：测试过时，还是产品行为变了。
+- [ ] 若是产品缺陷：先经真实入口留红态，再修。
+- [ ] `test_native_final_read.ts` 九个场景按原意图通过；用一个已知的坏实现（例如去掉退出前的最后一次读取）证明它仍能识别。
+- [ ] 独立审查（GPT 只读，新开干净会话）无未处理的阻塞意见。
+
+## Resolution
+
+（未开始）
+---
+id: T-232
+title: 测试夹具跑完不收私有 hc core（scripted_claude.Fixture.stop 只停后台）
+type: build
+status: open
+blocked_by: []
+claimed_by:
+supersedes:
+ready: yes
+ready_by: executor
+ready_rev: 1
+---
+
+## What to build
+
+T-230 回归时的范围外发现（[结果记录](../../evidence/2026-10-31-batch29/T-230/RESULTS.md)）：`workbench/tests/test_t216_issue_push_e2e.py --gui` 和 `workbench/tests/test_t216_round2_e2e.py --case routing-online` 都报 PASS，但跑完后各自夹具里的私有 `herdr-core serve`、`hold` 仍在，前者还留下一个 Claude Code 进程和它的 MCP 子进程。这些进程的父进程都是 1。主控在归档前手工结束了它们。
+
+T-229 回归时看清了根因：几乎每个基于 `workbench/tests/scripted_claude.py` 的 `Fixture` 的测试跑完都留下夹具的私有 `herdr-core serve`、`hold`。原因是 `Fixture.stop` 只停后台（`daemon_stop`），私有 core 按设计比后台活得久，没人停它。T-229 那一轮跑完时残留二十多对，另有更早留下的 t078、t126 夹具 core；主控都已手工结束。
+
+要做的：`Fixture.stop`（以及不走 `Fixture` 的同类测试）在结束时，通过或失败都一样，停掉夹具的私有 core 和其中的 CLI，并核对没有残留；做法沿用 `test_t212_shell_hc_e2e.stop_private_core`。
+
+## Acceptance
+
+- [ ] 修前留红态：跑完后列出夹具路径下的残留进程。
+- [ ] 修后用 `Fixture` 的测试跑完（含一次故意失败），夹具路径下没有残留进程；用户自己的 core 不变。
+- [ ] 独立审查（GPT 只读，新开干净会话）无未处理的阻塞意见。
+
+## Resolution
+
+（未开始）
+---
+id: T-233
+title: T-212 Electron 测试点侧栏行的选择器已过时，只因只有一个窗格才碰巧通过
+type: build
+status: open
+blocked_by: []
+claimed_by:
+supersedes:
+ready: yes
+ready_by: executor
+ready_rev: 1
+---
+
+## What to build
+
+T-230 写 UI 测试时发现，范围外（[结果记录](../../evidence/2026-10-31-batch29/T-230/RESULTS.md)）：`workbench/tests/test_t212_shell_hc_e2e.py` 的 Electron 场景用 `[data-terminal-launch=…]` 找侧栏行，界面上的属性是 `data-agent-launch`。这一下点击什么也没点到；测试找窗格用的是 `.pane[data-launch-id=…]`，不会核对错窗格。它现在能通过，是因为界面上只有一个窗格，不用点就显示出来了。多开一个窗格时，指定窗格可能不显示，测试会超时。
+
+要做的：改用 `data-agent-launch`，在两个窗格时也能点开指定的那个。
+
+## Acceptance
+
+- [ ] 修前留红态：多开一个窗格后，旧选择器点不开指定窗格，测试超时。
+- [ ] 修后两个窗格时，`--electron-screen` 与 `--electron-screen --mismatched-screen` 都通过。
+- [ ] 独立审查（GPT 只读，新开干净会话）无未处理的阻塞意见。
+
+## Resolution
+
+（未开始）
+---
+id: T-235
+title: T-157/T-165 Stop 重叠场景里，窗格标题栏的状态落后于后台，检查读到“未知”或“运行中”
+type: build
+status: open
+blocked_by: []
+claimed_by:
+supersedes:
+ready: yes
+ready_by: executor
+ready_rev: 1
+---
+
+## What to build
+
+T-229 第十三轮回归发现，范围外（T-229 结果记录）：`test_t165_queued_stop_e2e.py --scenario unrelated-stop` 的 `positive_returns_idle_without_regular_recovery` 时好时坏。失败时后台的 `pane_status`、`sidebar_snapshot` 都是 `idle`，后台事件时间线与通过的那次完全相同；但界面里这一 worker 的侧栏行和窗格标题栏都还是“未知”。测试在后台回到空闲后只等 2 秒就读 DOM，之后的截图里已是“空闲”。
+
+- 同一 harness（`test_t157_stop_input_e2e.py`）的三个场景都有：T-165 unrelated-stop、T-165 ordered、T-157 stop-input。T-229 第十四轮里后两者失败（标题栏分别为“未知”“运行中”），基线 `59815ea30` 上各跑 2 次全失败（`r14-base-t157-stop-input-{1,2}`、`r14-base-t165-ordered-{1,2}`）。
+- unrelated-stop：基线 `59815ea30`（T-229 之前）上 3 次全失败（T-229 证据 `r13-base-t165-unrelated-stop-{1,2,3}.json`）；T-229 候选上 3 次失败 2 次（`r13-reg-t165-unrelated-stop-{1,3}`，`-2` 通过）。第十一、十二轮各跑一次都通过。所以不是 T-229 引入的。
+- 标题栏取的是界面自己刷新的侧栏列表（`app/renderer.tsx` 的 `agentState`），没有在后台状态变化后及时刷新，或刷新时这一行算成了 `unknown`。没有核实是哪一种。
+
+要做的：查清界面这一行为什么在后台已空闲后仍显示“未知”，修在根因处；不要靠加长测试的等待时间。
+
+## Acceptance
+
+- [ ] 先写下可能出错的方式，测试对着它写。
+- [ ] 修前留红态：上面的场景在基线上重复跑，记下失败次数与当时界面、后台各自的状态。
+- [ ] 修后同一场景连续多次通过，且界面状态与后台一致的检查没有放宽。
+- [ ] 独立审查（GPT 只读，新开干净会话）无未处理的阻塞意见。
+
+## Resolution
+
+（未开始）
