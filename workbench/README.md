@@ -4,7 +4,8 @@
 项目终端里的程序访问 `~/Documents` 等受 macOS 隐私保护的目录时，若尚未获得授权，macOS 可能请求授权；等待回答期间，终端里的程序可能停在打开文件上，表现为 Claude Code 没有输出、Codex 输入一直排队、agy 一直 working。遇到这种现象先检查有没有系统授权框（T-236、T-238 中，用户回答授权框后恢复）。重新构建的 ad-hoc 包可能需要重新授权。
 hc 的固定版本、来源和校验值只定义在 `src/hcDistribution.mjs`。开发启动、测试和打包共用取用逻辑：
 缓存 tarball 每次核验 SHA-256；存在但损坏就报错，不下载替换；没有缓存才下载并核验。开发默认读取仓库相邻的
-`hc-cache/`，可用 `ENCHANTED_HC_CACHE_DIR` 指定缓存目录。应用包内含 hc 与 Apache-2.0 许可、第三方声明，并核对二进制签名。
+`hc-cache/`，可用 `ENCHANTED_HC_CACHE_DIR` 指定缓存目录。开发态解包到数据目录的 `hc/bin`，并写下 `release.json`；
+之后后台启动时若它与固定值相同就沿用已解包的文件，不再解包：重新解包会换 inode，仍在运行的 core 之后起的 holder 构建号对不上（T-244）。应用包内含 hc 与 Apache-2.0 许可、第三方声明，并核对二进制签名。
 
 每个后台数据目录保存自己的 `HC_SESSION` 与 `HC_SOCKET` 身份。socket 位于随机私有临时目录，
 与用户 default core 无关；核对长度时包含 holder 后缀。hc 的状态和配置通过 XDG 变量放在后台私有 `hc/` 目录，

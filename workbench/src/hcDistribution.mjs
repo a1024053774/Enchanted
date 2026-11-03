@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -41,5 +41,17 @@ export async function hcBinary(root) {
   const packaged = fileURLToPath(new URL('../hc/herdr-core', import.meta.url));
   // Packaged resources were verified from the pinned archive and codesigned.
   if (existsSync(packaged)) return packaged;
-  return installHc(join(root, 'hc', 'bin'));
+  // T-244: a core outlives the daemon and starts its holders from this path; extracting again gives the file a new
+  // inode, so a running core's next holder has another build and is refused. Keep an install of the same pin whose
+  // file still has the size and mtime it was extracted with (a truncated or replaced file is installed again).
+  const destination = join(root, 'hc', 'bin'), binary = join(destination, 'herdr-core'), release = join(destination, 'release.json');
+  const marker = () => { const { size, mtimeMs } = statSync(binary); return JSON.stringify({ ...hcRelease, size, mtimeMs }); };
+  if (existsSync(binary) && existsSync(release) && readFileSync(release, 'utf8') === marker()) return binary;
+  // The marker is written only after a complete extraction: an interrupted one leaves no marker and is redone.
+  // Two daemons starting on one fresh data directory can still both extract; hcBinary runs before the daemon's
+  // endpoint and pid file are exclusive (known limit, T-244).
+  rmSync(release, { force: true });
+  await installHc(destination);
+  writeFileSync(release, marker(), { mode: 0o600 });
+  return binary;
 }

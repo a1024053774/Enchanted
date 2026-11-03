@@ -307,12 +307,20 @@ def main():
     except Exception as error:
         report.update(error=str(error), traceback=traceback.format_exc(), checkpoint=checkpoint)
     finally:
-        tokens = private_tokens(state)
+        tokens = set()
         try:
-            stop()
-            from test_t212_shell_hc_e2e import stop_private_core
-            report['core_cleanup'] = stop_private_core(fixture, env)
-            assert report['core_cleanup'] is None or report['core_cleanup']['exit'] == 0
+            try:
+                stop()
+            finally:
+                # T-243: stop the private core first, even when stop() failed, and fail on any process left in the
+                # fixture. The tokens are read after it: the stopped core no longer rewrites terminals.json.
+                from scripted_claude import stop_fixture_core
+                try:
+                    report['core_cleanup'] = stop_fixture_core(state, fixture, env)
+                except AssertionError as error:
+                    report['residue'] = str(error)
+                tokens = private_tokens(state)
+            assert 'residue' not in report, report['residue']
             for pid in processes:
                 wait_for(lambda: process_state(pid), f'测试进程 {pid} 退出未确认')
             report['cleanup_complete'] = True

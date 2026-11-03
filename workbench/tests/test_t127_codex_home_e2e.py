@@ -35,6 +35,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from t112_native_api import code_functions, mcp_item, message_events, request_source, request_tools, shell_item, tool_events  # noqa: E402
+from scripted_claude import stop_fixture_core  # noqa: E402
 
 
 
@@ -511,9 +512,15 @@ def main():
             if running:
                 run_cli('daemon_stop')
         finally:
+            # T-243 (first, so nothing before it can skip it): daemon_stop leaves the private hc core running; stop it and fail on any process left in the fixture.
+            try:
+                report['core_cleanup'] = stop_fixture_core(state, fixture, os.environ)
+            except AssertionError as error:
+                report['status'], report['residue'] = 'INCOMPLETE', str(error)
             server.shutdown()
             args.summary.parent.mkdir(parents=True, exist_ok=True)
             args.summary.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+            assert 'residue' not in report, report['residue']
 
 
 if __name__ == '__main__':

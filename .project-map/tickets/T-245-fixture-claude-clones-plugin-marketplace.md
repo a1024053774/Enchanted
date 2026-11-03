@@ -1,0 +1,32 @@
+---
+id: T-245
+title: 夹具里的真实 Claude Code 在后台克隆官方插件市场，测试结束后留下 git/ssh 进程
+type: build
+status: open
+blocked_by: []
+claimed_by:
+supersedes:
+ready: no
+ready_by:
+ready_rev:
+---
+
+## What to build
+
+2026-11-03 T-243 绿态中发现（[T-243 结果](../../evidence/2026-11-03-batch31/T-243/RESULTS.md)）：
+
+- `test_t124_controller_e2e.py` 连续两次在清理时报出残留：`git … clone --depth 1 -- git@github.com:anthropics/claude-plugins-official.git <夹具>/home/.claude/plugins/marketplaces/…`，以及它下面的 `sh`、`ssh -o BatchMode=yes … git@github.com git-upload-pack`，父进程为 1。同一测试在修前的分诊里没有出现，与网络时序有关。
+- 克隆由夹具 HOME 里的真实 Claude Code 发起。ssh 读的是账户主目录的 `~/.ssh`，不是夹具的 `HOME`，所以可能用的是用户真实的 ssh 身份。
+- hc core 已停，不属于 T-243 的 core 残留。
+
+要做的：查清 Claude Code 在什么条件下自动安装官方插件市场、有没有经启动参数或夹具环境关闭它的办法（不写用户的 `~/.claude`）；按结果修夹具，或说明为什么不能关并改清理方式。涉及用户 ssh 身份是否被测试使用，处理前交用户决定。
+
+## Acceptance
+
+- [ ] 写明触发条件与依据。
+- [ ] 修后 `test_t124_controller_e2e.py` 结束时夹具路径下没有进程。
+- [ ] 独立审查无未处理的阻塞意见。
+
+## Resolution
+
+（未开始）

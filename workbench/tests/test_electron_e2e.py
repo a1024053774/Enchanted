@@ -20,6 +20,7 @@ import traceback
 import uuid
 
 from command_evidence import CommandLog, command_json
+from scripted_claude import stop_fixture_core
 
 
 def main():
@@ -224,19 +225,27 @@ def main():
         try:
             if window_attempted and (window is None or not window.ready_confirmed or not window.exit_confirmed):
                 raise RuntimeError('Electron ready/exit unconfirmed; backend shutdown and archive deferred to controller')
-            if started:
-                call('daemon_stop')
-                deadline = time.monotonic() + 10
-                while True:
-                    result = run(['/bin/ps', '-o', 'pid=,ppid=,pgid=,command=', '-p', str(pid)])
-                    if result.returncode not in (0, 1) or result.stderr.strip():
-                        raise RuntimeError('Cannot confirm termination of the fixture daemon')
-                    if not result.stdout.strip() and not (state / 'daemon.pid').exists():
-                        break
-                    if time.monotonic() >= deadline:
-                        raise RuntimeError('Fixture daemon did not stop within the deadline')
-                    time.sleep(0.1)
-                verdict['daemon_stopped'] = True
+            try:
+                if started:
+                    call('daemon_stop')
+                    deadline = time.monotonic() + 10
+                    while True:
+                        result = run(['/bin/ps', '-o', 'pid=,ppid=,pgid=,command=', '-p', str(pid)])
+                        if result.returncode not in (0, 1) or result.stderr.strip():
+                            raise RuntimeError('Cannot confirm termination of the fixture daemon')
+                        if not result.stdout.strip() and not (state / 'daemon.pid').exists():
+                            break
+                        if time.monotonic() >= deadline:
+                            raise RuntimeError('Fixture daemon did not stop within the deadline')
+                        time.sleep(0.1)
+                    verdict['daemon_stopped'] = True
+            finally:
+                # T-243: daemon_stop leaves the private hc core running; stop it, even when the stop above failed,
+                # and fail on any process left in the fixture.
+                try:
+                    verdict['core_cleanup'] = stop_fixture_core(state, fixture, os.environ)
+                except AssertionError as error:
+                    verdict.update(status='INCOMPLETE', residue=str(error))
             if not started or verdict.get('daemon_stopped'):
                 if credential.exists():
                     credential.unlink()

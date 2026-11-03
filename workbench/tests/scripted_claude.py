@@ -37,6 +37,22 @@ def stop_private_core(state, env):
     return dict(exit=run.returncode, stdout=run.stdout, stderr=run.stderr, session=identity['session'])
 
 
+def stop_fixture_core(state, path, env):
+    """After daemon_stop: stop the fixture's private core and fail if any process under path is left (T-232, T-243).
+    A daemon whose start passed the deadline is still running and can start the core after a first stop,
+    so stop it again while fixture processes remain."""
+    deadline = time.monotonic() + 20
+    while True:
+        cleanup = stop_private_core(state, env)
+        assert cleanup is None or cleanup['exit'] == 0, cleanup
+        time.sleep(.5)
+        left = fixture_processes(path)
+        if not left or time.monotonic() > deadline:
+            break
+    assert not left, f'夹具进程残留：{left}'
+    return cleanup
+
+
 def fixture_processes(path):
     """Live processes whose argv or environment names this fixture directory (ps -E shows our own processes'
     environment, which carries the fixture HOME or operator credential even when argv does not)."""
@@ -327,18 +343,11 @@ class Fixture:
                 self.running = False
                 self.run_cli('daemon_stop')
         finally:
-            self.api.server.shutdown()
-            # A daemon whose start passed the deadline is still running and can start the core after a first stop,
-            # so stop it again while fixture processes remain.
-            deadline = time.monotonic() + 20
-            while True:
-                self.core_cleanup = stop_private_core(self.state, self.env)
-                assert self.core_cleanup is None or self.core_cleanup['exit'] == 0, self.core_cleanup
-                time.sleep(.5)
-                left = fixture_processes(self.dir)
-                if not left or time.monotonic() > deadline:
-                    break
-            assert not left, f'夹具进程残留：{left}'
+            try:
+                # First, so nothing before it can skip it (T-243).
+                self.core_cleanup = stop_fixture_core(self.state, self.dir, self.env)
+            finally:
+                self.api.server.shutdown()
 
 
 class Electron:

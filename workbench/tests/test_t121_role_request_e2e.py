@@ -28,6 +28,7 @@ import sys
 import tempfile
 import time
 import uuid
+from scripted_claude import stop_fixture_core  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -585,6 +586,11 @@ def main():
                     time.sleep(.05)
             except Exception as error:
                 report['cleanup_error'] = str(error)
+        # T-243: daemon_stop leaves the private hc core running; stop it and fail on any process left in the fixture.
+        try:
+            report['core_cleanup'] = stop_fixture_core(state, fixture, os.environ)
+        except AssertionError as error:
+            report['status'], report['residue'] = 'INCOMPLETE', str(error)
         args.summary.parent.mkdir(parents=True, exist_ok=True)
         args.summary.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
         shutil.rmtree(fixture, ignore_errors=True)

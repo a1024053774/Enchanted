@@ -14,6 +14,7 @@ import time
 import unittest
 import test_task_cards_e2e as previous
 from legacy_quality_driver import QualityDriver, prepare_review_control
+from scripted_claude import stop_fixture_core
 
 
 class DaemonCards(previous.TaskCardsCLI):
@@ -61,13 +62,18 @@ class DaemonCards(previous.TaskCardsCLI):
     def stop_daemon(self):
         state = getattr(self, '_daemon_state', None)
         if state is None: return
-        p = self.process(['node', previous.GATE, '--state', state, 'daemon_stop'])
         self._daemon_state = None
-        self.assertEqual(p.returncode, 0, previous.COMMANDS[-1])
-        until = time.monotonic() + 10
-        while (state / 'daemon.pid').exists() and time.monotonic() < until: time.sleep(0.05)
-        self.assertFalse((state / 'daemon.pid').exists(), 'own daemon must stop before archiving')
-        self.host.wait(timeout=10)
+        try:
+            p = self.process(['node', previous.GATE, '--state', state, 'daemon_stop'])
+            self.assertEqual(p.returncode, 0, previous.COMMANDS[-1])
+            until = time.monotonic() + 10
+            while (state / 'daemon.pid').exists() and time.monotonic() < until: time.sleep(0.05)
+            self.assertFalse((state / 'daemon.pid').exists(), 'own daemon must stop before archiving')
+            self.host.wait(timeout=10)
+        finally:
+            # T-243: daemon_stop leaves the private hc core running; stop it, even when the stop above failed, and fail
+            # on any process left in the fixture (an earlier failure stays in the traceback as the context).
+            stop_fixture_core(state, self.root, self.env)
         self.host_stdout.close(); self.host_stderr.close()
         self.operator_credential.unlink()
 

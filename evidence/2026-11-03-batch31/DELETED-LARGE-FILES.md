@@ -11,3 +11,7 @@
 | `./cu-review/independent` | 10 | 3671859 | t235-1-t157-final.png、t235-1-t157-menu.png、t235-1-t157.json、t235-1-t157.png、t235-1.json、t235-2-t157-final.png… |
 | `./cu-review/independent/t233` | 2 | 723424 | flow.raw、reattached-terminal.png |
 | `./cu-review/independent/t233-mismatch` | 2 | 919807 | flow.raw、reattached-terminal.png |
+| `./T-243/runs*/*/out` | 158 | 40293770 | 各测试自己的输出目录（夹具归档、run.json、截图）；分诊结论在同级 triage.json 与 summary.json |
+| `./T-243/runs` | 2 | 435157 | test_t237、test_t239 的 summary.png |
+| `./T-243/runs-green-3/*/out` | 60 | 20125424 | 各测试自己的输出目录；结论在同级 triage.json |
+| `./T-243/runs-green-4/*/out` | 2 | 14953337 | 各测试自己的输出目录；结论在同级 triage.json |

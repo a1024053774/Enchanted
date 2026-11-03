@@ -18,6 +18,7 @@ import time
 import traceback
 
 from command_evidence import CommandLog, command_json
+from scripted_claude import stop_fixture_core
 
 
 def main():
@@ -128,11 +129,17 @@ def main():
         failure=True;record['error']={'message':str(error),'traceback':traceback.format_exc()}
     finally:
         try:
-            if started:
-                call('daemon_stop')
-                deadline=time.monotonic()+10
-                while (state/'daemon.pid').exists() and time.monotonic()<deadline: time.sleep(0.05)
-                if (state/'daemon.pid').exists(): raise RuntimeError('Own daemon shutdown was not confirmed')
+            try:
+                if started:
+                    call('daemon_stop')
+                    deadline=time.monotonic()+10
+                    while (state/'daemon.pid').exists() and time.monotonic()<deadline: time.sleep(0.05)
+                    if (state/'daemon.pid').exists(): raise RuntimeError('Own daemon shutdown was not confirmed')
+            finally:
+                # T-243: daemon_stop leaves the private hc core running; stop it, even when the stop above failed,
+                # and fail on any process left in the fixture.
+                try: record['core_cleanup']=stop_fixture_core(state,root,os.environ)
+                except AssertionError as error: failure=True;record['residue']=str(error)
             if credential.exists(): credential.unlink()
             record['cleanup_complete']=True
         except Exception as error:

@@ -17,7 +17,7 @@ import traceback
 import uuid
 
 from hc_evidence import assert_public_evidence, private_tokens, user_core_snapshot
-from test_t212_shell_hc_e2e import stop_private_core
+from scripted_claude import stop_fixture_core
 
 ROOT = Path(__file__).resolve().parents[2]
 # The pinned hc archive the daemon already uses; a worktree checkout keeps it beside the worktrees.
@@ -143,15 +143,20 @@ def main():
                 assert private.stat().st_mode & 0o777 == 0o700
                 result.update(status='PASS',observed=observed,private_state_mode='0700')
             finally:
-                tokens.update(private_tokens(state))
-                if running:
-                    stopped=cli('daemon_stop'); assert stopped.returncode==0,stopped.stdout
-                    end=time.monotonic()+15
-                    while (state/'control.sock').exists():
-                        assert time.monotonic()<end;time.sleep(.05)
-                    if case!='corrupt-cache':
-                        cleanup=stop_private_core(fixture,env); assert cleanup['exit']==0,cleanup
-                        result['core_cleanup']=cleanup
+                try:
+                    if running:
+                        stopped=cli('daemon_stop'); assert stopped.returncode==0,stopped.stdout
+                        end=time.monotonic()+15
+                        while (state/'control.sock').exists():
+                            assert time.monotonic()<end;time.sleep(.05)
+                finally:
+                    # T-243: stop the private core even when the stop above failed, and fail on any process left in
+                    # the fixture. The corrupt-cache case starts no core (no manifest): only the residue is checked.
+                    # The tokens are read after it: the stopped core no longer rewrites terminals.json.
+                    try:
+                        result['core_cleanup']=stop_fixture_core(state,fixture,env)
+                    finally:
+                        tokens.update(private_tokens(state))
                 report['cases'].append(result)
         after=user_core_snapshot()
         assert before==after,'user core directory or processes changed'

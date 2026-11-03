@@ -10,7 +10,6 @@ import argparse,json,os,re,shutil,subprocess,sys,threading,time,uuid
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from scripted_claude import Fixture,gate_line,quote
-from test_t212_shell_hc_e2e import stop_private_core
 from t112_native_api import message_events,request_source,request_tools,shell_item,tool_events
 
 PROMPT='这是一次 T216 最小确认。只执行 a2a request executor 申请执行主控；批准后只回复 T216_OK。以后收到收件箱问题也只回复 T216_OK，不调用工具、不修改文件、不派任务。'
@@ -165,7 +164,7 @@ if(cli==='opencode'){
  finally:
   try:f.stop()
   finally:
-   r['cleanup']=stop_private_core(f.dir,f.env)
+   r['cleanup']=getattr(f,'core_cleanup',None)  # Fixture.stop stops the private core (T-232)
    if responses:responses.shutdown()
    if codex_home:
     # Keep own rollout only, never auth/config; then remove the entire isolated CODEX_HOME.
