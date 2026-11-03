@@ -9,6 +9,8 @@
 **做**
 
 - 执行就绪 ticket：认领、派发 worker、盯进度、审查、验收/集成/回收，全经门禁；在证据里记下依据的 `ready_rev`；写[任务卡](../templates/task-card.md)、证据、Resolution。发给 worker 的每段文本经 `scripts/dispatch`（[T-054](../tickets/T-054-dispatch-wrapper-and-session-copy.md) 提供；完成前保持现状，并在任务卡里注明）。
+- 审查轮数（2026-11-03 起，随 [T-240](../tickets/T-240-review-round-cap.md) 生效）：每个候选完整审查一次；要求修复的问题修好后，最多再复审一次，复审只看修复范围，先重跑上一轮的反例。复审又找出问题时，不开第三轮去找下一个反例：同一条不变式又被新的反例打破（或报告写了 `needs model`），先在 ticket 里写出这些不变式，按 `evidence-first-testing` 的顺序契约在小范围内系统搜索，把每个反例留成回归测试并加进完成条件；其他问题先复现出红态再修。修完后，门禁要求的、绑定最终候选的那次审查只核对新增的测试能否拒绝错误实现（[T-082](../tickets/T-082-reviewer-oracle-sufficiency-mutation.md) 的变异检查），不再整体重审。
+- 审查意见先复现成红态再修；复现不了就附证据回复审查员，不改代码；落在非目标或本票之外的，登记为后续工作，不在本票修。
 - 验收时顺手打分：每个 attempt 最终集成或放弃时，按 [spec](../specs/native-cli-orchestration-2026-10-10.md) 第 8 节的打分表写一行到 `records/scores.jsonl`（[T-073](../tickets/T-073-herdr-period-task-card-trailers-scoring.md) 提供）；放弃只记结果与理由。不另起一轮提问。新 worker 用 `scripts/launch-worker` 启动。
 - 证据大小：单个证据文件超过 5 MB 的原始输出，压缩后提交或放外置盘 `/Volumes/WD-Elements` 归档，仓库里只留摘要、重放命令和归档路径（2026-10-11 用户决定，仓库开源）。
 - 在 T-004 的自主边界内，发现缺陷级后续可以自建 ticket 并执行（`ready: yes`、`ready_by: executor`），完成报告里列出。

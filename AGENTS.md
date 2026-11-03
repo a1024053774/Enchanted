@@ -95,7 +95,7 @@
 - `project-map`：地图、术语表、ticket、spec、tracer-bullet build slice，以及每次 session 的 status。
 - `reality-first-engineering`：架构或大范围实现前，区分事实/推断/未知并设计最小可证伪探针。
 - `evidence-first-testing`：修复缺陷、改变行为或添加验收时，先保留真实入口的失败证据和反事实。
-- `design-integrity-review`：候选变更引入异常吞噬、fallback/retry、兼容分支或平行 API 时，在完成检查点做只读审查。
+- `design-integrity-review`：候选变更引入异常吞噬、fallback/retry、兼容分支或平行 API 时，由实现者在完成检查点自查（2026-11-03 起不再另开只读审查会话）。
 - `behavioral-acceptance-review`：触及 eval、benchmark、公开 API 或 Agent 用户行为时，检查独立 oracle 和已知坏实现。
 - `document-writing`：所有项目文档起草、改写和编码交付。
 - `frontend-less-ai-tone`、`same-visual-family`：工作台的界面文案、视觉方向，以及多来源界面的拼装。

@@ -78,6 +78,7 @@
 - [T-225 旧套件处置与受管窗格换 hc 前的基线](tickets/T-225-legacy-suites-disposition.md): 17 个旧套件逐个拆分迁移；P0-1～P0-6 先在现有运行时迁好、取得基线，再换受管窗格；尾注矩阵先迁 bad-worker；业务检查只在后台入口跑
 - [T-226 hc 后续切片的方向问题](tickets/T-226-hc-slicing-open-questions.md): 失联或身份不明时仍显示未知并写明原因；父子通知先做探针 P5 比较 hc 直写与经收件箱；多开窗口只读；本批只报 blocked、error、exit；崩溃后由后台独占重启（随 T-220 定）
 - [T-220 私有 core 崩溃后由谁拉起](tickets/T-220-core-crash-autostart-env.md): holder 约 3 秒重拉、终端里的 hc 能抢先并带走窗格环境；用户确认终端去掉私有 core 的 HC_* 地址、终端之间只经 a2a 命令（T-230），后台按身份认 core（T-228），inexact 窗格提示“历史不完整”
+- [T-240 审查轮数上限](tickets/T-240-review-round-cap.md): 每个候选完整审查一次，修好后最多复审一次修复范围；同一条不变式再被打破时，改为写不变式、小范围系统搜索、反例留成回归测试；审查意见先复现再修；门禁仍要求绑定最终候选的审查
 
 ## Not yet specified
 
