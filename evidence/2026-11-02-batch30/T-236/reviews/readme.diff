@@ -1,0 +1,12 @@
+diff --git a/workbench/README.md b/workbench/README.md
+index da54c2589..3e2982f67 100644
+--- a/workbench/README.md
++++ b/workbench/README.md
+@@ -1,6 +1,7 @@
+ # a2a 门禁、编排后台与工作台
+ 
+ 项目终端由编排后台的私有 hc core 托管；worker、审查员、监视器和主控预设的受管窗格仍走 node-pty（T-212）。
++项目终端里的程序以 Enchanted 的身份访问文件：第一次读 `~/Documents`（以及桌面、下载）下的文件时，macOS 会为 Enchanted 弹出授权框；回答之前，终端里的 `cat`、Claude Code 加载 skill、Codex、agy 都会停在打开文件上，看起来像没有输出或一直排队（T-236、T-238）。在 Enchanted 里用“打开目录”选过的目录不需要这次授权。每个新打的 ad-hoc 测试包是新身份，会重新请求。
+ hc 的固定版本、来源和校验值只定义在 `src/hcDistribution.mjs`。开发启动、测试和打包共用取用逻辑：
+ 缓存 tarball 每次核验 SHA-256；存在但损坏就报错，不下载替换；没有缓存才下载并核验。开发默认读取仓库相邻的
+ `hc-cache/`，可用 `ENCHANTED_HC_CACHE_DIR` 指定缓存目录。应用包内含 hc 与 Apache-2.0 许可、第三方声明，并核对二进制签名。

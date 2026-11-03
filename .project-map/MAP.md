@@ -108,6 +108,7 @@
 - Rewriting the dated research draft | reason: it is the project's initial research record.
 - 基于 Zed 二次开发、从零自建 GPUI 界面 | reason: 见 intent.md 的范围（最初由 T-030 记录）；T-025、T-028 以 out-of-scope 关闭。
 - 第三阶段之外：额度感知调度与水位监控、token/成本/缓存监控、无头模式、改动量上限、前端录屏、风险分档、多审查与影子审查、OCR、定期安全扫描、Claude Code 与 Codex 以外的 CLI（T-119 起按需另开票）、Windows/Linux、多机与远程、Enchanted 功能、跟进 Synara 上游 | reason: 见 intent.md 的范围与 T-069～T-072。
+- T-236、T-238 的“项目终端里 CLI 无输出／不执行” | reason: 证据强烈支持 macOS 隐私授权（TCC“文稿”文件夹）相关原因，用户回答授权框后恢复；未发现需要修改 Enchanted 运行时代码的证据（2026-11-03，以 out-of-scope 结束）。
 
 ## Living docs
 
