@@ -33,3 +33,5 @@ ready_rev:
 - 审查意见先复现成红态再修；复现不了就附证据回复审查员，不改代码；落在非目标或本票之外的，登记为后续工作，不在本票修。
 
 同日 skill 一侧的对应改动：behavioral-acceptance-review 的 `FAIL` 必须附实际跑过的反例，并新增 `needs model`；evidence-first-testing 新增“审查意见先复现”和“顺序契约”两节；design-integrity-review 改为实现者自查。见 design-integrity-guardrails `e2b3402`、reality-evidence-engineering `55e591a`。
+
+同日补充：[审查员角色卡](../roles/reviewer.md)加了两条：要求修复的结论必须附实际跑过的反例；复审先重跑上一轮反例，同一条不变式又被打破时报“未完成”并写 `needs model`，不再继续找下一个。
