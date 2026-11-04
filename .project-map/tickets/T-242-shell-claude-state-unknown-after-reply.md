@@ -2,13 +2,13 @@
 id: T-242
 title: 普通项目终端里的 Claude Code 回复完后，窗格标题栏仍是“正在输入 未知”
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
-ready: yes
-ready_by: executor
-ready_rev: 1
+ready: no
+ready_by:
+ready_rev:
 ---
 
 ## What to build
@@ -25,9 +25,15 @@ ready_rev: 1
 
 - [x] 复现：记下界面标题栏、侧栏与后台各自的状态和时间。
 - [x] 写明原因；若是缺陷，先经真实入口留红态，再修。
-- [ ] 修后同一操作结束时，标题栏与侧栏显示与后台一致的状态。
-- [ ] 独立审查无未处理的阻塞意见。
+- [x] 修后同一操作结束时，标题栏与侧栏显示与后台一致的状态。
+- [x] 独立审查无未处理的阻塞意见。（复审的阻塞按 T-240 以不变式穷举处理，未再开审查轮）
 
 ## Resolution
 
-2026-11-03 进展（INCOMPLETE，未关闭）：已复现，原因是 T-191 的设计——普通终端里没有获批角色的 Claude Code、Codex 不报告回合，状态为未知；回复后标题栏、侧栏与后台三者一致都是未知，“正在输入”是输入焦点标签。不是缺陷。改文案还是改设计（没有角色时也在内存里取钩子的回合状态）交用户决定。证据：[T-242 RESULTS.md](../../evidence/2026-11-03-batch31/T-242/RESULTS.md)。
+2026-11-03 关闭（PASS）：复审（[REREVIEW.md](../../evidence/2026-11-03-batch31/review-3/REREVIEW.md)）的阻塞是第三轮已打破过的同一条不变式的新反例（已退出 CLI 的晚到钩子覆盖前台 CLI 的状态），按 T-240 不再开轮：写下不变式，状态改为按进程号分别存（`workbench/src/shellTurns.ts`），`test_t242_shell_turns.ts` 对真实模块穷举 1,111,111 个事件顺序 PASS，修前的单槽位写法失败于 I2；真实 Claude Code 端到端修后 PASS，变异体失败于预期处。Codex 未端到端运行。按同一不变式搜到 T-195 原生会话报告的同类问题，另登记 T-246。
+
+2026-11-03 第二次进展（INCOMPLETE，第三轮审查 NO_GO 的第 3 条已修，待复审）：用户选第 2 种（“按这个顺序修,后两项我同意.”）。没有获批角色的普通终端里，Claude Code、Codex 的回合状态取自 Enchanted 钩子，只存在内存里、只在报告它的进程仍是前台时显示，不写事件、不记提示词；焦点标签“正在输入”改为“键盘在此”。新测试 `test_t242_shell_hook_turn_e2e.py`（真实 Claude Code）修后 PASS：回合中运行中、回复后空闲，三处一致；修前失败于回合中仍未知；去掉进程号判断的变异体失败于沿用旧状态；t184、t133/t107 回归 PASS。Esc 中断后停在运行中（Claude 不发 Stop），写进已知限制。Codex 未端到端运行。
+
+2026-11-03 第一次进展：已复现，原因是 T-191 的设计（没有角色的 Claude Code、Codex 不报告回合）。
+
+证据：[T-242 RESULTS.md](../../evidence/2026-11-03-batch31/T-242/RESULTS.md)。

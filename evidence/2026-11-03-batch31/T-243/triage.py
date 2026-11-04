@@ -25,6 +25,10 @@ def tests(o):
             'test_t126_terminal_socket_e2e.py', 'test_t127_codex_home_e2e.py', 'test_t131_parallel_workers_e2e.py',
             'test_t193_multi_project_e2e.py', 'test_t195_native_link_e2e.py', 'test_t198_out_of_card_e2e.py',
             'test_t237_retrospective_end_e2e.py', 'test_t239_pane_invalid_utf8_e2e.py']},
+        # Second round (one-off batch drivers whose inputs can be built here): the installed Electron dist.
+        **{name: ['--source', str(ROOT), '--electron-dist', str(ROOT / 'workbench/node_modules/electron/dist'), '--summary', f]
+           for name in ['run_t109_hierarchy.py', 'run_t111_flow.py']},
+        'run_t108_native_e2e.py': ['--summary', f, '--electron-dist', str(ROOT / 'workbench/node_modules/electron/dist')],
         **{name: [f] for name in ['test_t096_archive_failed_02.py', 'test_t096_fixed_cleanup.py', 'test_t096_red_startup.py',
             'test_t096_restart_cleanup.py', 'test_t096_version_cleanup.py']},
     }

@@ -25,6 +25,7 @@ import time
 import traceback
 
 from scripted_claude import Electron, Fixture, prompt_text, quote, working_directory
+from scripted_claude import MARKETPLACE_SKIPPED  # T-245  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 MUTANTS = {
@@ -67,7 +68,7 @@ def main():
     try:
         fixture = Fixture('t207-', plan, revision=args.revision, patches=MUTANTS.get(args.mutant, ()))
         report['fixture'] = str(fixture.dir)
-        (fixture.home / '.claude.json').write_text(json.dumps({'hasCompletedOnboarding': True, 'theme': 'dark',
+        (fixture.home / '.claude.json').write_text(json.dumps({**MARKETPLACE_SKIPPED, 'hasCompletedOnboarding': True, 'theme': 'dark',
             'projects': {str(fixture.repo): {'hasTrustDialogAccepted': True}}}), encoding='utf-8')
         fixture.start(args.claude, {'README.md': 'T-207 fixture\n', 'check.py':
             'from pathlib import Path\nassert Path("answer.txt").read_text() == "accepted"\n'})

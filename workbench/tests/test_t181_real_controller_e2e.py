@@ -26,6 +26,7 @@ import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from scripted_claude import Electron, Fixture, quote  # noqa: E402
+from scripted_claude import MARKETPLACE_SKIPPED  # T-245  # noqa: E402
 from test_t163_controller_e2e import credentials, native_rows, root_prompts, write  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -73,7 +74,7 @@ def main():
         config = controller_home / '.claude'
         config.mkdir(parents=True, mode=0o700)
         secret = credentials(Path.home(), config / '.credentials.json')
-        write(config / '.claude.json', dict(hasCompletedOnboarding=True, hasSeenAutoDefaultNudge=True, theme='dark',
+        write(config / '.claude.json', dict(**MARKETPLACE_SKIPPED, hasCompletedOnboarding=True, hasSeenAutoDefaultNudge=True, theme='dark',
               projects={str(fixture.repo): dict(hasTrustDialogAccepted=True)}))
         # Same disposable-HOME permissions as T-163, except AskUserQuestion stays available: using it is the behaviour under test.
         permissions = {'defaultMode': 'dontAsk', 'allow': ['Read', 'Write', 'Edit', 'Bash'], 'deny': ['Task', 'Agent'],

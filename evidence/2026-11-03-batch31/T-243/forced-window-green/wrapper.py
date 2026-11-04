@@ -1,0 +1,8 @@
+import runpy, sys
+sys.path.insert(0, '/Users/luckye/Documents/Code/a2a/workbench/tests')
+import electron_client
+def unconfirmed(self):
+    raise RuntimeError('T-243 forced: Electron exit unconfirmed')
+electron_client.ElectronClient.close = unconfirmed
+sys.argv = ['/Users/luckye/Documents/Code/a2a/workbench/tests/test_electron_e2e.py', '--source', '/Users/luckye/Documents/Code/a2a', '--output', '/Users/luckye/Documents/Code/a2a/evidence/2026-11-03-batch31/T-243/forced-window-green/out', '--stage', 'window']
+runpy.run_path(sys.argv[0], run_name='__main__')

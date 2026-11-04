@@ -4,6 +4,7 @@ from contextlib import contextmanager
 import os
 from pathlib import Path
 import selectors
+import signal
 import subprocess
 import time
 
@@ -51,8 +52,12 @@ class ElectronClient:
             self.ready_confirmed = True
         except Exception as error:
             self.record({'startup_error': repr(error), 'owned_pid': self.process.pid if self.process else None})
-            # Retain the failed startup for the controller. A pre-ready process
-            # cannot be normally closed; never convert this into an automatic kill.
+            # A pre-ready process cannot be normally closed, and the caller never gets this client: record its scene and
+            # stop it here (T-243). The startup error stays the one raised.
+            try:
+                self.capture_and_stop(output / 'startup-scene')
+            except Exception as stop_error:
+                self.record({'startup_stop_error': repr(stop_error)})
             raise
 
     def record(self, value):
@@ -148,12 +153,52 @@ class ElectronClient:
         finally:
             self.call('resume-output')
 
+    def capture_and_stop(self, scene):
+        """T-243 (user ruling 2026-11-03): an Electron whose ready or exit is unconfirmed is no longer left running for
+        the controller; tests run unattended, and a process left behind is the residue T-243 removes. Record what a
+        live look would show (process group, a 3 s stack sample: a macOS permission prompt shows there, T-236), then end
+        the process group this client started (start_new_session, so its pgid is its pid) once pid, start time and
+        command are still the owned ones. Returns the record; raises when the process cannot be confirmed gone."""
+        record = dict(owner=self.owner)
+        if self.process is None or self.process.poll() is not None:
+            record['already_exited'] = None if self.process is None else self.process.returncode
+            return record
+        if not self.owner or self.process_identity() != self.owner:
+            raise RuntimeError('Electron PID, start time or command changed; not stopping it')
+        # A scene that cannot be recorded is noted; the owned process is ended all the same (review-3 finding 1).
+        try:
+            scene.mkdir(parents=True, exist_ok=True)
+            group = subprocess.run(['/bin/ps', '-ww', '-g', str(self.process.pid), '-o', 'pid=,ppid=,pgid=,lstart=,stat=,command='],
+                                   capture_output=True, text=True, timeout=10)
+            (scene / 'process-group.txt').write_text(group.stdout + group.stderr, encoding='utf-8')
+            sample = subprocess.run(['/usr/bin/sample', str(self.process.pid), '3', '-file', str(scene / 'sample.txt')],
+                                    capture_output=True, text=True, timeout=60)
+            record.update(scene=str(scene), sample_exit=sample.returncode)
+        except (OSError, subprocess.SubprocessError) as error:
+            record['scene_error'] = repr(error)
+        for sig, wait in ((signal.SIGTERM, 10), (signal.SIGKILL, 10)):
+            try:
+                os.killpg(self.process.pid, sig)
+            except ProcessLookupError:
+                break
+            try:
+                self.process.wait(timeout=wait)
+                break
+            except subprocess.TimeoutExpired:
+                continue
+        record['returncode'] = self.process.poll()
+        if record['returncode'] is None or self.process_identity() is not None:
+            raise RuntimeError('Owned Electron did not end after SIGKILL')
+        self.close_streams()
+        self.record({'captured_and_stopped': record})
+        return record
+
     def close(self):
         if self.exit_confirmed:
             return
         try:
             if not self.ready_confirmed:
-                raise RuntimeError('Electron ready unconfirmed; wait for controller; no normal quit or signal')
+                raise RuntimeError('Electron ready unconfirmed; no normal quit (capture_and_stop records and stops it)')
             if self.process.poll() is None:
                 if not self.owner or self.process_identity() != self.owner:
                     raise RuntimeError('Electron PID, start time or command changed; no close request')

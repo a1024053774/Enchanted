@@ -29,6 +29,7 @@ import traceback
 import uuid
 
 from scripted_claude import Electron, Fixture, quote, source_tree
+from scripted_claude import MARKETPLACE_SKIPPED  # T-245  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -171,7 +172,7 @@ def main():
         config.mkdir(parents=True, mode=0o700)
         credential = config / '.credentials.json'
         secret = credentials(Path.home(), credential)
-        write(config / '.claude.json', dict(hasCompletedOnboarding=True, hasSeenAutoDefaultNudge=True,
+        write(config / '.claude.json', dict(**MARKETPLACE_SKIPPED, hasCompletedOnboarding=True, hasSeenAutoDefaultNudge=True,
               theme='dark', projects={str(fixture.repo): dict(hasTrustDialogAccepted=True)}))
         # RUN-OUTSIDE-01: our prefix-only fixture rejected the controller's set -e/for loop.
         # Allow Bash only in this disposable controller HOME; production shell launch adds no such settings.

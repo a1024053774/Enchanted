@@ -54,6 +54,7 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from scripted_claude import Electron, Fixture
+from scripted_claude import MARKETPLACE_SKIPPED  # T-245  # noqa: E402
 from t112_native_api import message_events, request_source, request_tools, shell_item, tool_events
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -156,7 +157,7 @@ def main():
         fixture = Fixture('t229-', lambda body: ('worker', [], '收到。'), revision=args.revision,
                           patches=[*MUTANTS.get(args.mutant, ()), *FAULTS.get(args.case, ())])
         report['fixture'] = str(fixture.dir)
-        (fixture.home / '.claude.json').write_text(json.dumps({'hasCompletedOnboarding': True, 'theme': 'dark',
+        (fixture.home / '.claude.json').write_text(json.dumps({**MARKETPLACE_SKIPPED, 'hasCompletedOnboarding': True, 'theme': 'dark',
             'projects': {str(fixture.repo): {'hasTrustDialogAccepted': True}}}), encoding='utf-8')
         launch_config, executor = None, None
         if args.cli == 'codex':

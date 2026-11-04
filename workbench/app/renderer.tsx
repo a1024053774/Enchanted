@@ -497,7 +497,7 @@ function SessionPane({ paneKey, active, screenReader, fontFamily, name, confirme
               `${task?.name ?? ''}${snapshot.launch.attempt ? ' · attempt ' + snapshot.launch.attempt.slice(0, 8) : ''} · ${snapshot.launch.cli_version}`
             : '尚未启动窗格'}</span>
           <span className="pane-badges" data-lifecycle={pane?.lifecycle ?? 'unknown'}>
-            <span className="input-target">{inputTarget ? '正在输入' : shell && pane?.lifecycle === 'ended' ? '终端已结束 · 只读' : historical ? '历史 attempt · 只读' : ''}</span>
+            <span className="input-target">{inputTarget ? '键盘在此' : shell && pane?.lifecycle === 'ended' ? '终端已结束 · 只读' : historical ? '历史 attempt · 只读' : ''}</span>
             {!inputEnabled && <span className="readonly">只读</span>}
             {/* T-176: the sidebar's state of this session, so the header and the row never disagree. */}
             <span className="pane-state" data-state={error ? 'unknown' : agentState ?? 'unknown'}>{error ? '未知' : stateNames[agentState ?? 'unknown'] ?? '未知'}</span>

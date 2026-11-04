@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -37,21 +37,30 @@ export async function installHc(destination) {
   return join(destination, 'herdr-core');
 }
 
+// The development install of this pin under a data directory's hc/ (tests find it by this prefix).
+export const hcInstallName = `herdr-core-${hcRelease.version}-${hcRelease.sha256.slice(0, 8)}`;
+
 export async function hcBinary(root) {
   const packaged = fileURLToPath(new URL('../hc/herdr-core', import.meta.url));
   // Packaged resources were verified from the pinned archive and codesigned.
   if (existsSync(packaged)) return packaged;
-  // T-244: a core outlives the daemon and starts its holders from this path; extracting again gives the file a new
-  // inode, so a running core's next holder has another build and is refused. Keep an install of the same pin whose
-  // file still has the size and mtime it was extracted with (a truncated or replaced file is installed again).
-  const destination = join(root, 'hc', 'bin'), binary = join(destination, 'herdr-core'), release = join(destination, 'release.json');
-  const marker = () => { const { size, mtimeMs } = statSync(binary); return JSON.stringify({ ...hcRelease, size, mtimeMs }); };
-  if (existsSync(binary) && existsSync(release) && readFileSync(release, 'utf8') === marker()) return binary;
-  // The marker is written only after a complete extraction: an interrupted one leaves no marker and is redone.
-  // Two daemons starting on one fresh data directory can still both extract; hcBinary runs before the daemon's
-  // endpoint and pid file are exclusive (known limit, T-244).
-  rmSync(release, { force: true });
-  await installHc(destination);
-  writeFileSync(release, marker(), { mode: 0o600 });
+  // T-244: a core outlives the daemon and starts its holders from the file it was started from; a holder from another
+  // file (inode) is refused. So each pin has its own directory, published by one rename and never written again: a
+  // running core keeps its file across daemon restarts and pin changes, of two daemons installing on one fresh data
+  // directory the later rename fails and uses the first install, and an interrupted extraction is never published.
+  // A file damaged afterwards fails at exec (hc is code signed) and stops the daemon start, as a corrupt archive does.
+  const parent = join(root, 'hc'), install = join(parent, hcInstallName), binary = join(install, 'herdr-core');
+  if (existsSync(binary)) return binary;
+  mkdirSync(parent, { recursive: true, mode: 0o700 });
+  // An interrupted install leaves this directory unused; it goes with the data directory.
+  const staging = mkdtempSync(join(parent, '.install-'));
+  try {
+    await installHc(staging);
+    try { renameSync(staging, install); }
+    // Only another daemon's finished install may take the place; an incomplete directory there is an error to see.
+    catch (error) { if (!['ENOTEMPTY', 'EEXIST'].includes(error.code) || !existsSync(binary)) throw error; }
+  } finally {
+    rmSync(staging, { recursive: true, force: true });
+  }
   return binary;
 }

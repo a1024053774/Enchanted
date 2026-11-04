@@ -24,6 +24,7 @@ import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from scripted_claude import Electron, Fixture, quote  # noqa: E402
+from scripted_claude import MARKETPLACE_SKIPPED  # T-245  # noqa: E402
 
 
 def main():
@@ -115,7 +116,7 @@ def main():
         else:
             assert fixture.request('role_release', fixture.terminal)['ok']
             config = fixture.home / '.claude.json'
-            config.write_text(json.dumps({'hasCompletedOnboarding': True, 'hasSeenAutoDefaultNudge': True, 'theme': 'dark',
+            config.write_text(json.dumps({**MARKETPLACE_SKIPPED, 'hasCompletedOnboarding': True, 'hasSeenAutoDefaultNudge': True, 'theme': 'dark',
                                           'projects': {str(fixture.repo): {'hasTrustDialogAccepted': True}}}), encoding='utf-8')
             (fixture.home / '.claude').mkdir(exist_ok=True)
             permissions = {'defaultMode': 'default', 'allow': ['Bash(a2a request:*)', 'Bash(a2a call:*)'],

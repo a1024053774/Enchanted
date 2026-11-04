@@ -25,6 +25,7 @@ import traceback
 
 from command_evidence import CommandLog, command_json
 from electron_client import ElectronClient
+from scripted_claude import stop_fixture_core
 
 
 def main():
@@ -236,17 +237,38 @@ def main():
         result['setup_or_probe_error'] = {'error':repr(error),'traceback':traceback.format_exc()}
     finally:
         try:
-            if window and not result.get('runtime_window_closed'):
-                window.close()
+            # T-243: each window step's failure is recorded and the shutdown below still runs.
+            try:
+                if window and not result.get('runtime_window_closed'):
+                    window.close()
+            except Exception as error:
+                failure = True
+                result['window_cleanup_error'] = repr(error)
             if window_attempted and (window is None or not window.ready_confirmed or not window.exit_confirmed):
-                raise RuntimeError('Electron ready/exit unconfirmed; backend shutdown and archive deferred to controller')
-            if started:
-                call('daemon_stop')
-                deadline = time.monotonic()+10
-                while (state / 'daemon.pid').exists() and time.monotonic() < deadline:
-                    time.sleep(0.05)
-                if (state / 'daemon.pid').exists():
-                    raise RuntimeError('Own daemon did not finish shutdown; no automatic kill/restart')
+                # Record the scene and end the owned Electron, then shut down as on any other path.
+                failure = True
+                result['window_unconfirmed'] = True
+                if window is not None:
+                    try:
+                        result['window_scene'] = window.capture_and_stop(output / 'window-scene')
+                    except Exception as error:  # a still-running Electron is reported as residue below
+                        result['window_scene_error'] = repr(error)
+            try:
+                if started:
+                    call('daemon_stop')
+                    deadline = time.monotonic()+10
+                    while (state / 'daemon.pid').exists() and time.monotonic() < deadline:
+                        time.sleep(0.05)
+                    if (state / 'daemon.pid').exists():
+                        raise RuntimeError('Own daemon did not finish shutdown; no automatic kill/restart')
+            finally:
+                # daemon_stop leaves the private hc core running; stop it, even when the stop above failed,
+                # and fail on any process left in the fixture.
+                try:
+                    result['core_cleanup'] = stop_fixture_core(state, fixture, os.environ)
+                except AssertionError as error:
+                    failure = True
+                    result['residue'] = str(error)
             result['cleanup_complete'] = True
             if credential.exists():
                 credential.unlink()  # This run created it; never archive a capability.

@@ -34,7 +34,7 @@ import uuid
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'workbench/tests'))
 from hc_evidence import assert_public_evidence, private_tokens, user_core_snapshot  # noqa: E402
-from scripted_claude import stop_private_core  # noqa: E402
+from scripted_claude import hc_binary, stop_private_core  # noqa: E402
 from test_t212_shell_hc_e2e import wait_for  # noqa: E402
 
 
@@ -49,7 +49,7 @@ def main():
     state, home = fixture / 'state', fixture / 'home'
     state.mkdir(); home.mkdir()
     (home / '.zshrc').write_text("PS1='T228% '\n", encoding='utf-8')
-    binary = state / 'hc/bin/herdr-core'
+    binary = hc_binary(state)
     env = {key: os.environ[key] for key in ('PATH', 'LANG', 'ENCHANTED_HC_CACHE_DIR') if key in os.environ}
     env.update(HOME=str(home), SHELL='/bin/zsh', TMPDIR='/private/tmp')
     if args.non_ascii:

@@ -22,6 +22,7 @@ import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from scripted_claude import Electron, Fixture, prompt_text, working_directory
+from scripted_claude import MARKETPLACE_SKIPPED  # T-245  # noqa: E402
 
 
 def main():
@@ -91,7 +92,7 @@ def main():
         }.get(args.mutant, [])
         fixture = Fixture('t144-', plan, revision=args.revision, patches=patches)
         report['fixture'] = str(fixture.dir)
-        (fixture.home / '.claude.json').write_text(json.dumps({'hasCompletedOnboarding': True, 'theme': 'dark',
+        (fixture.home / '.claude.json').write_text(json.dumps({**MARKETPLACE_SKIPPED, 'hasCompletedOnboarding': True, 'theme': 'dark',
             'projects': {str(fixture.repo): {'hasTrustDialogAccepted': True}}}), encoding='utf-8')
         files = {'README.md': 'fixture\n', 'check.py': 'from pathlib import Path\nassert Path("done.txt").is_file()\n'}
         fixture.start(args.claude, files)

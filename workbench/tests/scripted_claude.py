@@ -17,6 +17,25 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 ROOT = Path(__file__).resolve().parents[2]
 TOKEN = 'a2a-fixture-key-not-a-secret'
 SERVED_MODEL = 'claude-haiku-5-5-scripted-served'
+# T-245: what Claude Code 2.1.317 writes to its global config when CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL is
+# set; with it a session skips the official marketplace install (a download, and when that fails `ssh -T git@github.com`
+# and a clone with the account's real ~/.ssh, which ssh reads whatever HOME is). Every fixture session reads HOME's
+# .claude.json, managed workers included; the variable would not reach them (allowlisted env, no setting sources).
+MARKETPLACE_SKIPPED = {'officialMarketplaceAutoInstallAttempted': True, 'officialMarketplaceAutoInstalled': False,
+                       'officialMarketplaceAutoInstallFailReason': 'policy_blocked'}
+
+
+def hc_installs(state):
+    """The development installs of the private core: one directory per release pin (T-244, hcDistribution.mjs).
+    hc/bin is where revisions before T-244 install it; a red run on such a revision needs it to stop its core."""
+    return sorted(Path(state).glob('hc/herdr-core-*/herdr-core')) + sorted(Path(state).glob('hc/bin/herdr-core'))
+
+
+def hc_binary(state):
+    """The one install of a data directory that has seen one release pin, or None."""
+    found = hc_installs(state)
+    assert len(found) <= 1, found
+    return found[0] if found else None
 
 
 def stop_private_core(state, env):
@@ -27,9 +46,11 @@ def stop_private_core(state, env):
         return None
     identity = json.loads(manifest.read_text(encoding='utf-8'))
     assert identity['session'].startswith('enchanted-') and identity['session'] != 'default'
-    binary = Path(state) / 'hc/bin/herdr-core'
-    if not binary.exists():
+    # Any install can stop it: hc client commands do not compare builds with the core (T-244 red runs).
+    installs = hc_installs(state)
+    if not installs:
         return None
+    binary = installs[0]
     private = dict(env, HC_SESSION=identity['session'], HC_SOCKET=identity['socket'],
                    XDG_STATE_HOME=str(Path(state) / 'hc/state'), XDG_CONFIG_HOME=str(Path(state) / 'hc/config'))
     run = subprocess.run([str(binary), 'server', 'stop'], env=private, capture_output=True, text=True, timeout=20,
@@ -50,6 +71,11 @@ def stop_fixture_core(state, path, env):
         if not left or time.monotonic() > deadline:
             break
     assert not left, f'夹具进程残留：{left}'
+    # T-245: a fixture Claude that installed the official marketplace reached the network, and on a failed download
+    # authenticated to GitHub with the account's real ~/.ssh. MARKETPLACE_SKIPPED stops it; this fails when it no longer does.
+    installed = [str(found) for home in (Path(path), *Path(path).iterdir()) if home.is_dir()
+                 for found in [home / '.claude/plugins/marketplaces'] if found.exists()]
+    assert not installed, f'夹具里的 Claude Code 装了官方插件市场：{installed}'
     return cleanup
 
 
@@ -238,7 +264,7 @@ class Fixture:
         for path in (self.state, self.out, self.repo) + (() if home else (self.home,)):
             path.mkdir()
         if not home:
-            (self.home / '.claude.json').write_text(json.dumps({'hasCompletedOnboarding': True, 'theme': 'dark'}), encoding='utf-8')
+            (self.home / '.claude.json').write_text(json.dumps({**MARKETPLACE_SKIPPED, 'hasCompletedOnboarding': True, 'theme': 'dark'}), encoding='utf-8')
         self.source = source or source_tree(self.dir, revision, patches)
         self.cli = self.source / 'workbench/src/gates/cli.ts'
         self.api = ScriptedApi(plan, self.out)

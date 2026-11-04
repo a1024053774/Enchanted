@@ -14,6 +14,7 @@ import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from scripted_claude import Fixture, prompt_text, quote  # noqa: E402
+from scripted_claude import MARKETPLACE_SKIPPED  # T-245  # noqa: E402
 
 
 def main():
@@ -37,7 +38,7 @@ def main():
         report['fixture'] = str(fixture.dir)
         report['cli_version'] = subprocess.check_output([args.claude, '--version'], text=True).strip()
         fixture.start(args.claude, {'README.md': 'T-142 permission probe\n'})
-        config = {'hasCompletedOnboarding': True, 'hasSeenAutoDefaultNudge': True, 'theme': 'dark',
+        config = {**MARKETPLACE_SKIPPED, 'hasCompletedOnboarding': True, 'hasSeenAutoDefaultNudge': True, 'theme': 'dark',
                   'projects': {str(fixture.repo): {'hasTrustDialogAccepted': True}}}
         permissions = {'defaultMode': 'default', 'allow': ['Bash(a2a request:*)', 'Bash(a2a call:*)'],
                        'additionalDirectories': [str(fixture.out.resolve())]}

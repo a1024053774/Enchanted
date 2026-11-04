@@ -23,6 +23,7 @@ import sys
 import time
 
 from scripted_claude import Electron, Fixture
+from scripted_claude import MARKETPLACE_SKIPPED  # T-245  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 MODEL = 'claude-haiku-5-5'
@@ -101,7 +102,7 @@ def main():
         # HOME/.claude; use that identical location for both preflight and CLI.
         private_config = fixture.home / '.claude'
         private_config.mkdir(exist_ok=True, mode=0o700)
-        config = {'hasCompletedOnboarding': True, 'theme': 'dark',
+        config = {**MARKETPLACE_SKIPPED, 'hasCompletedOnboarding': True, 'theme': 'dark',
                   'projects': {str(fixture.repo): {'hasTrustDialogAccepted': True}}}
         original = Path.home() / '.claude.json'
         if original.is_file():

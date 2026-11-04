@@ -4,8 +4,9 @@
 项目终端里的程序访问 `~/Documents` 等受 macOS 隐私保护的目录时，若尚未获得授权，macOS 可能请求授权；等待回答期间，终端里的程序可能停在打开文件上，表现为 Claude Code 没有输出、Codex 输入一直排队、agy 一直 working。遇到这种现象先检查有没有系统授权框（T-236、T-238 中，用户回答授权框后恢复）。重新构建的 ad-hoc 包可能需要重新授权。
 hc 的固定版本、来源和校验值只定义在 `src/hcDistribution.mjs`。开发启动、测试和打包共用取用逻辑：
 缓存 tarball 每次核验 SHA-256；存在但损坏就报错，不下载替换；没有缓存才下载并核验。开发默认读取仓库相邻的
-`hc-cache/`，可用 `ENCHANTED_HC_CACHE_DIR` 指定缓存目录。开发态解包到数据目录的 `hc/bin`，并写下 `release.json`；
-之后后台启动时若它与固定值相同就沿用已解包的文件，不再解包：重新解包会换 inode，仍在运行的 core 之后起的 holder 构建号对不上（T-244）。应用包内含 hc 与 Apache-2.0 许可、第三方声明，并核对二进制签名。
+`hc-cache/`，可用 `ENCHANTED_HC_CACHE_DIR` 指定缓存目录。开发态每个固定值装在数据目录的 `hc/herdr-core-<版本>-<SHA 前 8 位>/`：
+先解包到同目录下的临时目录，再一次改名发布，之后不再写入；已存在就直接用。重新解包会换 inode，仍在运行的 core 之后起的 holder
+构建号就对不上（T-244）。早先的 `hc/bin` 不删，可能还有 core 在用。应用包内含 hc 与 Apache-2.0 许可、第三方声明，并核对二进制签名。
 
 每个后台数据目录保存自己的 `HC_SESSION` 与 `HC_SOCKET` 身份。socket 位于随机私有临时目录，
 与用户 default core 无关；核对长度时包含 holder 后缀。hc 的状态和配置通过 XDG 变量放在后台私有 `hc/` 目录，
@@ -146,7 +147,7 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
 项目终端的布局保存只包含普通终端，项目查询中同属该项目的任务 agent 不进入终端布局。
 项目终端里的 Claude Code（经插件）和 Codex（经包装脚本的 `-c hooks.SessionStart`）在会话开始时都经 SessionStart 钩子（`a2a session-context`，输出 `hookSpecificOutput.additionalContext`）收到同一份开局说明（文字只在 `terminal/orientation/AGENTS.md` 一处；opencode 把这个文件作为 instructions 读入，agy 经包装脚本的 `--add-dir` 把这个目录加进工作区、读其中的 AGENTS.md，T-187）：`a2a` 在 PATH 上、`a2a help`、用户要它当主控就直接 `a2a request`、当主控前先读使用说明（Claude 是 a2a skill，其他 CLI 看 `a2a help`）；只在有终端身份时输出（T-181、T-185）。用户自己用 `-c hooks.SessionStart=…` 传的开局钩子优先，替换 Enchanted 的这一项；用户 hooks.json 里的开局钩子照常一起运行。新钩子第一次在用户自己的 Codex 里启动时，Codex 会弹一次钩子信任框，由用户本人确认，a2a 不写 Codex 配置。
 侧栏接口把普通终端放在 `terminals`；`agents` 包含 agent 会话和终端最近一次确认生效的主控角色。终端已结束时保留主控条目；交回角色而终端仍运行时恢复为普通终端。普通终端的状态取前台的 agent，不取 shell（T-191）：前台没有已登记的 CLI 时为空闲；
-agy、opencode 取它们报给终端的 OSC 7501；Claude Code、Codex 在获批角色前没有回合钩子，显示未知。前台 CLI 在提交一行后读出，
+agy、opencode 取它们报给终端的 OSC 7501；Claude Code、Codex 取 Enchanted 钩子报的回合（T-242：没有获批角色时只存在内存里、不记录，只在报告它的进程仍是前台时显示；第一次提交前显示未知）。前台 CLI 在提交一行后读出，
 有 CLI 在前台时每 5 秒复查。每行在角色名前显示所属 CLI 的图标（Claude Code、Codex、agy、opencode；来源与许可见
 `app/brand/cli/NOTICE.md`），受管会话的 CLI 名取启动记录里的 `cli`。
 T-177：已结束的会话和被新 attempt 取代的会话折进每个任务下的“历史 N 个”，默认收起；子会话仍在用时父会话不折。“清理”只拿掉已结束的会话（追加 `sidebar_hidden` 事件，仅操作员；记录与门禁事件不删，运行中的会话拒绝 `session_not_ended`）。已集成任务仍空闲的当前 worker 显示“回收”，经门禁 `reclaim`。没有指定启动目标时，窗口打开最近活跃、未结束的会话。

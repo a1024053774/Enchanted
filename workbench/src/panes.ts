@@ -9,6 +9,7 @@ import { performance } from "node:perf_hooks";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { StringDecoder } from "node:string_decoder";
 import { HcRuntime, HcTerminal } from './hc.ts';
+import { ShellTurns, type ShellHookTurn } from './shellTurns.ts';
 import { validateHookEnvelope, questionFromHook, questionPermission, questionAnswerConfirmed, projectQuestions, nativeAnswerKeys, currentTurnBinding, noncurrentHook, currentTurnTrust } from './questions.ts';
 import type { A2AAttachment, A2AAttempt, A2ATask, A2AReview, A2ARepair } from "./contracts/a2aGates.ts";
 import { Refusal, treeWritable, type GateRuntime, type SubmitCaller } from "./gates/core.ts";
@@ -248,6 +249,8 @@ type Pane = {
   // T-195: the native session a terminal's Claude Code or Codex last reported through its hook, bound to the reporting
   // CLI's process: a later CLI in the same terminal is never given it.
   nativeReport?: ShellNativeReport | null;
+  // T-242: the turn states a terminal's Claude Code or Codex reported through its hook (shellTurns.ts).
+  shellTurns?: ShellTurns;
   shellOscSequence?: number;
   inboxUnknown?: string | null;
   // T-187: a managed agy or opencode session; its turns come from its OSC 7501 reports (reportedTurns).
@@ -494,6 +497,12 @@ export class Panes implements GateRuntime {
     this.noteNativeReport(pane, report);
     pane.native = report.session;
   }
+  // T-242: a turn state from that hook, for a terminal without an approved role.
+  noteShellTurn(launch: string, turn: ShellHookTurn) {
+    const pane = this.byLaunch(launch);
+    check(pane.record.role === "shell", "shell_required");
+    (pane.shellTurns ??= new ShellTurns()).note(turn);
+  }
   // T-133 records every native submission except an unclaimed inbox send of our own (T-216).
   // History/completion change the CLI's text without typing it through attach; keys cannot decide provenance.
   claimShellInboxPrompt(launch: string, prompt: unknown): boolean {
@@ -584,6 +593,7 @@ export class Panes implements GateRuntime {
     pane.wiringBusy = true; pane.wiringCheckAt = undefined;
     try {
       const front = await this.foreground(pane);
+      (pane.shellTurns ??= new ShellTurns()).foreground(front?.pid ?? null);
       if (!front) { pane.unwiredCli = null; pane.cliTurn = null; pane.foregroundCli = null; return; }
       const { pid, launch, cli: command } = front;
       const cli = command === undefined ? undefined : terminalClis[command];
@@ -2013,6 +2023,7 @@ export class Panes implements GateRuntime {
         start_missing: this.startMissing(pane), silent_foreground: pane.silentForeground ?? null,
         unwired_cli: pane.unwiredCli ? { command: pane.unwiredCli.command, since: pane.unwiredCli.since } : null,
         cli_turn: pane.cliTurn ?? null, foreground_cli: pane.foregroundCli ?? null,
+        hook_turn: pane.shellTurns?.shown() ?? null,
         turn: pane.turn, writing: pane.writing, user_draft: pane.userDraft, interrupted: pane.interrupted,
         input_generation: pane.inputGeneration, interruption: pane.interruption,
         queued: pane.queue.map((item) => item.id), failed: pane.failed, stopped: pane.stopped, restoration,

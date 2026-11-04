@@ -1,0 +1,119 @@
+{
+  "status": "INCOMPLETE",
+  "task": "T-108",
+  "attempt": "a1",
+  "model_turns": 0,
+  "model_calls": 0,
+  "vendor_calls": 0,
+  "fixture": "/private/tmp/t078-2-t108-vtw_7dk4",
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "init",
+        "-b",
+        "main",
+        "/private/tmp/t078-2-t108-vtw_7dk4/repo"
+      ],
+      "exit": 0,
+      "stdout": "Initialized empty Git repository in /private/tmp/t078-2-t108-vtw_7dk4/repo/.git/\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t078-2-t108-vtw_7dk4/repo",
+        "add",
+        "."
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t078-2-t108-vtw_7dk4/repo",
+        "commit",
+        "-m",
+        "fixture"
+      ],
+      "exit": 0,
+      "stdout": "[main (root-commit) c835f99] fixture\n 1 file changed, 1 insertion(+)\n create mode 100644 fixture\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "exit": 0,
+      "stdout": "20f1d85817d0163eaae3b524e004f469a573141f\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t078-2-t108-vtw_7dk4/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":41959,\"root\":\"/private/tmp/t078-2-t108-vtw_7dk4/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t078-2-t108-vtw_7dk4/state",
+        "card_save",
+        "--task",
+        "T108-fixture",
+        "--card",
+        "/private/tmp/t078-2-t108-vtw_7dk4/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"unknown_task\",\"details\":{\"task\":\"T108-fixture\",\"projects\":[]},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-11-03T16:26:30.065Z\"},\"explanation\":{\"reason\":\"门禁里没有这个任务。\",\"next\":\"核对任务名；别的项目的任务写完整 id：<项目>+<任务>。\"}}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t078-2-t108-vtw_7dk4/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":41959,\"stopping\":true}\n",
+      "stderr": ""
+    }
+  ],
+  "checks": [],
+  "error": "{'argv': ['node', '/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts', '--state', '/private/tmp/t078-2-t108-vtw_7dk4/state', 'card_save', '--task', 'T108-fixture', '--card', '/private/tmp/t078-2-t108-vtw_7dk4/card.json', '--expected-version', '0'], 'exit': 1, 'stdout': '{\"ok\":false,\"error\":\"unknown_task\",\"details\":{\"task\":\"T108-fixture\",\"projects\":[]},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-11-03T16:26:30.065Z\"},\"explanation\":{\"reason\":\"门禁里没有这个任务。\",\"next\":\"核对任务名；别的项目的任务写完整 id：<项目>+<任务>。\"}}\\n', 'stderr': ''}",
+  "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/workbench/tests/run_t108_native_e2e.py\", line 96, in main\n    call('card_save','--task','T108-fixture','--card',root/'card.json','--expected-version','0')\n  File \"/Users/luckye/Documents/Code/a2a/workbench/tests/run_t108_native_e2e.py\", line 73, in call\n    value=json.loads(run([*cli,command,*fields]));assert value.get('ok'),value;return value\n  File \"/Users/luckye/Documents/Code/a2a/workbench/tests/run_t108_native_e2e.py\", line 70, in run\n    assert r.returncode==0,report['commands'][-1]\nAssertionError: {'argv': ['node', '/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts', '--state', '/private/tmp/t078-2-t108-vtw_7dk4/state', 'card_save', '--task', 'T108-fixture', '--card', '/private/tmp/t078-2-t108-vtw_7dk4/card.json', '--expected-version', '0'], 'exit': 1, 'stdout': '{\"ok\":false,\"error\":\"unknown_task\",\"details\":{\"task\":\"T108-fixture\",\"projects\":[]},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-11-03T16:26:30.065Z\"},\"explanation\":{\"reason\":\"门禁里没有这个任务。\",\"next\":\"核对任务名；别的项目的任务写完整 id：<项目>+<任务>。\"}}\\n', 'stderr': ''}\n",
+  "hooks": [],
+  "turn_events": [],
+  "window_events": [],
+  "cleanup": [
+    {
+      "pid": 41959,
+      "status": "exited",
+      "signals": [],
+      "exit_states": [
+        "?Es"
+      ]
+    }
+  ],
+  "fake_api_root_requests": 0,
+  "fake_api_total_requests": 0,
+  "fake_api_requests": []
+}

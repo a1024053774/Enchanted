@@ -42,6 +42,7 @@ import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from scripted_claude import review_steps  # T-203: a scripted reviewer hands in its result through review_submit
+from scripted_claude import MARKETPLACE_SKIPPED  # T-245  # noqa: E402
 from scripted_claude import stop_fixture_core  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -72,7 +73,7 @@ def main():
     for path in (state, home, repo, out, outside):
         path.mkdir()
     # A Claude Code that has been set up once; the fixture HOME holds no login and no trust entries.
-    (home / '.claude.json').write_text(json.dumps({'hasCompletedOnboarding': True, 'theme': 'dark'}), encoding='utf-8')
+    (home / '.claude.json').write_text(json.dumps({**MARKETPLACE_SKIPPED, 'hasCompletedOnboarding': True, 'theme': 'dark'}), encoding='utf-8')
     # The user's own Claude settings and the main checkout's local settings each install a hook
     # that leaves a marker; neither may run in a worker or reviewer.
     hook = lambda name: {'hooks': {event: [{'hooks': [{'type': 'command', 'command': f'touch {out}/{name}-$PPID'}]}]

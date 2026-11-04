@@ -27,6 +27,7 @@ import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from scripted_claude import Electron, Fixture, gate_line, prompt_text, quote, working_directory, review_steps  # noqa: E402
+from scripted_claude import MARKETPLACE_SKIPPED  # T-245  # noqa: E402
 from local_calendar import local_now  # noqa: E402
 
 FILES = {'T-1': 'a.txt', 'T-2': 'b.txt'}
@@ -110,7 +111,7 @@ def main():
     outs = []
     fixture = Fixture('t136-', plan, revision=args.revision, patches=patches)
     # The user's project is one they already trust in their own Claude (a2a never answers that question in the user's home).
-    (fixture.home / '.claude.json').write_text(json.dumps({'hasCompletedOnboarding': True, 'theme': 'dark',
+    (fixture.home / '.claude.json').write_text(json.dumps({**MARKETPLACE_SKIPPED, 'hasCompletedOnboarding': True, 'theme': 'dark',
         'projects': {str(fixture.repo): {'hasTrustDialogAccepted': True}}}), encoding='utf-8')
     report['fixture'] = str(fixture.dir)
     electron = None

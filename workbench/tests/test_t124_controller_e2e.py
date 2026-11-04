@@ -34,6 +34,7 @@ import uuid
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from scripted_claude import review_steps  # T-203: a scripted reviewer hands in its result through review_submit
+from scripted_claude import MARKETPLACE_SKIPPED  # T-245  # noqa: E402
 from scripted_claude import stop_fixture_core  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -112,7 +113,7 @@ def main():
     state, home, repo, out = (fixture / name for name in ('state', 'home', 'demo', 'out'))
     for path in (state, home, repo, out):
         path.mkdir()
-    (home / '.claude.json').write_text(json.dumps({'hasCompletedOnboarding': True, 'theme': 'dark'}), encoding='utf-8')
+    (home / '.claude.json').write_text(json.dumps({**MARKETPLACE_SKIPPED, 'hasCompletedOnboarding': True, 'theme': 'dark'}), encoding='utf-8')
     # The controller CLI's own home: only its session log is read, for the quota (failure 8).
     controller_home = fixture / f'controller-{args.controller_cli}'
     transcript = (controller_home / 'projects' / '-private-tmp-demo' / f'{CONTROLLER_SESSION}.jsonl' if args.controller_cli == 'claude' else

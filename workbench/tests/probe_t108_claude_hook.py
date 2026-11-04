@@ -7,6 +7,7 @@ Never reads credentials or inherits provider configuration.
 import argparse, fcntl, json, os, pty, select, signal, struct, subprocess, sys, tempfile, termios, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from scripted_claude import MARKETPLACE_SKIPPED  # T-245  # noqa: E402
 
 p = argparse.ArgumentParser()
 p.add_argument('--output', type=Path, required=True)
@@ -18,7 +19,7 @@ repo = root/'repo'; repo.mkdir()
 config = root/'config'; config.mkdir()
 (root/'home').mkdir()
 (config/'settings.json').write_text(json.dumps({'theme':'dark'}))
-(config/'.claude.json').write_text(json.dumps({'hasCompletedOnboarding':True,'projects':{str(repo):{'hasTrustDialogAccepted':True}}}))
+(config/'.claude.json').write_text(json.dumps({**MARKETPLACE_SKIPPED, 'hasCompletedOnboarding': True,'projects':{str(repo):{'hasTrustDialogAccepted':True}}}))
 question = {'questions':[{'question':'选择部署区域？','header':'区域','options':[{'label':'东区','description':'第一个区域'},{'label':'西区','description':'第二个区域'}],'multiSelect':False}]}
 if args.mode=='multi': question['questions'][0]['multiSelect']=True
 if args.mode=='batch': question['questions'].append({**question['questions'][0],'question':'选择备份区域？','header':'备份'})

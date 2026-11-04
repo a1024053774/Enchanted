@@ -8,6 +8,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from run_t103_picker import Window
 from t108_cleanup import stop_owned, observe
+from scripted_claude import MARKETPLACE_SKIPPED  # T-245  # noqa: E402
 
 def main():
     p=argparse.ArgumentParser()
@@ -27,7 +28,7 @@ def main():
     (root/'manager-home').mkdir()
     (role/'role.md').write_text('你是隔离验收主控。只回答用户请求。\n',encoding='utf-8')
     (role/'claude/settings.json').write_text(json.dumps({'theme':'dark'}),encoding='utf-8')
-    (role/'claude/.claude.json').write_text(json.dumps({'hasCompletedOnboarding':True,'projects':{str(repo):{'hasTrustDialogAccepted':True}}}),encoding='utf-8')
+    (role/'claude/.claude.json').write_text(json.dumps({**MARKETPLACE_SKIPPED, 'hasCompletedOnboarding': True,'projects':{str(repo):{'hasTrustDialogAccepted':True}}}),encoding='utf-8')
     env={k:v for k,v in os.environ.items() if not k.startswith(('A2A_','CODEX_','CLAUDE_','ANTHROPIC_','GIT_')) and k not in ['NODE_OPTIONS','ELECTRON_RUN_AS_NODE']}
     env.update(HOME=str(root/'manager-home'),LC_ALL='C',TMPDIR='/private/tmp',A2A_OPERATOR_CREDENTIAL=str(root/'operator.json'),
         GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_GLOBAL=os.devnull,GIT_CONFIG_COUNT='1',GIT_CONFIG_KEY_0='core.hooksPath',GIT_CONFIG_VALUE_0=os.devnull,

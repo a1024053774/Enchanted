@@ -42,6 +42,17 @@ function eventInput(input: any) {
   return input;
 }
 
+// The turn state a Claude Code or Codex hook event reports, or null. Claude Code asks with AskUserQuestion and reports
+// the answer when the tool returns. Codex asks with request_user_input_async, which returns at once ({"accepted":true});
+// the user's reply comes back later as a submitted prompt (T-133 probe-04, -05). So the codex shim passes no
+// PostToolUse hook, and that reply ends the wait.
+function hookTurnState(codex: boolean, payload: any): "running" | "idle" | "waiting_user_answer" | null {
+  const name = payload?.hook_event_name, tool = payload?.tool_name === (codex ? "request_user_input_async" : "AskUserQuestion");
+  return name === "UserPromptSubmit" ? "running" : name === "PreToolUse" && tool ? "waiting_user_answer"
+    : ["PostToolUse", "PostToolUseFailure"].includes(name) && tool ? "running"
+    : name === "Stop" || name === "Notification" && payload?.notification_type === "idle_prompt" ? "idle" : null;
+}
+
 export async function serve(
   root: string,
   config: LaunchConfig,
@@ -368,15 +379,15 @@ export async function serve(
       if ((input.cli === "claude" || input.cli === "codex") && Number.isSafeInteger(input.cli_pid) && typeof payload?.session_id === "string" && payload.session_id)
         panes.noteShellHook(terminal.id, { cli: input.cli, pid: input.cli_pid, session: payload.session_id,
           home: typeof input.native_home === "string" ? input.native_home : null });
-      if (!held || !held.native_session || payload?.session_id !== held.native_session) return { ok: true, kept: false };
-      // Claude Code asks with AskUserQuestion and reports the answer when the tool returns. Codex asks with
-      // request_user_input_async, which returns at once ({"accepted":true}); the user's reply comes back later as a
-      // submitted prompt (T-133 probe-04, -05). So the codex shim passes no PostToolUse hook, and that reply ends the wait.
+      if (!held || !held.native_session || payload?.session_id !== held.native_session) {
+        // T-242: without a role the turn state still shows, from memory only; nothing of the event is recorded.
+        const state = (input.cli === "claude" || input.cli === "codex") && Number.isSafeInteger(input.cli_pid) ? hookTurnState(input.cli === "codex", payload) : null;
+        if (state) panes.noteShellTurn(terminal.id, { cli: input.cli, pid: input.cli_pid, state });
+        return { ok: true, kept: false };
+      }
       const codex = held.cli === "codex", name = payload.hook_event_name;
       const tool = payload.tool_name === (codex ? "request_user_input_async" : "AskUserQuestion");
-      const state = name === "UserPromptSubmit" ? "running" : name === "PreToolUse" && tool ? "waiting_user_answer"
-        : ["PostToolUse", "PostToolUseFailure"].includes(name) && tool ? "running"
-        : name === "Stop" || name === "Notification" && payload.notification_type === "idle_prompt" ? "idle" : null;
+      const state = hookTurnState(codex, payload);
       if (!state) return { ok: true, kept: false };
       // Native question selections carry Codex's structured reply, not the user's literal attach keys (T-133).
       // Keep that independent user-answer path; inbox text is never a question-reply envelope.

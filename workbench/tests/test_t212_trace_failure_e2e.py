@@ -31,7 +31,7 @@ import time
 import traceback
 import uuid
 from hc_evidence import assert_public_evidence, private_tokens, user_core_snapshot
-from scripted_claude import stop_private_core
+from scripted_claude import hc_binary, stop_private_core
 from test_t212_shell_hc_e2e import wait_for
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -104,7 +104,7 @@ def scenario(case, output):
         manifest = json.loads((state / 'hc-runtime.json').read_text())
         private = dict(env, HC_SESSION=manifest['session'], HC_SOCKET=manifest['socket'],
             XDG_STATE_HOME=str(state / 'hc/state'), XDG_CONFIG_HOME=str(state / 'hc/config'))
-        hc = subprocess.run([str(state / 'hc/bin/herdr-core'), '--json', 'server', 'status'], env=private,
+        hc = subprocess.run([str(hc_binary(state)), '--json', 'server', 'status'], env=private,
             capture_output=True, text=True, timeout=15, start_new_session=True)
         core_pid = json.loads(hc.stdout)['pid']; owned_pids.add(core_pid)
         for shell_pid in list(owned_pids - {core_pid}):
@@ -172,7 +172,7 @@ def scenario(case, output):
             report['checks']['output_continued_after_restore'] = later['tick'] > frozen['tick']
             report['checks']['trace_not_written_after_failure'] = later['bytes'] == frozen['bytes']
         if case == 'initial':
-            listed = subprocess.run([str(state / 'hc/bin/herdr-core'), '--json', 'ls', '--all'], env=private,
+            listed = subprocess.run([str(hc_binary(state)), '--json', 'ls', '--all'], env=private,
                 capture_output=True, text=True, timeout=15, start_new_session=True)
             live = [t for t in json.loads(listed.stdout).get('terminals', [])
                     if t['address'] == created['data']['hc_terminal'] and t['state'] == 'live']  # hc ls has no labels

@@ -28,6 +28,7 @@ import tempfile
 import traceback
 
 from scripted_claude import Electron, Fixture, prompt_text, quote, source_tree, working_directory
+from scripted_claude import MARKETPLACE_SKIPPED  # T-245  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -121,7 +122,7 @@ def main():
         else:
             fixture = Fixture('t158-retry-', plan, revision=args.revision, patches=patches)
             report['fixture'] = str(fixture.dir)
-            (fixture.home / '.claude.json').write_text(json.dumps({'hasCompletedOnboarding': True, 'theme': 'dark',
+            (fixture.home / '.claude.json').write_text(json.dumps({**MARKETPLACE_SKIPPED, 'hasCompletedOnboarding': True, 'theme': 'dark',
                 'projects': {str(fixture.repo): {'hasTrustDialogAccepted': True}}}), encoding='utf-8')
             fixture.start(args.claude, {'README.md': 'T-158 isolated repository\n',
                 'check_v1.py': 'raise SystemExit(1)\n',

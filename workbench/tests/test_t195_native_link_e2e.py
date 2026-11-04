@@ -40,6 +40,7 @@ import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from scripted_claude import stop_fixture_core  # noqa: E402
+from scripted_claude import MARKETPLACE_SKIPPED  # T-245  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 TOKEN = 'a2a-fixture-key-not-a-secret'
@@ -78,7 +79,7 @@ def main():
     state, home, repo, out, doubles = (fixture / name for name in ('state', 'home', 'demo', 'out', 'doubles'))
     for path in (state, home, repo, out, doubles):
         path.mkdir()
-    (home / '.claude.json').write_text(json.dumps({'hasCompletedOnboarding': True, 'theme': 'dark',
+    (home / '.claude.json').write_text(json.dumps({**MARKETPLACE_SKIPPED, 'hasCompletedOnboarding': True, 'theme': 'dark',
                                                    'projects': {str(repo): {'hasTrustDialogAccepted': True}}}), encoding='utf-8')
     # The opencode double reports what opencode reports (T-187 facts): its first report carries no session id; after a line
     # is typed it reports one. "q" ends it. The agy double only holds the foreground.

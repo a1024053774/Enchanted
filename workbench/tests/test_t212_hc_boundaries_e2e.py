@@ -17,7 +17,7 @@ import traceback
 import uuid
 
 from hc_evidence import assert_public_evidence, private_tokens, user_core_snapshot
-from scripted_claude import stop_fixture_core
+from scripted_claude import hc_binary, stop_fixture_core
 
 ROOT = Path(__file__).resolve().parents[2]
 # The pinned hc archive the daemon already uses; a worktree checkout keeps it beside the worktrees.
@@ -91,7 +91,7 @@ def main():
                     assert start.returncode != 0
                     error = (state / 'daemon.stderr.log').read_text()
                     assert 'SHA-256 mismatch' in error, error
-                    assert not (state / 'hc/bin/herdr-core').exists(), 'corrupt cache silently replaced'
+                    assert hc_binary(state) is None and not list(state.glob('hc/.install-*')), 'corrupt cache silently replaced'
                     assert not (state / 'control.sock').exists(), 'failed runtime published a ready daemon'
                     result.update(status='PASS', error='hc archive SHA-256 mismatch', fallback_binary_created=False)
                     continue

@@ -224,7 +224,13 @@ def main():
                 verdict.update(status='INCOMPLETE', window_cleanup_error=repr(error))
         try:
             if window_attempted and (window is None or not window.ready_confirmed or not window.exit_confirmed):
-                raise RuntimeError('Electron ready/exit unconfirmed; backend shutdown and archive deferred to controller')
+                # T-243: record the scene and end the owned Electron, then shut down as on any other path.
+                verdict.update(status='INCOMPLETE', window_unconfirmed=True)
+                if window is not None:
+                    try:
+                        verdict['window_scene'] = window.capture_and_stop(output / 'window-scene')
+                    except Exception as error:  # still shut down; a still-running Electron is reported as residue below
+                        verdict.update(window_scene_error=repr(error))
             try:
                 if started:
                     call('daemon_stop')

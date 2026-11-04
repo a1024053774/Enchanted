@@ -13,6 +13,7 @@ import signal
 import subprocess
 import tempfile
 import time
+from scripted_claude import MARKETPLACE_SKIPPED  # T-245  # noqa: E402
 
 
 def main():
@@ -42,7 +43,7 @@ for line in sys.stdin:
  print(json.dumps({'jsonrpc':'2.0','id':r['id'],'result':result}),flush=True)
 ''', encoding='utf-8')
             config = home / '.claude.json'
-            config.write_text(json.dumps(dict(hasCompletedOnboarding=True,
+            config.write_text(json.dumps(dict(**MARKETPLACE_SKIPPED, hasCompletedOnboarding=True,
                 projects={str(home): dict(hasTrustDialogAccepted=True)},
                 mcpServers={'t141_user': dict(command='/usr/bin/python3', args=[str(server), str(receipt)])})), encoding='utf-8')
             argv = [args.claude, '--setting-sources', '', '--permission-mode', 'dontAsk']

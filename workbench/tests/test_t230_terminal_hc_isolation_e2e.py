@@ -35,6 +35,7 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'workbench/tests'))
+from scripted_claude import hc_binary  # noqa: E402
 from hc_evidence import assert_public_evidence, private_tokens, user_core_snapshot  # noqa: E402
 
 HC_KEYS = ('HC_SOCKET', 'HC_SESSION', 'HC_TERMINAL_ID', 'HC_TERMINAL_SOCKET')
@@ -69,7 +70,7 @@ def main():
         d.mkdir()
     subprocess.run(['git', 'init', '-q', str(cwd)], check=True)
     (home / '.zshrc').write_text(ZSHRC, encoding='utf-8')
-    binary = state / 'hc/bin/herdr-core'
+    binary = hc_binary(state)
     env = {key: os.environ[key] for key in ('PATH', 'LANG', 'ENCHANTED_HC_CACHE_DIR') if key in os.environ}
     env.update(HOME=str(home), SHELL='/bin/zsh', TMPDIR='/private/tmp', T230_DIR=str(marks), T230_HC=str(binary))
     report = dict(status='INCOMPLETE', command=[sys.executable, *sys.argv], fixture=str(fixture), commands=[],

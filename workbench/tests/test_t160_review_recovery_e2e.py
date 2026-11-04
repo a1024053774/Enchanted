@@ -22,6 +22,7 @@ import shutil
 import sys
 
 from scripted_claude import Electron, Fixture, prompt_text, quote, review_steps, working_directory
+from scripted_claude import MARKETPLACE_SKIPPED  # T-245  # noqa: E402
 
 
 def main():
@@ -72,7 +73,7 @@ def main():
         fixture = Fixture('t160-', plan, revision=args.revision, patches=patches)
         report['fixture'] = str(fixture.dir)
         (fixture.home / '.claude.json').write_text(json.dumps({
-            'hasCompletedOnboarding': True, 'theme': 'dark',
+            **MARKETPLACE_SKIPPED, 'hasCompletedOnboarding': True, 'theme': 'dark',
             'projects': {str(fixture.repo): {'hasTrustDialogAccepted': True}}}), encoding='utf-8')
         fixture.start(args.claude, {'README.md': 'T-160 fixture\n', 'check.py':
             'from pathlib import Path\nassert Path("answer.txt").read_text() == "accepted"\n'})

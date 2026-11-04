@@ -40,7 +40,7 @@ import traceback
 import uuid
 from types import SimpleNamespace
 from hc_evidence import assert_public_evidence, private_tokens, user_core_snapshot
-from scripted_claude import stop_private_core
+from scripted_claude import hc_binary, stop_private_core
 
 ROOT = Path(__file__).resolve().parents[2]
 RAW_PROGRAM = r'''
@@ -127,7 +127,7 @@ def core_crash_scenario(args):
     def hc(*arguments):
         private = dict(env, HC_SESSION=manifest['session'], HC_SOCKET=manifest['socket'],
             XDG_STATE_HOME=str(state / 'hc/state'), XDG_CONFIG_HOME=str(state / 'hc/config'))
-        argv = [str(state / 'hc/bin/herdr-core'), '--json', *arguments]
+        argv = [str(hc_binary(state)), '--json', *arguments]
         run = subprocess.run(argv, env=private, capture_output=True, text=True, timeout=20, start_new_session=True)
         report['commands'].append(dict(argv=argv, exit=run.returncode, stdout=run.stdout, stderr=run.stderr))
         assert run.returncode == 0, run.stderr
@@ -177,7 +177,7 @@ def core_crash_scenario(args):
         assert next(a for a in initial['agents'] if a['id'] == controller['id'])['state'] == 'running'
         old_core = core_status()
         command = subprocess.check_output(['/bin/ps', '-p', str(old_core['pid']), '-o', 'comm='], text=True).strip()
-        assert Path(command).resolve() == (state / 'hc/bin/herdr-core').resolve()
+        assert Path(command).resolve() == hc_binary(state).resolve()
         os.kill(old_core['pid'], signal.SIGKILL)
         wait_for(lambda: all((request('pane_status', thread=l['thread']).get('failed') or '').startswith('hc_connection_lost')
             for l in launches), '未记录 core 连接丢失')
@@ -467,13 +467,13 @@ def main():
                     assert report['xterm_size']['rows'] < 120, report['xterm_size']
                 # Read by the address recorded on shell_created, never a guessed/current terminal.
                 created = next(e for e in request('orchestration_events')['events'] if e['type']=='shell_created' and e.get('launch')==launch['id'])
-                listed = subprocess.run([str(state / 'hc/bin/herdr-core'), '--json', 'get', created['data']['hc_terminal']], env=core_env,
+                listed = subprocess.run([str(hc_binary(state)), '--json', 'get', created['data']['hc_terminal']], env=core_env,
                     capture_output=True, text=True, timeout=15)
                 assert listed.returncode == 0, listed.stderr
                 terminal_record = json.loads(listed.stdout)
                 report['hc_size_after_electron'] = {key: terminal_record[key] for key in ('cols', 'rows')}
                 assert report['hc_size_after_electron'] == {key: report['xterm_size'][key] for key in ('cols', 'rows')}
-                argv = [str(state / 'hc/bin/herdr-core'), '--json', 'read', created['data']['hc_terminal'], '--lines', '10000']
+                argv = [str(hc_binary(state)), '--json', 'read', created['data']['hc_terminal'], '--lines', '10000']
                 read = subprocess.run(argv, env=core_env, capture_output=True, text=True, timeout=15)
                 assert read.returncode == 0, read.stderr
                 text = json.loads(read.stdout)['text']
@@ -512,7 +512,7 @@ def main():
                     wait_for(lambda: (cwd / 'paused').exists(), '连续改尺寸后未确认暂停')
                     final_size = {key: sizes[-1][key] for key in ('cols', 'rows')}
                     def hc_at_final_size():
-                        got = subprocess.run([str(state / 'hc/bin/herdr-core'), '--json', 'get', created['data']['hc_terminal']],
+                        got = subprocess.run([str(hc_binary(state)), '--json', 'get', created['data']['hc_terminal']],
                             env=core_env, capture_output=True, text=True, timeout=15)
                         assert got.returncode == 0, got.stderr
                         return {key: json.loads(got.stdout)[key] for key in ('cols', 'rows')} == final_size
