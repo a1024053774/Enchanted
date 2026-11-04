@@ -1,0 +1,217 @@
+{
+ "status": "INCOMPLETE",
+ "argv": [
+  "tests/test_t247_hook_runner.py",
+  "--mutant",
+  "ps-error-drops",
+  "--summary",
+  "../evidence/2026-11-03-batch31/T-247/limits/runner-mutant-ps-error-drops.json"
+ ],
+ "revision": null,
+ "mutant": "ps-error-drops",
+ "cases": {
+  "A_codex_direct_no_thread_env": {
+   "expected": {
+    "delivered": true,
+    "cli": "codex",
+    "cli_pid": 43553
+   },
+   "observed": {
+    "delivered": true,
+    "cli": "codex",
+    "cli_pid": 43553
+   },
+   "pids": {
+    "A": 43553
+   },
+   "pass_": true
+  },
+  "B_codex_through_sh": {
+   "expected": {
+    "delivered": true,
+    "cli": "codex",
+    "cli_pid": 43563
+   },
+   "observed": {
+    "delivered": true,
+    "cli": "codex",
+    "cli_pid": 43563
+   },
+   "pids": {
+    "B": 43563
+   },
+   "pass_": true
+  },
+  "C_unknown_runner_inside_codex": {
+   "expected": {
+    "delivered": true,
+    "cli": null,
+    "cli_pid": null
+   },
+   "observed": {
+    "delivered": true,
+    "cli": null,
+    "cli_pid": null
+   },
+   "pids": {
+    "C-outer": 43591,
+    "C-runner": 43616
+   },
+   "pass_": true
+  },
+  "D_codex_inside_claude": {
+   "expected": {
+    "delivered": true,
+    "cli": "codex",
+    "cli_pid": 43670
+   },
+   "observed": {
+    "delivered": true,
+    "cli": "codex",
+    "cli_pid": 43670
+   },
+   "pids": {
+    "D-outer": 43646,
+    "D": 43670
+   },
+   "pass_": true
+  },
+  "E_codex_inside_codex": {
+   "expected": {
+    "delivered": true,
+    "cli": "codex",
+    "cli_pid": 43723
+   },
+   "observed": {
+    "delivered": true,
+    "cli": "codex",
+    "cli_pid": 43723
+   },
+   "pids": {
+    "E-outer": 43698,
+    "E": 43723
+   },
+   "pass_": true
+  },
+  "F_claude_through_sh": {
+   "expected": {
+    "delivered": true,
+    "cli": "claude",
+    "cli_pid": 43733
+   },
+   "observed": {
+    "delivered": true,
+    "cli": "claude",
+    "cli_pid": 43733
+   },
+   "pids": {
+    "F": 43733
+   },
+   "pass_": true
+  },
+  "G_codex_installed_under_spaced_path": {
+   "expected": {
+    "delivered": true,
+    "cli": "codex",
+    "cli_pid": 43784
+   },
+   "observed": {
+    "delivered": true,
+    "cli": "codex",
+    "cli_pid": 43784
+   },
+   "pids": {
+    "G-outer": 43760,
+    "G": 43784
+   },
+   "pass_": true
+  },
+  "H_npm_codex_native_child": {
+   "expected": {
+    "delivered": true,
+    "cli": "codex",
+    "cli_pid": 43795
+   },
+   "observed": {
+    "delivered": true,
+    "cli": "codex",
+    "cli_pid": 43795
+   },
+   "pids": {
+    "H": 43795,
+    "H-native": 43803
+   },
+   "pass_": true
+  },
+  "H2_npm_codex_native_child_through_sh": {
+   "expected": {
+    "delivered": true,
+    "cli": "codex",
+    "cli_pid": 43807
+   },
+   "observed": {
+    "delivered": true,
+    "cli": "codex",
+    "cli_pid": 43807
+   },
+   "pids": {
+    "H2": 43807,
+    "H2-native": 43815
+   },
+   "pass_": true
+  },
+  "I_unshimmed_cli_inside_codex": {
+   "expected": {
+    "delivered": true,
+    "cli": null,
+    "cli_pid": null
+   },
+   "observed": {
+    "delivered": true,
+    "cli": null,
+    "cli_pid": null
+   },
+   "pids": {
+    "I-outer": 43837,
+    "I-runner": 43862
+   },
+   "pass_": true
+  },
+  "S_codex_in_workspace_write_sandbox": {
+   "expected": {
+    "delivered": true,
+    "cli": "codex",
+    "cli_pid": 43867
+   },
+   "observed": {
+    "delivered": false,
+    "cli": null,
+    "cli_pid": null
+   },
+   "pids": {
+    "S": 43867
+   },
+   "pass_": false
+  },
+  "S2_through_sh_in_workspace_write_sandbox": {
+   "expected": {
+    "delivered": true,
+    "cli": null,
+    "cli_pid": null
+   },
+   "observed": {
+    "delivered": false,
+    "cli": null,
+    "cli_pid": null
+   },
+   "pids": {
+    "S2": 43889
+   },
+   "pass_": false
+  }
+ },
+ "failed": [
+  "S_codex_in_workspace_write_sandbox",
+  "S2_through_sh_in_workspace_write_sandbox"
+ ]
+}

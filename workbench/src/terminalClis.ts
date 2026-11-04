@@ -36,7 +36,7 @@ export const terminalClis: Record<string, TerminalCli> = {
 };
 
 // Which registered CLI a process runs, from its argv. A CLI installed as a script (npm) runs as `node <path>/<cli>`.
-const RUNTIMES = new Set(["node", "bun", "deno"]);
+export const RUNTIMES = new Set(["node", "bun", "deno"]);
 export function cliProgram(argv: string[]): string | undefined {
   const program = (index: number) => (argv[index] ?? "").split("/").at(-1)!;
   const name = RUNTIMES.has(program(0)) ? program(1) : program(0);

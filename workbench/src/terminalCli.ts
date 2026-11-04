@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { requestAt } from "./transport.ts";
-import { cliProgram, commandCli } from "./terminalClis.ts";
+import { commandCli, RUNTIMES } from "./terminalClis.ts";
 import { serveMcp } from "./terminalMcp.ts";
 
 // The `a2a` command inside an Enchanted project terminal (T-121). Its identity is
@@ -80,6 +80,37 @@ function ancestors(): { pid: number; argv: string[] }[] {
 const ancestorArgv = () => ancestors().map(row => row.argv);
 // What a CLI may start its hook command through (`sh -c`, a login shell's `-zsh`).
 const SHELLS = new Set(["sh", "bash", "zsh", "dash", "ksh", "fish"]);
+// T-247: the CLI that runs this hook. Enchanted's claude and codex shims name the CLI they start and its process
+// (A2A_HOOK_CLI, A2A_HOOK_PID; a shim execs the CLI, so the shim's pid is the CLI's). That process runs this hook when
+// it is reached from here through shells only, or, when that process is a runtime (node, bun, deno), through one direct
+// child of it with the CLI's own executable name: npm's Codex is a Node launcher that runs the native `codex` binary as
+// its child, and the terminal's foreground is the launcher. Any other program the CLI starts directly (an MCP server,
+// or a `codex` the native CLI starts without the shim) is not it. A CLI started inside another
+// inherits the outer one's variables, and the outer one is then no such ancestor: nothing is reported. Processes are
+// told apart by pid and executable name only, never by splitting argv, so install paths with spaces do not matter.
+// Not from CODEX_THREAD_ID: interactive Codex gives its hooks none.
+function hookRunner(): { cli: string; pid: number } | undefined {
+  const cli = process.env.A2A_HOOK_CLI, pid = Number(process.env.A2A_HOOK_PID);
+  if (!cli || !Number.isSafeInteger(pid) || pid <= 1) return undefined;
+  let rows: Map<number, { parent: number; name: string }> | undefined;
+  for (let current = process.ppid, depth = 0; depth < 16; depth++) {
+    if (current === pid) return { cli, pid };
+    // Codex starts its hooks itself, so the usual answer comes before the process table is read. A sandbox may forbid
+    // ps (Codex's seatbelt does, for a CLI started from a sandboxed tool): the runner cannot be told, the event still goes.
+    if (!rows) {
+      let table: string;
+      try { table = execFileSync("/bin/ps", ["-axo", "pid=,ppid=,comm="], { encoding: "utf8" }); } catch { return undefined; }
+      rows = new Map(table.split("\n")
+        .map(line => line.trim().match(/^(\d+)\s+(\d+)\s+(.*)$/)).filter(match => match !== null)
+        .map(match => [Number(match![1]), { parent: Number(match![2]), name: match![3].split("/").at(-1)!.replace(/^-/, "") }]));
+    }
+    const row = rows.get(current);
+    if (!row) return undefined;
+    if (!SHELLS.has(row.name)) return row.parent === pid && row.name === cli && RUNTIMES.has(rows.get(pid)?.name ?? "") ? { cli, pid } : undefined;
+    current = row.parent;
+  }
+  return undefined;
+}
 
 // The terminal socket accepts only this identity (T-126); the daemon's data directory is not in the environment.
 const socket = process.env.A2A_TERMINAL_SOCKET, launch = process.env.A2A_TERMINAL, token = process.env.A2A_TERMINAL_TOKEN;
@@ -100,12 +131,8 @@ async function main(argv: string[]) {
     try {
       const chunks: Buffer[] = [];
       for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
-      // T-195, T-247: which CLI process runs this hook, so the session it names is bound to that process. A CLI starts
-      // its hooks itself, at most through a shell, so it is the first ancestor that is not a shell; when that one is no
-      // CLI we know, nothing is reported rather than a CLI further up. Not from the environment: interactive Codex gives
-      // its hooks no CODEX_THREAD_ID, and a CLI started inside another inherits the outer one's variables.
-      const runner = ancestors().find(row => !SHELLS.has((row.argv[0] ?? "").split("/").at(-1)!.replace(/^-/, "")));
-      const cli = runner && cliProgram(runner.argv), pid = runner?.pid;
+      // T-195, T-247: which CLI process runs this hook, so the session it names is bound to that process.
+      const runner = hookRunner(), cli = runner?.cli, pid = runner?.pid;
       if (socket && launch && token) await requestAt(socket, { command: "terminal_hook", raw_stdin: Buffer.concat(chunks).toString("utf8"),
         ...(cli && pid ? { cli, cli_pid: pid, native_home: nativeHome(cli) } : {}) }, { kind: "terminal", launch, token });
     } catch { /* The daemon decides what to keep; a hook that cannot reach it leaves the turn alone. */ }

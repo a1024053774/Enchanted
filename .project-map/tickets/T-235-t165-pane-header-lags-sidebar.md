@@ -6,7 +6,7 @@ status: open
 blocked_by: []
 claimed_by:
 supersedes:
-ready: yes
+ready: no
 ready_by: executor
 ready_rev: 1
 ---
@@ -31,3 +31,5 @@ T-229 第十三轮回归发现，范围外（T-229 结果记录）：`test_t165_
 ## Resolution
 
 2026-11-03 进展，**INCOMPLETE（未复现）**（[结果](../../evidence/2026-11-03-batch31/T-235/RESULTS.md)）。HEAD 上三个场景各 3 次、基线 `59815ea30` 上 T-157 stop-input 3 次全部通过；把 2 秒等待换成 100 毫秒采样的探针（HEAD 6 次、基线 3 次、满负载 3 次）里，标题栏与侧栏同时在后台空闲后 0–1.4 秒变为空闲。未改代码。审查同意不关闭。推断（未证实）：T-229 当时残留二十多对夹具 core，失败时多显示“未知”，与“侧栏读取出错时全部置为未知”相符。下次出现时记下 `catalogError` 与状态时间序列。
+
+2026-11-04 状态：**INCOMPLETE，等待复现**。用户裁定：“T-235 的状态写好就行.等待发现该错误.”不再主动排查。保持 open：票面状态没有“等待”这一项，所以它仍会出现在可做列表里，但在下次复现之前不做。复现时按上一段记下 `catalogError` 与状态时间序列，再按 Acceptance 留红态、修复。

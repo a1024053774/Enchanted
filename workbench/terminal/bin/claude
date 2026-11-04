@@ -3,4 +3,6 @@
 # this session only; the user's arguments pass through unchanged.
 . "$(dirname "$0")/real-cli.sh"
 real=$(a2a_real_cli claude) || exit 127
+# T-247: the CLI this shim execs, for the a2a hook to tell which process runs it (the pid stays the same across exec).
+export A2A_HOOK_CLI=claude A2A_HOOK_PID=$$
 exec "$real" --plugin-dir "$A2A_TERMINAL_PLUGIN" "$@"

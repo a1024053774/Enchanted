@@ -1,0 +1,162 @@
+{
+ "status": "INCOMPLETE",
+ "argv": [
+  "tests/test_t247_hook_runner.py",
+  "--revision",
+  "HEAD",
+  "--summary",
+  "../evidence/2026-11-03-batch31/T-247/limits/runner-red-head.json"
+ ],
+ "revision": "HEAD",
+ "mutant": null,
+ "cases": {
+  "A_codex_direct_no_thread_env": {
+   "expected": {
+    "cli": "codex",
+    "cli_pid": 40704
+   },
+   "observed": {
+    "cli": "codex",
+    "cli_pid": 40704
+   },
+   "pids": {
+    "A": 40704
+   },
+   "pass_": true
+  },
+  "B_codex_through_sh": {
+   "expected": {
+    "cli": "codex",
+    "cli_pid": 40716
+   },
+   "observed": {
+    "cli": "codex",
+    "cli_pid": 40716
+   },
+   "pids": {
+    "B": 40716
+   },
+   "pass_": true
+  },
+  "C_unknown_runner_inside_codex": {
+   "expected": null,
+   "observed": {
+    "cli": null,
+    "cli_pid": null
+   },
+   "pids": {
+    "C-outer": 40744,
+    "C-runner": 40769
+   },
+   "pass_": true
+  },
+  "D_codex_inside_claude": {
+   "expected": {
+    "cli": "codex",
+    "cli_pid": 40823
+   },
+   "observed": {
+    "cli": "codex",
+    "cli_pid": 40823
+   },
+   "pids": {
+    "D-outer": 40799,
+    "D": 40823
+   },
+   "pass_": true
+  },
+  "E_codex_inside_codex": {
+   "expected": {
+    "cli": "codex",
+    "cli_pid": 40876
+   },
+   "observed": {
+    "cli": "codex",
+    "cli_pid": 40876
+   },
+   "pids": {
+    "E-outer": 40851,
+    "E": 40876
+   },
+   "pass_": true
+  },
+  "F_claude_through_sh": {
+   "expected": {
+    "cli": "claude",
+    "cli_pid": 40887
+   },
+   "observed": {
+    "cli": "claude",
+    "cli_pid": 40887
+   },
+   "pids": {
+    "F": 40887
+   },
+   "pass_": true
+  },
+  "G_codex_installed_under_spaced_path": {
+   "expected": {
+    "cli": "codex",
+    "cli_pid": 40938
+   },
+   "observed": {
+    "cli": null,
+    "cli_pid": null
+   },
+   "pids": {
+    "G-outer": 40914,
+    "G": 40938
+   },
+   "pass_": false
+  },
+  "H_npm_codex_native_child": {
+   "expected": {
+    "cli": "codex",
+    "cli_pid": 40949
+   },
+   "observed": {
+    "cli": "codex",
+    "cli_pid": 40957
+   },
+   "pids": {
+    "H": 40949,
+    "H-native": 40957
+   },
+   "pass_": false
+  },
+  "H2_npm_codex_native_child_through_sh": {
+   "expected": {
+    "cli": "codex",
+    "cli_pid": 40961
+   },
+   "observed": {
+    "cli": "codex",
+    "cli_pid": 40969
+   },
+   "pids": {
+    "H2": 40961,
+    "H2-native": 40969
+   },
+   "pass_": false
+  },
+  "I_unshimmed_cli_inside_codex": {
+   "expected": null,
+   "observed": {
+    "cli": "codex",
+    "cli_pid": 41016
+   },
+   "pids": {
+    "I-outer": 40991,
+    "I-runner": 41016
+   },
+   "pass_": false
+  }
+ },
+ "failed": [
+  "G_codex_installed_under_spaced_path",
+  "H_npm_codex_native_child",
+  "H2_npm_codex_native_child_through_sh",
+  "I_unshimmed_cli_inside_codex"
+ ],
+ "error": "AssertionError: ('S_codex_in_read_only_sandbox', 0, 'T247PID S 41024\\n', [])"
+}

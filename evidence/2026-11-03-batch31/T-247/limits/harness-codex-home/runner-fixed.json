@@ -1,0 +1,155 @@
+{
+ "status": "INCOMPLETE",
+ "argv": [
+  "tests/test_t247_hook_runner.py",
+  "--summary",
+  "../evidence/2026-11-03-batch31/T-247/limits/runner-fixed.json"
+ ],
+ "revision": null,
+ "mutant": null,
+ "cases": {
+  "A_codex_direct_no_thread_env": {
+   "expected": {
+    "cli": "codex",
+    "cli_pid": 39008
+   },
+   "observed": {
+    "cli": "codex",
+    "cli_pid": 39008
+   },
+   "pids": {
+    "A": 39008
+   },
+   "pass_": true
+  },
+  "B_codex_through_sh": {
+   "expected": {
+    "cli": "codex",
+    "cli_pid": 39021
+   },
+   "observed": {
+    "cli": "codex",
+    "cli_pid": 39021
+   },
+   "pids": {
+    "B": 39021
+   },
+   "pass_": true
+  },
+  "C_unknown_runner_inside_codex": {
+   "expected": null,
+   "observed": {
+    "cli": null,
+    "cli_pid": null
+   },
+   "pids": {
+    "C-outer": 39049,
+    "C-runner": 39074
+   },
+   "pass_": true
+  },
+  "D_codex_inside_claude": {
+   "expected": {
+    "cli": "codex",
+    "cli_pid": 39120
+   },
+   "observed": {
+    "cli": "codex",
+    "cli_pid": 39120
+   },
+   "pids": {
+    "D-outer": 39095,
+    "D": 39120
+   },
+   "pass_": true
+  },
+  "E_codex_inside_codex": {
+   "expected": {
+    "cli": "codex",
+    "cli_pid": 39173
+   },
+   "observed": {
+    "cli": "codex",
+    "cli_pid": 39173
+   },
+   "pids": {
+    "E-outer": 39148,
+    "E": 39173
+   },
+   "pass_": true
+  },
+  "F_claude_through_sh": {
+   "expected": {
+    "cli": "claude",
+    "cli_pid": 39183
+   },
+   "observed": {
+    "cli": "claude",
+    "cli_pid": 39183
+   },
+   "pids": {
+    "F": 39183
+   },
+   "pass_": true
+  },
+  "G_codex_installed_under_spaced_path": {
+   "expected": {
+    "cli": "codex",
+    "cli_pid": 39234
+   },
+   "observed": {
+    "cli": "codex",
+    "cli_pid": 39234
+   },
+   "pids": {
+    "G-outer": 39210,
+    "G": 39234
+   },
+   "pass_": true
+  },
+  "H_npm_codex_native_child": {
+   "expected": {
+    "cli": "codex",
+    "cli_pid": 39251
+   },
+   "observed": {
+    "cli": "codex",
+    "cli_pid": 39251
+   },
+   "pids": {
+    "H": 39251,
+    "H-native": 39262
+   },
+   "pass_": true
+  },
+  "H2_npm_codex_native_child_through_sh": {
+   "expected": {
+    "cli": "codex",
+    "cli_pid": 39266
+   },
+   "observed": {
+    "cli": "codex",
+    "cli_pid": 39266
+   },
+   "pids": {
+    "H2": 39266,
+    "H2-native": 39274
+   },
+   "pass_": true
+  },
+  "I_unshimmed_cli_inside_codex": {
+   "expected": null,
+   "observed": {
+    "cli": null,
+    "cli_pid": null
+   },
+   "pids": {
+    "I-outer": 39296,
+    "I-runner": 39321
+   },
+   "pass_": true
+  }
+ },
+ "failed": [],
+ "error": "AssertionError: ('S_codex_in_read_only_sandbox', 1, 'WARNING: proceeding, even though we could not create PATH aliases: CODEX_HOME points to \"/private/tmp/t247-vh9m4qgt/codex-home\", but that path does not exist\\nError: CODEX_HOME points to \"/private/tmp/t247-vh9m4qgt/codex-home\", but that path does not exist\\n', [])"
+}
