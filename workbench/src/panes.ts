@@ -9,7 +9,7 @@ import { performance } from "node:perf_hooks";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { StringDecoder } from "node:string_decoder";
 import { HcRuntime, HcTerminal } from './hc.ts';
-import { ShellTurns, type ShellHookTurn } from './shellTurns.ts';
+import { ByProcess, type Front } from './byProcess.ts';
 import { validateHookEnvelope, questionFromHook, questionPermission, questionAnswerConfirmed, projectQuestions, nativeAnswerKeys, currentTurnBinding, noncurrentHook, currentTurnTrust } from './questions.ts';
 import type { A2AAttachment, A2AAttempt, A2ATask, A2AReview, A2ARepair } from "./contracts/a2aGates.ts";
 import { Refusal, treeWritable, type GateRuntime, type SubmitCaller } from "./gates/core.ts";
@@ -208,6 +208,8 @@ export type WorkerDeliveryStatus = {
 const reportedSession = (launch: string) => `osc7501:${launch}`;
 // T-195: a session id a terminal's Claude Code or Codex reported through its hook, with that CLI's process.
 export type ShellNativeReport = { cli: string; pid: number; session: string; home: string | null };
+// T-242: a turn state from that hook, for a terminal without an approved role; kept in memory only (T-133).
+export type ShellHookTurn = { cli: string; pid: number; state: "running" | "idle" | "waiting_user_answer" };
 type Pane = {
   record: Record<string, any> & { id: string; task: string | null; attempt: string | null };
   token: string; task: A2ATask | null; attempt: A2AAttempt | null; pty: any;
@@ -246,11 +248,9 @@ type Pane = {
   unwiredCli?: { command: string; pid: number; since: string } | null; wiringCheckAt?: number; wiringBusy?: boolean;
   // T-187: the last OSC 7501 state report of the terminal's CLI (agy, opencode), until that CLI exits.
   cliTurn?: CliTurn | null; oscCarry?: string; foregroundCli?: string | null;
-  // T-195: the native session a terminal's Claude Code or Codex last reported through its hook, bound to the reporting
-  // CLI's process: a later CLI in the same terminal is never given it.
-  nativeReport?: ShellNativeReport | null;
-  // T-242: the turn states a terminal's Claude Code or Codex reported through its hook (shellTurns.ts).
-  shellTurns?: ShellTurns;
+  // T-195, T-242: the native sessions and turn states a terminal's Claude Code or Codex reported through its hook, each
+  // bound to the reporting CLI's process (byProcess.ts, T-246): another CLI in the same terminal is never given them.
+  nativeReports?: ByProcess<ShellNativeReport>; shellTurns?: ByProcess<ShellHookTurn>;
   shellOscSequence?: number;
   inboxUnknown?: string | null;
   // T-187: a managed agy or opencode session; its turns come from its OSC 7501 reports (reportedTurns).
@@ -370,8 +370,11 @@ export class Panes implements GateRuntime {
       nativeEnded: false, active: null, queue: [], writing: false, stopInProgress: false,
       writes: Promise.resolve(), pendingInputs: 0, userDraft: false, draft: emptyDraft(), interrupted: false, sending: null,
       inputGeneration: 0, interruption: null, offsets: new Map(), model: "unknown", effort: "unknown", terminalBuffer: "" };
-    const nativeReport = this.store.lastEvent(record.id, ["shell_native_session"]);
-    if (nativeReport) pane.nativeReport = nativeReport.data as ShellNativeReport;
+    // Every process's last report, not only the last one recorded: that may be another CLI's (T-246).
+    if (record.role === "shell") for (const row of this.store.db.prepare("SELECT time,data FROM orchestration_events WHERE launch=? AND type='shell_native_session' ORDER BY seq").all(record.id)) {
+      const report = JSON.parse(String(row.data)) as ShellNativeReport;
+      (pane.nativeReports ??= new ByProcess()).note(report.pid, report, Date.parse(String(row.time)));
+    }
     // The hc terminal survives this daemon. Its unfinished user line must survive too, without becoming a user-input record.
     const draft = JSON.parse(readFileSync(join(this.root, "shell-drafts", record.id + ".json"), "utf8")) as InputDraft & { pending: boolean };
     check(draft.pending === false && Array.isArray(draft.chars) && draft.chars.every(char => typeof char === "string") &&
@@ -475,33 +478,41 @@ export class Panes implements GateRuntime {
     if (!pane.userDraft) await this.drain(pane);
   }
   // The program in front of a project terminal: its process, launch facts, and which registered CLI it runs, if any.
-  private async foreground(pane: Pane): Promise<{ pid: number; launch: LaunchFacts; cli: string | undefined } | null> {
+  private async foreground(pane: Pane): Promise<{ pid: number; started: number; launch: LaunchFacts; cli: string | undefined } | null> {
     const info = await this.processInfo(pane.record.thread);
-    const leader = (info.processes as { pid: number; pgid: number; tpgid: number }[])
+    const leader = (info.processes as { pid: number; pgid: number; tpgid: number; started: number }[])
       .find(row => row.pid !== pane.pty.pid && row.pid === row.pgid && row.pgid === row.tpgid);
     if (!leader) return null;
     const { stdout } = await exec("/usr/bin/python3", ["-I", "-S", "-B", processArgs, String(leader.pid)], { timeout: 5000 });
     const launch = JSON.parse(stdout) as LaunchFacts;
-    return { pid: leader.pid, launch, cli: cliProgram(launch.argv) };
+    // Whole milliseconds, as a report's arrival time (Date.now()) is: one arriving in the CLI's first millisecond is its own.
+    return { pid: leader.pid, started: Math.floor(leader.started * 1000), launch, cli: cliProgram(launch.argv) };
   }
   private noteNativeReport(pane: Pane, report: ShellNativeReport) {
-    const last = pane.nativeReport;
+    const reports = pane.nativeReports ??= new ByProcess(), last = reports.get(report.pid);
     if (last && JSON.stringify(last) === JSON.stringify(report)) return;
-    pane.nativeReport = report;
+    reports.note(report.pid, report);
     this.store.event("shell_native_session", report, pane.record);
+  }
+  // A terminal's native session is the one the CLI in front reported itself.
+  private noteShellForeground(pane: Pane, front: Front | null) {
+    (pane.shellTurns ??= new ByProcess()).foreground(front);
+    const reports = pane.nativeReports ??= new ByProcess();
+    reports.foreground(front);
+    pane.native = reports.shown()?.session ?? null;
   }
   // T-195: a Claude Code or Codex hook in this terminal named its session; pid is that CLI's process (terminalCli.ts).
   noteShellHook(launch: string, report: ShellNativeReport) {
     const pane = this.byLaunch(launch);
     check(pane.record.role === "shell", "shell_required");
     this.noteNativeReport(pane, report);
-    pane.native = report.session;
+    pane.native = pane.nativeReports!.shown()?.session ?? null;
   }
   // T-242: a turn state from that hook, for a terminal without an approved role.
   noteShellTurn(launch: string, turn: ShellHookTurn) {
     const pane = this.byLaunch(launch);
     check(pane.record.role === "shell", "shell_required");
-    (pane.shellTurns ??= new ShellTurns()).note(turn);
+    (pane.shellTurns ??= new ByProcess()).note(turn.pid, turn);
   }
   // T-133 records every native submission except an unclaimed inbox send of our own (T-216).
   // History/completion change the CLI's text without typing it through attach; keys cannot decide provenance.
@@ -580,8 +591,9 @@ export class Panes implements GateRuntime {
     const pane = this.byLaunch(launch);
     check(pane.record.role === "shell", "shell_required");
     const front = pane.stopped ? null : await this.foreground(pane);
-    const cli = front?.cli ?? null, report = pane.nativeReport ?? null;
-    return { cli, report: cli && report && report.cli === cli && report.pid === front!.pid ? report : null };
+    this.noteShellForeground(pane, front && { pid: front.pid, started: front.started });
+    const cli = front?.cli ?? null, report = pane.nativeReports!.shown();
+    return { cli, report: cli && report && report.cli === cli ? report : null };
   }
   // T-184: the foreground program of a project terminal, when it is a CLI a shim wraps, must carry the shim's launch
   // arguments; without them it runs without Enchanted's plugin and hooks, and the terminal says so instead of showing a
@@ -593,7 +605,7 @@ export class Panes implements GateRuntime {
     pane.wiringBusy = true; pane.wiringCheckAt = undefined;
     try {
       const front = await this.foreground(pane);
-      (pane.shellTurns ??= new ShellTurns()).foreground(front?.pid ?? null);
+      this.noteShellForeground(pane, front && { pid: front.pid, started: front.started });
       if (!front) { pane.unwiredCli = null; pane.cliTurn = null; pane.foregroundCli = null; return; }
       const { pid, launch, cli: command } = front;
       const cli = command === undefined ? undefined : terminalClis[command];
@@ -609,8 +621,10 @@ export class Panes implements GateRuntime {
         : { command: command!, pid, since: new Date().toISOString() };
       if (unwired || pane.cliTurn || pane.foregroundCli) pane.wiringCheckAt = Date.now() + WIRING_RECHECK_MS;
     } catch (error) {
-      // The process may have exited between the two reads; with no observation the terminal shows no warning.
+      // The process may have exited between the two reads; with no observation the terminal shows no warning, and no
+      // CLI's session or turn stands for its front (T-246) until a later read sees one.
       pane.unwiredCli = null;
+      this.noteShellForeground(pane, null);
       this.store.event("cli_wiring_check_failed", { error: String(error) }, pane.record);
     } finally { pane.wiringBusy = false; }
   }
@@ -810,7 +824,8 @@ export class Panes implements GateRuntime {
     const previous = this.store.openPanes().find(p => p.launch === id);
     check(pane && !pane.stopped && !pane.archived || previous, "pane_unavailable");
     if (pane) this.scan(pane);
-    const native = pane?.native ?? previous?.native_session ?? null;
+    // A terminal names only the session its front CLI reported (T-246); an earlier layout's is not carried over.
+    const native = pane?.record.role === "shell" ? pane.native : pane?.native ?? previous?.native_session ?? null;
     // A pane can open before native metadata has arrived. Keep that unknown
     // explicit; scan() records its later binding without inventing a session.
     this.store.event("pane_layout_opened", { position, native_session: native,

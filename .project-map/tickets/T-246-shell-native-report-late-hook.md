@@ -2,13 +2,13 @@
 id: T-246
 title: 普通终端里已退出 CLI 的钩子晚到时，会覆盖当前前台 CLI 的原生会话报告
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
-ready: yes
-ready_by: executor
-ready_rev: 1
+ready: no
+ready_by:
+ready_rev:
 ---
 
 ## What to build
@@ -22,8 +22,12 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 复现，或附依据说明这条时序到不了。
-- [ ] 若是缺陷：修前留红态；修后 B 的会话报告不被 A 的晚到钩子改写，记录里不出现 A 覆盖 B 的条目。
-- [ ] 独立审查无未处理的阻塞意见。
+- [x] 复现，或附依据说明这条时序到不了。（票面“退出后晚到”附依据说明很窄、未复现；同一不变式经嵌套 `claude -p` 复现）
+- [x] 若是缺陷：修前留红态；修后 B 的会话报告不被 A 的晚到钩子改写，记录里不出现 A 覆盖 B 的条目。
+- [x] 独立审查无未处理的阻塞意见。（复审第 1 条附证据答复为已知局限，按 T-240 不再开轮）
 
 ## Resolution
+
+2026-11-03 关闭（PASS）：用户“做 T-246”。普通终端的原生会话报告与回合状态按报告它的进程（进程号加启动时间）分别保存，只用前台进程自己报的（`workbench/src/byProcess.ts`，由 T-242 的 `shellTurns.ts` 泛化）；重启按全部记录重建；前台复查失败时不留会话。真实 Claude Code 端到端（外层 Bash 工具运行内层 `claude -p`）修前失败于“内层运行时链接不可用、`native_session` 是内层的”，修后八项 PASS，两个变异体与前台复查失败注入各失败于预期处；`test_by_process.ts` 穷举 PASS，四个坏实现都失败；t195、t242、t184、t133 回归 PASS。已知局限：进程号在钩子请求路上被复用（macOS 顺序分配，实测见证据）；Codex 嵌套没有端到端跑过。
+
+证据：[T-246 RESULTS.md](../../evidence/2026-11-03-batch31/T-246/RESULTS.md)。

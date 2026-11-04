@@ -95,3 +95,7 @@ node workbench/tests/test_t242_shell_turns.ts [模块路径] [最大长度]
 ```
 
 按同一条不变式搜索相关代码：T-195 的原生会话报告（`noteShellHook` / `noteNativeReport`）也是单槽位，晚到的钩子会改写 `pane.native` 和记录。只读推导、没有复现，超出本票范围，登记为 T-246。
+
+## 之后的改名（2026-11-03，T-246）
+
+T-246 把同一个按进程保存的结构用到原生会话报告上：`workbench/src/shellTurns.ts` 改名为 `byProcess.ts`（泛化为 `ByProcess<T>`），`workbench/tests/test_t242_shell_turns.ts` 改名为 `test_by_process.ts`。上文的文件名是当时的；本节之前的结果都是在旧文件名下跑的。T-246 之后的穷举与回归见 `../T-246/RESULTS.md`。

@@ -9,7 +9,7 @@
 5. 旧状态沿用到下一个 CLI：Claude 退出后再起一个，第一次提交前就显示上一个的空闲。
 另记 Esc 中断后的状态变化（Claude Code 被中断时不发 Stop），只观察不判定。
 
---revision 在该版本的隔离源码上跑（修前应失败于 1）；--mutant keep-turn 改为显示最后报告的进程的状态，不看前台，也不在进程退出后清掉（应失败于 5）。事件交错由 test_t242_shell_turns.ts 穷举。
+--revision 在该版本的隔离源码上跑（修前应失败于 1）；--mutant keep-turn 改为显示最后报告的进程的状态，不看前台，也不在进程退出后清掉（应失败于 5）。事件交错由 test_by_process.ts 穷举。
 """
 import argparse
 import json
@@ -27,8 +27,9 @@ sys.path.insert(0, str(ROOT / 'workbench/tests'))
 from scripted_claude import Electron, Fixture  # noqa: E402
 
 # Both ways a state leaves another process: shown only for the process in front, and dropped once that process exits.
-KEEP_TURN = [('src/shellTurns.ts', 'const turn = this.front === null ? undefined : this.byPid.get(this.front);', 'const turn = [...this.byPid.values()].at(-1);'),
-             ('src/shellTurns.ts', 'private prune() { for', 'private prune() { return; for')]
+KEEP_TURN = [('src/byProcess.ts', 'const report = this.front && this.byPid.get(this.front.pid);', 'const report = [...this.byPid.values()].at(-1);'),
+             ('src/byProcess.ts', 'return report && report.at >= this.front!.started ? report.value : null;', 'return report ? report.value : null;'),
+             ('src/byProcess.ts', '  private prune() {\n', '  private prune() { return;\n')]
 
 
 def main():
