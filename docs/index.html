@@ -144,16 +144,18 @@
           <p>使用前在本机装好并登录至少一种支持的 CLI。Enchanted 不写你的 <code>~/.claude</code>、<code>~/.codex</code>，每个会话的权限和钩子都经启动参数传入。从源码构建见<a href="https://github.com/a1024053774/Enchanted/blob/main/workbench/README.md">工作台说明</a>。</p>
           <h2 id="clis-title">目前支持的 CLI</h2>
           <ul class="plain">
-            <li>Claude Code、Codex、Antigravity CLI（<code>agy</code>）、opencode：四种都可当主控、worker 和审查员，0.1.5 已带。</li>
+            <li>Claude Code、Codex、Antigravity CLI（<code>agy</code>）、opencode：四种都可当主控、worker 和审查员。</li>
             <li>agy 和 opencode 没有按会话的钩子，状态取自它们自己报给终端的信号，报不出来的显示“未知”；交付里的模型和思考强度记为“未知”。</li>
             <li>agy 作主控时，请用 <code>agy --dangerously-skip-permissions</code> 启动，否则每条命令都要你在终端里确认。agy 作 worker 时同样全放开，靠门禁事后检查；它对每个新目录的信任会写进你的 <code>~/.gemini</code>。</li>
           </ul>
-          <h2 id="changes-title">0.1.5 更新</h2>
+          <h2 id="changes-title">0.1.6 更新</h2>
           <ul class="plain">
-            <li>支持 agy 与 opencode：在项目终端里直接敲 <code>agy</code> 或 <code>opencode</code> 就接入，可以申请当主控，也可以被派去当 worker 和审查员。</li>
-            <li>门禁在交付时核对 worktree 的 HEAD、分支、Git 配置和钩子没有被 worker 改动，改了就拒收，对所有 CLI 都生效。</li>
+            <li>项目终端由应用内带的私有 hc core 托管，后台重启后接回原来的终端，终端里的 CLI 不中断；与你自己的 Herdr 互不影响。</li>
+            <li>普通项目终端里的 Claude Code 和 Codex 都能报上回合状态和原生会话号，右键可复制深度链接。</li>
+            <li>问题先推给执行主控处理；路径重叠和卡外改动交主控判断；审查员按字段交结论，门禁拒绝时写明原因和下一步。</li>
+            <li>主控可以在多个已打开的项目里派发；项目随时可移除，任务页显示门禁全程。</li>
           </ul>
-          <p>升级提醒和其余改动见 <a href="https://github.com/a1024053774/Enchanted/releases/tag/v0.1.5">0.1.5 发行说明</a>。</p>
+          <p>升级提醒和其余改动见 <a href="https://github.com/a1024053774/Enchanted/releases/tag/v0.1.6">0.1.6 发行说明</a>。</p>
         </div>
         <div class="prose">
           <h2>已知限制</h2>
