@@ -31,3 +31,5 @@ ready_rev:
 2026-11-03 关闭（PASS）：用户“做 T-246”。普通终端的原生会话报告与回合状态按报告它的进程（进程号加启动时间）分别保存，只用前台进程自己报的（`workbench/src/byProcess.ts`，由 T-242 的 `shellTurns.ts` 泛化）；重启按全部记录重建；前台复查失败时不留会话。真实 Claude Code 端到端（外层 Bash 工具运行内层 `claude -p`）修前失败于“内层运行时链接不可用、`native_session` 是内层的”，修后八项 PASS，两个变异体与前台复查失败注入各失败于预期处；`test_by_process.ts` 穷举 PASS，四个坏实现都失败；t195、t242、t184、t133 回归 PASS。已知局限：进程号在钩子请求路上被复用（macOS 顺序分配，实测见证据）；Codex 嵌套没有端到端跑过。
 
 证据：[T-246 RESULTS.md](../../evidence/2026-11-03-batch31/T-246/RESULTS.md)。
+
+2026-11-04 补记：Codex 嵌套端到端已补做（用户：“这条要做”）。`test_t246_nested_codex_native_e2e.py` 八项 PASS，变异体失败于预期处。补做过程中发现普通终端里交互式 Codex 根本报不来会话，拆为 [T-247](T-247-terminal-codex-hook-cli-unrecognized.md) 修复。证据见 `evidence/2026-11-03-batch31/T-246/codex-nested/`。

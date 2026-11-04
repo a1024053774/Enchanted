@@ -369,7 +369,7 @@ agy、opencode 也可作 worker 与审查员（任务卡 `executor.cli` 为 `agy
 `native_link`（`src/nativeLink.ts`）按 CLI 取，只给“现在这个会话”的号：受管 Claude Code 用后台启动时指定、窗格绑定的
 会话号，这个 CLI 的钩子报过别的会话号（窗格里打了 `/clear` 等）就置灰；受管 Codex 用窗格从 rollout 首行 `session_meta` 绑定的
 线程号，Codex 自己的记录里这个工作区出现别的根线程、或有记录读不了就置灰；记录文件须确实存在。项目终端里跑的是用户自己敲的命令：
-Claude Code、Codex 的会话号由 Enchanted 的钩子连同报告它的 CLI 进程号报来（提交一句话后才有，Codex 须先信任钩子），按进程分别保存，
+Claude Code、Codex 的会话号由 Enchanted 的钩子连同报告它的 CLI 进程号报来（提交一句话后才有，Codex 须先信任钩子；报告者是钩子跳过 shell 中转后的第一个祖先进程，它不是 Claude Code 或 Codex 就不报；不看环境变量：交互式 Codex 不给钩子设 `CODEX_THREAD_ID`，T-247），按进程分别保存，
 只用前台那个进程自己报的：前台换了进程就不再用，前台 CLI 里再跑的 CLI（如 Bash 工具里的 `claude -p`）报来的也不顶替它（T-246）。opencode 的会话号取自它写给终端的 OSC 7501，报告里没有进程号：受管 opencode worker 一个窗格只跑一个进程，
 可以给出；终端里分不出报告来自哪一次运行，一律置灰（T-195 第 3 轮审查 F1）。opencode 的记录是
 `~/.local/share/opencode/opencode.db` 的 `session_v2` 表。agy 不报会话号：受管 agy worker 按它独占的工作区在

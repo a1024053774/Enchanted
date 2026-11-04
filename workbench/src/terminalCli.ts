@@ -78,6 +78,8 @@ function ancestors(): { pid: number; argv: string[] }[] {
   return chain;
 }
 const ancestorArgv = () => ancestors().map(row => row.argv);
+// What a CLI may start its hook command through (`sh -c`, a login shell's `-zsh`).
+const SHELLS = new Set(["sh", "bash", "zsh", "dash", "ksh", "fish"]);
 
 // The terminal socket accepts only this identity (T-126); the daemon's data directory is not in the environment.
 const socket = process.env.A2A_TERMINAL_SOCKET, launch = process.env.A2A_TERMINAL, token = process.env.A2A_TERMINAL_TOKEN;
@@ -98,9 +100,12 @@ async function main(argv: string[]) {
     try {
       const chunks: Buffer[] = [];
       for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
-      // T-195: which CLI process runs this hook, so the session it names is bound to that process.
-      const cli = commandCli(process.env, ancestorArgv);
-      const pid = ancestors().find(row => cliProgram(row.argv) === cli)?.pid;
+      // T-195, T-247: which CLI process runs this hook, so the session it names is bound to that process. A CLI starts
+      // its hooks itself, at most through a shell, so it is the first ancestor that is not a shell; when that one is no
+      // CLI we know, nothing is reported rather than a CLI further up. Not from the environment: interactive Codex gives
+      // its hooks no CODEX_THREAD_ID, and a CLI started inside another inherits the outer one's variables.
+      const runner = ancestors().find(row => !SHELLS.has((row.argv[0] ?? "").split("/").at(-1)!.replace(/^-/, "")));
+      const cli = runner && cliProgram(runner.argv), pid = runner?.pid;
       if (socket && launch && token) await requestAt(socket, { command: "terminal_hook", raw_stdin: Buffer.concat(chunks).toString("utf8"),
         ...(cli && pid ? { cli, cli_pid: pid, native_home: nativeHome(cli) } : {}) }, { kind: "terminal", launch, token });
     } catch { /* The daemon decides what to keep; a hook that cannot reach it leaves the turn alone. */ }

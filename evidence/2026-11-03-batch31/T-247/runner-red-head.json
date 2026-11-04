@@ -1,0 +1,117 @@
+{
+ "status": "INCOMPLETE",
+ "argv": [
+  "tests/test_t247_hook_runner.py",
+  "--revision",
+  "HEAD",
+  "--summary",
+  "../evidence/2026-11-03-batch31/T-247/runner-red-head.json"
+ ],
+ "revision": "HEAD",
+ "mutant": null,
+ "cases": {
+  "A_codex_direct_no_thread_env": {
+   "expected": {
+    "cli": "codex",
+    "cli_pid": 22390
+   },
+   "observed": {
+    "cli": null,
+    "cli_pid": null
+   },
+   "pids": {
+    "A": 22390
+   },
+   "pass_": false
+  },
+  "B_codex_through_sh": {
+   "expected": {
+    "cli": "codex",
+    "cli_pid": 22402
+   },
+   "observed": {
+    "cli": null,
+    "cli_pid": null
+   },
+   "pids": {
+    "B": 22402
+   },
+   "pass_": false
+  },
+  "C_unknown_runner_inside_codex": {
+   "expected": null,
+   "observed": {
+    "cli": "codex",
+    "cli_pid": 22421
+   },
+   "pids": {
+    "C-runner": 22438,
+    "C-outer": 22421
+   },
+   "pass_": false
+  },
+  "D_codex_inside_claude": {
+   "expected": {
+    "cli": "codex",
+    "cli_pid": 22474
+   },
+   "observed": {
+    "cli": "claude",
+    "cli_pid": 22457
+   },
+   "pids": {
+    "D": 22474,
+    "D-outer": 22457
+   },
+   "pass_": false
+  },
+  "E_codex_inside_codex_inherited_thread": {
+   "expected": {
+    "cli": "codex",
+    "cli_pid": 22510
+   },
+   "observed": {
+    "cli": "codex",
+    "cli_pid": 22510
+   },
+   "pids": {
+    "E": 22510,
+    "E-outer": 22493
+   },
+   "pass_": true
+  },
+  "F_claude": {
+   "expected": {
+    "cli": "claude",
+    "cli_pid": 22529
+   },
+   "observed": {
+    "cli": "claude",
+    "cli_pid": 22529
+   },
+   "pids": {
+    "F": 22529
+   },
+   "pass_": true
+  },
+  "G_runner_path_with_space_inside_claude": {
+   "expected": null,
+   "observed": {
+    "cli": "claude",
+    "cli_pid": 22548
+   },
+   "pids": {
+    "G": 22565,
+    "G-outer": 22548
+   },
+   "pass_": false
+  }
+ },
+ "failed": [
+  "A_codex_direct_no_thread_env",
+  "B_codex_through_sh",
+  "C_unknown_runner_inside_codex",
+  "D_codex_inside_claude",
+  "G_runner_path_with_space_inside_claude"
+ ]
+}

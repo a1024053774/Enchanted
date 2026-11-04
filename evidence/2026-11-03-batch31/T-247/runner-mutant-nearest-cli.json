@@ -1,0 +1,114 @@
+{
+ "status": "INCOMPLETE",
+ "argv": [
+  "tests/test_t247_hook_runner.py",
+  "--mutant",
+  "nearest-cli",
+  "--summary",
+  "../evidence/2026-11-03-batch31/T-247/runner-mutant-nearest-cli.json"
+ ],
+ "revision": null,
+ "mutant": "nearest-cli",
+ "cases": {
+  "A_codex_direct_no_thread_env": {
+   "expected": {
+    "cli": "codex",
+    "cli_pid": 22569
+   },
+   "observed": {
+    "cli": "codex",
+    "cli_pid": 22569
+   },
+   "pids": {
+    "A": 22569
+   },
+   "pass_": true
+  },
+  "B_codex_through_sh": {
+   "expected": {
+    "cli": "codex",
+    "cli_pid": 22572
+   },
+   "observed": {
+    "cli": "codex",
+    "cli_pid": 22572
+   },
+   "pids": {
+    "B": 22572
+   },
+   "pass_": true
+  },
+  "C_unknown_runner_inside_codex": {
+   "expected": null,
+   "observed": {
+    "cli": "codex",
+    "cli_pid": 22591
+   },
+   "pids": {
+    "C-runner": 22608,
+    "C-outer": 22591
+   },
+   "pass_": false
+  },
+  "D_codex_inside_claude": {
+   "expected": {
+    "cli": "codex",
+    "cli_pid": 22644
+   },
+   "observed": {
+    "cli": "codex",
+    "cli_pid": 22644
+   },
+   "pids": {
+    "D": 22644,
+    "D-outer": 22627
+   },
+   "pass_": true
+  },
+  "E_codex_inside_codex_inherited_thread": {
+   "expected": {
+    "cli": "codex",
+    "cli_pid": 22680
+   },
+   "observed": {
+    "cli": "codex",
+    "cli_pid": 22680
+   },
+   "pids": {
+    "E": 22680,
+    "E-outer": 22663
+   },
+   "pass_": true
+  },
+  "F_claude": {
+   "expected": {
+    "cli": "claude",
+    "cli_pid": 22683
+   },
+   "observed": {
+    "cli": "claude",
+    "cli_pid": 22683
+   },
+   "pids": {
+    "F": 22683
+   },
+   "pass_": true
+  },
+  "G_runner_path_with_space_inside_claude": {
+   "expected": null,
+   "observed": {
+    "cli": "claude",
+    "cli_pid": 22702
+   },
+   "pids": {
+    "G": 22719,
+    "G-outer": 22702
+   },
+   "pass_": false
+  }
+ },
+ "failed": [
+  "C_unknown_runner_inside_codex",
+  "G_runner_path_with_space_inside_claude"
+ ]
+}

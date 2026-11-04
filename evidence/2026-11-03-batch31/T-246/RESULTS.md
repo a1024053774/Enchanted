@@ -109,3 +109,7 @@ NO_GO，三条阻塞，都是只读推导。第 1、3 条又是“报告只属�
 ## 关闭时的清理（2026-11-03）
 
 按只存状态的规则删除 `/private/tmp` 下本票运行留下的 20 个夹具目录（`t246-*`、`t195-*`、`t242-*`、`t184-*`，共约 2.2 GB），删除前核对路径下没有进程；本目录的 JSON 结果、日志与审查报告保留（共约 0.8 MB）。
+
+## 补记（2026-11-04）：Codex 嵌套
+
+`workbench/tests/test_t246_nested_codex_native_e2e.py`：外层是交互式 Codex，它的 shell 工具运行内层 `codex exec`，内层的模型请求由测试扣住。预期来自 Codex rollout 首行 `session_meta`。结果在 `codex-nested/`：修前失败（外层报不来会话，原因与修复见 [T-247](../T-247/RESULTS.md)）；修后 `fixed-6`、`fixed-7` 八项 PASS；变异体 `mutant-last-report` 失败于“内层运行时链接是外层的”这一项，链接给的是内层会话。
