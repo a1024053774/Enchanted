@@ -38,7 +38,7 @@ ready_rev: 1
 4. **受管 worktree 只读**（主控按项目规则定的默认，用户可改）：跟随的目录是门禁管理的任务 worktree 时，Git 图只读，写操作按钮不可用并说明原因；门禁保护 worktree 的 Git 元数据，用户直接改算人工介入。项目主目录和普通终端的目录可以写。
 5. **新打包**：开发与验收都用 `npm run package:mac -- --variant test --slot <新 slot>` 打出的 “Enchanted Test”（独立 bundle id `org.a2a.workbench.test`、独立数据目录），不替换 `/Applications/Enchanted.app`，不停、不重启、不连接正在运行的 Enchanted 与它的后台和 hc core。
 
-## 验收
+## Acceptance
 
 - [ ] 端到端测试经真实入口（打包好的 Enchanted Test，或 `app/start.mjs` 以独立数据目录启动的 Electron）：测试自己建一个夹具仓库，包含两条分支、一次 merge、一个标签、一个未提交改动。面板里提交的顺序、父子关系和标签与 `git rev-list --date-order --parents --all`、`git for-each-ref` 的输出一致（期望值从 git 读，不从实现读）；未提交行存在并连到 HEAD。
 - [ ] 至少一个写操作（新建分支，再删除）从界面执行，之后 `git for-each-ref` 显示的变化与预期一致；名字以 `-` 开头被拒，仓库不变。

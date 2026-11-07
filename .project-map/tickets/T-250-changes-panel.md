@@ -28,7 +28,7 @@ ready_rev: 1
 - 刷新：本地仓库监视文件变化；自己的写操作之后立即刷新，并忽略自己写操作带来的那一批文件事件。
 - 跟随目录和受管 worktree 只读规则与 T-249 相同：跟随门禁 worktree 时暂存、丢弃、提交不可用。
 
-## 验收
+## Acceptance
 
 - [ ] 端到端测试经真实入口（Enchanted Test 或独立数据目录的 Electron）：夹具仓库含已暂存、未暂存、未跟踪、冲突各至少一个文件。面板分组和 +/- 行数与 `git status --porcelain=v2 -z`、`git diff --numstat`、`git diff --cached --numstat` 一致（期望值从 git 读）。
 - [ ] 从界面暂存、取消暂存、丢弃、提交各一次，每次之后 `git status` 与 `git log -1` 的变化与预期一致；丢弃先出现确认框，取消时仓库不变。
