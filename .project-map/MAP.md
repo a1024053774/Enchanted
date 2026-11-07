@@ -97,6 +97,7 @@
 - 2026-10-25 用户：T-184 查明钩子未送达、T-185 Codex 开局钩子、T-186 发 0.1.4 并更新产品页、T-187 支持 agy 与 opencode 并实测
 - 2026-10-26 用户：T-188 发 0.1.5（agy、opencode），补齐产品页与 GitHub 各处，替换 /Applications
 - 2026-11-04 用户：[T-248](tickets/T-248-release-0-1-6.md) 发 0.1.6，更新 Release 与产品页（不替换 /Applications）
+- 2026-11-07 用户：留在 Electron；先自己做两个面板，[T-249](tickets/T-249-git-graph-panel.md) 面板位与 Git 图、[T-250](tickets/T-250-changes-panel.md) 改动面板（照 herdr-git-graph、herdr-gitview）；在 Enchanted Test 包里做，Opus 5.5 medium 执行，Codex gpt-6.1-terra 用 Computer Use 验收；外置盘规则弃用
 - 2026-10-27 两次真实使用（findings/2026-10-27-two-real-uses.md，NO_GO）后的方案见 [T-189](tickets/T-189-real-use-fixes-decisions.md)；切为 T-190 项目移除与失效项目隔离、T-191 CLI 图标与 worker 状态、T-192 任务页门禁全程与关闭状态、T-193 主控跨项目、T-194 MCP 派发入口、T-195 复制会话链接；均未就绪，待用户开工。
 - 路径限制按 [T-196](tickets/T-196-path-judgement-by-controller.md) 切为 T-197 认领重叠交主控判断、T-198 卡外改动交主控判断；未就绪，待用户开工。
 - T-119 之后待切：主控之间、worker 与主控之间经 `a2a` 通信；在界面上编辑每个角色的边界与权限默认值（T-121、T-122 关闭后再切）
