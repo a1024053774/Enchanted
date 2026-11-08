@@ -1,0 +1,190 @@
+{
+  "status": "FAIL",
+  "argv": [
+    "test_t253_shutdown.py",
+    "--mutant",
+    "shutdown-skips-bindings",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a/.claude/worktrees/dreamy-ptolemy-d0f2f0/evidence/2026-11-08-batch34/T-253/mutants/daemon-shutdown-skips-bindings.json"
+  ],
+  "revision": null,
+  "mutant": "shutdown-skips-bindings",
+  "source_fixture": "/tmp/t253-src-zr8bh15h",
+  "failed": [
+    "stop_while_binding:bind_failure_recorded"
+  ],
+  "scenarios": [
+    {
+      "scenario": "stop_while_binding",
+      "fixture": "/private/tmp/t253-stop-5ety_wfw",
+      "checks": [
+        {
+          "name": "stop_accepted",
+          "ok": true,
+          "detail": {
+            "exit": 0,
+            "stdout": "{\"ok\":true,\"pid\":85606,\"stopping\":true}\n",
+            "stderr": ""
+          }
+        },
+        {
+          "name": "host_exit_zero",
+          "ok": true,
+          "detail": 0
+        },
+        {
+          "name": "nothing_bound",
+          "ok": true,
+          "detail": []
+        },
+        {
+          "name": "bind_failure_recorded",
+          "ok": false,
+          "detail": []
+        }
+      ],
+      "failed": [
+        "bind_failure_recorded"
+      ],
+      "observed": {
+        "stop": {
+          "exit": 0,
+          "stdout": "{\"ok\":true,\"pid\":85606,\"stopping\":true}\n",
+          "stderr": ""
+        },
+        "hc_cleanup": {
+          "exit": 0,
+          "stdout": "{\"stopped\":true}\n",
+          "stderr": "",
+          "session": "enchanted-c7541f73-13fc-47ab-936d-fba3bb097b76"
+        },
+        "host_exit": 0,
+        "host_stderr": "{\"error\":\"event_write_failed\",\"launch\":\"t253-launch\",\"reason\":\"event_write_failed: Error: database is not open; original native_session_bind_failed: daemon_stopping\"}\n",
+        "host_notes": [
+          {
+            "at": "2026-11-08T06:20:50.136Z",
+            "name": "read_entered",
+            "thread": "t253-thread"
+          },
+          {
+            "at": "2026-11-08T06:20:50.136Z",
+            "name": "callback_called"
+          },
+          {
+            "at": "2026-11-08T06:20:50.230Z",
+            "name": "gates_closed"
+          },
+          {
+            "at": "2026-11-08T06:20:50.233Z",
+            "name": "stop_seen"
+          },
+          {
+            "at": "2026-11-08T06:20:50.233Z",
+            "name": "read_returned",
+            "after": "gates_closed"
+          }
+        ],
+        "orchestration_events": [
+          {
+            "type": "daemon_stopped",
+            "launch": null,
+            "data": {
+              "pid": 85606
+            }
+          }
+        ],
+        "runtime_bound": []
+      },
+      "status": "FAIL"
+    },
+    {
+      "scenario": "record_write_fails",
+      "fixture": "/private/tmp/t253-stop-8ebdodri",
+      "checks": [
+        {
+          "name": "daemon_survives_failed_record",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "stop_accepted",
+          "ok": true,
+          "detail": {
+            "exit": 0,
+            "stdout": "{\"ok\":true,\"pid\":85964,\"stopping\":true}\n",
+            "stderr": ""
+          }
+        },
+        {
+          "name": "host_exit_zero",
+          "ok": true,
+          "detail": 0
+        },
+        {
+          "name": "nothing_bound",
+          "ok": true,
+          "detail": []
+        },
+        {
+          "name": "write_failure_reported",
+          "ok": true,
+          "detail": [
+            {
+              "error": "event_write_failed",
+              "launch": "t253-launch",
+              "reason": "event_write_failed: Error: fixture: event write refused; original native_session_bind_failed: unknown_task"
+            }
+          ]
+        }
+      ],
+      "failed": [],
+      "observed": {
+        "alive_after_refused_record": true,
+        "stop": {
+          "exit": 0,
+          "stdout": "{\"ok\":true,\"pid\":85964,\"stopping\":true}\n",
+          "stderr": ""
+        },
+        "hc_cleanup": {
+          "exit": 0,
+          "stdout": "{\"stopped\":true}\n",
+          "stderr": "",
+          "session": "enchanted-6aabf18a-903c-4631-89c0-db2fc5322b33"
+        },
+        "host_exit": 0,
+        "host_stderr": "{\"error\":\"event_write_failed\",\"launch\":\"t253-launch\",\"reason\":\"event_write_failed: Error: fixture: event write refused; original native_session_bind_failed: unknown_task\"}\n",
+        "host_notes": [
+          {
+            "at": "2026-11-08T06:20:51.760Z",
+            "name": "read_entered",
+            "thread": "t253-thread"
+          },
+          {
+            "at": "2026-11-08T06:20:51.761Z",
+            "name": "callback_called"
+          },
+          {
+            "at": "2026-11-08T06:20:51.761Z",
+            "name": "record_refused"
+          },
+          {
+            "at": "2026-11-08T06:20:52.867Z",
+            "name": "gates_closed"
+          }
+        ],
+        "orchestration_events": [
+          {
+            "type": "daemon_stopped",
+            "launch": null,
+            "data": {
+              "pid": 85964
+            }
+          }
+        ],
+        "runtime_bound": []
+      },
+      "status": "PASS",
+      "fixture_deleted": true
+    }
+  ]
+}

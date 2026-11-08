@@ -1,0 +1,197 @@
+{
+  "status": "FAIL",
+  "argv": [
+    "test_t253_shutdown.py",
+    "--mutant",
+    "bind-record-unguarded",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a/.claude/worktrees/dreamy-ptolemy-d0f2f0/evidence/2026-11-08-batch34/T-253/mutants/daemon-bind-record-unguarded.json"
+  ],
+  "revision": null,
+  "mutant": "bind-record-unguarded",
+  "source_fixture": "/tmp/t253-src-njgr57ro",
+  "failed": [
+    "record_write_fails:daemon_survives_failed_record",
+    "record_write_fails:stop_accepted",
+    "record_write_fails:host_exit_zero",
+    "record_write_fails:write_failure_reported"
+  ],
+  "scenarios": [
+    {
+      "scenario": "stop_while_binding",
+      "fixture": "/private/tmp/t253-stop-kowahc7j",
+      "checks": [
+        {
+          "name": "stop_accepted",
+          "ok": true,
+          "detail": {
+            "exit": 0,
+            "stdout": "{\"ok\":true,\"pid\":86271,\"stopping\":true}\n",
+            "stderr": ""
+          }
+        },
+        {
+          "name": "host_exit_zero",
+          "ok": true,
+          "detail": 0
+        },
+        {
+          "name": "nothing_bound",
+          "ok": true,
+          "detail": []
+        },
+        {
+          "name": "bind_failure_recorded",
+          "ok": true,
+          "detail": [
+            {
+              "type": "native_session_bind_failed",
+              "launch": "t253-launch",
+              "data": {
+                "native_session": "codex-fixture-session",
+                "error": "daemon_stopping",
+                "details": null
+              }
+            }
+          ]
+        }
+      ],
+      "failed": [],
+      "observed": {
+        "stop": {
+          "exit": 0,
+          "stdout": "{\"ok\":true,\"pid\":86271,\"stopping\":true}\n",
+          "stderr": ""
+        },
+        "hc_cleanup": {
+          "exit": 0,
+          "stdout": "{\"stopped\":true}\n",
+          "stderr": "",
+          "session": "enchanted-f8ba95c8-b929-456a-a2cd-2c45ab358a40"
+        },
+        "host_exit": 0,
+        "host_stderr": "",
+        "host_notes": [
+          {
+            "at": "2026-11-08T06:20:54.430Z",
+            "name": "read_entered",
+            "thread": "t253-thread"
+          },
+          {
+            "at": "2026-11-08T06:20:54.430Z",
+            "name": "callback_called"
+          },
+          {
+            "at": "2026-11-08T06:20:54.560Z",
+            "name": "stop_seen"
+          },
+          {
+            "at": "2026-11-08T06:20:56.562Z",
+            "name": "read_returned",
+            "after": "timeout"
+          },
+          {
+            "at": "2026-11-08T06:20:56.562Z",
+            "name": "gates_closed"
+          }
+        ],
+        "orchestration_events": [
+          {
+            "type": "daemon_stopped",
+            "launch": null,
+            "data": {
+              "pid": 86271
+            }
+          },
+          {
+            "type": "native_session_bind_failed",
+            "launch": "t253-launch",
+            "data": {
+              "native_session": "codex-fixture-session",
+              "error": "daemon_stopping",
+              "details": null
+            }
+          }
+        ],
+        "runtime_bound": []
+      },
+      "status": "PASS",
+      "fixture_deleted": true
+    },
+    {
+      "scenario": "record_write_fails",
+      "fixture": "/private/tmp/t253-stop-75rd_1ps",
+      "checks": [
+        {
+          "name": "daemon_survives_failed_record",
+          "ok": false,
+          "detail": 1
+        },
+        {
+          "name": "stop_accepted",
+          "ok": false,
+          "detail": {
+            "exit": 1,
+            "stdout": "{\"ok\":false,\"error\":\"daemon_call_failed\",\"details\":\"Error: connect ECONNREFUSED /private/tmp/t253-stop-75rd_1ps/state/control.sock\"}\n",
+            "stderr": ""
+          }
+        },
+        {
+          "name": "host_exit_zero",
+          "ok": false,
+          "detail": 1
+        },
+        {
+          "name": "nothing_bound",
+          "ok": true,
+          "detail": []
+        },
+        {
+          "name": "write_failure_reported",
+          "ok": false,
+          "detail": []
+        }
+      ],
+      "failed": [
+        "daemon_survives_failed_record",
+        "stop_accepted",
+        "host_exit_zero",
+        "write_failure_reported"
+      ],
+      "observed": {
+        "alive_after_refused_record": false,
+        "stop": {
+          "exit": 1,
+          "stdout": "{\"ok\":false,\"error\":\"daemon_call_failed\",\"details\":\"Error: connect ECONNREFUSED /private/tmp/t253-stop-75rd_1ps/state/control.sock\"}\n",
+          "stderr": ""
+        },
+        "hc_cleanup": {
+          "exit": 0,
+          "stdout": "{\"stopped\":true}\n",
+          "stderr": "",
+          "session": "enchanted-962cda78-4aff-4889-9dd0-744a408a8695"
+        },
+        "host_exit": 1,
+        "host_stderr": "file:///Users/luckye/Documents/Code/a2a/.claude/worktrees/dreamy-ptolemy-d0f2f0/workbench/tests/t253_shutdown_host.ts:64\n    if (type === \"native_session_bind_failed\") { note(\"record_refused\"); throw new Error(\"fixture: event write refused\"); }\n                                                                               ^\n\nError: fixture: event write refused\n    at panes.store.event (file:///Users/luckye/Documents/Code/a2a/.claude/worktrees/dreamy-ptolemy-d0f2f0/workbench/tests/t253_shutdown_host.ts:64:80)\n    at file:///private/tmp/t253-src-njgr57ro/source/workbench/src/daemon.ts:98:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n\nNode.js v26.5.0\n",
+        "host_notes": [
+          {
+            "at": "2026-11-08T06:20:57.989Z",
+            "name": "read_entered",
+            "thread": "t253-thread"
+          },
+          {
+            "at": "2026-11-08T06:20:57.989Z",
+            "name": "callback_called"
+          },
+          {
+            "at": "2026-11-08T06:20:57.989Z",
+            "name": "record_refused"
+          }
+        ],
+        "orchestration_events": [],
+        "runtime_bound": []
+      },
+      "status": "FAIL"
+    }
+  ]
+}

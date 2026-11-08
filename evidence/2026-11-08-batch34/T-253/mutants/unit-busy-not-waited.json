@@ -1,7 +1,7 @@
 {
   "status": "FAIL",
-  "source": "/tmp/t253-src-p6zgrq32/source",
-  "fixture": "/tmp/t253-bind-v70XyT",
+  "source": "/tmp/t253-src-3a312x_f/source",
+  "fixture": "/tmp/t253-bind-YIMACS",
   "checks": [
     {
       "name": "binds_pane_session",
@@ -122,10 +122,42 @@
         },
         "events": 0
       }
+    },
+    {
+      "name": "stop_during_read_refused",
+      "ok": true,
+      "detail": {
+        "result": "daemon_stopping",
+        "bound": {
+          "launch": "launch-1",
+          "thread": "worker-1",
+          "shell_pid": 4100,
+          "leader_pid": 4101,
+          "native_session": null
+        },
+        "events": 0
+      }
+    },
+    {
+      "name": "stop_while_waiting_refused",
+      "ok": false,
+      "detail": {
+        "result": "ok",
+        "after_release": "ok",
+        "bound": {
+          "launch": "launch-1",
+          "thread": "worker-1",
+          "shell_pid": 4100,
+          "leader_pid": 4101,
+          "native_session": null
+        },
+        "events": 0
+      }
     }
   ],
   "failed": [
-    "waits_for_busy_lock"
+    "waits_for_busy_lock",
+    "stop_while_waiting_refused"
   ],
   "observed": {
     "bind": {
@@ -216,6 +248,29 @@
         "native_session": null
       },
       "events": 0
+    },
+    "stop_read": {
+      "result": "daemon_stopping",
+      "bound": {
+        "launch": "launch-1",
+        "thread": "worker-1",
+        "shell_pid": 4100,
+        "leader_pid": 4101,
+        "native_session": null
+      },
+      "events": 0
+    },
+    "stop_wait": {
+      "result": "ok",
+      "after_release": "ok",
+      "bound": {
+        "launch": "launch-1",
+        "thread": "worker-1",
+        "shell_pid": 4100,
+        "leader_pid": 4101,
+        "native_session": null
+      },
+      "events": 0
     }
   },
   "argv": [
@@ -227,8 +282,8 @@
   ],
   "revision": null,
   "mutant": "busy-not-waited",
-  "source_fixture": "/tmp/t253-src-p6zgrq32",
+  "source_fixture": "/tmp/t253-src-3a312x_f",
   "host_exit": 1,
-  "host_stdout": "FAIL waits_for_busy_lock \n",
+  "host_stdout": "FAIL waits_for_busy_lock,stop_while_waiting_refused \n",
   "host_stderr": ""
 }

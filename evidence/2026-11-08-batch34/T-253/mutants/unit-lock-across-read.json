@@ -1,7 +1,7 @@
 {
   "status": "FAIL",
-  "source": "/tmp/t253-src-71wgioks/source",
-  "fixture": "/tmp/t253-bind-PFUWcV",
+  "source": "/tmp/t253-src-8shrss8g/source",
+  "fixture": "/tmp/t253-bind-DU61Ec",
   "checks": [
     {
       "name": "binds_pane_session",
@@ -122,10 +122,42 @@
         },
         "events": 1
       }
+    },
+    {
+      "name": "stop_during_read_refused",
+      "ok": false,
+      "detail": {
+        "result": "unknown_task",
+        "bound": {
+          "launch": "launch-1",
+          "thread": "worker-1",
+          "shell_pid": 4100,
+          "leader_pid": 4101,
+          "native_session": null
+        },
+        "events": 0
+      }
+    },
+    {
+      "name": "stop_while_waiting_refused",
+      "ok": true,
+      "detail": {
+        "result": "daemon_stopping",
+        "after_release": "daemon_stopping",
+        "bound": {
+          "launch": "launch-1",
+          "thread": "worker-1",
+          "shell_pid": 4100,
+          "leader_pid": 4101,
+          "native_session": null
+        },
+        "events": 0
+      }
     }
   ],
   "failed": [
-    "lock_free_while_reading"
+    "lock_free_while_reading",
+    "stop_during_read_refused"
   ],
   "observed": {
     "bind": {
@@ -216,6 +248,29 @@
         "native_session": "codex-session-1"
       },
       "events": 1
+    },
+    "stop_read": {
+      "result": "unknown_task",
+      "bound": {
+        "launch": "launch-1",
+        "thread": "worker-1",
+        "shell_pid": 4100,
+        "leader_pid": 4101,
+        "native_session": null
+      },
+      "events": 0
+    },
+    "stop_wait": {
+      "result": "daemon_stopping",
+      "after_release": "daemon_stopping",
+      "bound": {
+        "launch": "launch-1",
+        "thread": "worker-1",
+        "shell_pid": 4100,
+        "leader_pid": 4101,
+        "native_session": null
+      },
+      "events": 0
     }
   },
   "argv": [
@@ -227,8 +282,8 @@
   ],
   "revision": null,
   "mutant": "lock-across-read",
-  "source_fixture": "/tmp/t253-src-71wgioks",
+  "source_fixture": "/tmp/t253-src-8shrss8g",
   "host_exit": 1,
-  "host_stdout": "FAIL lock_free_while_reading \n",
+  "host_stdout": "FAIL lock_free_while_reading,stop_during_read_refused \n",
   "host_stderr": ""
 }

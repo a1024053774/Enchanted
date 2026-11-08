@@ -1,0 +1,244 @@
+{
+  "status": "PASS",
+  "argv": [
+    "test_t252_untrusted_turn_other_cli_e2e.py",
+    "--cli",
+    "opencode",
+    "--revision",
+    "cd69040d1",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a/.claude/worktrees/dreamy-ptolemy-d0f2f0/evidence/2026-11-08-batch34/T-253/regression/t252_opencode.json"
+  ],
+  "cli": "opencode",
+  "launch": "dispatch",
+  "revision": "cd69040d1",
+  "mutant": null,
+  "runtime": "real daemon/gate; T-187 fake agy/opencode CLI with OSC 7501 reports; no model; no Electron",
+  "checks": [
+    "untrusted_delivery_not_executed",
+    "turn_ended_not_running",
+    "controller_status_shows_reason",
+    "issue_names_the_turn",
+    "issue_sent_through_inbox",
+    "old_attempt_reclaimed",
+    "new_worker_dispatched"
+  ],
+  "preconditions": [
+    "outside_hook_judged_foreign"
+  ],
+  "observed": {
+    "attempt": "e037ff08-d1ed-439b-97d2-c2b98338b35a",
+    "gate_state": "claimed",
+    "pane": {
+      "ok": true,
+      "thread": "4c3d049b-88d5-4840-92f3-41acd5146c8e",
+      "launch": "d143ecba-5e64-4520-9af0-9da721c19c0a",
+      "state": "idle",
+      "lifecycle": "running",
+      "shell_pid": 64355,
+      "size": {
+        "cols": 160,
+        "rows": 45
+      },
+      "state_source": "host_events",
+      "active": null,
+      "native_session": "osc7501:d143ecba-5e64-4520-9af0-9da721c19c0a",
+      "start_missing": false,
+      "silent_foreground": null,
+      "unwired_cli": null,
+      "cli_turn": {
+        "state": "idle",
+        "kind": null,
+        "msg": null,
+        "app": "opencode",
+        "id": null
+      },
+      "foreground_cli": null,
+      "hook_turn": null,
+      "turn": "osc7501:fedeb11b-8dee-4115-b699-d75fa7173705",
+      "writing": false,
+      "user_draft": false,
+      "interrupted": false,
+      "input_generation": 0,
+      "interruption": null,
+      "queued": [],
+      "failed": null,
+      "stopped": false,
+      "restoration": null,
+      "delivery": {
+        "task": "demo+T-1",
+        "attempt": "e037ff08-d1ed-439b-97d2-c2b98338b35a",
+        "session": "deacfb45-eb58-4515-bd61-e528db7068c4",
+        "fence": 1,
+        "spec_rev": 1,
+        "request_id": "1eda1222-437e-4f8b-9a76-1f65488fd2ca",
+        "commit": "398198ffb4560d071f80d131305cb13fc50c70a8",
+        "received_at": "2026-11-08T05:54:41.544Z",
+        "result_at": "2026-11-08T05:54:41.544Z",
+        "state": "rejected",
+        "reason": "current_turn_untrusted",
+        "request_turn": "osc7501:d2240437-b928-4291-90cf-0a30bef8894b",
+        "current_turn": "osc7501:d2240437-b928-4291-90cf-0a30bef8894b",
+        "native_turn_changed": false,
+        "recovery_request_id": "recover-110"
+      }
+    },
+    "unverified": [
+      {
+        "seq": 66,
+        "reason": "Error: unsupported_hook",
+        "hook": "PostToolUse",
+        "turn": "osc7501:d2240437-b928-4291-90cf-0a30bef8894b"
+      }
+    ],
+    "relay": [
+      {
+        "seq": 110,
+        "type": "relay_received",
+        "error": null
+      },
+      {
+        "seq": 111,
+        "type": "relay_rejected",
+        "error": "current_turn_untrusted"
+      },
+      {
+        "seq": 134,
+        "type": "relay_replayed",
+        "error": "current_turn_untrusted"
+      }
+    ],
+    "stop_failures": [],
+    "issues": [
+      {
+        "title": "交付没被受理：这一回合不可信",
+        "blocking": true,
+        "from_": "system",
+        "to": "executor",
+        "turn_id": "osc7501:d2240437-b928-4291-90cf-0a30bef8894b",
+        "state": "待判断",
+        "body": "{\n  \"reason\": \"current_turn_untrusted\",\n  \"what\": \"worker 这一回合交来的请求门禁没有执行，已记为拒收，以后也不会再执行。这一回合本身照常结束；窗格之后是否空闲看 status（排着用户输入或被打断时还会继续忙）。\",\n  \"requests\": [\n    {\n      \"request_id\": \"1eda1222-437e-4f8b-9a76-1f65488fd2ca\",\n      \"command\": \"submit\",\n      \"title\": null\n    }\n  ],\n  \"unverified\": [\n    {\n      \"time\": \"2026-11-08T05:54:37.727Z\",\n      \"reason\": \"Error: unsupported_hook\",\n      \"hook_event_name\": \"PostToolUse\"\n    }\n  ],\n  \"next\": \"看 unverified 是哪个钩子核对不上。要继续这项工作：等 worker 空闲后回收这个 attempt 再派发（它的提交还在 attempt 分支上，新卡可以 cherry-pick）；还忙时回收会被拒（worker_working）。\"\n}"
+      }
+    ],
+    "forged_hook": {
+      "code": 1,
+      "stdout": "{\"ok\":false,\"error\":\"unsupported_hook\",\"details\":\"Error: unsupported_hook\"}\n",
+      "stderr": ""
+    },
+    "inbox_receipts": [
+      {
+        "entry": "10c6bfa2-35bb-442d-82ff-3da3e0ac449d",
+        "state": "pending",
+        "entry_id": "10c6bfa2-35bb-442d-82ff-3da3e0ac449d",
+        "created_at": "2026-11-08T05:54:41.545Z"
+      },
+      {
+        "entry": "10c6bfa2-35bb-442d-82ff-3da3e0ac449d",
+        "state": "pending",
+        "entry_id": "10c6bfa2-35bb-442d-82ff-3da3e0ac449d",
+        "created_at": "2026-11-08T05:54:41.545Z",
+        "reason": "role_session_missing"
+      }
+    ],
+    "attempt_identity": {
+      "launch": "d143ecba-5e64-4520-9af0-9da721c19c0a",
+      "thread": "4c3d049b-88d5-4840-92f3-41acd5146c8e",
+      "shell_pid": 64355,
+      "leader_pid": 64358,
+      "native_session": "osc7501:d143ecba-5e64-4520-9af0-9da721c19c0a"
+    },
+    "identity_binding": {
+      "gate": [
+        {
+          "seq": 32,
+          "time": "2026-11-08T05:54:35.367Z",
+          "type": "dispatched",
+          "by": null,
+          "runtime_identity": {
+            "launch": "d143ecba-5e64-4520-9af0-9da721c19c0a",
+            "thread": "4c3d049b-88d5-4840-92f3-41acd5146c8e",
+            "shell_pid": 64355,
+            "leader_pid": 64358,
+            "native_session": "osc7501:d143ecba-5e64-4520-9af0-9da721c19c0a"
+          }
+        }
+      ],
+      "pane": []
+    },
+    "reclaim": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "redispatch": {
+      "ok": true,
+      "error": null,
+      "details": null
+    }
+  },
+  "fixture": "/private/tmp/t252-d0cjw8ya",
+  "details": {
+    "outside_hook_judged_foreign": [
+      {
+        "seq": 66,
+        "reason": "Error: unsupported_hook",
+        "hook": "PostToolUse",
+        "turn": "osc7501:d2240437-b928-4291-90cf-0a30bef8894b"
+      }
+    ],
+    "untrusted_delivery_not_executed": "claimed",
+    "turn_ended_not_running": "idle",
+    "controller_status_shows_reason": [
+      {
+        "title": "交付没被受理：这一回合不可信",
+        "blocking": true,
+        "from_": "system",
+        "to": "executor",
+        "turn_id": "osc7501:d2240437-b928-4291-90cf-0a30bef8894b",
+        "state": "待判断",
+        "body": "{\n  \"reason\": \"current_turn_untrusted\",\n  \"what\": \"worker 这一回合交来的请求门禁没有执行，已记为拒收，以后也不会再执行。这一回合本身照常结束；窗格之后是否空闲看 status（排着用户输入或被打断时还会继续忙）。\",\n  \"requests\": [\n    {\n      \"request_id\": \"1eda1222-437e-4f8b-9a76-1f65488fd2ca\",\n      \"command\": \"submit\",\n      \"title\": null\n    }\n  ],\n  \"unverified\": [\n    {\n      \"time\": \"2026-11-08T05:54:37.727Z\",\n      \"reason\": \"Error: unsupported_hook\",\n      \"hook_event_name\": \"PostToolUse\"\n    }\n  ],\n  \"next\": \"看 unverified 是哪个钩子核对不上。要继续这项工作：等 worker 空闲后回收这个 attempt 再派发（它的提交还在 attempt 分支上，新卡可以 cherry-pick）；还忙时回收会被拒（worker_working）。\"\n}"
+      }
+    ],
+    "issue_names_the_turn": {
+      "turn": "osc7501:d2240437-b928-4291-90cf-0a30bef8894b",
+      "issues": [
+        "osc7501:d2240437-b928-4291-90cf-0a30bef8894b"
+      ]
+    },
+    "issue_sent_through_inbox": {
+      "controller_launch": [
+        "6730b66f-2375-4e81-8aa6-e4fcf1d483df"
+      ],
+      "terminal": "6730b66f-2375-4e81-8aa6-e4fcf1d483df",
+      "receipts": [
+        {
+          "entry": "10c6bfa2-35bb-442d-82ff-3da3e0ac449d",
+          "state": "pending",
+          "entry_id": "10c6bfa2-35bb-442d-82ff-3da3e0ac449d",
+          "created_at": "2026-11-08T05:54:41.545Z"
+        },
+        {
+          "entry": "10c6bfa2-35bb-442d-82ff-3da3e0ac449d",
+          "state": "pending",
+          "entry_id": "10c6bfa2-35bb-442d-82ff-3da3e0ac449d",
+          "created_at": "2026-11-08T05:54:41.545Z",
+          "reason": "role_session_missing"
+        }
+      ]
+    },
+    "old_attempt_reclaimed": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "new_worker_dispatched": {
+      "ok": true,
+      "error": null,
+      "details": null
+    }
+  },
+  "api": {
+    "requests": 0,
+    "error": null
+  }
+}
