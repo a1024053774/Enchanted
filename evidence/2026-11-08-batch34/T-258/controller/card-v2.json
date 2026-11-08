@@ -1,0 +1,58 @@
+{
+  "id": "T-258-1",
+  "source": {
+    "ticket": "/Users/luckye/Documents/Code/a2a/.project-map/tickets/T-258-codex-late-session-startup-failure-sticky.md",
+    "ready_rev": 1
+  },
+  "goal": "v2 恢复派发说明（2026-11-08）：本卡只接续同一 T-258 范围，用户授权、冻结 oracle、路径与验收不变。旧 attempt 已交付初版 8d54f436ae758ddfd3f30a28d64e060f0bd7bed8，随后在答复回合保存修订 7df553913fb2e8f2b9f0f096aa9c9b59d63f8135。新 attempt 先只从旧修订恢复本卡 allow 内的生产文件、两个测试与 worker 文本证据，不能 cherry-pick 旧主控证据或旧身份尾注；以新 attempt 身份重新提交。你不是唯一写入者，不撤销别人的改动。主控将先核对旧 worker 已空闲、无待输入并经 revise/reclaim 成功后才派你。\n\n最新已证实事实：主仓库 6fe140869 的 evidence/2026-11-08-batch34/T-258/controller/pause-diagnostic-03.json 与 assessment 证明 SIGSTOP 后自己的 shell/CLI 立即退出（pane_exit 先于 turn_submitted），不是晚启动，所以该机制 NO_GO；此前父版 outside01 和 daemon_start 超时02仍 INCOMPLETE，不算红态。不能重复完整 SIGSTOP 探针。请在允许的 e2e.py 内替换为保留真实交互 CLI/前台 shell 的受控启动等待，例如研究隔离 CODEX_HOME 下真实 MCP 初始化等待或其他真实入口支持的阻塞点，先用短诊断确认进程存活、原任务确实排队、原生身份尚未建立，再跑原120秒红绿。此处只是待证假设，不要求特定实现。不得伪造 rollout、Stop、DB 状态，不能延长/缩短生产deadline或增加生产测试开关；若最小方案需要范围/权限/验收改变，先 issue。只控制隔离测试自己的进程和合法启动配置，不操作正式应用或其他 CLI。\n\n环境事实：worker 默认 hc-cache 路径不存在，主目录旧 hc 归档读取卡住；主控已从既定0.1.15官方URL下载新归档，当前测试缓存 /private/tmp/t258-hc-cache-s8lk5bzy，标准 installHc 校验并启动成功。沙箱外主控运行时设置 ENCHANTED_HC_CACHE_DIR；你不得清理主控持有的缓存。依赖临时链接会在旧会话退出前清掉，外部探针不能依赖会消失的链接；给主控明确依赖前提或稳定的隔离源复制步骤，不把环境错误说成产品红态。\n\n修订7df553913已证明 reviewer 也走同一启动期限，增加 reviewer 当前task.review及原worker candidate/verification核对，117项模块PASS；旧8d54 reviewer两正例FAIL。保留这些事实与有界负例，更新本轮报告以最终范围为准，旧报告标历史而不冒用其104项或worker-only结论。完整错session submit已经真实创建relay文件；保留该负例，不退回无效 status --session。当前最重要缺口是实际入口红绿；代码先不扩大。新候选只在真实入口证据已回传并纳入、模块及相关回归完成后 submit，避免再次先交付再试图替换已接受候选。若沙箱拒绝，先保留脚本并通过新issue请求主控运行，等来源明确的结果再完成交付。README和地图由主控承担。\n\n以下为原卡完整要求：\n\n修 T-258：Codex 首次提交后超过启动期限才绑定原生 session/turn，窗格永久保留 native_session_unbound，Stop/交付/回收受阻。用户本轮问题包含“先正常重启并修复 T-258 这类启动恢复问题，再继续两个面板”，明确回答“修启动阻塞后继续（推荐）”。授权原文、两次现场和恢复记录在本票与 evidence/2026-11-08-batch34/T-258/controller/；本次已正常重启到后台 PID 95522，旧 terra attempt 已门禁回收。你只负责 T-258，主控负责门禁、正式包、运行必须在沙箱外的探针和证据汇总。你不是代码库唯一参与者，不能撤销他人改动；父任务 T-249 候选18c108fc已 verified但未集成，产品worker已停止，不要接管面板或它的工作区。worker/reviewer均gpt-6-astra xhigh普通速度，不启动Claude。\n\n先读AGENTS.md、REVIEW.md、T-258、workbench/README.md、T-257的相关测试和现有panes.ts。先说明 REALITY GATE：确定事实、推断、未决问题；列出行为位置、drain/scan/native hooks/Stop 的调用链、独立期望和失败方式，再写代码。使用 evidence-first-testing；本票是 Agent 用户行为，完成时按 behavioral-acceptance-review核对独立oracle和已知坏实现；任何异常处理/恢复分支按design-integrity-review自查。现有说明在SKILL路径若读取受阻，保留具体错误，别改全局权限或假称读过。主控此前读取脚本遇长时间无输出；你可以在本卡范围继续事实探针，并上报实际限制。\n\n两次现场：1) T249-1 a3在13:29:11提交，13:31:11 native_session_unbound，13:32:41才绑定，最后真实完成仍拒收/回收；2) terra T249-2 a2在15:28:46提交，终端显示Queued follow-up inputs，之后超时，约15:35后才绑定session 01a1bbc6-b73d-73d3-b38d-578c153ba9ad/turn 01a1bbcd-1332-75a3-bc32-80ab09a8f539并开始做事，但failed保留。主控停止后台前保存了真实事件/状态与未交付证据。先分清最初排队/迟迟未启动与晚绑定后不能完成是两个问题；不要凭静态推断改CLI启动延时、扩大deadline或清空failed。也不要把用户看到queued当作原生工作已经开始的证据。\n\n目标：在身份、原始派发来源和当前attempt均核对后，晚启动的原生回合能够按既有契约结束并交付，或者明确拒收后正常回收；请求只能执行一次。真正工作中仍拒绝回收，无原生身份/身份不符/来源不可信/过期attempt继续拒绝。不能直接复活别的failure，不能弱化其他CLI的边界或吞掉异常；必要的状态恢复必须属于确认它的根因层。若发现最小正确修复涉及卡外生产层先issue，不自行扩大范围。\n\n测试先于修改行为：在 workbench/tests/test_t258_codex_late_start.ts 写本票真实模块的独立断言与有界时序检查，node --test执行，自建临时夹具并输出可复核事实；支持对父版本/已知坏实现运行。新检查须在父版本或只回退修复时失败。使用生产Panes/Store，不另造一套状态机当被测对象。测试预计输入/输出先来自本票和原始CLI/门禁事实，不从实现输出抄答案。\n\n主要证据必须经真实入口：新增 workbench/tests/test_t258_codex_late_start_e2e.py，参考 test_t257_codex_stop_continuation_e2e.py 的真实Codex CLI + 独立本地Responses协议驱动 + 私有后台/门禁夹具（不是供应商真实模型跑分）。不启动Claude；scripted_claude只是既有夹具库名字。用隔离CODEX_HOME，只复制auth.json（若协议驱动根本不需真实auth则不复制），只信任自己的夹具，不写用户全局配置；沿用git add/git commit两条allow，其他权限不扩大。此卡批准这一次原始红态、一次候选绿态和针对本票不变式的受控反例所需的每会话hook观察；hook仅在隔离启动参数传入，不改真实rollout、不伪造原生结束、不用直接DB/私有对象注入代替端到端发生事实。延迟探针只能控制测试自己创建的CLI/合法启动输入的时机，记录实际时间顺序；环境未命中或原生未启动应INCOMPLETE，不能算缺陷红态。脚本支持--revision/--summary并使用新路径保存每次失败，不覆盖。\n\n端到端至少证明：超过启动期限后真实原生身份建立；真实工作中reclaim仍拒绝；原生完成后submit/issue被明确受理或明确拒收且旧attempt可回收；排队请求不重放、不重复执行；至少对应身份/来源失配反例继续拒绝。有界搜索覆盖scan先/UPS先、旧Stop/重复Stop与当前回合交错；不要无限枚举。不要通过缩短生产deadline让红绿成立；测试控制参数若必要仅限隔离副本、明确记录且不成为生产开关，优先真实deadline的单次探针。\n\n你在workspace-write中如果ps、私有后台/CLI启动被沙箱拒绝，不绕过、不申请全局权限、不调用MCP写卡外文件；保存脚本与现有事实，通过issue给出精确命令、前置条件和预期业务断言。主控可按本轮授权在沙箱外运行，随后通过真实issue答复把来源明确的文本证据交回。外层exec工作目录始终属于你自己的worktree或本次extra，不要设成主仓库或别的worker工作区；只读来源用绝对路径。任何真实CLI探针同时最多一个，使总Codex CLI <=3（主控+你+探针，审查期间不跑探针）。\n\n先跑与你变更相关的T257/原生身份回归，不重复无关全套。停止/reclaim反例明确记录错误码，不能以model自报或terminal idle代替业务结果。所有后台服务start_new_session；只停止本测试自己的后台/core。/Applications、正式state和用户hc完全不碰。临时构建/fixture在本机；退出前保存文本状态及红绿原始输出，再清自己拥有的缓存夹具；保留异常证据。实际正式版安装和T249恢复由主控处理。\n\n交付在 evidence/2026-11-08-batch34/T-258/worker/ 保存中文RESULTS.md、明确失败方式/不变式、父版本红态、候选绿态、反例和可重放命令（或精确INCOMPLETE原因）。程序性报告核对只做机械事实，不写固定措辞/关键词判语义；没有开头说明不判缺项。常规完成条件是模块检查；真实入口红绿及独立审查是另外必需的集成门槛，模块PASS不能替代它。git add --sparse、git commit后显式submit一次，queued不算接收，主控会盯到结果。绝不自行integrate/push、修改冻结acceptance或REVIEW。",
+  "non_goals": [
+    "不实现T249/T250、不修T255/T256",
+    "不修改正式后台/安装包、用户hc或全局配置",
+    "不改变冻结验收或角色权限",
+    "不通过延长期限、自动重发输入或一概清空失败绕过缺陷",
+    "不增加依赖、公开接口、schema或migration，不push"
+  ],
+  "paths": {
+    "allow": [
+      "workbench/src/panes.ts",
+      "workbench/src/questions.ts",
+      "workbench/tests/test_t258_codex_late_start.ts",
+      "workbench/tests/test_t258_codex_late_start_e2e.py",
+      "evidence/2026-11-08-batch34/T-258/worker/"
+    ],
+    "deny": [
+      "acceptance/",
+      "REVIEW.md",
+      ".project-map/",
+      "workbench/app/",
+      "workbench/src/gates/",
+      "workbench/src/credentials.ts",
+      "workbench/src/desktopCredentials.ts"
+    ]
+  },
+  "oracle_paths": [
+    ".project-map/tickets/T-258-codex-late-session-startup-failure-sticky.md",
+    "workbench/tests/test_t257_codex_stop_continuation.ts",
+    "workbench/tests/test_t257_codex_stop_continuation_e2e.py"
+  ],
+  "completion_conditions": [
+    {
+      "argv": [
+        "node",
+        "--test",
+        "workbench/tests/test_t258_codex_late_start.ts"
+      ]
+    }
+  ],
+  "red_commands": [],
+  "task_type": "后端逻辑",
+  "repair_target": null,
+  "complexity": "L",
+  "executor": {
+    "cli": "Codex",
+    "model": "gpt-6-astra",
+    "effort": "xhigh"
+  },
+  "base_commit": null,
+  "writer": null
+}
