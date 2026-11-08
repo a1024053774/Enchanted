@@ -1442,9 +1442,11 @@ CLI 将带 task、attempt、session、fence、spec_rev 的请求写入 `A2A_REQU
 已有请求按持久化的 launch 与编号查回，沿用原结果；只有 intent、没有结果的请求仍报结果未知，不重新执行。
 身份不符、字段不完整及重复转交都有追加事件。旧 Stop 不消费尚未处理的请求，
 处理结果未知时保留意图，不自动重试。一次 Stop 的新结果合成一条 `⟦门禁 #序号⟧`
-回执，先登记，再在空闲窗格里 bracketed paste 并单独回车。回执会启动新的原生回合，
-计入启动记录里的回合上限；本卡已获准一个交付回合和一个只确认回执的回合。
-Stop 响应关闭后后台才排空反馈队列；响应成功或 paste_written 不表示回车已写出。
+回执，先登记，再在空闲窗格里 bracketed paste 并单独回车。回执提交计入启动记录里的回合上限；
+本卡已获准一个交付回合和一个只确认回执的回合。Codex 可能在前一次 Stop 钩子返回前接收回执，
+把它并入同一原生 turn，不再产生新的 task_started；已确认的 UserPromptSubmit 将当前提交绑定到该 turn，
+后续仍须匹配 Stop 才结束提交（T-257）。服务端 Stop 响应关闭后后台才排空反馈队列，
+这不表示 CLI 已收到钩子返回；响应成功或 paste_written 也不表示回车已写出。
 观察者应等待该反馈 dispatch 的 turn_submitted，并核对活动提交及写入收据。
 Claude 的 PermissionRequest 必须匹配当前 prompt／active；同窗口一次许可 Enter
 只记 control action/write，不增加根提交 intent 或替换原 active，普通 Enter 仍按用户提交记录。
