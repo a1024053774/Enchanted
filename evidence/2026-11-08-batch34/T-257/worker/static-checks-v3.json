@@ -1,0 +1,127 @@
+{
+  "status": "INCOMPLETE",
+  "scope": "v3 候选转入后的静态检查；不代表本 attempt 的真实入口或独立门禁验收",
+  "task": "a2a+T-257-1",
+  "attempt": "6ca3622b-b0e7-41ad-a21f-7ff810441994",
+  "session": "df429446-05ca-46a3-8106-2d0f1eec943b",
+  "fence": 3,
+  "spec_rev": 3,
+  "base": "ec68e0539f886bdbe37df79d085ba85946e3870e",
+  "imported_diff": {
+    "base": "ebd155141668da18cb2dc09238c5312e1804223a",
+    "candidate": "5484315a5e318bce557dcc32e429f5d251453e84",
+    "method": "git diff --binary 限定卡内路径，git apply --check / git apply 均退出 0；未 cherry-pick"
+  },
+  "measured_workbench_source": "a2d6dbcbbf4c4a43240f89273f1bafb05fc1234c",
+  "collected_at": "2026-11-08T12:59:38.855Z",
+  "before_staging": [
+    {
+      "name": "imported_files_identical",
+      "command": "python3 - <<'PY'\nimport json, pathlib, subprocess\nbase='ebd155141668da18cb2dc09238c5312e1804223a'\nsource='5484315a5e318bce557dcc32e429f5d251453e84'\npaths=subprocess.check_output(['git','diff','--name-only',base,source],text=True).splitlines()\nexpected={'workbench/src/panes.ts','workbench/tests/test_t257_codex_stop_continuation_e2e.py','workbench/tests/test_t257_codex_stop_continuation.ts'}\nassert all(p in expected or p.startswith('evidence/2026-11-08-batch34/T-257/worker/') for p in paths)\nfor path in paths:\n    assert pathlib.Path(path).read_bytes()==subprocess.check_output(['git','show',source+':'+path]), path\nprint(json.dumps({'status':'PASS','source':source,'files':paths,'comparison':'逐文件原始字节一致；未计算校验值'},ensure_ascii=False))\nPY",
+      "exit_code": 0,
+      "output": "{\"status\": \"PASS\", \"source\": \"5484315a5e318bce557dcc32e429f5d251453e84\", \"files\": [\"evidence/2026-11-08-batch34/T-257/worker/RESULTS.md\", \"evidence/2026-11-08-batch34/T-257/worker/behavioral-review-v2.md\", \"evidence/2026-11-08-batch34/T-257/worker/design-review-v2.md\", \"evidence/2026-11-08-batch34/T-257/worker/design-scan-v2.json\", \"evidence/2026-11-08-batch34/T-257/worker/module-green-01-schedules.json\", \"evidence/2026-11-08-batch34/T-257/worker/module-green-01.json\", \"evidence/2026-11-08-batch34/T-257/worker/module-red-01-cleanup.json\", \"evidence/2026-11-08-batch34/T-257/worker/module-red-01-schedules.json\", \"evidence/2026-11-08-batch34/T-257/worker/module-red-01.json\", \"evidence/2026-11-08-batch34/T-257/worker/module-red-02-schedules.json\", \"evidence/2026-11-08-batch34/T-257/worker/module-red-02.json\", \"evidence/2026-11-08-batch34/T-257/worker/preflight-t252-codex-01.json\", \"evidence/2026-11-08-batch34/T-257/worker/project-map-status-01.txt\", \"evidence/2026-11-08-batch34/T-257/worker/project-map-status-end-02.txt\", \"evidence/2026-11-08-batch34/T-257/worker/project-map-status-v2.json\", \"evidence/2026-11-08-batch34/T-257/worker/recovery-v2.md\", \"evidence/2026-11-08-batch34/T-257/worker/reproduction-handoff-02.md\", \"evidence/2026-11-08-batch34/T-257/worker/run-module-check.py\", \"evidence/2026-11-08-batch34/T-257/worker/static-and-regression-v2.json\", \"evidence/2026-11-08-batch34/T-257/worker/static-checks-02.json\", \"evidence/2026-11-08-batch34/T-257/worker/static-v2-baseline.json\", \"evidence/2026-11-08-batch34/T-257/worker/t207-regression-01.json\", \"workbench/src/panes.ts\", \"workbench/tests/test_t257_codex_stop_continuation.ts\", \"workbench/tests/test_t257_codex_stop_continuation_e2e.py\"], \"comparison\": \"逐文件原始字节一致；未计算校验值\"}\n",
+      "tool_output_truncated": false
+    },
+    {
+      "name": "node_syntax_panes",
+      "command": "node --check workbench/src/panes.ts",
+      "exit_code": 0,
+      "output": "",
+      "tool_output_truncated": false
+    },
+    {
+      "name": "node_syntax_module_test",
+      "command": "node --check workbench/tests/test_t257_codex_stop_continuation.ts",
+      "exit_code": 0,
+      "output": "",
+      "tool_output_truncated": false
+    },
+    {
+      "name": "python_syntax",
+      "command": "python3 - <<'PY'\nimport ast\nfrom pathlib import Path\nfor name in ('workbench/tests/test_t257_codex_stop_continuation_e2e.py','evidence/2026-11-08-batch34/T-257/worker/run-module-check.py'):\n    source=Path(name).read_text(encoding='utf-8')\n    tree=ast.parse(source, filename=name)\n    compile(tree,name,'exec')\n    for entry in tree.body:\n        if isinstance(entry, ast.Assign) and any(isinstance(t,ast.Name) and t.id=='HOOK_OBSERVER' for t in entry.targets):\n            compile(ast.literal_eval(entry.value),name+':HOOK_OBSERVER','exec')\n    print('PASS: '+name)\nPY",
+      "exit_code": 0,
+      "output": "PASS: workbench/tests/test_t257_codex_stop_continuation_e2e.py\nPASS: evidence/2026-11-08-batch34/T-257/worker/run-module-check.py\n",
+      "tool_output_truncated": false
+    },
+    {
+      "name": "frozen_oracle_unchanged",
+      "command": "git diff --exit-code ec68e0539f886bdbe37df79d085ba85946e3870e -- acceptance/ REVIEW.md workbench/tests/test_t252_untrusted_turn_other_cli_e2e.py",
+      "exit_code": 0,
+      "output": "",
+      "tool_output_truncated": false
+    },
+    {
+      "name": "workbench_tracked_content_identical_to_measured_source",
+      "command": "git diff --exit-code a2d6dbcbbf4c4a43240f89273f1bafb05fc1234c -- workbench",
+      "exit_code": 1,
+      "output": "Warning: truncated output (original token count: 10413)\nTotal output lines: 668\n\ndiff --git a/workbench/tests/test_t257_codex_stop_continuation.ts b/workbench/tests/test_t257_codex_stop_continuation.ts\ndeleted file mode 100644\nindex 8abaace2f..000000000\n--- a/workbench/tests/test_t257_codex_stop_continuation.ts\n+++ /dev/null\n@@ -1,171 +0,0 @@\n-// T-257 isolated ordering check. Oracle: ticket Acceptance and recovery-v2.md.\n-// Failure modes fixed BEFORE implementation: a claimed UPS leaves nativeTurn null;\n-// scan/UPS order loses the binding; stale/foreign/child hooks acquire the submission;\n-// duplicate Stops transfer twice; an interrupt is cleared; completion without a\n-// matched Stop releases a submission. Real Panes/Store/rollout scanning are used.\n-// Terminal/process I/O is absent here. This does NOT prove real CLI timing, gate\n-// reclaim, attempt/fence/CAS or queue delivery; the Python E2E must prove those.\n-// node this-file.ts <product-source-root> <new-summary.json>\n-import assert from 'node:assert/strict';\n-import { appendFileSync, mkdirSync, mkdtempSync, readdirSync, lstatSync, rmSync, writeFileSync } from 'node:fs';\n-import { dirname, join, resolve } from 'node:path';\n-import { pathToFileURL } from 'node:url';\n-\n-const [sourceArg, summaryArg] = process.argv.slice(2);\n-const source = resolve(sourceArg), summary = resolve(summaryArg);\n-writeFileSync(summary, JSON.stringify({ status: 'INCOMPLETE', source }) + '\\n', { flag: 'wx' });\n-const { Panes } = await import(pathToFileURL(join(source, 'workbench/src/panes.ts')).href);\n-const { OrchestrationStore } = await import(pathToFileURL(join(source, 'workbench/src/store.ts')).href);\n-const fixture = mkdtempSync(join(dirname(summary), 't257-module-'));\n-const results: any[] = [];\n-const originalAt = '2026-11-08T00:00:00Z', submittedAt = '2026-11-08T00:01:00Z';\n-const currentAt = '2026-11-08T00:01:01Z', staleAt = '2026-11-08T00:00:59Z';\n-let cases = 0;\n-function setup() {\n-  const root = join(fixture, String(++cases)); mkdirSync(root);\n-  const store = new OrchestrationStore(root);\n-  // No terminal I/O in this unit check: the constructor creates a private hc\n-  // socket directory. Use the real prototype without initializing that boundary.\n-  const host = Object.assign(Object.create(Panes.prototype), { root, store, config: {}, panes: new Map(),\n-    onEventWriteFailed: (reason: string) => { throw new Error(reason); } });\n-  const record = { id: 'launch', thread: 'thread', task: 'demo+T-257', role: 'worker', cli: 'Codex',\n-    worktree: root, attempt: 'attempt', session: 'managed-session', fence: 2, spec_rev: 2, env: { CODEX_HOME: root }, created_at: originalAt };\n-  store.launch(record);\n-  const dispatch = store.register(record.id, 'receipt', 'gate');\n-  store.event('paste_intent', { dispatch: dispatch.id, text: dispatch.text }, record);\n-  const active = { id: 'receipt-submission', dispatch: dispatch.id, at: submittedAt, nativeTurn: null };\n-  store.event('turn_submitted', active, record);\n-  const native = '11111111-1111-4111-8111-111111111111';\n-  const file = join(root, `rollout-2026-11-08T00-00-00-${native}.jsonl`);\n-  const meta = JSON.stringify({ type: 'session_meta', payload: { id: native, cwd: root, source: 'cli' } }) + '\\n';\n-  writeFileSync(file, meta);\n-  mkdirSync(join(root, 'traces', record.id), { recursive: true });\n-  const pane: any = { record, attempt: { workspace: root }, native, nativeFile: file, offsets: new Map([[file, Buffer.byteLength(meta)]]),\n-    state: 'busy', active, turn: 'same-turn', failed: null, stopped: false, archived: false, nativeEnded: false,\n-    interrupted: false, interruption: null, stopInProgress: false, writing: false, queue: [], inputGeneration: 0, submitGeneration: 0,\n-    pty: { pid: 1, cols: 80, rows: 24 }, model: 'unknown', effort: 'unknown' };\n-  host.panes.set(record.thread, pane);\n-  host.recordUserSubmission = () => {}; // persistence boundary; dispatch provenance itself is real Store SQL.\n-  const envelope = (kind: string, extra: any = {}) => ({ hook_event_name: kind, session_id: native,\n-    turn_id: 'same-turn', cwd: root, transcript_path: file, ...extra });\n-  const signal = (kind: string, extra: any = {}, at = currentAt, transfer?: any) =>\n-    host.signal(record.id, JSON.stringify(envelope(kind, extra)), at, transfer);\n-  const scan = (type: string) => {\n-    appendFileSync(file, JSON.stringify({ type: 'event_msg', timestamp: currentAt, payload: { type, turn_id: 'same-turn' } }) + '\\…8213 tokens truncated…lowup]\n-        check('queued_message_delivered_once', len(delivered) == 1 and marker_seen.is_set(), delivered)\n-        check('queued_message_native_complete', bool(settled_result))\n-        check('pane_settled_idle', last.get('state') == 'idle' and not last.get('active') and not last.get('queued') and\n-              not last.get('failed') and not last.get('interrupted'), last)\n-        processed = [row for row in rows if row['type'] == 'relay_processed']\n-        check('requests_processed_once', len(processed) == 4 and len({row.get('key') for row in processed}) == 4 and\n-              {row.get('key') for row in processed} == {row.get('key') for row in initial_processed}, processed)\n-        report['timeline'] = rows\n-        outcome = reclaim()\n-        report['observed']['reclaim_after_native_complete'] = {key: outcome.get(key) for key in ('ok', 'error', 'details')}\n-        check('completed_attempt_reclaimed', outcome.get('ok') is True, report['observed']['reclaim_after_native_complete'])\n-        report['defect_reproduced'] = (last.get('state') == 'busy' and followup in last.get('queued', []) and\n-                                      outcome.get('error') == 'worker_working' and not delivered)\n-        if report.get('failed'):\n-            raise Defect('、'.join(report['failed']))\n-        report['status'] = 'PASS'\n-    except Defect as error:\n-        report.update(status='FAIL', error=str(error))\n-    except BaseException as error:\n-        report.update(status='INCOMPLETE', error=f'{type(error).__name__}: {error}', traceback=traceback.format_exc())\n-    finally:\n-        initial_release.set()\n-        continuation_release.set()\n-        if fixture:\n-            (fixture.out / 'release-stop').touch(exist_ok=True)\n-            try:\n-                report['hook_timeline'] = hook_traces(fixture)\n-                if launch:\n-                    report['timeline'] = compact_events(fixture.request('orchestration_events', task=TASK)['events'], launch)\n-                for name in ('daemon.stdout.log', 'daemon.stderr.log'):\n-                    path = fixture.state / name\n-                    if path.exists():\n-                        report.setdefault('daemon_logs', {})[name] = path.read_text(encoding='utf-8', errors='replace')[-6000:]\n-            except Exception as diagnostic:\n-                report.setdefault('diagnostic_errors', []).append(str(diagnostic))\n-            try:\n-                fixture.stop()\n-                report['cleanup'] = dict(processes_stopped=True, core=getattr(fixture, 'core_cleanup', None))\n-            except Exception as cleanup:\n-                report.setdefault('cleanup_errors', []).append(str(cleanup))\n-                report['status'] = 'INCOMPLETE'\n-        if server:\n-            server.shutdown()\n-            server.server_close()\n-        report['api'] = api\n-        report['finished_at'] = now()\n-        if api['error']:\n-            report['status'] = 'INCOMPLETE'\n-        # Preserve the run state and diagnostics BEFORE deleting this run's temporary files.\n-        if fixture and not report.get('cleanup_errors'):\n-            paths = [fixture.dir]\n-            if request_dir and request_dir.exists():\n-                if request_dir.parent == Path('/private/tmp') and request_dir.name.startswith('a2a-requests-'):\n-                    paths.append(request_dir)\n-                else:\n-                    report.setdefault('cleanup_errors', []).append('请求目录不满足本次隔离清理范围：' + str(request_dir))\n-                    report['status'] = 'INCOMPLETE'\n-            report['cleanup_state_before_removal'] = [directory_state(path) for path in paths]\n-            save()\n-            if not report.get('cleanup_errors'):\n-                for path in paths:\n-                    try:\n-                        shutil.rmtree(path)\n-                        report.setdefault('removed', []).append(str(path))\n-                    except OSError as cleanup:\n-                        report.setdefault('cleanup_errors', []).append(str(cleanup))\n-                        report['status'] = 'INCOMPLETE'\n-        save()\n-    print(report['status'] + ': ' + report.get('error', ''), flush=True)\n-    print('SUMMARY=' + str(summary), flush=True)\n-    return 0 if report['status'] == 'PASS' else 1 if report['status'] == 'FAIL' else 2\n-\n-\n-if __name__ == '__main__':\n-    sys.exit(main())\n",
+      "tool_output_truncated": true
+    },
+    {
+      "name": "diff_whitespace",
+      "command": "git diff --check",
+      "exit_code": 0,
+      "output": "",
+      "tool_output_truncated": false
+    },
+    {
+      "name": "versions",
+      "command": "python3 --version\nnode --version",
+      "exit_code": 0,
+      "output": "Python 3.9.6\nv26.5.0\n",
+      "tool_output_truncated": false
+    }
+  ],
+  "after_staging": [
+    {
+      "name": "staged_workbench_identical_to_measured_source",
+      "command": "git diff --cached --exit-code a2d6dbcbbf4c4a43240f89273f1bafb05fc1234c -- workbench",
+      "exit_code": 0,
+      "output": "",
+      "tool_output_truncated": false
+    },
+    {
+      "name": "staged_import_identical",
+      "command": "git diff --cached --exit-code 5484315a5e318bce557dcc32e429f5d251453e84 -- workbench/src/panes.ts workbench/tests/test_t257_codex_stop_continuation_e2e.py workbench/tests/test_t257_codex_stop_continuation.ts evidence/2026-11-08-batch34/T-257/worker/",
+      "exit_code": 0,
+      "output": "",
+      "tool_output_truncated": false
+    },
+    {
+      "name": "staged_frozen_oracle_unchanged",
+      "command": "git diff --cached --exit-code ec68e0539f886bdbe37df79d085ba85946e3870e -- acceptance/ REVIEW.md workbench/tests/test_t252_untrusted_turn_other_cli_e2e.py",
+      "exit_code": 0,
+      "output": "",
+      "tool_output_truncated": false
+    },
+    {
+      "name": "staged_diff_whitespace",
+      "command": "git diff --cached --check",
+      "exit_code": 0,
+      "output": "",
+      "tool_output_truncated": false
+    },
+    {
+      "name": "design_integrity_scan",
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 /Users/luckye/.agents/skills/design-integrity-review/scripts/design_integrity.py --cwd . --base ec68e0539f886bdbe37df79d085ba85946e3870e --format json",
+      "exit_code": 0,
+      "output": "{\"root\": \"/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-257-1-a3\", \"base\": \"ec68e0539f886bdbe37df79d085ba85946e3870e\", \"findings\": [], \"acceptance_changes\": [], \"acceptance_source\": \"REVIEW.md\"}\n",
+      "tool_output_truncated": false
+    },
+    {
+      "name": "project_map_status_end",
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py status --root .",
+      "exit_code": 1,
+      "output": "Problems (0):\nStale living docs (1):\n  - workbench/README.md: uncommitted changes to covered files without a doc edit: workbench/src/panes.ts\nFrontier (4):\n  - T-235 [build] T-157/T-165 Stop 重叠场景里，窗格标题栏的状态落后于后台，检查读到“未知”或“运行中”\n  - T-249 [build] 工作台的侧边面板位与第一个面板“Git 图”（照 herdr-git-graph）\n  - T-255 [build] run 的 verify 碰上 operation_busy 就暂停，同一回合后面还有请求时必现\n  - T-256 [build] Codex 审查员不跟随 worker 的模型与强度，派发时指定的选择只对 worker 生效\nClaimed (1):\n  - T-257 Codex 回执在 Stop 钩子返回前贴入，同一 turn 续跑后窗格永远停在 busy，回收被拒，队列卡住 (by executor-55d61e9f)\n",
+      "tool_output_truncated": false
+    }
+  ],
+  "interpretation": [
+    "25 个导入文件在追加 v3 文档前逐文件原始字节相等，未计算校验值；旧 RESULTS.md 仅在尾部追加 v3 交接索引。",
+    "暂存前 workbench 比较退出 1：两个新测试尚未进入索引，git diff 将其显示为删除；工具截断的输出原样保留。逐文件字节核对已通过，暂存后的完整 workbench 比较退出 0。这不是产品失败或删除文件。",
+    "Node --check、Python AST/compile（含 hook observer 字符串）、冻结验收、暂存内容一致性、diff --check、结构扫描均退出 0。",
+    "项目地图初检退出 0，Problems 0、Stale 0；结束检查退出 1，Problems 0、workbench/README.md stale 1。该已知问题在 controller/candidate-a2-checkpoint.md 已由主控接续；本轮不重复 issue。",
+    "没有运行 Python 真实入口、模块场景或回归，没有启动后台/CLI/模型，没有创建 node_modules 链接、缓存或夹具。现有历史证据不改写成本轮运行。",
+    "等待本身份 submit 经 Stop 转交、门禁完成条件/红态、独立审查及主控后续证据批准。"
+  ]
+}
