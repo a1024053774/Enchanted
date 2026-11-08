@@ -11,6 +11,9 @@
 // 4. A replaced attempt gets the session. Expected: stale_attempt, nothing written.
 // 5. A second call writes again or overwrites the bound session. Expected: one runtime_bound, values unchanged.
 // 6. The plain case: the attempt gets the pane's native session, with one runtime_bound event.
+// 7. The daemon begins to stop while the pane is read, and the binding still writes (review 01 P2).
+// 8. The daemon begins to stop while the binding waits for a held lock, and the binding keeps waiting or writes later.
+//    Expected for 7 and 8: daemon_stopping, nothing written.
 // Expected values come from the ticket (T-253 acceptance) and the gate's identity rule (launch, thread, shell, leader).
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -46,7 +49,8 @@ const runtime = {
 let gates: any;
 try {
   const { A2AGates } = await import(pathToFileURL(join(source, "workbench/src/gates/core.ts")).href);
-  gates = new A2AGates(root, runtime, () => Date.parse("2026-11-08T12:00:00Z"));
+  const clock = () => Date.parse("2026-11-08T12:00:00Z");
+  gates = new A2AGates(root, runtime, clock);
   const db = new DatabaseSync(join(root, "state.sqlite3"));
   const seed = (name: string) => {
     const taskId = "t253-" + name, attemptId = "attempt-" + name;
@@ -123,6 +127,37 @@ try {
     report.observed.busy = { while_held: whileHeld, result, bound: bound(attemptId), events: boundEvents(taskId) };
     check("waits_for_busy_lock", whileHeld.settled === null && whileHeld.bound.native_session === null && whileHeld.events === 0 &&
       result === "ok" && bound(attemptId).native_session === pane.native_session && boundEvents(taskId) === 1, report.observed.busy);
+  }
+  // 7, 8: each stop uses a gate instance of its own on the same state, so it does not stop the cases above.
+  { // 7
+    const { taskId, attemptId } = seed("stop_read");
+    identity = pane;
+    const stopping = new A2AGates(root, runtime, clock);
+    onRead = () => stopping.beginShutdown();
+    const result = await outcome(stopping.nativeSessionLearned(taskId, attemptId, pane.thread));
+    onRead = null;
+    stopping.close();
+    report.observed.stop_read = { result, bound: bound(attemptId), events: boundEvents(taskId) };
+    check("stop_during_read_refused", result === "daemon_stopping" && bound(attemptId).native_session === null &&
+      boundEvents(taskId) === 0, report.observed.stop_read);
+  }
+  { // 8
+    const { taskId, attemptId } = seed("stop_wait");
+    identity = pane;
+    const holder = new DatabaseSync(join(root, "locks", `${taskId}.sqlite3`));
+    holder.exec("BEGIN IMMEDIATE");
+    const stopping = new A2AGates(root, runtime, clock);
+    const pending = outcome(stopping.nativeSessionLearned(taskId, attemptId, pane.thread));
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    stopping.beginShutdown();
+    const result = await Promise.race([pending, new Promise((resolve) => setTimeout(() => resolve("timeout"), 2000))]);
+    holder.exec("ROLLBACK");
+    holder.close();
+    const after = await Promise.race([pending, new Promise((resolve) => setTimeout(() => resolve("timeout"), 2000))]);
+    stopping.close();
+    report.observed.stop_wait = { result, after_release: after, bound: bound(attemptId), events: boundEvents(taskId) };
+    check("stop_while_waiting_refused", result === "daemon_stopping" && bound(attemptId).native_session === null &&
+      boundEvents(taskId) === 0, report.observed.stop_wait);
   }
   db.close();
   report.status = report.failed.length ? "FAIL" : "PASS";

@@ -836,8 +836,9 @@ export class A2AGates {
   // is waited out instead of losing the binding; a replaced attempt or a pane that is not the attempt's is refused.
   async nativeSessionLearned(taskId: string, attemptId: string, thread: string) {
     for (;;) {
-      requireGate(!this.shuttingDown, "daemon_stopping");
       const live = await this.runtime!.readThread(thread);
+      // After the read: a stop that began during it, or while this waited for the lock, ends the binding unwritten.
+      requireGate(!this.shuttingDown, "daemon_stopping");
       let lock: DatabaseSync;
       try { lock = this.operationLock(taskId); }
       catch (error) {

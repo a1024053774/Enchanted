@@ -88,11 +88,22 @@ export async function serve(
   };
   panes.controllerReady = (thread, role, project) => gates.resumeControllerInbox(thread, role, project);
   // T-253: bind a Codex worker's native session to its attempt as soon as its pane learns it. A refusal (the attempt was
-  // replaced, the pane is not the attempt's) leaves the attempt unbound, so reclaim keeps refusing it; it is recorded here.
+  // replaced, the pane is not the attempt's, the daemon is stopping) leaves the attempt unbound, so reclaim keeps refusing
+  // it; it is recorded here. Shutdown waits for bindings still in flight before it closes the stores.
+  const bindings = new Set<Promise<void>>();
   panes.nativeSessionLearned = pane => {
-    gates.nativeSessionLearned(pane.record.task, pane.record.attempt, pane.record.thread).catch(error =>
-      store.event("native_session_bind_failed", { native_session: pane.native, error: error instanceof Refusal ? error.code : String(error),
-        details: error instanceof Refusal ? error.details ?? null : null }, pane.record));
+    const binding: Promise<void> = gates.nativeSessionLearned(pane.record.task, pane.record.attempt, pane.record.thread).catch(error => {
+      const data = { native_session: pane.native, error: error instanceof Refusal ? error.code : String(error),
+        details: error instanceof Refusal ? error.details ?? null : null };
+      try { store.event("native_session_bind_failed", data, pane.record); }
+      catch (recordError) {
+        // As panes.recordFailure: the failed write is reported on stderr and marks the user-input observer failed.
+        const reason = `event_write_failed: ${String(recordError)}; original native_session_bind_failed: ${data.error}`;
+        console.error(JSON.stringify({ error: "event_write_failed", launch: pane.record.id, reason }));
+        panes.onEventWriteFailed(reason);
+      }
+    }).finally(() => { bindings.delete(binding); });
+    bindings.add(binding);
   };
   // T-229: a managed Claude Code or Codex pane's submission, as its UserPromptSubmit hook reported it. One hook call is one
   // submission (a Claude prompt queued during a turn shares that turn's prompt id), so each record gets an id of its own.
@@ -289,6 +300,8 @@ export async function serve(
     store.event("daemon_stopped", { pid: process.pid });
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
     await new Promise<void>((resolve, reject) => terminalServer.close((error) => error ? reject(error) : resolve()));
+    // T-253: no pane or connection is left to start one; each binding has recorded its own refusal.
+    await Promise.all([...bindings]);
     gates.close(); store.close();
     if (existsSync(terminalSocket)) unlinkSync(terminalSocket);
     rmdirSync(terminalDirectory);

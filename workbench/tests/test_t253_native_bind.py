@@ -25,10 +25,16 @@ MUTANTS = {
         '        await new Promise((resolve) => setTimeout(resolve, 100));\n        continue;\n      }\n      try {\n'
         '        const task = this.load(taskId), attempt = this.current(task, attemptId);',
         '        return;\n      }\n      try {\n        const task = this.load(taskId), attempt = this.current(task, attemptId);'),),
+    # The stop is not checked after the pane read (review 01 P2): a stop during the read or the lock wait still binds.
+    'stop-not-rechecked': ((CORE,
+        '      // After the read: a stop that began during it, or while this waited for the lock, ends the binding unwritten.\n'
+        '      requireGate(!this.shuttingDown, "daemon_stopping");\n', ''),),
     # The pane is read while the task lock is held.
     'lock-across-read': (
-        (CORE, '      const live = await this.runtime!.readThread(thread);\n      let lock: DatabaseSync;\n',
-         '      let lock: DatabaseSync;\n'),
+        (CORE, '      const live = await this.runtime!.readThread(thread);\n'
+         '      // After the read: a stop that began during it, or while this waited for the lock, ends the binding unwritten.\n'
+         '      requireGate(!this.shuttingDown, "daemon_stopping");\n      let lock: DatabaseSync;\n',
+         '      requireGate(!this.shuttingDown, "daemon_stopping");\n      let lock: DatabaseSync;\n'),
         (CORE, '        const task = this.load(taskId), attempt = this.current(task, attemptId);',
          '        const live = await this.runtime!.readThread(thread);\n'
          '        const task = this.load(taskId), attempt = this.current(task, attemptId);'),
