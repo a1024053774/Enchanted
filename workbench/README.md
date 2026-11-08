@@ -1459,7 +1459,9 @@ A2A_MODEL_REQUESTED/A2A_EFFORT_REQUESTED；实际沙箱读取与提交时序还�
 Codex worker 的原生会话在派发时还看不到：窗格从根 rollout 首行 `session_meta` 第一次得知会话号时，后台就经门禁把它补进
 attempt（T-253，用户选 B）。和 run 的观察一样，读窗格在任务操作锁外，核对身份与写入在锁内；锁被其他门禁命令占着时等它释放，
 不丢这次绑定；attempt 已换掉或窗格身份与 attempt 记录不符（别的 launch、别的 shell 进程）时不补，记 `native_session_bind_failed`，
-回收照旧拒 `identity_conflict`。后台在读窗格或等锁期间开始停止时，这次绑定不写，记 `daemon_stopping`；停止流程关库前会等还在进行的绑定收尾。
+回收照旧拒 `identity_conflict`。后台在读窗格或等锁期间开始停止时，这次绑定不写，记 `daemon_stopping`；停止流程关库前会等还在进行的绑定收尾，
+最多等 10 秒（T-254；停止后一次绑定在下一次窗格读取后就结束，读取里的进程查询上限 5 秒，取其两倍）。到期仍在进行的绑定，在关库前记 `native_session_bind_abandoned`（会话号、等了多久），
+attempt 保持未绑定；它之后再收尾时什么都不写。
 这条记录本身写不进去时，后台在 stderr 报 `event_write_failed`，并把用户输入记录标为失败，与窗格事件写失败的处理相同。此前只有 run 的观察、被受理的 submit 与审查提交会补，经 dispatch 派出、没交付过的 Codex worker 回收不了。
 run/reclaim 核对该身份，回执回合改变不会覆盖已提交的 turn_id。submit 仍要求当前活动
 caller/turn 和受管 session/fence/spec/attempt 一致。换领导者、换原生会话或缺已绑定事实

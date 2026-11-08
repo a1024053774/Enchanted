@@ -18,7 +18,7 @@ ready_rev: 1
 现状（读 `workbench/src/daemon.ts` 与 `workbench/src/gates/core.ts` 核对）：
 
 - 停止流程在 `panes.shutdown()`、关监听之后 `await Promise.all([...bindings])`，没有期限。
-- 门禁的 `nativeSessionLearned` 每轮先读窗格（`readThread`），读完查一次后台是否在停，在停就拒 `daemon_stopping`。所以一次绑定在停止开始后，最多再等它手上这一次窗格读取。真实读取里的进程查询有 5 秒的 exec 超时，正常情况下几秒内就会收尾。
+- 门禁的 `nativeSessionLearned` 每轮先读窗格（`readThread`），读完查一次后台是否在停，在停就拒 `daemon_stopping`。所以停止开始后，一次绑定在下一次窗格读取之后就结束：正在读的就是手上这一次；正在等锁的，还要再睡 100ms、读一次（审查 01 指出，原写“只等手上这一次读取”不准确）。真实读取里的进程查询有 5 秒的 exec 超时，正常情况下几秒内就会收尾。
 - 读取比这慢或不返回时，停止流程就一直等，库不关、`daemon.pid` 与套接字不删。
 
 要做：
@@ -34,7 +34,7 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 修前红态：后台层测试新场景 `binding_outlives_stop`（窗格读取在停止开始后 30 秒才返回）在 `1bb19fa21` 上，停止发出后 20 秒内门禁库没关、`daemon.pid` 还在。
+- [ ] 修前红态：后台层测试新场景 `binding_outlives_stop`（窗格读取在停止开始后 30 秒才返回）在 `1bb19fa21` 上，停止后要等读取返回、约 30 秒才关库，没有放弃记录。（原写“20 秒内库没关、`daemon.pid` 还在”；测试量的是关库时刻，没有在第 20 秒采样 pid，按实际量到的改写。）
 - [ ] 修后：同一场景在约 10 秒时关库、删 pid，记一条 `native_session_bind_abandoned`；读取返回后不再写任何记录，stderr 没有 `event_write_failed`，后台以 0 退出；门禁没有 `runtime_bound`。
 - [ ] 原有的 `stop_while_binding`、`record_write_fails` 仍通过；`stop_while_binding` 关库后很快退出（计时器已清）。
 - [ ] 变异：去掉期限、不标放弃、不清计时器，各自被至少一个检查判红。

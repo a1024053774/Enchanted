@@ -32,7 +32,11 @@ from scripted_claude import ROOT, source_tree, stop_fixture_core
 DAEMON = 'src/daemon.ts'
 MUTANTS = {
     # Shutdown closes the stores without waiting for bindings still in flight.
-    'shutdown-skips-bindings': ((DAEMON, '    await Promise.all([...bindings]);\n', ''),),
+    'shutdown-skips-bindings': ((DAEMON,
+        '    const settled = await Promise.race([\n'
+        '      Promise.all([...bindings].map(binding => binding.settled)).then(() => true),\n'
+        '      new Promise<false>(resolve => { timer = setTimeout(() => resolve(false), BINDING_STOP_WAIT_MS); }),\n'
+        '    ]);\n', '    const settled = true;\n'),),
     # A refusal whose record cannot be written is left to throw inside the catch.
     'bind-record-unguarded': ((DAEMON,
         '      try { store.event("native_session_bind_failed", data, pane.record); }\n'

@@ -309,8 +309,9 @@ export async function serve(
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
     await new Promise<void>((resolve, reject) => terminalServer.close((error) => error ? reject(error) : resolve()));
     // T-253: no pane or connection is left to start one; each binding records its own refusal. T-254: after the stop
-    // began a binding ends once its current pane read returns, and the read's process query is capped at 5 s, so the
-    // wait is bounded at twice that; a binding still running then is left unbound and recorded here.
+    // began a binding ends at the check after its next pane read: the read in hand, or, when it was waiting for the
+    // task lock, a 100 ms pause and one more read. The read's process query is capped at 5 s, so the wait is bounded at
+    // twice that; a binding still running then is left unbound and recorded here.
     const waitStarted = Date.now();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const settled = await Promise.race([
