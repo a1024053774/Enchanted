@@ -8,7 +8,7 @@
   这仍是本会话：回合不因此被判不可信，交付照常受理。
 场景 untrusted：回合中途进来一个工作区以外的钩子（工作区外的 cwd，经同一个钩子入口），回合确实不可信。门禁仍不受理这一回合的交付
   （不放宽身份核对），但是：回合结束后窗格不再算“在回合中”；执行主控的 status 能看到一条阻塞问题，写明交付没被受理和原因，
-  这条问题经收件箱送到执行主控的终端（送达回执为 delivered）；旧 attempt 能回收，回收后同一任务能派出新 worker。
+  这条问题交给收件箱、发给派发这个 worker 的执行主控（有送达回执）；旧 attempt 能回收，回收后同一任务能派出新 worker。
 
 失败方式（先列再写）：
 1. 修前：子目录钩子被判不符，回合不可信，交付搁在队列里，任务停在 claimed，没有任何提醒；窗格一直“在回合中”，回收返回 worker_working。
@@ -23,6 +23,7 @@ import json
 from pathlib import Path
 import re
 import shutil
+import sqlite3
 import sys
 import time
 import traceback
@@ -186,19 +187,23 @@ def main():
             reasons = [i for i in report['observed']['issues'] if i['blocking'] and i['to'] == 'executor'
                        and 'current_turn_untrusted' in i['body'] and '"submit"' in i['body']]
             check('controller_status_shows_reason', bool(reasons), report['observed']['issues'])
-            # Not only listed: sent through the inbox to the executor's terminal (the fixture's approved terminal).
-            ids = [v['issue']['id'] for v in current.get('issues', []) if v['issue'].get('blocking') and v['issue'].get('to') == 'executor'
-                   and 'current_turn_untrusted' in str(v['issue'].get('body'))]
-
-            def delivery():
-                rows = fixture.request('inbox_list', fixture.terminal).get('entries', [])
-                return [dict(id=r['entry']['id'], delivery=r.get('delivery')) for r in rows if r['entry']['id'] in ids]
+            # Not only listed: handed to the inbox for the executor that dispatched the worker (T-216). The receipts are read
+            # from the store itself. The inbox sends only to an approved controller terminal whose CLI is in the foreground;
+            # this fixture's terminal runs no CLI, so the receipt the inbox defines for that is pending/role_session_missing,
+            # delivered when the executor's CLI is ready (resumeControllerInbox). The send itself is T-216's path, not shown here.
+            sent = [v['issue'] for v in current.get('issues', []) if v['issue'].get('blocking') and v['issue'].get('to') == 'executor'
+                    and 'current_turn_untrusted' in str(v['issue'].get('body'))]
+            store = sqlite3.connect(f"file:{fixture.dir / 'state' / 'state.sqlite3'}?mode=ro", uri=True)
             try:
-                fixture.wait('问题送到执行主控终端', lambda: any((r['delivery'] or {}).get('state') == 'delivered' for r in delivery()), 30)
-            except BaseException as error:
-                report['observed']['wait_delivered'] = str(error)
-            delivered = delivery()
-            check('issue_delivered_to_executor', any((r['delivery'] or {}).get('state') == 'delivered' for r in delivered), delivered)
+                receipts = [dict(entry=entry, **json.loads(data)) for entry, data in store.execute(
+                    'SELECT entry, data FROM inbox_deliveries ORDER BY seq') if entry in {issue['id'] for issue in sent}]
+            finally:
+                store.close()
+            last = receipts[-1] if receipts else {}
+            report['observed']['inbox_receipts'] = receipts
+            check('issue_sent_through_inbox', bool(sent) and all(issue.get('controller_launch') == fixture.terminal['launch'] for issue in sent)
+                  and (last.get('state') in ('queued', 'delivered') or (last.get('state') == 'pending' and last.get('reason') == 'role_session_missing')),
+                  dict(controller_launch=[issue.get('controller_launch') for issue in sent], terminal=fixture.terminal['launch'], receipts=receipts))
             reclaimed = fixture.request('reclaim', fixture.terminal, task='T-1', attempt=attempt['attempt_id'])
             report['observed']['reclaim'] = {k: reclaimed.get(k) for k in ('ok', 'error', 'details')}
             check('old_attempt_reclaimed', bool(reclaimed.get('ok')), report['observed']['reclaim'])

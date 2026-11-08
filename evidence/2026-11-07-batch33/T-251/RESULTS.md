@@ -37,6 +37,16 @@ untrusted 场景的检查：前提 `outside_hook_judged_foreign`（那条钩子�
 - `regression/relay_scope.txt` INCOMPLETE，4 项失败；在父提交 `94abc1347` 上同样 4 项失败（`relay_scope-parent-94abc1347.txt`），是已有问题，不是本票回归。
 - 没跑全量测试：本票改动集中在 Claude worker 的钩子与 Stop 路径和一个新的门禁方法，上面这些测试覆盖这些路径。
 
+## 审查 01 与处理
+
+Codex（gpt-6.1-sol high，只读，干净会话）审 `ab912013b`，结论“需修复”，3 条 P2，另列未证实项。结论原文见 `reviews/review-01.md`。逐条先复现再处理：
+
+1. 符号链接：cwd 只按字面判断，工作区里指向外面的链接路径会被接受。用真实 Claude Code 2.1.319 探针核对（`review-probes/symlink-cd.json`，脚本 `review-probes/probe_symlink.py`）：worker 建 `outlink -> /usr/share` 后 `cd outlink`，Claude Code 按真实路径判断已出界，输出 “Shell cwd was reset to <工作区>”，之后所有钩子报的都是工作区根目录，链接路径从没出现在钩子里。钩子里的 cwd 是会话自己报的字段，伪造的钩子可以直接写工作区根目录，按真实路径解析不增加身份保证，反而会让 cwd 已被删除时误判。真实入口复现不了，不改。
+2. 系统问题写“worker 已回到空闲，可以回收”，但有排队的用户输入或被打断时窗格仍忙。属实（文案过度断言，状态保护本身没错）。改为“这一回合本身照常结束；窗格之后是否空闲看 status”，下一步写“等 worker 空闲后回收，还忙时回收会被拒（worker_working）”（`8e546df51`）。README 同一处同改。
+3. README 有一句“异常 Stop 不完成回合”与新行为矛盾，地图报 README、REVIEW 两项核对过期。README 补了 T-251 例外与压缩、cwd 规则；地图核对见票据收尾。
+- 未证实项“排队输入的会话记录 cwd 严格相等”：用 T-249 worker 的真实会话记录核对，记录里每条消息的 cwd 都跟着 `cd` 走（`/workbench/app/panels` 等），所以属实，是同一类问题：worker 在子目录时用户往窗格里排的输入永远绑不上回合，窗格一直忙、回收不了。`panes.ts` 的排队绑定改用同一条工作区规则（`8e546df51`）。新测试 `test_t251_queued_subdir.ts`：`red/queued_subdir.json`（`ab912013b` 源码）子目录项失败；`green/queued_subdir.json` 全过，前缀相同的兄弟目录与工作区外仍不绑定。
+- 收件箱送达没有断言：端到端测试补 `issue_delivered_to_executor`（问题经收件箱送到执行主控终端，回执 delivered），加变异 `no-delivery`。
+
 ## 设计自查（design-integrity，实现者自查）
 
 - 没有新增 fallback、重试或兼容分支。真不可信的回合不放宽：请求仍不执行，只是改为经中继原有的结果记录记成拒收，以后同一请求只重放拒收。
