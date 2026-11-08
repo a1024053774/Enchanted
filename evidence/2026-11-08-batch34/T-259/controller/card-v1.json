@@ -1,0 +1,65 @@
+{
+  "id": "T-259-1",
+  "source": {
+    "ticket": "/Users/luckye/Documents/Code/a2a/.project-map/tickets/T-259-dispatch-preparing-unbound-reclaim.md",
+    "ready_rev": 1
+  },
+  "goal": "修复 source.ticket 定义的启动准备中断回收缺陷。用户本轮对“先正常重启并修复 T-258 这类启动恢复问题，再继续两个面板”回答“修启动阻塞后继续（推荐）”，出处为本对话 call_5e7ec645d8124c3e8ae1d1b26bde024d，逐字引文和现场在 source.ticket。本票先于 T258 审查恢复和两个面板。你是唯一代码写入者，但不是代码库唯一参与者，不撤销他人的改动。worker/reviewer 都是 gpt-6-astra xhigh 普通速度；不启动 Claude、不 push、不自行开子 agent。\n先读 AGENTS.md、REVIEW.md、ticket 和 T253 的已定方案 B，按 project-map、reality-first-engineering、evidence-first-testing 工作；先说小目标、非目标、验收、不确定性及直接调用者。Tracer bullet：先从真实 A2AGates dispatch 入口制造创建成功后初始观察失败，再通过同一门禁 reclaim 验证红态；不得只手工写测试数据库。主控已留正式故障证据，JSON 异常精确来源尚未知，不为猜测添加重试或通用兜底。优先 core.ts 的最小充分修复；只恢复可核验的原 attempt、没有发出任务输入的准备失败。身份/操作锁/fence/CAS/停机、已发或未知输入、运行中、脏工作树保护都不能放松；保存原错误与可追溯证据，不手改正式 DB。\n允许新增一份 TS 公共门禁测试和必要的 Python 隔离入口脚本。预期来自 ticket 契约；先列失效方式再写，父版/候选/变异都保存文本摘要、命令、退出码和业务反例。真实 CLI 场景只能自己新建的隔离后台；如受沙箱限制，用 issue 给主控一个具体可复现命令。不要探测用户其他 CLI、改全局配置或自己操作正式应用。不要创建未授权依赖/公开API/schema；若需要改 panes.ts 或其他卡外路径，先 issue，别直接做。T258 当前 a3 还在 preparing，无任务输入，主控未用它写代码；本票只写 gates/core.ts 和自己测试，路径不重叠。\n常规回归必须实际运行冻结的 test_t253_native_bind.py（真实 A2AGates 的已有契约），并评估 T170 适用场景；本轮不运行 Claude 测试。真实 CLI 只能 Codex，astra xhigh default，主控总会话上限3；启动探针前先 issue 由主控安排，不能自行开额外 CLI。单个真实探针有明确 deadline，启动的后台脱离进程组。测试目录和 cache 在本机，结束先保存状态再清理自己夹具；保留异常文本，不能删他人链接/cache。\n在完成检查点使用 design-integrity-review 自查新增异常边界；行为/回收由 behavioral-acceptance-review 审查独立 oracle、父版与坏实现。触及 REVIEW.md 敏感回收/清理代码时本次交付明确标 HIGH，主控会安排独立审查并交用户读证据批准，不能自动集成。写中文 RESULTS/SELF-CHECK（document-writing），说明已验证/未知/未运行；少留重复的大日志，保留可复现脚本和每案失败信息。主控负责 README/地图/正式包和生命周期，你只在卡内工作。外层 exec cwd 为自己的 worktree，git add/commit 分别独立命令，提交带本 attempt 尾注并显式 submit 最终 SHA 一次；queued 不是门禁通过。遇阻经 issue，不往其他窗格输入，不直接补身份或重发旧请求。",
+  "non_goals": [
+    "不修改 T258/panes.ts 或 T249/T250",
+    "不改变角色/凭据/全局配置/公开接口/schema",
+    "不自动重发任务或普遍补绑未知身份",
+    "不操作正式后台/数据库/用户hc，不 push"
+  ],
+  "paths": {
+    "allow": [
+      "workbench/src/gates/core.ts",
+      "workbench/tests/test_t259_preparing_reclaim.ts",
+      "workbench/tests/test_t259_preparing_reclaim_e2e.py",
+      "evidence/2026-11-08-batch34/T-259/worker/"
+    ],
+    "deny": [
+      "acceptance/",
+      "REVIEW.md",
+      ".project-map/",
+      "workbench/src/panes.ts",
+      "workbench/app/",
+      "workbench/src/credentials.ts",
+      "workbench/src/desktopCredentials.ts"
+    ]
+  },
+  "oracle_paths": [
+    ".project-map/tickets/T-259-dispatch-preparing-unbound-reclaim.md",
+    "workbench/tests/test_t253_native_bind.py",
+    "workbench/tests/t253_native_bind.ts",
+    "workbench/tests/test_t170_failed_launch_reclaim_e2e.py"
+  ],
+  "completion_conditions": [
+    {
+      "argv": [
+        "node",
+        "--test",
+        "workbench/tests/test_t259_preparing_reclaim.ts"
+      ]
+    },
+    {
+      "argv": [
+        "python3",
+        "workbench/tests/test_t253_native_bind.py",
+        "--summary",
+        "t259-t253-verification.json"
+      ]
+    }
+  ],
+  "red_commands": [],
+  "task_type": "缺陷修复",
+  "repair_target": "fa8d554c87210c15a7944542b2e9cfff3362ee8d",
+  "complexity": "L",
+  "executor": {
+    "cli": "Codex",
+    "model": "gpt-6-astra",
+    "effort": "xhigh"
+  },
+  "base_commit": null,
+  "writer": null
+}
