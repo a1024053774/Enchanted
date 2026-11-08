@@ -1,0 +1,49 @@
+{
+  "id": "T-249-2",
+  "source": {
+    "ticket": "/Users/luckye/Documents/Code/a2a/.project-map/tickets/T-249-git-graph-panel.md",
+    "ready_rev": 1
+  },
+  "goal": "你负责 T-249 的独立验收，不实现产品。用户原话：“最后让codex用 6.1 terra用 computer use以及常规测试来验收。”本轮继续明确“最后两个面板仍用 gpt-6.1-terra Computer Use 加常规测试验收”，授权和模型约束在 /Users/luckye/Documents/Code/a2a/evidence/2026-11-08-controller-switch/executor-handoff.md。当前仅验收 T-249，T-250 尚未实现。本任务使用 gpt-6.1-terra xhigh 普通速度；审查仍由 astra xhigh 完成。你不是代码库的唯一参与者，不撤销别人改动，只写本卡证据目录及明确分配的临时夹具。\n\n固定产品候选：1243bc15f979976967cfd2d5cdd3a2acce6df635；只读源码在 /Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a5。你自己的 gate worktree 基于主分支，不含未集成的面板；不能把自己 worktree 的旧产品当成该候选。正式 Enchanted PID 81233，启动时间 2026-11-08 13:56:08Z；不要操作正式 Enchanted、正式后台或用户自己的 hc core。不要启动 Claude、其他 agent CLI，或重启任何已有后台。\n\n新包已经由标准命令打好：/private/tmp/t249-outside-9iitgp1b/a2a-build-t249-fence4-details-20261108-01/Enchanted Test.app。包内 revision 必须等于候选、bundle id org.a2a.workbench.test。主控已通过 Computer Use 打开这一包，窗口显示“后台已连接”。使用标准 Test 数据目录 /Users/luckye/Library/Application Support/a2a-orchestrator-test 与其 ui 子目录；这两处及 Enchanted Test 凭据目录在启动前均确认不存在，本次由主控创建并负责清理。先核对路径和窗口，不另开其他包或数据目录。Computer Use 只操作这一个 Test App 及本任务新建的夹具。用户已明确授权 Enchanted/Test 的“文稿”访问提示；若真出现，只可点此项“允许”，记录原文与时间，其他系统隐私或账号要求停下上报。程序性创建 UI 状态或直接调用产品接口不能替代 Computer Use；遵循 CUA 文档的初始化、操作及 completion_summary 要求。\n\n夹具根目录 /private/tmp/t249-terra-20261108-01，包含 repos/alpha（两分支、一次 merge、tag、工作改动）、beta、many（3 个仓库）、unborn（已暂存／混合／未跟踪），真正用于受管只读验收的 linked worktree 是 /Users/luckye/Library/Application Support/a2a-orchestrator-test/worktrees/terra/readonly；临时根中另一个 state/worktrees 路径是准备过程留下的夹具，不用于受管识别。oracle-before.json 在任何 UI 操作前已由独立 Git 命令生成，重放脚本在主仓库 evidence/2026-11-08-batch34/T-249/controller/prepare-terra-fixture.py。这些路径是本次额外可写目录，操作不进入代码集成；不写其他目录或用户全局配置。需要节点测试临时目录时使用此根下新建 tmp，把 TMPDIR/TMP/TEMP 指向它，不能放在门禁 worktree 内误触只读判据。\n\n按票的 Acceptance 逐项从 Test 窗口核对并记录：\n1. 提交顺序、父子关系、标签、未提交行与 Git rev-list --date-order --parents --all、for-each-ref、status 对照；从可见提交行打开详情，点文件看 diff，核对根提交、普通提交、未提交与首次提交前；字面特殊文件名不能混入另一文件。\n2. 从界面创建 terra-created 分支再删除；Git 读回仅预期引用变化；以 - 开头名称被拒且引用不变。取消确认不写仓库。只在上述夹具操作，不 push、pull 或接远程。\n3. 打开普通终端并 cd 到 beta，聚焦后观察跟随；固定后切到另一夹具终端不变，取消固定恢复；many 的列表与独立 Git 夹具一致。只开普通 shell，不开模型 CLI。\n4. 跟随 readonly worktree，写菜单不可用并有原因，操作前后 Git 元数据与引用一致。不得改真实门禁状态来模拟。\n5. 特别核对原审查未覆盖的 Esc、焦点和重复选择：详情→diff 后连续两次 Esc，分别关闭 diff、详情；选择不同提交、重复选择、返回列表不残留旧内容；输入确认框时 Esc 不误写终端；左右调整面板宽度及双击复原，记录实际动作与可见结果。使用至多两次的有界序列，发现问题先保存证据、给出复现，不修产品、不无限扩展审查。\n6. 常规测试：从上述固定候选运行冻结 acceptance/T-249/check_git_graph.py、node --test workbench/tests/test_t249_git_host.mjs 和 python3 workbench/tests/test_t249_outside_safety.py，保存独立原始输出。以实际代码和 Git 数据核对根提交、特殊路径、unborn。主控已在同版本运行真实窗口正例两次各 142 项及五个变异；你可以引用其已绑定证据，但不能把它冒充你本次 CU。报告区分自己实际运行、主控来源、未覆盖项。\n7. 开始/结束记录正式后台 PID 和启动时间；包不替换 /Applications。结束关闭自己创建的终端和 Test 窗口，保留自己的 state/fixture 给主控按所有权清理，不关闭正式后台。不自行删原始失败证据。截图放临时根，仓库只留文字说明及必要文本数据。\n\n交付：在 evidence/2026-11-08-batch34/T-249/terra/ 保存中文 RESULTS.md、可复跑命令、实际 CU 动作与观察、独立 Git 对照、常规测试原始输出、包版本与前后进程事实。报告使用 PASS / FAIL / INCOMPLETE / BLOCKED，不将缺证据上调。发现任何范围、权限、产品问题先 issue；只在自己的证据目录编写机械观察核对脚本 check_observations.py：输入为本次记录的可机械核对界面值和独立 Git oracle，检查明确事实（例如选择提交的哈希、父提交、文件及 diff 内容对应），不以固定报告措辞、关键词或源码字符串判断行为。先确定 Git 期望，再记录 UI；对至少两个明显错误的观察副本（如错提交、混入文件）要判红，原正确观察恢复后判绿。中文报告的真实性、界面操作与状态结论由人/独立审查判断，不把机械检查器宣称为全文语义证明。\n\ngit add --sparse、git commit 后显式 submit 一次，queued 不等于已接收。所有结果必须绑定产品候选和本 task/attempt。验收证据交付也走门禁，不自行 integrate。主控等你提交与空闲后审读；敏感产品变更仍须用户读证据批准，父任务集成回收后才有空位审查本证据任务，以维持最多三条 Codex CLI。\n\n工具边界补充：测试资料、待验收 App 与 Test 数据目录允许只读核对；shell 写入只限你的受管证据目录与 /private/tmp/t249-terra-20261108-01。Test 数据写入经已授权的 Test App 正常 UI 发生。ps 等诊断若沙箱拒绝，不换命令绕过，不申请扩大权限；记录 INCOMPLETE 并 issue，由主控从已有授权范围核对。参考环境记录 /Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-249/controller/terra-environment-start.json。\n\n版本绑定补充：父任务最终交付候选为 18c108fcaed1c4ecf51831f2272578a3b09427be；Test 包及已执行窗口用例的源码版本为 1243bc15f979976967cfd2d5cdd3a2acce6df635。父候选只是恢复旧代码并补来源明确的文本证据；主控 git diff --exit-code 1243bc15… 18c108fc… -- workbench acceptance 为 0，完整记录在主仓库 evidence/2026-11-08-batch34/T-249/controller/worker-v6-product-equivalence.json。读取源 worktree 时 HEAD 是18c108fc；不要把文本补交误认作产品代码变更，也不冒称 Test 包由18c108fc重新打包。报告同时记父交付与实际包版本。\n\n交付可重放性：check_observations.py 应读取本任务证据目录中保存的独立 Git 输出与实际 UI 观察副本，不依赖验收后会清理的 /private/tmp 夹具、Test 数据目录或父 worker worktree。常规产品测试的原始命令与结果另外保存；机械核对脚本只验证已观察事实之间的关系，不把报告文字含义编码成关键词规则。最终候选内须保留可运行检查所需的小型输入文件。\n\n父任务已经门禁 verified：review 9155d2de-7eeb-4515-b31b-46214d7f7532 可合并、findings=[]，机械三项通过；该结论只关闭已有证据缺口，不替代你本次独立 Computer Use。原始审查在主仓库 evidence/2026-11-08-batch34/T-249/controller/review-v6-result.json。",
+  "non_goals": [
+    "不改产品源码、任务票或治理规则",
+    "不修改冻结验收",
+    "不操作正式 Enchanted 或用户 hc core",
+    "不修改 /Applications、全局配置，不 push",
+    "不接管 T-250，不启动其他 agent"
+  ],
+  "paths": {
+    "allow": [
+      "evidence/2026-11-08-batch34/T-249/terra/"
+    ],
+    "deny": [
+      "workbench/",
+      "acceptance/",
+      ".project-map/",
+      "REVIEW.md"
+    ]
+  },
+  "oracle_paths": [
+    "acceptance/T-249/check_git_graph.py",
+    "evidence/2026-11-08-batch34/T-249/controller/prepare-terra-fixture.py"
+  ],
+  "completion_conditions": [
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "evidence/2026-11-08-batch34/T-249/terra/check_observations.py"
+      ]
+    }
+  ],
+  "red_commands": [],
+  "task_type": "测试",
+  "repair_target": null,
+  "complexity": "M",
+  "executor": {
+    "cli": "Codex",
+    "model": "gpt-6.1-terra",
+    "effort": "xhigh"
+  },
+  "base_commit": null,
+  "writer": null
+}
