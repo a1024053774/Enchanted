@@ -1,0 +1,204 @@
+{
+  "candidate": "045e815ff390a0e2e50b7788966e2a5bf655fbdb",
+  "scope": "L1/L2 Panes、SQLite、rollout；不是 CLI/门禁变异",
+  "node": "v26.5.0",
+  "cases": [
+    {
+      "name": "baseline",
+      "change": "候选原样",
+      "command": [
+        "node",
+        "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/workbench/tests/test_t257_codex_stop_continuation.ts",
+        "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/reviewer-checks/run01/baseline-source",
+        "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/reviewer-checks/run01/baseline-schedules.json"
+      ],
+      "exit": 0,
+      "status": "PASS",
+      "cases": 104,
+      "failures": 0,
+      "examples": [],
+      "patch": "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/reviewer-checks/run01/baseline.patch",
+      "summary": "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/reviewer-checks/run01/baseline-schedules.json",
+      "cleanup": {
+        "path": "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/reviewer-checks/run01/baseline-source",
+        "files": 65,
+        "bytes": 979427,
+        "time": "2026-11-08T13:06:10.929531+00:00",
+        "removed": true
+      }
+    },
+    {
+      "name": "m1-no-binding",
+      "change": "删除已认领 UPS 的 nativeTurn 绑定",
+      "command": [
+        "node",
+        "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/workbench/tests/test_t257_codex_stop_continuation.ts",
+        "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/reviewer-checks/run01/m1-no-binding-source",
+        "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/reviewer-checks/run01/m1-no-binding-schedules.json"
+      ],
+      "exit": 1,
+      "status": "FAIL",
+      "cases": 104,
+      "failures": 30,
+      "examples": [
+        {
+          "name": "bounded-order",
+          "sequence": [
+            "UPS",
+            "Stop",
+            "duplicate-Stop"
+          ],
+          "status": "FAIL",
+          "error": "AssertionError [ERR_ASSERTION]: native UPS binds the receipt even without task_started\n+ actual - expected\n\n+ null\n- 'same-turn'\n"
+        },
+        {
+          "name": "bounded-order",
+          "sequence": [
+            "UPS",
+            "old-Stop",
+            "Stop",
+            "duplicate-Stop"
+          ],
+          "status": "FAIL",
+          "error": "AssertionError [ERR_ASSERTION]: native UPS binds the receipt even without task_started\n+ actual - expected\n\n+ null\n- 'same-turn'\n"
+        }
+      ],
+      "patch": "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/reviewer-checks/run01/m1-no-binding.patch",
+      "summary": "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/reviewer-checks/run01/m1-no-binding-schedules.json",
+      "cleanup": {
+        "path": "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/reviewer-checks/run01/m1-no-binding-source",
+        "files": 65,
+        "bytes": 979361,
+        "time": "2026-11-08T13:06:12.003399+00:00",
+        "removed": true
+      }
+    },
+    {
+      "name": "m2-session-as-turn",
+      "change": "将 turn_id 错绑为 session_id",
+      "command": [
+        "node",
+        "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/workbench/tests/test_t257_codex_stop_continuation.ts",
+        "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/reviewer-checks/run01/m2-session-as-turn-source",
+        "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/reviewer-checks/run01/m2-session-as-turn-schedules.json"
+      ],
+      "exit": 1,
+      "status": "FAIL",
+      "cases": 104,
+      "failures": 55,
+      "examples": [
+        {
+          "name": "bounded-order",
+          "sequence": [
+            "UPS",
+            "Stop",
+            "duplicate-Stop"
+          ],
+          "status": "FAIL",
+          "error": "AssertionError [ERR_ASSERTION]: native UPS binds the receipt even without task_started\n+ actual - expected\n\n+ '11111111-1111-4111-8111-111111111111'\n- 'same-turn'\n"
+        },
+        {
+          "name": "bounded-order",
+          "sequence": [
+            "UPS",
+            "old-Stop",
+            "Stop",
+            "duplicate-Stop"
+          ],
+          "status": "FAIL",
+          "error": "AssertionError [ERR_ASSERTION]: native UPS binds the receipt even without task_started\n+ actual - expected\n\n+ '11111111-1111-4111-8111-111111111111'\n- 'same-turn'\n"
+        }
+      ],
+      "patch": "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/reviewer-checks/run01/m2-session-as-turn.patch",
+      "summary": "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/reviewer-checks/run01/m2-session-as-turn-schedules.json",
+      "cleanup": {
+        "path": "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/reviewer-checks/run01/m2-session-as-turn-source",
+        "files": 65,
+        "bytes": 979430,
+        "time": "2026-11-08T13:06:12.995114+00:00",
+        "removed": true
+      }
+    },
+    {
+      "name": "m3-idle-at-ups",
+      "change": "在已认领 UPS 提前置 idle",
+      "command": [
+        "node",
+        "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/workbench/tests/test_t257_codex_stop_continuation.ts",
+        "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/reviewer-checks/run01/m3-idle-at-ups-source",
+        "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/reviewer-checks/run01/m3-idle-at-ups-schedules.json"
+      ],
+      "exit": 1,
+      "status": "FAIL",
+      "cases": 104,
+      "failures": 93,
+      "examples": [
+        {
+          "name": "bounded-order",
+          "sequence": [
+            "UPS",
+            "Stop",
+            "duplicate-Stop"
+          ],
+          "status": "FAIL",
+          "error": "AssertionError [ERR_ASSERTION]: a start or old Stop cannot finish the receipt\n\n'idle' !== 'busy'\n"
+        },
+        {
+          "name": "bounded-order",
+          "sequence": [
+            "UPS",
+            "old-Stop",
+            "Stop",
+            "duplicate-Stop"
+          ],
+          "status": "FAIL",
+          "error": "AssertionError [ERR_ASSERTION]: a start or old Stop cannot finish the receipt\n\n'idle' !== 'busy'\n"
+        }
+      ],
+      "patch": "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/reviewer-checks/run01/m3-idle-at-ups.patch",
+      "summary": "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/reviewer-checks/run01/m3-idle-at-ups-schedules.json",
+      "cleanup": {
+        "path": "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/reviewer-checks/run01/m3-idle-at-ups-source",
+        "files": 65,
+        "bytes": 979458,
+        "time": "2026-11-08T13:06:13.902489+00:00",
+        "removed": true
+      }
+    },
+    {
+      "name": "m4-ignore-interruption",
+      "change": "Codex Stop 完成忽略 interrupted 保持 busy 的条件",
+      "command": [
+        "node",
+        "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/workbench/tests/test_t257_codex_stop_continuation.ts",
+        "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/reviewer-checks/run01/m4-ignore-interruption-source",
+        "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/reviewer-checks/run01/m4-ignore-interruption-schedules.json"
+      ],
+      "exit": 1,
+      "status": "FAIL",
+      "cases": 104,
+      "failures": 1,
+      "examples": [
+        {
+          "name": "interrupt-held",
+          "sequence": [
+            "UPS",
+            "interrupt",
+            "Stop"
+          ],
+          "status": "FAIL",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n'idle' !== 'busy'\n"
+        }
+      ],
+      "patch": "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/reviewer-checks/run01/m4-ignore-interruption.patch",
+      "summary": "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/reviewer-checks/run01/m4-ignore-interruption-schedules.json",
+      "cleanup": {
+        "path": "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/1042a9e2-4d76-4b00-8213-e4cb4252462c/reviewer-checks/run01/m4-ignore-interruption-source",
+        "files": 65,
+        "bytes": 979399,
+        "time": "2026-11-08T13:06:14.763712+00:00",
+        "removed": true
+      }
+    }
+  ]
+}

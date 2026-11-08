@@ -1,0 +1,11 @@
+--- candidate/workbench/src/panes.ts
++++ m4-ignore-interruption/workbench/src/panes.ts
+@@ -2291,7 +2291,7 @@
+         }
+         // A rejected protocol result still ended this matched review turn. Keep the
+         // failure/blocking marker; only the gate may stop/archive it and start afresh.
+-        pane.active = null; pane.state = pane.failed && !protocolFailure ? "unknown" : pane.interrupted ? "busy" : "idle";
++        pane.active = null; pane.state = pane.failed && !protocolFailure ? "unknown" : "idle";
+         this.store.event(pane.state === "idle" ? "pane_idle" : "pane_completion_held", { submission: active!.id, state: pane.state, stop: value, ...(refusal ? { refused: refusal } : {}) }, pane.record);
+       } catch (error) {
+         if (matched) this.recordFailure(pane, "stop_transfer_failed", error);
