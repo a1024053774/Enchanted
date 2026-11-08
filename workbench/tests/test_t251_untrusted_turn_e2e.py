@@ -236,11 +236,16 @@ def main():
                 try:
                     receipts = [dict(entry=entry, **json.loads(data)) for entry, data in store.execute(
                         'SELECT entry, data FROM inbox_deliveries ORDER BY seq') if entry in ids]
+                    row = store.execute("SELECT json_extract(data,'$.thread') FROM launch_records WHERE id=?", (fixture.terminal['launch'],)).fetchone()
+                    controller_thread = row[0] if row else None
                 finally:
                     store.close()
                 report['observed']['inbox_receipts'] = receipts
-                check('issue_reached_executor_cli', bool(ids) and bool(received()) and receipts and receipts[-1].get('state') == 'delivered',
-                      dict(receipts=receipts, controller_requests=len(received())))
+                # The inbox writes its receipt once, at hand-over (queued while the send waits for the terminal); later state
+                # is computed, not appended. What shows delivery is the executor CLI's own model request carrying the issue (T-216).
+                check('issue_reached_executor_cli', bool(ids) and bool(received()) and bool(receipts) and
+                      receipts[-1].get('state') in ('queued', 'delivered') and receipts[-1].get('thread') == controller_thread,
+                      dict(receipts=receipts, controller_thread=controller_thread, controller_requests=len(received())))
             check('issue_sent_through_inbox', bool(sent) and all(issue.get('controller_launch') == fixture.terminal['launch'] for issue in sent)
                   and (last.get('state') in ('queued', 'delivered') or (last.get('state') == 'pending' and last.get('reason') == 'role_session_missing')),
                   dict(controller_launch=[issue.get('controller_launch') for issue in sent], terminal=fixture.terminal['launch'], receipts=receipts))
