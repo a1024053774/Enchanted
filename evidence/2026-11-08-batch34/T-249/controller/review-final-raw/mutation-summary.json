@@ -1,0 +1,174 @@
+[
+  {
+    "name": "no-details",
+    "path": "workbench/app/panels/GitGraphPanel.tsx",
+    "before": "{selectedCommit && <CommitDetails",
+    "after": "{false && selectedCommit && <CommitDetails",
+    "results": [
+      {
+        "check": "acceptance",
+        "argv": [
+          "/usr/bin/python3",
+          "acceptance/T-249/check_git_graph.py"
+        ],
+        "exit": 0,
+        "summary": [
+          "PASS"
+        ]
+      },
+      {
+        "check": "host",
+        "argv": [
+          "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+          "--test",
+          "workbench/tests/test_t249_git_host.mjs"
+        ],
+        "exit": 0,
+        "summary": [
+          "ℹ pass 22",
+          "ℹ fail 0"
+        ]
+      },
+      {
+        "check": "outside-safety",
+        "argv": [
+          "/usr/bin/python3",
+          "workbench/tests/test_t249_outside_safety.py"
+        ],
+        "exit": 0,
+        "summary": [
+          "Ran 6 tests in 0.324s",
+          "OK"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "no-diff",
+    "path": "workbench/app/panels/GitGraphPanel.tsx",
+    "before": "onClick={() => void openDiff(file.path, file.status)}",
+    "after": "onClick={() => {}}",
+    "results": [
+      {
+        "check": "acceptance",
+        "argv": [
+          "/usr/bin/python3",
+          "acceptance/T-249/check_git_graph.py"
+        ],
+        "exit": 0,
+        "summary": [
+          "PASS"
+        ]
+      },
+      {
+        "check": "host",
+        "argv": [
+          "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+          "--test",
+          "workbench/tests/test_t249_git_host.mjs"
+        ],
+        "exit": 0,
+        "summary": [
+          "ℹ pass 22",
+          "ℹ fail 0"
+        ]
+      },
+      {
+        "check": "outside-safety",
+        "argv": [
+          "/usr/bin/python3",
+          "workbench/tests/test_t249_outside_safety.py"
+        ],
+        "exit": 0,
+        "summary": [
+          "Ran 6 tests in 0.319s",
+          "OK"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "literal-pathspec",
+    "path": "workbench/app/panels/gitGraphModel.ts",
+    "before": "const file = `:(top,literal)${path}`;",
+    "after": "const file = path;",
+    "results": [
+      {
+        "check": "host",
+        "argv": [
+          "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+          "--test",
+          "workbench/tests/test_t249_git_host.mjs"
+        ],
+        "exit": 1,
+        "summary": [
+          "✖ literal single-file diff: root file*.txt (60.073875ms)",
+          "✖ literal single-file diff: root file[1].txt (60.046375ms)",
+          "✖ literal single-file diff: root :(glob)*.txt (60.512541ms)",
+          "✖ literal single-file diff: normal file*.txt (82.676333ms)",
+          "✖ literal single-file diff: normal file[1].txt (79.450916ms)",
+          "✖ literal single-file diff: normal :(glob)*.txt (80.985334ms)",
+          "✖ literal single-file diff: uncommitted file*.txt (61.92725ms)",
+          "✖ literal single-file diff: uncommitted file[1].txt (58.844542ms)",
+          "✖ literal single-file diff: uncommitted :(glob)*.txt (60.335667ms)",
+          "ℹ pass 13",
+          "ℹ fail 9",
+          "✖ failing tests:",
+          "✖ literal single-file diff: root file*.txt (60.073875ms)",
+          "✖ literal single-file diff: root file[1].txt (60.046375ms)",
+          "✖ literal single-file diff: root :(glob)*.txt (60.512541ms)",
+          "✖ literal single-file diff: normal file*.txt (82.676333ms)",
+          "✖ literal single-file diff: normal file[1].txt (79.450916ms)",
+          "✖ literal single-file diff: normal :(glob)*.txt (80.985334ms)",
+          "✖ literal single-file diff: uncommitted file*.txt (61.92725ms)",
+          "✖ literal single-file diff: uncommitted file[1].txt (58.844542ms)",
+          "✖ literal single-file diff: uncommitted :(glob)*.txt (60.335667ms)"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "parents",
+    "path": "workbench/app/panels/gitGraphModel.ts",
+    "before": "parents: parents ? parents.split(' ') : [],",
+    "after": "parents: parents ? parents.split(' ').reverse() : [],",
+    "results": [
+      {
+        "check": "acceptance",
+        "argv": [
+          "/usr/bin/python3",
+          "acceptance/T-249/check_git_graph.py"
+        ],
+        "exit": 1,
+        "summary": [
+          "FAIL [all] 每行父提交与 git rev-list --parents 一致",
+          "FAIL [all] 泳道与按原 mod 规则手推的一致：期望 {'s1': 0, 'm': 1, 'f2': 2, 'c3': 1, 'f1': 2, 'c2': 0, 'c1': 0}，实际 {'s1': 0, 'm': 1, 'f2': 1, 'c3': 2, 'f1': 1, 'c2': 0, 'c1': 0}",
+          "FAIL [current] 每行父提交与 git rev-list --parents 一致",
+          "FAIL [current] 泳道与按原 mod 规则手推的一致：期望 {'m': 0, 'f2': 1, 'c3': 0, 'f1': 1, 'c2': 0, 'c1': 0}，实际 {'m': 0, 'f2': 0, 'c3': 1, 'f1': 0, 'c2': 1, 'c1': 0}",
+          "FAIL：4 项"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "wrong-assertion",
+    "path": "workbench/app/RUN-OUTSIDE-T249.sh",
+    "before": "'e2e-red-no-diff': '点击文件后单文件 diff 可见'",
+    "after": "'e2e-red-no-diff': '点击提交后详情可见'",
+    "results": [
+      {
+        "check": "outside-safety",
+        "argv": [
+          "/usr/bin/python3",
+          "workbench/tests/test_t249_outside_safety.py"
+        ],
+        "exit": 1,
+        "summary": [
+          "FAIL: test_disconnected_ui_requires_its_specific_business_assertion (__main__.OutsideSafety) (mutant='no-diff', assertion='点击文件后单文件 diff 可见')",
+          "Ran 6 tests in 0.325s",
+          "FAILED (failures=1)"
+        ]
+      }
+    ]
+  }
+]
