@@ -2247,6 +2247,10 @@ export class Panes implements GateRuntime {
         check(typeof value.prompt === "string", "codex_prompt_required");
         // A user submission starts its turn here, not at its Enter (T-229).
         if (this.noteSubmission(pane, value.prompt, value.turn_id ?? null, received_at)) {
+          // Codex can absorb a dispatch before its previous Stop hook returns,
+          // reusing the native turn without another rollout task_started (T-257).
+          // This validated UPS binds that dispatch's submission for its next Stop.
+          if (pane.active) pane.active.nativeTurn = value.turn_id;
           this.store.event("turn_start_signal", value, pane.record);
           return;
         }

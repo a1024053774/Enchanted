@@ -1,0 +1,41 @@
+{
+  "time": "2026-11-08T11:10:10.452049+00:00",
+  "status": "INCOMPLETE",
+  "scope": "测试编写阶段，未运行真实入口",
+  "static_checks": [
+    "主测试 AST 通过",
+    "内嵌 observer AST 和 JSONL 换行通过",
+    "副本插桩锚点唯一",
+    "UTF-8 无 BOM/替换字符"
+  ],
+  "earlier_observations": [
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 workbench/tests/test_t257_codex_stop_continuation_e2e.py --help",
+      "exit": 0,
+      "result": "帮助输出列出 --summary、--revision、--codex；未启动夹具"
+    },
+    {
+      "command": "python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py status --root .",
+      "exit": 0,
+      "result": "本回合开始：Problems 0，Stale living docs 0"
+    },
+    {
+      "command": "git diff --no-index --check /dev/null workbench/tests/test_t257_codex_stop_continuation_e2e.py",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "",
+      "result": "汇总脚本错误要求退出 0，因此 AssertionError；不是产品红态"
+    },
+    {
+      "command": "静态汇总脚本（依次通过 subprocess.run 调用 help 与 project-map status）",
+      "exit": 130,
+      "result": "等待 communicate/selector.select 未返回，Ctrl-C 中断；未记录步骤，不能确认当时卡在哪个子命令；未生成摘要"
+    },
+    {
+      "command": "ps -axo pid,ppid,etime,command | rg project_map.py/test_t257/相关 Python",
+      "exit": 1,
+      "stderr": "zsh:1: operation not permitted: ps",
+      "result": "未换工具绕过"
+    }
+  ]
+}

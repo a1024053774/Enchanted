@@ -1,0 +1,25 @@
+状态：INCOMPLETE
+日期：2026-11-08
+检查对象：测试提交 1acebc00d617a04317164370dcfb21c1b21b3308 的阶段性交接。
+
+命令：python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py status --root .
+结果：长时间无输出，停止前先后两次发送 Ctrl-C，最终退出码 2。
+首次中断输出：
+Failed checking if argv[0] is an import path entry
+Traceback (most recent call last):
+  File "<frozen zipimport>", line 92, in __init__
+KeyError: '/Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<frozen zipimport>", line 94, in __init__
+  File "<frozen zipimport>", line 354, in _read_directory
+KeyboardInterrupt
+
+第二次中断输出：
+/Applications/Xcode.app/Contents/Developer/usr/bin/python3: can't open file '/Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py': [Errno 4] Interrupted system call
+
+不能据此报告结束前 status 通过，也不能断言是地图缺陷或 T-257 红态。本回合开始同一命令曾退出 0（Problems 0、Stale 0）；该旧结果不替代这次未完成的检查。没有更换工具或路径再次读取。
+
+其他结束检查：git diff --cached --check 退出 0；测试提交自动 A2A 尾注完整。git status --short 仅保留主控创建的未跟踪 workbench/node_modules，未修改/提交/清理这个链接。生产路径未改。

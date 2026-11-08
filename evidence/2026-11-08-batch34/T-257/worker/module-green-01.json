@@ -1,0 +1,25 @@
+{
+  "status": "PASS",
+  "head": "6b2fd3ec88de9b11d618fa16dc34535144d58abb",
+  "diff": "diff --git a/workbench/src/panes.ts b/workbench/src/panes.ts\nindex a6cf15c7b..7b2cf515b 100644\n--- a/workbench/src/panes.ts\n+++ b/workbench/src/panes.ts\n@@ -2247,6 +2247,10 @@ export class Panes implements GateRuntime {\n         check(typeof value.prompt === \"string\", \"codex_prompt_required\");\n         // A user submission starts its turn here, not at its Enter (T-229).\n         if (this.noteSubmission(pane, value.prompt, value.turn_id ?? null, received_at)) {\n+          // Codex can absorb a dispatch before its previous Stop hook returns,\n+          // reusing the native turn without another rollout task_started (T-257).\n+          // This validated UPS binds that dispatch's submission for its next Stop.\n+          if (pane.active) pane.active.nativeTurn = value.turn_id;\n           this.store.event(\"turn_start_signal\", value, pane.record);\n           return;\n         }\n",
+  "node": "v26.5.0",
+  "source_fixture": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-257-1-a2/evidence/2026-11-08-batch34/T-257/worker/t257-source-gobv4xay",
+  "scope": "Panes 真实模块与 SQLite；不是后台/门禁/CLI 验收",
+  "command": [
+    "node",
+    "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-257-1-a2/workbench/tests/test_t257_codex_stop_continuation.ts",
+    "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-257-1-a2/evidence/2026-11-08-batch34/T-257/worker/t257-source-gobv4xay",
+    "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-257-1-a2/evidence/2026-11-08-batch34/T-257/worker/module-green-01-schedules.json"
+  ],
+  "exit": 0,
+  "stdout": "PASS: 104 schedules; 0 failures; SUMMARY=/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-257-1-a2/evidence/2026-11-08-batch34/T-257/worker/module-green-01-schedules.json\n",
+  "stderr": "(node:81453) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Library/Application%20Support/a2a-orchestrator/worktrees/a2a/T-257-1-a2/evidence/2026-11-08-batch34/T-257/worker/t257-source-gobv4xay/workbench/src/panes.ts is not specified and it doesn't parse as CommonJS.\nReparsing as ES module because module syntax was detected. This incurs a performance overhead.\nTo eliminate this warning, add \"type\": \"module\" to /Users/luckye/package.json.\n(Use `node --trace-warnings ...` to show where the warning was created)\n",
+  "schedules": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-257-1-a2/evidence/2026-11-08-batch34/T-257/worker/module-green-01-schedules.json",
+  "cleanup": {
+    "path": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-257-1-a2/evidence/2026-11-08-batch34/T-257/worker/t257-source-gobv4xay",
+    "files": 64,
+    "bytes": 978654,
+    "at": "2026-11-08T12:45:00.439475+00:00",
+    "removed": true
+  }
+}
