@@ -2,7 +2,7 @@
 id: T-254
 title: 后台停止时等原生会话绑定收尾没有上限
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -34,8 +34,17 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 修前红态：后台层测试新场景 `binding_outlives_stop`（窗格读取在停止开始后 30 秒才返回）在 `1bb19fa21` 上，停止后要等读取返回、约 30 秒才关库，没有放弃记录。（原写“20 秒内库没关、`daemon.pid` 还在”；测试量的是关库时刻，没有在第 20 秒采样 pid，按实际量到的改写。）
-- [ ] 修后：同一场景在约 10 秒时关库、删 pid，记一条 `native_session_bind_abandoned`；读取返回后不再写任何记录，stderr 没有 `event_write_failed`，后台以 0 退出；门禁没有 `runtime_bound`。
-- [ ] 原有的 `stop_while_binding`、`record_write_fails` 仍通过；`stop_while_binding` 关库后很快退出（计时器已清）。
-- [ ] 变异：去掉期限、不标放弃、不清计时器，各自被至少一个检查判红。
-- [ ] 回归：T-253 的单元测试 `t253_native_bind.ts` 通过。
+- [x] 修前红态：后台层测试新场景 `binding_outlives_stop`（窗格读取在停止开始后 30 秒才返回）在 `1bb19fa21` 上，停止后要等读取返回、约 30 秒才关库，没有放弃记录。（原写“20 秒内库没关、`daemon.pid` 还在”；测试量的是关库时刻，没有在第 20 秒采样 pid，按实际量到的改写。）
+- [x] 修后：同一场景在约 10 秒时关库、删 pid，记一条 `native_session_bind_abandoned`；读取返回后不再写任何记录，stderr 没有 `event_write_failed`，后台以 0 退出；门禁没有 `runtime_bound`。
+- [x] 原有的 `stop_while_binding`、`record_write_fails` 仍通过；`stop_while_binding` 关库后很快退出（计时器已清）。
+- [x] 变异：去掉期限、不标放弃、不清计时器，各自被至少一个检查判红。
+- [x] 回归：T-253 的单元测试 `t253_native_bind.ts` 通过。
+
+## Resolution
+
+2026-11-08 关闭，PASS（[结果](../../evidence/2026-11-08-batch34/T-254/RESULTS.md)），本地 main，修复 `653456fe3`，审查 01 的文档修正 `cbdade968`。
+
+- 停止时等原生会话绑定最多 10 秒；到期仍在进行的绑定在关库前记 `native_session_bind_abandoned`，之后收尾时不写；按时收尾时清掉计时器。
+- 修前 `binding_outlives_stop` 30.0 秒才关库；修后 9.99 秒关库，一条放弃记录，读取在关库后返回、没有再写，以 0 退出。6 个变异（4 个新、2 个 T-253 的）都判红；T-253 单元测试与 Codex dispatch 端到端回归 PASS。
+- 审查 01（Codex，固定 `653456fe3`）判 FAIL，只有 P3：README 没同步。已修，没开复审（文档级改动）。
+- 没覆盖：停止流程里其他没有期限的等待；被放弃的绑定让 attempt 保持未绑定，重启后补绑仍没做；真实 CLI 下读取超过 10 秒只有夹具证据；全量测试与真实厂商模型没跑；/Applications/Enchanted.app 未换版。

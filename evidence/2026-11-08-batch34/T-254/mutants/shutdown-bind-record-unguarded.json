@@ -1,0 +1,347 @@
+{
+  "status": "FAIL",
+  "argv": [
+    "tests/test_t253_shutdown.py",
+    "--mutant",
+    "bind-record-unguarded",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-254/mutants/shutdown-bind-record-unguarded.json"
+  ],
+  "revision": null,
+  "mutant": "bind-record-unguarded",
+  "source_fixture": "/tmp/t253-src-j5nlkter",
+  "failed": [
+    "record_write_fails:daemon_survives_failed_record",
+    "record_write_fails:stop_accepted",
+    "record_write_fails:host_exit_zero",
+    "record_write_fails:pid_removed",
+    "record_write_fails:write_failure_reported"
+  ],
+  "scenarios": [
+    {
+      "scenario": "stop_while_binding",
+      "fixture": "/private/tmp/t253-stop-8jrfo430",
+      "checks": [
+        {
+          "name": "stop_accepted",
+          "ok": true,
+          "detail": {
+            "exit": 0,
+            "stdout": "{\"ok\":true,\"pid\":16216,\"stopping\":true}\n",
+            "stderr": ""
+          }
+        },
+        {
+          "name": "host_exit_zero",
+          "ok": true,
+          "detail": 0
+        },
+        {
+          "name": "nothing_bound",
+          "ok": true,
+          "detail": []
+        },
+        {
+          "name": "pid_removed",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "bind_failure_recorded",
+          "ok": true,
+          "detail": [
+            {
+              "type": "native_session_bind_failed",
+              "launch": "t253-launch",
+              "data": {
+                "native_session": "codex-fixture-session",
+                "error": "daemon_stopping",
+                "details": null
+              }
+            }
+          ]
+        },
+        {
+          "name": "exits_soon_after_close",
+          "ok": true,
+          "detail": 0.045467
+        }
+      ],
+      "failed": [],
+      "observed": {
+        "stop": {
+          "exit": 0,
+          "stdout": "{\"ok\":true,\"pid\":16216,\"stopping\":true}\n",
+          "stderr": ""
+        },
+        "host_exit_at": "2026-11-08T07:04:51.029467+00:00",
+        "hc_cleanup": {
+          "exit": 0,
+          "stdout": "{\"stopped\":true}\n",
+          "stderr": "",
+          "session": "enchanted-b17a5c35-50ef-4c68-8d83-47ef3f198a74"
+        },
+        "host_exit": 0,
+        "host_stderr": "",
+        "host_notes": [
+          {
+            "at": "2026-11-08T07:04:48.890Z",
+            "name": "read_entered",
+            "thread": "t253-thread"
+          },
+          {
+            "at": "2026-11-08T07:04:48.890Z",
+            "name": "callback_called"
+          },
+          {
+            "at": "2026-11-08T07:04:48.977Z",
+            "name": "stop_seen"
+          },
+          {
+            "at": "2026-11-08T07:04:50.982Z",
+            "name": "read_returned",
+            "after": "timeout"
+          },
+          {
+            "at": "2026-11-08T07:04:50.984Z",
+            "name": "gates_closed"
+          }
+        ],
+        "orchestration_events": [
+          {
+            "type": "daemon_stopped",
+            "launch": null,
+            "data": {
+              "pid": 16216
+            }
+          },
+          {
+            "type": "native_session_bind_failed",
+            "launch": "t253-launch",
+            "data": {
+              "native_session": "codex-fixture-session",
+              "error": "daemon_stopping",
+              "details": null
+            }
+          }
+        ],
+        "runtime_bound": [],
+        "exit_after_close_seconds": 0.045467
+      },
+      "status": "PASS",
+      "fixture_deleted": true
+    },
+    {
+      "scenario": "record_write_fails",
+      "fixture": "/private/tmp/t253-stop-r_k2tyl7",
+      "checks": [
+        {
+          "name": "daemon_survives_failed_record",
+          "ok": false,
+          "detail": 1
+        },
+        {
+          "name": "stop_accepted",
+          "ok": false,
+          "detail": {
+            "exit": 1,
+            "stdout": "{\"ok\":false,\"error\":\"daemon_call_failed\",\"details\":\"Error: connect ECONNREFUSED /private/tmp/t253-stop-r_k2tyl7/state/control.sock\"}\n",
+            "stderr": ""
+          }
+        },
+        {
+          "name": "host_exit_zero",
+          "ok": false,
+          "detail": 1
+        },
+        {
+          "name": "nothing_bound",
+          "ok": true,
+          "detail": []
+        },
+        {
+          "name": "pid_removed",
+          "ok": false,
+          "detail": null
+        },
+        {
+          "name": "write_failure_reported",
+          "ok": false,
+          "detail": []
+        }
+      ],
+      "failed": [
+        "daemon_survives_failed_record",
+        "stop_accepted",
+        "host_exit_zero",
+        "pid_removed",
+        "write_failure_reported"
+      ],
+      "observed": {
+        "alive_after_refused_record": false,
+        "stop": {
+          "exit": 1,
+          "stdout": "{\"ok\":false,\"error\":\"daemon_call_failed\",\"details\":\"Error: connect ECONNREFUSED /private/tmp/t253-stop-r_k2tyl7/state/control.sock\"}\n",
+          "stderr": ""
+        },
+        "host_exit_at": "2026-11-08T07:04:53.473731+00:00",
+        "hc_cleanup": {
+          "exit": 0,
+          "stdout": "{\"stopped\":true}\n",
+          "stderr": "",
+          "session": "enchanted-a24b28fa-9bb8-4122-ba0f-32a4037fef13"
+        },
+        "host_exit": 1,
+        "host_stderr": "file:///Users/luckye/Documents/Code/a2a/workbench/tests/t253_shutdown_host.ts:78\n    if (type === \"native_session_bind_failed\") { note(\"record_refused\"); throw new Error(\"fixture: event write refused\"); }\n                                                                               ^\n\nError: fixture: event write refused\n    at panes.store.event (file:///Users/luckye/Documents/Code/a2a/workbench/tests/t253_shutdown_host.ts:78:80)\n    at file:///private/tmp/t253-src-j5nlkter/source/workbench/src/daemon.ts:106:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n\nNode.js v26.5.0\n",
+        "host_notes": [
+          {
+            "at": "2026-11-08T07:04:52.345Z",
+            "name": "read_entered",
+            "thread": "t253-thread"
+          },
+          {
+            "at": "2026-11-08T07:04:52.345Z",
+            "name": "callback_called"
+          },
+          {
+            "at": "2026-11-08T07:04:52.346Z",
+            "name": "record_refused"
+          }
+        ],
+        "orchestration_events": [],
+        "runtime_bound": []
+      },
+      "status": "FAIL"
+    },
+    {
+      "scenario": "binding_outlives_stop",
+      "fixture": "/private/tmp/t253-stop-y4azvabm",
+      "checks": [
+        {
+          "name": "stop_accepted",
+          "ok": true,
+          "detail": {
+            "exit": 0,
+            "stdout": "{\"ok\":true,\"pid\":16343,\"stopping\":true}\n",
+            "stderr": ""
+          }
+        },
+        {
+          "name": "host_exit_zero",
+          "ok": true,
+          "detail": 0
+        },
+        {
+          "name": "nothing_bound",
+          "ok": true,
+          "detail": []
+        },
+        {
+          "name": "pid_removed",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "stores_closed_within_bound",
+          "ok": true,
+          "detail": 9.999
+        },
+        {
+          "name": "abandon_recorded",
+          "ok": true,
+          "detail": [
+            {
+              "type": "native_session_bind_abandoned",
+              "launch": "t253-launch",
+              "data": {
+                "native_session": "codex-fixture-session",
+                "waited_ms": 10001
+              }
+            }
+          ]
+        },
+        {
+          "name": "late_read_ran_after_close",
+          "ok": true,
+          "detail": [
+            {
+              "at": "2026-11-08T07:05:24.868Z",
+              "name": "read_returned",
+              "after": "gates_closed"
+            }
+          ]
+        },
+        {
+          "name": "nothing_written_after_close",
+          "ok": true,
+          "detail": {
+            "failures": [],
+            "stderr": []
+          }
+        }
+      ],
+      "failed": [],
+      "observed": {
+        "stop": {
+          "exit": 0,
+          "stdout": "{\"ok\":true,\"pid\":16343,\"stopping\":true}\n",
+          "stderr": ""
+        },
+        "host_exit_at": "2026-11-08T07:05:24.881270+00:00",
+        "hc_cleanup": {
+          "exit": 0,
+          "stdout": "{\"stopped\":true}\n",
+          "stderr": "",
+          "session": "enchanted-3561b269-7c0a-4bde-8beb-5d61edffe04c"
+        },
+        "host_exit": 0,
+        "host_stderr": "",
+        "host_notes": [
+          {
+            "at": "2026-11-08T07:04:54.779Z",
+            "name": "read_entered",
+            "thread": "t253-thread"
+          },
+          {
+            "at": "2026-11-08T07:04:54.779Z",
+            "name": "callback_called"
+          },
+          {
+            "at": "2026-11-08T07:04:54.867Z",
+            "name": "stop_seen"
+          },
+          {
+            "at": "2026-11-08T07:05:04.866Z",
+            "name": "gates_closed"
+          },
+          {
+            "at": "2026-11-08T07:05:24.868Z",
+            "name": "read_returned",
+            "after": "gates_closed"
+          }
+        ],
+        "orchestration_events": [
+          {
+            "type": "daemon_stopped",
+            "launch": null,
+            "data": {
+              "pid": 16343
+            }
+          },
+          {
+            "type": "native_session_bind_abandoned",
+            "launch": "t253-launch",
+            "data": {
+              "native_session": "codex-fixture-session",
+              "waited_ms": 10001
+            }
+          }
+        ],
+        "runtime_bound": [],
+        "close_after_stop_seconds": 9.999
+      },
+      "status": "PASS",
+      "fixture_deleted": true
+    }
+  ]
+}
