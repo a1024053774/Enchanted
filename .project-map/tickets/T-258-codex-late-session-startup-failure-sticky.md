@@ -6,10 +6,26 @@ status: open
 blocked_by: []
 claimed_by:
 supersedes:
-ready: no
+ready: yes
+ready_by: executor
+ready_rev: 1
 ---
 
 ## What to build
+
+### 当前执行授权（2026-11-08 15:36Z）
+
+用户在本轮回答问题“T-249 的第二轮 terra 验收又被启动阻塞卡住：原生回合未建立，门禁回收返回 identity_conflict，现场已保存。你希望先正常重启并修复 T-258 这类启动恢复问题，再继续两个面板，还是只重启并经门禁重派验收？”：
+
+> 修启动阻塞后继续（推荐）
+
+据此本票就绪，先修 T-258，再恢复 T-249 的独立验收并继续 T-250。执行主控与 worker/reviewer 仍按本轮要求使用 gpt-6-astra xhigh 普通速度，不启动 Claude、不 push；两个面板的最终验收仍由 gpt-6.1-terra Computer Use 加常规测试完成。下文“未授权”是此前停点，已被这次明确授权取代。
+
+恢复事实：主控通过标准 daemon_stop 正常停止后台 81233，重新打开同一正式包后后台为 95522；原产品 worker 与 terra CLI 均已退出，用户自己的 hc core 42545/99586 未变。terra attempt 843d4f55 已经门禁 reclaim 成功，四个未交付文本文件复制保留，未强制清理原脏 worktree。证据在 [本次恢复目录](../../evidence/2026-11-08-batch34/T-258/controller/)。执行角色仍是用户原批准角色，未重新签发。
+
+REALITY GATE: INCOMPLETE。15:37Z 停止后台前已观察到 terra 晚绑定 session `01a1bbc6-b73d-73d3-b38d-578c153ba9ad`、turn `01a1bbcd-1332-75a3-bc32-80ab09a8f539`，而 failed 仍为 native_session_unbound。这一后续事实补足晚绑定仍保留失败状态；起初输入排队的原因仍未知。修复应由受管 worker 先复现并区分前置环境问题与产品缺陷，不能凭一次静态观察清空状态。
+
+验收边界不变：身份、提交来源、attempt/fence、重复请求和真实工作中不可回收都要有反例。生产代码最小变更；不改 T-249/T-250 实现，不修改冻结 acceptance/** 或 REVIEW.md，不更换原生 CLI、不写全局配置。实际候选触及 REVIEW.md 敏感条目时，仍在集成前交用户读证据批准。
 
 2026-11-08 执行 T-249-1 v4 时发现，按项目规则登记缺陷；尚未获本轮新增实现授权，不派发修复。与 T-257 的 Stop 回执同 turn 续跑不同，本次首先出现的是启动时限后的原生身份绑定。
 

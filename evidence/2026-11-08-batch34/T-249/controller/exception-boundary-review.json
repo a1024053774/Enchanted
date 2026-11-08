@@ -1,0 +1,46 @@
+{
+  "status": "PASS",
+  "scope": "仅异常边界审查；不把已拒收的首轮验收上调为 PASS",
+  "time": "2026-11-08T15:36:36.645588+00:00",
+  "caller": "原 task card v1 的 completion_conditions 和 COMMANDS.md 都由 CLI 调用 check_observations.py；归档副本本次通过绝对路径重放。",
+  "boundary": "顶层 CLI 把 AssertionError/KeyError/ValueError 转成明确 FAIL 与 exit 1；该层拥有进程退出码，不承担产品恢复。没有重试、fallback、吞错继续或把失败写成通过。",
+  "reachable": "两个保留的真实错误副本都触发 eq 内 AssertionError，经该 except 打印不相等字段并非零退出；缺必填键可触发 KeyError，path.relative_to 对不属 many 根的路径可触发 ValueError，二者同属输入事实检查失败。",
+  "decision": "保留合法处理，不为静态命中修改历史证据；原始整体仍 INCOMPLETE。",
+  "runs": [
+    {
+      "case": "original",
+      "command": [
+        "python3",
+        "/Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-249/controller/terra-attempt1-rejected/check_observations.py"
+      ],
+      "expected_exit": 0,
+      "exit": 0,
+      "stdout": "PASS: 记录的界面事实与独立 Git 数据一致；不证明未记录的行为。\n",
+      "stderr": ""
+    },
+    {
+      "case": "wrong-commit",
+      "command": [
+        "python3",
+        "/Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-249/controller/terra-attempt1-rejected/check_observations.py",
+        "/Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-249/controller/terra-attempt1-rejected/wrong-commit.json"
+      ],
+      "expected_exit": 1,
+      "exit": 1,
+      "stdout": "",
+      "stderr": "FAIL: normal hash: UI='77ca35547003aef14c5729327027ce475d12f558'; Git='d2e1270223348078e0b71b3c87a8f4b35091ed70'\n"
+    },
+    {
+      "case": "mixed-file",
+      "command": [
+        "python3",
+        "/Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-249/controller/terra-attempt1-rejected/check_observations.py",
+        "/Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-249/controller/terra-attempt1-rejected/mixed-file.json"
+      ],
+      "expected_exit": 1,
+      "exit": 1,
+      "stdout": "",
+      "stderr": "FAIL: normal added: UI=['literal star second', 'other file content']; Git=['literal star second']\n"
+    }
+  ]
+}
