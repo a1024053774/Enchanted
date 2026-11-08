@@ -77,3 +77,5 @@ Works：同一真实入口在父版本命中 5 项业务失败，在候选通过
 No regression：T-252 Codex 相关 7 项回归、104 个模块场景通过，独立 4 项错误变异拒绝；标准打包与签名校验通过。未跑全套测试。project-map 脚本在本轮收尾读取外部技能路径时阻塞，没有取得新的脚本通过结果；README stale 已人工按实际产品差异核对并更新 Verified。
 
 Risk / undo：旧安装包保留在 `/private/tmp/enchanted-rollback-t257-20261108-1/Enchanted.app`。需要撤回时走正常停止后台、恢复旧包和重启；代码可经新门禁任务撤回 4 行产品差异。门禁验证工作区清理失败的现场仍保留，未强制删除；本次打包与下载缓存约 721 MB 已记录体量后清理。
+
+收尾补证（13:39Z）：通过本轮新建的普通 shell 原样运行 project-map status，退出 0，Problems 0、Stale living docs 0；[原始结果](../../evidence/2026-11-08-batch34/T-257/controller/project-status-final.json)。此前外部技能读取延迟与不符合脚本格式的 Resolution 标题失败都保留，后者已在 `d6a4614bc` 修正。

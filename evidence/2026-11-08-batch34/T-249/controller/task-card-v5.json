@@ -1,0 +1,66 @@
+{
+  "id": "T-249-1",
+  "source": {
+    "ticket": "/Users/luckye/Documents/Code/a2a/.project-map/tickets/T-249-git-graph-panel.md",
+    "ready_rev": 1
+  },
+  "goal": "这是 T-249-1 的第五次派发，仅恢复被运行时阻塞的已完成候选，不扩大实现范围。上一 attempt 27481daa-4502-44a9-873e-c00a7b1cab4a 的候选是 9f96a9121ba6ed8d77a514a0a78c9341ceaacb86，基线 8683c4edba5ff635fea7e2918af059e4cd5ba07c。启动超时后晚绑定身份，Stop 未处理 submit；缺陷登记 T-258。用户本轮明确回答“批准重启并经门禁恢复（推荐）”，对应问题为“T-249 的候选与测试证据已保存，但新发现的启动超时状态使交付和回收都被门禁拒绝。是否批准正常重启 Enchanted 后台，再经门禁回收这次 attempt、用 astra xhigh 重派接回候选继续审查？”；位置 evidence/2026-11-08-batch34/T-249/controller/recovery-a3-approved.md。旧 attempt 已经门禁回收。\n\n目标：接回候选、核对完成条件，以当前身份提交，之后由主控审查、打包和安排 terra 验收。不要修 T-258、T-255、T-256，不修改冻结 acceptance/** 与 REVIEW.md。\n\n按顺序：\n1. 在新 worktree 根目录执行 git diff --binary 8683c4edba5ff635fea7e2918af059e4cd5ba07c 9f96a9121ba6ed8d77a514a0a78c9341ceaacb86 | git apply。只导入卡内变更，以当前身份 git add --sparse、git commit；不要 cherry-pick 旧身份提交、改共享引用、改 sparse 配置。异常则 issue 上报。\n2. 读 evidence/2026-11-07-batch33/T-249/attempt-fence3/RESULTS.md 和旧独立审查；保留旧红态。这一候选已修复三条单文件 diff 路径的字面 pathspec（*、[、:(）和没有 HEAD 时的已暂存/未暂存/未跟踪文件详情，并加入 no-panel 变异。核对修复仍在，不从头重复实现。\n3. 重跑卡上三条完成条件，在本 attempt 的独立证据目录（attempt-fence4）记录命令、结果和版本。冻结验收的临时 Git fixture 必须位于本会话被授权的独立临时目录，不能放进受管 worktree，否则按产品约定会只读；使用当前会话已有的 A2A 请求临时目录，结束清理自己创建的 fixture，不扩大沙箱权限。上轮第一次夹具误放在 worktree 的失败保留。\n4. 用 design-integrity-review 按项目规定做实现者自查；behavioral-acceptance-review 说明独立 oracle 与已知坏实现。上轮主要源码自查已经完成，复用相同代码的证据并明确本轮实际检查范围，不重复无关测试。\n5. 写中文 RESULTS.md，提交本次代码与证据，再显式 submit 一次；不要把 queued/delivered=false 当成门禁已接收，不重复提交，不往终端补 Enter。整票仍须独立审查、真实窗口、terra 和用户敏感证据批准。\n\n你不是代码库的唯一参与者：只写本卡允许路径，不撤销别人的改动；主控负责 .project-map 和 controller 证据，T-257 不在本卡写入范围。T-257 的 Resolution 标题已在 main d6a4614bc 修正，不要依据旧 worktree 的旧地图状态重开同一个问题。REVIEW.md 的 Verified 由主控在审查/集成时核对，worker 不修改。\n\n验收分两层：卡上是无界面机械检查；真实窗口层在门禁审查通过后由主控在沙箱外运行 RUN-OUTSIDE-T249.sh（no-panel、parents、order 都必须命中指定业务断言判红，启动失败不算红态），再让 gpt-6.1-terra 用 Computer Use 操作打包的 Enchanted Test 并加常规测试。T-249 新面板尚未打包，不能用正式旧包宣称界面通过。敏感脚本须用户读完整证据批准后才集成。\n\n下面是原要求，不变：\n\n按 .project-map/tickets/T-249-git-graph-panel.md 做：工作台右侧的面板位（内部注册表，只做 T-249、T-250 两个面板要用的部分），和第一个面板“Git 图”，功能照 herdr-git-graph（MIT，Copyright (c) 2026 Rabeeh T A，借鉴的源文件保留版权声明）。票里“要做的”1～5 条全部做，“Acceptance”是要达成的结果。\n\n先读：AGENTS.md、票、workbench/README.md、workbench/app/（renderer.tsx、main.ts、preload.ts、package.mjs、start.mjs）。动手前说得出面板放在哪个组件、聚焦窗格的 cwd 从哪来、git 在哪一层按 argv 执行。\n\n无界面入口（完成条件依赖它，必须照做）：workbench/app/panels/gitGraphCli.ts，用 `node workbench/app/panels/gitGraphCli.ts <repo> [--scope all|current]` 运行（Node 26 直接跑 .ts，不加依赖），stdout 输出一个 JSON：{\"rows\":[{\"hash\",\"parents\",\"refs\",\"head\",\"lane\",\"segments\"}],\"uncommitted\":{\"files\":N}|null}。rows 只含提交、从新到旧；refs 是指向该提交的完整引用名（refs/heads/x、refs/tags/x；“所有分支”不含远程时不列远程）；segments 是该行线段 [fromLane,fromY,toLane,toY,colorLane,dashed]。`--action '<JSON>'`（如 {\"type\":\"createBranch\",\"name\":\"x\",\"hash\":\"<oid>\"}、{\"type\":\"deleteBranch\",\"name\":\"x\"}）用界面同一份命令代码执行写操作，名字非法时非零退出。这个入口必须调用界面用的同一份模型与命令代码，不能另写一套。泳道规则照原 mod 的 lanes.js（第一个父提交继承本列；其他父提交优先用已在等它的列，否则占第一个空列或新开一列；多列等同一提交时取最左的一列并合并其余列；末尾空列去掉）。\n\n可参考的半成品：之前一个被停掉的会话在 /Users/luckye/Documents/Code/a2a-wt/git-panels/workbench/app/（gitHost.ts，panels/ 下的 GitGraphPanel.tsx、PanelDock.tsx、gitGraphModel.ts、panels.css）写了一部分，未经审查。能读到就可以参考或搬过来；搬过来的代码一样要自己核对，并进入交付和审查。不要改那个目录。\n\ngit 一律按 argv 执行、不经 shell，读操作带 --no-optional-locks -c core.fsmonitor=false -c diff.autoRefreshIndex=false。名字以 - 开头的拒绝。跟随门禁管理的任务 worktree 时，面板只读，写操作不可用，并说明原因。\n\n测试与界面验证：加一个经真实入口的端到端测试，放在 workbench/tests/ 下，写法参照 test_t212_shell_hc_e2e.py 和 cdp.mjs。用独立数据目录启动 Electron，夹具仓库在测试里新建，期望值从 git 读。测试要在已知坏的实现上判红，红态、绿态两次结果都留下。沙箱里起不了 Electron 的话，写一个 workbench/app/RUN-OUTSIDE-T249.sh，由主控在沙箱外运行：用 `npm run package:mac -- --variant test --slot <新 slot>` 打出 Enchanted Test（独立 bundle id 与数据目录），跑端到端测试，结束后清理构建目录、缓存和夹具，只按需保留待验收的包。不替换、不启动 /Applications/Enchanted.app，不碰正在运行的 Enchanted 后台、它的数据目录和 hc core。\n\n交付前：完成条件 python3 acceptance/T-249/check_git_graph.py 通过；在 evidence/2026-11-07-batch33/T-249/ 写 RESULTS.md，内容包括做了什么、测试命令、红绿结果、留给主控在沙箱外运行的命令。文档和交付说明用中文写。",
+  "non_goals": [
+    "不做 T-250 的改动面板（下一张卡）",
+    "不做公开的 mod 接口、第三方 mod 加载、清单文件与沙箱",
+    "不做远程机器和原 mod 的自动更新检查",
+    "不改门禁 workbench/src/gates/ 与 acceptance/",
+    "不加新依赖；确实需要时先用 issue 上报理由",
+    "不替换或启动 /Applications/Enchanted.app，不碰正在运行的 Enchanted 后台与 hc core",
+    "不 push"
+  ],
+  "paths": {
+    "allow": [
+      "workbench/app/",
+      "workbench/tests/",
+      "workbench/README.md",
+      "evidence/2026-11-07-batch33/T-249/"
+    ],
+    "deny": [
+      "workbench/src/gates/",
+      "acceptance/",
+      "workbench/package.json",
+      "workbench/package-lock.json"
+    ]
+  },
+  "oracle_paths": [
+    "acceptance/T-249/check_git_graph.py"
+  ],
+  "completion_conditions": [
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "acceptance/T-249/check_git_graph.py"
+      ]
+    },
+    {
+      "argv": [
+        "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+        "--test",
+        "workbench/tests/test_t249_git_host.mjs"
+      ]
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "workbench/tests/test_t249_outside_safety.py"
+      ]
+    }
+  ],
+  "red_commands": [],
+  "task_type": "前端界面",
+  "repair_target": null,
+  "complexity": "L",
+  "executor": {
+    "cli": "Codex",
+    "model": "gpt-6-astra",
+    "effort": "xhigh"
+  },
+  "base_commit": null,
+  "writer": null
+}

@@ -11,6 +11,14 @@ ready_by: ideation
 ready_rev: 1
 ---
 
+## 最新执行停点（2026-11-08 13:56Z）
+
+BLOCKED：T-257 已修复、打包安装并经门禁回收旧 attempt 后，v4 新 attempt 27481daa-4502-44a9-873e-c00a7b1cab4a 完成两条 P2 修复与 no-panel 变异覆盖，候选为 9f96a9121ba6ed8d77a514a0a78c9341ceaacb86。worker 保留了修前红态；冻结机械验收、22 个宿主场景、5 个脚本安全检查和标准构建通过。真实窗口和 terra 验收尚未执行，新面板尚未打包。
+
+本次启动出现另一处阻塞：[T-258](T-258-codex-late-session-startup-failure-sticky.md)。原生会话晚于启动期限才绑定，失败标记一直保留；Stop 被拒绝，submit 请求未转入门禁，task 仍 claimed。主控核对 Git 干净后经唯一门禁尝试回收，得到 run_external_unknown；不改库、不重发交付、不绕过审查。完整候选和现场保留，等待用户决定是否正常重启后台并经门禁恢复本次 attempt。
+
+补充（13:56Z）：用户已针对上述阻塞批准正常重启和门禁恢复，旧 attempt 回收成功；v5 仅接回已完成候选并重新交付，范围及 Acceptance 不变。恢复操作记录见 [恢复授权与结果](../../evidence/2026-11-08-batch34/T-249/controller/recovery-a3-approved.md)。
+
 ## 来由（用户原话，2026-11-07，本对话）
 
 > ok,那还是用目前的.先不做 mod接口,我们先自己做一些我挑的想要的 Mod吧,但是如果能做成接口为以后拓展也更好. 目前我想要这两个:
