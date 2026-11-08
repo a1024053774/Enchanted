@@ -1,0 +1,20 @@
+{
+  "status": "INCOMPLETE",
+  "task": "a2a+T-258-1",
+  "probe": "e2e-parent-01.json",
+  "known_bad": "6bdc629da2c930ce201632a49bf5476b6b7ed7dc",
+  "observed": [
+    "隔离 launch aa0db195-e2dc-4930-a7b3-02afdfaf2013 的实际 leader 24107 被暂停。",
+    "140 秒等待没有匹配到 native_session_unbound，尚未进入恢复 CLI 和交付回收断言。",
+    "当前压缩 timeline 只有派发、paste、turn_submitted；缺少暂停后的完整 pane_status 和未筛选的失败事件，原因尚不能确定。",
+    "标准 fixture 清理成功，未操作正式后台或用户 hc。"
+  ],
+  "separate_reproduced_probe_defect": {
+    "command": "status --task demo+T-1 --session wrong-session --request-id foreign-parser-probe",
+    "exit": 2,
+    "stderr": "invalid command arguments",
+    "evidence": "foreign-command-parser-probe.json",
+    "implication": "不能生成第三个 foreign relay 文件；应使用 CLI 支持的错 session 请求，保持身份反例要求不变。"
+  },
+  "next": "先补足暂停后及等待超时前的真实状态、全部失败类型，不盲重跑。核对暂停是否影响 shell job control 或 native 会话归属；这些原因仍是待验证假设。"
+}

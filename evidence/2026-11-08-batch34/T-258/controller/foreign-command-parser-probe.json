@@ -1,0 +1,21 @@
+{
+  "time": "2026-11-08T15:57:30.734549+00:00",
+  "purpose": "核对真实入口探针的foreign status命令是否先被CLI参数校验拒绝；未启动CLI agent或后台",
+  "command": [
+    "node",
+    "workbench/src/gates/cli.ts",
+    "--state",
+    "/private/tmp/t258-parser-only-no-state",
+    "status",
+    "--task",
+    "demo+T-1",
+    "--session",
+    "wrong-session",
+    "--request-id",
+    "foreign-parser-probe"
+  ],
+  "exit": 2,
+  "stdout": "",
+  "stderr": "usage: --state ABS_DIR COMMAND --task ID ...\nError: invalid command arguments\n",
+  "expected": "status不接受显式session参数，因而该命令不会产生foreign relay请求文件；这是探针输入问题，不是产品缺陷红态。"
+}

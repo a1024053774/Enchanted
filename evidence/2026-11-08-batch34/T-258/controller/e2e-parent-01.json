@@ -1,0 +1,200 @@
+{
+  "status": "INCOMPLETE",
+  "started_at": "2026-11-08T15:55:44.569220+00:00",
+  "argv": [
+    "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-258-1-a1/workbench/tests/test_t258_codex_late_start_e2e.py",
+    "--revision",
+    "6bdc629da2c930ce201632a49bf5476b6b7ed7dc",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-258/controller/e2e-parent-01.json"
+  ],
+  "revision": "6bdc629da2c930ce201632a49bf5476b6b7ed7dc",
+  "checks": [],
+  "preconditions": [
+    "process_observer_available",
+    "probe_anchors_unique",
+    "gate_dispatched",
+    "paused_this_launch"
+  ],
+  "observed": {},
+  "boundary": "真实后台/门禁/交互 Codex，本地 Responses；暂停测试自己的 CLI；不启动 Claude",
+  "source_head": "6bdc629da2c930ce201632a49bf5476b6b7ed7dc",
+  "source_worktree_status": " M workbench/src/panes.ts\n",
+  "process_preflight": {
+    "argv": [
+      "/bin/ps",
+      "-p",
+      "23427",
+      "-o",
+      "pid="
+    ],
+    "exit": 0,
+    "stdout": "23427\n",
+    "stderr": ""
+  },
+  "details": {
+    "process_observer_available": null,
+    "probe_anchors_unique": null,
+    "gate_dispatched": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "paused_this_launch": {
+      "pid": 24107,
+      "launch": "aa0db195-e2dc-4930-a7b3-02afdfaf2013",
+      "time": "2026-11-08T15:55:55.497Z"
+    }
+  },
+  "versions": {
+    "codex": "codex-cli 0.167.0",
+    "node": "v26.5.0",
+    "python": "3.9.6 (default, Oct 19 2026, 19:18:13) \n[Clang 21.0.0 (clang-2100.4.1.1)]"
+  },
+  "fixture": "/private/tmp/t258-3y_hyhwp",
+  "instrumentation": [
+    {
+      "before": "    const signalCommand = \"ELECTRON_RUN_AS_NODE=1 \" + shellCommand([process.execPath, cli, \"--state\", this.root, \"signal\", \"--launch\", launch]);",
+      "after": "    const signalCommand = \"ELECTRON_RUN_AS_NODE=1 \" + shellCommand([\"/Applications/Xcode.app/Contents/Developer/usr/bin/python3\", \"/private/tmp/t258-3y_hyhwp/hook_observer.py\", process.execPath, cli, \"--state\", this.root, \"signal\", \"--launch\", launch]);"
+    },
+    {
+      "before": "      this.store.event(\"paste_written\", { dispatch: item.id }, pane.record);",
+      "after": "      this.store.event(\"paste_written\", { dispatch: item.id }, pane.record);\n      if (pane.record.cli === \"Codex\" && !existsSync(\"/private/tmp/t258-3y_hyhwp/out/paused.json\")) {\n        if (!pane.leader) throw new Error(\"T258 probe requires observed CLI leader\");\n        process.kill(pane.leader, \"SIGSTOP\");\n        writeFileSync(\"/private/tmp/t258-3y_hyhwp/out/paused.json\", JSON.stringify({ pid: pane.leader, launch: pane.record.id, time: new Date().toISOString() }), { flag: \"wx\" });\n      }"
+    }
+  ],
+  "launch": {
+    "id": "aa0db195-e2dc-4930-a7b3-02afdfaf2013",
+    "cli_version": "codex-cli 0.167.0",
+    "argv": [
+      "/Users/luckye/.codex/packages/standalone/releases/0.167.0-aarch64-apple-darwin/bin/codex",
+      "--no-daemon",
+      "--no-alt-screen",
+      "-C",
+      "/private/tmp/t258-3y_hyhwp/state/worktrees/demo/T-1-a1",
+      "-a",
+      "never",
+      "--sandbox",
+      "workspace-write",
+      "-m",
+      "gpt-6-astra",
+      "-c",
+      "model_reasoning_effort=\"xhigh\"",
+      "-c",
+      "service_tier=\"default\"",
+      "-c",
+      "check_for_update_on_startup=false",
+      "-c",
+      "notice.hide_rate_limit_model_nudge=true",
+      "-c",
+      "sandbox_workspace_write.network_access=true",
+      "-c",
+      "sandbox_workspace_write.writable_roots=[\"/private/tmp/a2a-requests-FyGnnG\"]",
+      "-c",
+      "sandbox_workspace_write.exclude_slash_tmp=true",
+      "-c",
+      "sandbox_workspace_write.exclude_tmpdir_env_var=true",
+      "-c",
+      "hooks.UserPromptSubmit=[{hooks=[{type=\"command\",command=\"ELECTRON_RUN_AS_NODE=1 '/Applications/Xcode.app/Contents/Developer/usr/bin/python3' '/private/tmp/t258-3y_hyhwp/hook_observer.py' '/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/t258-3y_hyhwp/source/workbench/src/gates/cli.ts' '--state' '/private/tmp/t258-3y_hyhwp/state' 'signal' '--launch' 'aa0db195-e2dc-4930-a7b3-02afdfaf2013'\",timeout=10}]}]",
+      "-c",
+      "hooks.Stop=[{hooks=[{type=\"command\",command=\"ELECTRON_RUN_AS_NODE=1 '/Applications/Xcode.app/Contents/Developer/usr/bin/python3' '/private/tmp/t258-3y_hyhwp/hook_observer.py' '/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/t258-3y_hyhwp/source/workbench/src/gates/cli.ts' '--state' '/private/tmp/t258-3y_hyhwp/state' 'signal' '--launch' 'aa0db195-e2dc-4930-a7b3-02afdfaf2013'\",timeout=10}]}]",
+      "-c",
+      "hooks.PermissionRequest=[{hooks=[{type=\"command\",command=\"ELECTRON_RUN_AS_NODE=1 '/Applications/Xcode.app/Contents/Developer/usr/bin/python3' '/private/tmp/t258-3y_hyhwp/hook_observer.py' '/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/t258-3y_hyhwp/source/workbench/src/gates/cli.ts' '--state' '/private/tmp/t258-3y_hyhwp/state' 'signal' '--launch' 'aa0db195-e2dc-4930-a7b3-02afdfaf2013'\",timeout=10}]}]",
+      "-c",
+      "hooks.PreToolUse=[{hooks=[{type=\"command\",command=\"ELECTRON_RUN_AS_NODE=1 '/Applications/Xcode.app/Contents/Developer/usr/bin/python3' '/private/tmp/t258-3y_hyhwp/hook_observer.py' '/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/t258-3y_hyhwp/source/workbench/src/gates/cli.ts' '--state' '/private/tmp/t258-3y_hyhwp/state' 'signal' '--launch' 'aa0db195-e2dc-4930-a7b3-02afdfaf2013'\",timeout=10}]}]",
+      "-c",
+      "hooks.PostToolUse=[{hooks=[{type=\"command\",command=\"ELECTRON_RUN_AS_NODE=1 '/Applications/Xcode.app/Contents/Developer/usr/bin/python3' '/private/tmp/t258-3y_hyhwp/hook_observer.py' '/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/t258-3y_hyhwp/source/workbench/src/gates/cli.ts' '--state' '/private/tmp/t258-3y_hyhwp/state' 'signal' '--launch' 'aa0db195-e2dc-4930-a7b3-02afdfaf2013'\",timeout=10}]}]",
+      "--dangerously-bypass-hook-trust"
+    ],
+    "executable_path": "/Users/luckye/.codex/packages/standalone/releases/0.167.0-aarch64-apple-darwin/bin/codex",
+    "code_revision": "fixture",
+    "created_at": "2026-11-08T15:55:54.966Z"
+  },
+  "attempt": {
+    "attempt_id": "4bb9bb55-be13-4643-81c8-8282df2b8809",
+    "session_id": "c1ab47f3-6f7c-4d85-8fc4-4c20eaeae9cb",
+    "fence": 1,
+    "spec_rev": 1,
+    "thread_id": "2e908f00-083a-410e-bb82-312043efb5c6"
+  },
+  "error": "Incomplete: 超时：生产启动期限自然触发",
+  "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-258-1-a1/workbench/tests/test_t258_codex_late_start_e2e.py\", line 243, in main\n    deadline = wait('生产启动期限自然触发', lambda: next((e for e in timeline() if e['type'] == 'native_session_unbound'), None), 140)\n  File \"/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-258-1-a1/workbench/tests/test_t258_codex_late_start_e2e.py\", line 111, in wait\n    raise Incomplete('超时：' + label)\ntest_t257_codex_stop_continuation_e2e.Incomplete: 超时：生产启动期限自然触发\n",
+  "cleanup_notes": [
+    "暂停的测试进程已退出"
+  ],
+  "hook_timeline": [],
+  "timeline": [
+    {
+      "seq": 34,
+      "time": "2026-11-08T15:55:55.276Z",
+      "type": "dispatch_queued",
+      "id": "14a97af2-9977-4261-9146-3f7f4095b11c",
+      "source": "executor"
+    },
+    {
+      "seq": 39,
+      "time": "2026-11-08T15:55:55.497Z",
+      "type": "paste_intent",
+      "dispatch": "14a97af2-9977-4261-9146-3f7f4095b11c"
+    },
+    {
+      "seq": 40,
+      "time": "2026-11-08T15:55:55.497Z",
+      "type": "paste_written",
+      "dispatch": "14a97af2-9977-4261-9146-3f7f4095b11c"
+    },
+    {
+      "seq": 49,
+      "time": "2026-11-08T15:55:55.799Z",
+      "type": "turn_submit_intent",
+      "id": "d812f900-d872-489a-b5e0-8a6c9c3407b9",
+      "dispatch": "14a97af2-9977-4261-9146-3f7f4095b11c",
+      "nativeTurn": null
+    },
+    {
+      "seq": 50,
+      "time": "2026-11-08T15:55:55.799Z",
+      "type": "turn_submitted",
+      "id": "d812f900-d872-489a-b5e0-8a6c9c3407b9",
+      "dispatch": "14a97af2-9977-4261-9146-3f7f4095b11c",
+      "nativeTurn": null
+    }
+  ],
+  "daemon_logs": {
+    "daemon.stdout.log": "",
+    "daemon.stderr.log": "Unhandled pty write error [Error: EIO: i/o error, write] {\n  errno: -5,\n  code: 'EIO',\n  syscall: 'write'\n}\n"
+  },
+  "cleanup": {
+    "processes_stopped": true,
+    "core": {
+      "exit": 0,
+      "stdout": "{\"stopped\":true}\n",
+      "stderr": "",
+      "session": "enchanted-58c3f0dd-ff5c-437e-8000-3fed3b372110"
+    }
+  },
+  "api": {
+    "requests": 0,
+    "error": null,
+    "phases": [],
+    "tool_results": []
+  },
+  "finished_at": "2026-11-08T15:58:16.522517+00:00",
+  "cleanup_state_before_removal": [
+    {
+      "path": "/private/tmp/t258-3y_hyhwp",
+      "files": 264,
+      "bytes": 12674138,
+      "time": "2026-11-08T15:58:16.540516+00:00"
+    },
+    {
+      "path": "/private/tmp/a2a-requests-FyGnnG",
+      "files": 0,
+      "bytes": 0,
+      "time": "2026-11-08T15:58:16.540629+00:00"
+    }
+  ],
+  "removed": [
+    "/private/tmp/t258-3y_hyhwp",
+    "/private/tmp/a2a-requests-FyGnnG"
+  ]
+}
