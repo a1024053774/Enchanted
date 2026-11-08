@@ -90,7 +90,7 @@
 
 - T-170（启动失败的回收）：`t170_failed.json`、`t170_fast.json`、`t170_hang.json` 都 PASS。hang 场景里原生会话为空、CLI 还在跑，回收照旧拒 `identity_conflict`。
 - T-252：`t252_codex_run.json`（Codex 经 run 派出，见上文“绑定时机”：窗格 12.553Z 得知会话号，B 在 12.619Z 写下唯一一条 `runtime_bound`）、`t252_agy.json`、`t252_opencode.json` 都 PASS。agy、opencode 的会话号在派发时就有（`osc7501:…`），不走这条绑定。
-- T-127：`t127_codex_home.json` PASS（Codex worker 可信回合，正常交付、审查、集成）。第一次运行 `t127_codex_home-env-hc-download.json` 是 INCOMPLETE：后台起不来，因为这个测试只给后台传 `PATH`、`LANG`、`TMPDIR`，每次都从 `releases.herdr.dev` 下载 hc，这次 TLS 连接被重置。这是网络问题，同一命令重跑就过了。
+- T-127：`t127_codex_home.json` PASS（Codex worker 可信回合，正常交付、审查、集成）。第一次运行 `t127_codex_home-env-hc-download.json` 是 INCOMPLETE，摘要里只有 `daemon_start` 失败（后台以 1 退出）。这个测试只给后台传 `PATH`、`LANG`、`TMPDIR`，所以每次都从 `releases.herdr.dev` 下载 hc。删夹具前我看过它的 `daemon.stderr.log`：下载时连接被重置（`ECONNRESET`，TLS 握手前断开）。这份 stderr 没有存档，所以这个归因只有我当时的读数，复审 02 记为未证实。同一命令重跑通过；第一次的结果没有算作 PASS。
 - `native_final_read.json`：9 个场景都没有失败（窗格退出时最后一次读 rollout）。这个测试不收 `--revision`，是在工作区源码上跑的，当时工作区代码与 `b01096b84` 相同（`git status` 只有证据目录的改动）。
 - `startup_shutdown-stale-host.json`：`test_startup_shutdown_e2e.py` 的 4 个用例都没跑起来。它的宿主 `startup_shutdown_host.ts` 不建操作者凭据，后台 `serve()` 一启动就拒 `operator_credential_required`。这个要求是 T-078-1（2026-10-11）加的，宿主从那以后没改过，与本票无关，不计入回归。停止流程这次的改动由 `test_t253_shutdown.py` 和上面各端到端测试结尾的 `daemon_stop` 覆盖。
 - 没跑：全量测试；`relay_scope`（T-251 记录它在父提交上已有 4 项失败，本票没改中继）；真实厂商模型。
@@ -128,6 +128,8 @@
 
   run 的 `observeRun` 只能补仍在运行、能过它前置检查的窗格。已经停止的恢复窗格，在任务仍是 `claimed` 时会先被拒 `run_external_unknown`，不会补绑（审查 01 P3 的探针结果）。本票不扩展恢复方案。
 - 后台层测试里的窗格是夹具对象，窗格读取是脚本化的；真实 CLI 下“停止时有绑定在进行”的时序没有端到端证据。
+- 停止流程等绑定用的 `Promise.all` 没有超时。窗格读取永远不返回时，停止就会一直等。目前没有证据表明真实的窗格读取会这样：已停止的窗格直接返回记下的事实，进程查询有 5 秒超时。夹具里的 2 秒只用来区分修前修后，不代表真实停止耗时。
+- 后台层测试的 `record_write_fails` 断言了 stderr 和后台存活，没有直接断言用户输入记录被标为失败；这一点由复审 02 的内存探针补查。
 - 票里写的“没交付就结束回合”没有单独跑，只跑了“交付被拒”。绑定发生在窗格得知会话号时，与之后交不交付无关。
 
 ## 审查
@@ -147,7 +149,12 @@ Codex `gpt-6.1-sol`，`model_reasoning_effort=high`，`codex exec -s read-only`�
     新增的两个单元时序和后台层两个场景各有对应的变异。
   - **P3**：原 RESULTS 写“经 run 跟随的 attempt 仍由 observeRun 补绑”，说宽了：已停止的恢复窗格会先被拒 `run_external_unknown`。已在“没覆盖的地方”改为只限仍在运行、能过前置检查的窗格。
   - 没有发现跨 attempt 误绑定。审查员的独立探针显示：别的 launch、thread、shell、领导进程都拒 `identity_conflict`；attempt、fence、规格版本不符都拒 `stale_attempt`；连扫五次只回调一次；reviewer、辅助 rollout 不触发。
-- **审查 02**：（待补）
+- **审查 02**（`reviews/review-02.md`，固定候选 `8fad54c0d`，最后一轮）：PASS，可合并，没有必须修的。
+  - P2 已修：读窗格期间停止时，修前写 1 次、修后写 0 次；绑定没收尾时库保持打开，先记拒绝再关库；Set 登记与清理没有问题，也没找到停止流程取快照之后还能登记绑定的时序。
+  - P3 的说明已收窄；`test_startup_shutdown_e2e.py` 判为与本票无关有依据。
+  - 记为限制或未证实的有三点，已写进“没覆盖的地方”和上文“回归”：`Promise.all` 没有超时；后台层测试没直接断言用户输入记录被标为失败；T-127 第一次失败的网络归因没有存档的 stderr。
+
+  按约定不再开第三轮。
 
 ## 重跑命令
 
