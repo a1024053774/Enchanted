@@ -17,6 +17,7 @@ from scripted_claude import Fixture, ROOT
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--revision')
+    parser.add_argument('--archive-gap', action='store_true', help='interrupt after durable archive and restart before retry')
     parser.add_argument('--summary', type=Path, required=True)
     args = parser.parse_args()
     assert not args.summary.exists(), 'preserve existing evidence'
@@ -41,7 +42,7 @@ def main():
             ready = fixture.dir / f'ready-{len(hosts)}.json'
             log = (fixture.out / f'host-{len(hosts)}.log').open('w'); logs.append(log)
             host = subprocess.Popen(['node', str(Path(__file__).with_name('t259_preparing_host.ts')), str(fixture.source),
-                str(fixture.state), str(path), str(ready)], env=fixture.env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+                str(fixture.state), str(path), str(ready), 'archive-gap' if args.archive_gap else 'normal'], env=fixture.env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
             hosts.append(host)
             def ready_or_exit():
                 assert host.poll() is None, 'fixture host exited before readiness; see host log'
@@ -71,6 +72,16 @@ def main():
         stopped = fixture.request('pane_status', thread=attempt['thread_id'])
         report['observed']['after_restart'] = stopped
         record('old_worker_confirmed_stopped', stopped.get('stopped') is True)
+        if args.archive_gap:
+            first = fixture.request('reclaim', fixture.operator, task=task, attempt=attempt['attempt_id'])
+            report['observed']['archive_gap'] = first
+            record('archive_gap_interrupted', first.get('error') == 'gate_failure')
+            archived = [e for e in fixture.request('orchestration_events', task=task)['events'] if e['type']=='pane_archived']
+            record('archive_completed_before_interruption', len(archived)==1 and archived[0]['attempt']==attempt['attempt_id'])
+            run_cli('daemon_stop'); fixture.running=False
+            hosts[-1].wait(timeout=15)
+            start_host()
+            fixture.wait('archive-gap recovery complete', lambda: fixture.request('pane_layout').get('recovering') is False, 20)
         reclaimed = fixture.request('reclaim', fixture.operator, task=task, attempt=attempt['attempt_id'])
         report['observed']['reclaim'] = reclaimed
         record('stopped_unsent_preparation_reclaimed', reclaimed.get('ok'), reclaimed)

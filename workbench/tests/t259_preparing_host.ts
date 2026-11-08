@@ -1,10 +1,10 @@
-// Only fault injection: the first identity read following a real pane creation fails.
+// Faults: first identity read after real creation, optionally loss after durable archive.
 // Transport, launch, input registration, state recovery and reclaim are production code.
 import { existsSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import { publishReady } from './ready_file.ts';
-const [source, state, configFile, ready] = process.argv.slice(2);
+const [source, state, configFile, ready, archiveGap] = process.argv.slice(2);
 const load = (file: string) => import(pathToFileURL(join(source, 'workbench/src', file)).href);
 const { serve } = await load('daemon.ts');
 const { A2AGates } = await load('gates/core.ts');
@@ -19,6 +19,10 @@ await serve(state, JSON.parse(readFileSync(configFile, 'utf8')), (root: string, 
     if (created.delete(thread)) throw new SyntaxError('T259 injected first read failure after real pane creation');
     return read(thread);
   };
+  if (archiveGap === 'archive-gap') {
+    const archive = runtime.archiveThread.bind(runtime);
+    runtime.archiveThread = async (thread: string) => { await archive(thread); throw new Error('T259 loss after durable archive'); };
+  }
   return new A2AGates(root, runtime);
 });
 publishReady(ready, { pid: process.pid, source, state, fault: 'first read after createThread', model_calls: 0 });

@@ -32,7 +32,9 @@ const cases = ['stopped', 'restart', 'dirty', 'running', 'lock', 'archive-fails'
   'live-launch', 'live-thread', 'live-shell', 'live-leader', 'live-native', 'live-turn', 'live-provider', 'live-workspace',
   'record-task', 'record-project', 'record-attempt', 'record-session', 'record-fence', 'record-spec_rev', 'record-thread',
   'record-worktree', 'record-role', 'record-cli', 'record-base_commit', 'missing-start', 'wrong-start-shell', 'duplicate-launch',
-  'prompt-intent', 'dispatch-record', 'paste-intent', 'input-intent', 'turn-intent', 'native-record', 'unknown-send', 'native-bound'];
+  'prompt-intent', 'dispatch-record', 'paste-intent', 'input-intent', 'turn-intent', 'native-record', 'unknown-send', 'native-bound',
+  'resume-before-archive', 'resume-after-archive', 'resume-dirty', 'resume-no-intent', 'resume-stale-archive',
+  'resume-foreign-archive', 'resume-wrong-shell', 'resume-late-input', 'resume-before-cleanup'];
 try {
   for (const name of cases.filter(n => !only || n === only)) {
     const dir = join(root, name); mkdirSync(dir);
@@ -111,7 +113,7 @@ try {
           return live;
         };
       }
-      if (name === 'dirty') writeFileSync(join(attempt.workspace, 'note.txt'), 'preserve this failed attempt\n');
+      if (['dirty', 'resume-dirty'].includes(name)) writeFileSync(join(attempt.workspace, 'note.txt'), 'preserve this failed attempt\n');
       if (name === 'prompt-intent') (gates as any).event('demo+T-259', 'prompt_intent', { thread: attempt.thread_id }, attempt.attempt_id);
       if (name === 'dispatch-record') store.register(pane.record.id, 'queued but not sent', 'executor');
       const events: Record<string, string> = { 'paste-intent': 'paste_intent', 'input-intent': 'terminal_input_write_intent',
@@ -122,18 +124,46 @@ try {
       const stop = panes.stopThread.bind(panes), archive = panes.archiveThread.bind(panes);
       panes.stopThread = async (thread: string) => { effects.push('stop'); if (name === 'stop-fails') throw new Error('injected stop refusal'); await stop(thread); };
       panes.archiveThread = async (thread: string) => { effects.push('archive'); if (name === 'archive-fails') throw new Error('injected archive refusal'); await archive(thread); };
+      if (name.startsWith('resume-')) {
+        const event = (gates as any).event.bind(gates), emit = store.event.bind(store);
+        (gates as any).event = (task: string, type: string, details: any, id: string) => {
+          if (type === 'preparation_archive_intent') {
+            if (name === 'resume-no-intent') return;
+            if (name === 'resume-stale-archive') details.after_seq = Number.MAX_SAFE_INTEGER;
+            if (name === 'resume-wrong-shell') details.stopped.runtime_identity.shell_pid += 999;
+          }
+          return event(task, type, details, id);
+        };
+        store.event = (type: string, data: any, binding: any) => emit(type, data,
+          type === 'pane_archived' && name === 'resume-foreign-archive' ? { ...binding, attempt: 'foreign-attempt' } : binding);
+        if (name === 'resume-before-cleanup') (gates as any).cleanupAttempt = async () => { throw new Error('loss before cleanup'); };
+        else panes.archiveThread = async (thread: string) => {
+          if (name !== 'resume-before-archive') await archive(thread);
+          throw new Error('loss at archive boundary');
+        };
+        const interrupted = await gates.call({ command: 'reclaim', task: 'demo+T-259', attempt: attempt.attempt_id });
+        check(name + ': first reclaim interrupted', interrupted.error === 'gate_failure');
+        if (name === 'resume-late-input') originalEvent('terminal_input_write_intent', { sentinel: 'unaccounted input at recovery' }, pane.record);
+        await panes.shutdown(); gates.close();
+        panes = new Panes(state, store, {}, () => {});
+        await panes.recover('t259-archive-gap');
+        gates = new A2AGates(state, panes);
+      }
       const result = await gates.call({ command: 'reclaim', task: 'demo+T-259', attempt: attempt.attempt_id });
       holder?.exec('ROLLBACK'); holder?.close(); holder = undefined;
       const after = (await gates.call({ command: 'status', task: 'demo+T-259' })).task;
-      const success = ['stopped', 'restart', 'dirty'].includes(name);
+      const success = ['stopped', 'restart', 'dirty', 'resume-before-archive', 'resume-after-archive', 'resume-dirty', 'resume-before-cleanup'].includes(name);
       check(name + ': reclaim contract', success ? result.ok : !result.ok, { result, before, effects });
       if (success) {
         check(name + ': old attempt released after confirmed archive', after.state === 'ready' && after.current_attempt === null &&
-          effects.join(',') === 'stop,archive' && (await panes.readThread(attempt.thread_id)).archived);
-        check(name + ': dirty work preserved / clean work reclaimed', name === 'dirty' ?
+          (name.startsWith('resume-') ? Boolean(store.lastEvent(pane.record.id, ['pane_archived'])) :
+            effects.join(',') === 'stop,archive' && (await panes.readThread(attempt.thread_id)).archived));
+        check(name + ': dirty work preserved / clean work reclaimed', ['dirty', 'resume-dirty'].includes(name) ?
           readFileSync(join(attempt.workspace, 'note.txt'), 'utf8') === 'preserve this failed attempt\n' : !existsSync(attempt.workspace));
+        const priorEffects = effects.length, priorArchives = store.db.prepare("SELECT count(*) AS n FROM orchestration_events WHERE type='pane_archived'").get().n;
         const again = await gates.call({ command: 'reclaim', task: 'demo+T-259', attempt: attempt.attempt_id });
-        check(name + ': repeated reclaim has no repeated runtime action', again.ok && effects.length === 2);
+        check(name + ': repeated reclaim has no repeated runtime action', again.ok && effects.length === priorEffects &&
+          store.db.prepare("SELECT count(*) AS n FROM orchestration_events WHERE type='pane_archived'").get().n === priorArchives);
         const rows = gates.db.prepare('SELECT type,details FROM events WHERE attempt=? ORDER BY seq').all(attempt.attempt_id);
         check(name + ': original error and bound recovery evidence retained', rows.some((r: any) => r.type === 'rejected' && r.details.includes('T259 injected')) &&
           rows.some((r: any) => r.type === 'reclaimed' && r.details.includes(pane.record.id)));
@@ -149,7 +179,8 @@ try {
         }
       } else {
         check(name + ': paths and evidence remain reserved', after.current_attempt?.attempt_id === attempt.attempt_id && existsSync(attempt.workspace));
-        check(name + ': no unrelated runtime action', ['archive-fails', 'stop-fails'].includes(name) || effects.length === 0);
+        check(name + ': no unrelated runtime action', ['archive-fails', 'stop-fails'].includes(name) ||
+          (name.startsWith('resume-') ? effects.every(e => e === 'stop') : effects.length === 0));
       }
       check(name + ': no task input was sent', store.db.prepare("SELECT count(*) AS n FROM orchestration_events WHERE type IN ('paste_written','turn_submitted','terminal_input_written')").get().n === 0);
     } catch (error: any) { report.errors.push({ scenario: name, error: String(error), stack: error.stack }); }

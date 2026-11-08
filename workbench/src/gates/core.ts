@@ -4512,12 +4512,27 @@ export class A2AGates {
         "needs_reconciliation",
       );
       requireGate(this.runtime && attempt.thread_id, "no_bound_thread");
-      const live = await this.runtime.readThread(attempt.thread_id);
+      const preparing = attempt.runtime_identity === null;
+      // An archived pane is intentionally absent from the runtime after restart.
+      // Resume only a gate-proven stopped preparation whose archive completed
+      // after this exact reclaim phase was recorded; recheck its provenance below.
+      let archivedPreparation: Awaited<ReturnType<GateRuntime["readThread"]>> | undefined;
+      if (preparing) {
+        const row = this.db.prepare("SELECT details FROM events WHERE task=? AND attempt=? AND type='preparation_archive_intent' ORDER BY seq DESC LIMIT 1")
+          .get(taskId, attempt.attempt_id);
+        if (row) {
+          const pending = JSON.parse(String(row.details));
+          requireGate(Number.isSafeInteger(pending.after_seq) && pending.after_seq >= 0, "preparation_creation_unproven");
+          const archived = this.db.prepare("SELECT 1 FROM orchestration_events WHERE task=? AND attempt=? AND launch=? AND type='pane_archived' AND seq>? LIMIT 1")
+            .get(taskId, attempt.attempt_id, pending.stopped?.runtime_identity?.launch, pending.after_seq);
+          if (archived) archivedPreparation = { ...pending.stopped, archived: true };
+        }
+      }
+      const live = archivedPreparation ?? await this.runtime.readThread(attempt.thread_id);
       requireGate(
         live.workspace === attempt.workspace && live.provider === this.threadProvider(undefined, attempt),
         "identity_conflict",
       );
-      const preparing = attempt.runtime_identity === null;
       if (preparing) {
         // T-259: creation can succeed before the first identity read fails. Recover only
         // after the original process is confirmed gone; never infer an idle/live owner.
@@ -4584,14 +4599,19 @@ export class A2AGates {
       requireGate(!live.running, "worker_working");
       this.event(taskId, "reclaim_intent", { attempt, live }, attempt.attempt_id);
       if (!preparing && ownsTask && !["accepted", "abandoned", "upgraded"].includes(task.state)) this.invalidate(task, "controller reclaim");
-      this.checkUserInputObserver();
-      await this.runtime.stopThread(attempt.thread_id);
-      const stopped = await this.runtime.readThread(attempt.thread_id);
-      this.checkThread(attempt, stopped);
-      requireGate(stopped.stopped, "stop_unconfirmed");
-      this.checkUserInputObserver();
-      await this.runtime.archiveThread(attempt.thread_id);
-      const archived = await this.runtime.readThread(attempt.thread_id);
+      let archived = archivedPreparation;
+      if (!archived) {
+        this.checkUserInputObserver();
+        await this.runtime.stopThread(attempt.thread_id);
+        const stopped = await this.runtime.readThread(attempt.thread_id);
+        this.checkThread(attempt, stopped);
+        requireGate(stopped.stopped, "stop_unconfirmed");
+        if (preparing) this.event(taskId, "preparation_archive_intent", { stopped,
+          after_seq: this.db.prepare("SELECT coalesce(max(seq),0) AS seq FROM orchestration_events").get()!.seq }, attempt.attempt_id);
+        this.checkUserInputObserver();
+        await this.runtime.archiveThread(attempt.thread_id);
+        archived = await this.runtime.readThread(attempt.thread_id);
+      }
       this.checkThread(attempt, archived);
       requireGate(archived.archived && archived.stopped, "reclaim_unconfirmed");
       attempt.reclaimed = true;

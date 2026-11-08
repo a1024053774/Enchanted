@@ -18,8 +18,10 @@ MUTANTS = {
     'release-before-archive': [(CORE,
         'if (!preparing && ownsTask && !["accepted", "abandoned", "upgraded"].includes(task.state)) this.invalidate(task, "controller reclaim");',
         'if (ownsTask && !["accepted", "abandoned", "upgraded"].includes(task.state)) this.invalidate(task, "controller reclaim");')],
+    'ignore-archive-order': [(CORE, "AND type='pane_archived' AND seq>? LIMIT 1", "AND type='pane_archived' AND ?>=0 LIMIT 1")],
 }
-SCENARIOS = {'skip-session': 'record-session', 'ignore-input': 'input-intent', 'release-before-archive': 'archive-fails'}
+SCENARIOS = {'skip-session': 'record-session', 'ignore-input': 'input-intent', 'release-before-archive': 'archive-fails',
+             'ignore-archive-order': 'resume-stale-archive'}
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
