@@ -7,6 +7,6 @@
 2. 第 2 条：`workbench/src/gates/core.ts` 的 `turnRefused` 文案是否已不再断言窗格空闲；README 同处是否一致。
 3. 第 3 条：`workbench/README.md` 补的 T-251 例外是否与代码一致（只对 Claude worker；Codex、agy、opencode 不变）。
 4. 新修：`workbench/src/panes.ts` 的排队绑定改用 `insideLaunchDirectories`。核对：前缀相同的兄弟目录、工作区外、别的会话仍不绑定；与 T-157、T-165、T-166 的排队语义是否冲突；测试 `workbench/tests/test_t251_queued_subdir.ts` 的期望是否来自需求，红态（`red/queued_subdir.json`）是否在修前源码上取得。
-5. 新检查：端到端测试的 `issue_delivered_to_executor` 与变异 `no-delivery` 是否真能区分“送达”与“只记录不送达”；看 `green/e2e-*-r3.json`、`mutants/e2e-no-delivery.json`。
+5. 新检查：端到端测试的 `issue_sent_through_inbox`（先写成 `issue_delivered_to_executor`，期望写错后改）与变异 `no-delivery` 是否真能区分“送达”与“只记录不送达”；看 `green/e2e-cd-r3.json`、`green/e2e-compact-r3.json`、`green/e2e-untrusted-r4.json`、`mutants/e2e-no-delivery-r2.json`（`green/e2e-untrusted-r3.json` 与 `mutants/e2e-no-delivery.json` 是改检查前的运行，原因见 RESULTS.md）。
 
 只报这个范围内的问题；上一轮已经确认没问题的部分不要重审。每条给文件:行号、输入或时序、会出什么错。结尾给结论：可合并 / 需修复（列出必须修的）/ 无法判断（缺什么）。

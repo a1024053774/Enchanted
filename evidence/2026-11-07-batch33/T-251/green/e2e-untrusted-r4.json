@@ -1,0 +1,227 @@
+{
+  "status": "PASS",
+  "argv": [
+    "test_t251_untrusted_turn_e2e.py",
+    "--scenario",
+    "untrusted",
+    "--revision",
+    "cce9e9635",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a-wt/t251/evidence/2026-11-07-batch33/T-251/green/e2e-untrusted-r4.json"
+  ],
+  "scenario": "untrusted",
+  "revision": "cce9e9635",
+  "mutant": null,
+  "runtime": "real daemon/gate/Claude Code; scripted Messages API; zero vendor model calls; no Electron",
+  "checks": [
+    "untrusted_delivery_not_executed",
+    "turn_ended_not_running",
+    "controller_status_shows_reason",
+    "issue_sent_through_inbox",
+    "old_attempt_reclaimed",
+    "new_worker_dispatched"
+  ],
+  "preconditions": [
+    "outside_hook_judged_foreign"
+  ],
+  "observed": {
+    "attempt": "29fa8dcf-a26c-4cbc-8af1-aa3c6aaa66f2",
+    "gate_state": "claimed",
+    "pane": {
+      "ok": true,
+      "thread": "e6300348-a6aa-4e5c-bfd6-9bce43021d13",
+      "launch": "d0e89d01-e069-4eab-bd44-ef2b17d667f2",
+      "state": "idle",
+      "lifecycle": "running",
+      "shell_pid": 45295,
+      "size": {
+        "cols": 160,
+        "rows": 45
+      },
+      "state_source": "host_events",
+      "active": null,
+      "native_session": "9e5a4cd9-61f0-43e9-91e8-ba9ac2686f86",
+      "start_missing": false,
+      "silent_foreground": null,
+      "unwired_cli": null,
+      "cli_turn": null,
+      "foreground_cli": null,
+      "hook_turn": null,
+      "turn": null,
+      "writing": false,
+      "user_draft": false,
+      "interrupted": false,
+      "input_generation": 0,
+      "interruption": null,
+      "queued": [],
+      "failed": null,
+      "stopped": false,
+      "restoration": null,
+      "delivery": {
+        "task": "demo+T-1",
+        "attempt": "29fa8dcf-a26c-4cbc-8af1-aa3c6aaa66f2",
+        "session": "02f5e947-b326-465d-892c-2608056413dd",
+        "fence": 1,
+        "spec_rev": 1,
+        "request_id": "37216373-e8f5-485d-99df-b3265a30a935",
+        "commit": "6bfa6a09e5dfeed24d69e33933fdbba2be60f4e4",
+        "received_at": "2026-11-08T03:00:34.067Z",
+        "result_at": "2026-11-08T03:00:34.067Z",
+        "state": "rejected",
+        "reason": "current_turn_untrusted",
+        "request_turn": "a8c52171-31c3-43a6-b92b-0665fd31cb2b",
+        "current_turn": "a8c52171-31c3-43a6-b92b-0665fd31cb2b",
+        "native_turn_changed": false,
+        "recovery_request_id": "recover-148"
+      }
+    },
+    "unverified": [
+      {
+        "seq": 89,
+        "reason": "Error: question_origin_unverified",
+        "hook": "PostToolUse"
+      }
+    ],
+    "hook_cwds": [
+      "/private/tmp",
+      "/private/tmp/t251-hm6h1xjq/state/worktrees/demo/T-1-a1"
+    ],
+    "relay": [
+      {
+        "seq": 148,
+        "type": "relay_received",
+        "error": null
+      },
+      {
+        "seq": 149,
+        "type": "relay_rejected",
+        "error": "current_turn_untrusted"
+      },
+      {
+        "seq": 172,
+        "type": "relay_replayed",
+        "error": "current_turn_untrusted"
+      }
+    ],
+    "issues": [
+      {
+        "title": "交付没被受理：这一回合不可信",
+        "blocking": true,
+        "from_": "system",
+        "to": "executor",
+        "state": "待判断",
+        "body": "{\n  \"reason\": \"current_turn_untrusted\",\n  \"what\": \"worker 这一回合交来的请求门禁没有执行，已记为拒收，以后也不会再执行。这一回合本身照常结束；窗格之后是否空闲看 status（排着用户输入或被打断时还会继续忙）。\",\n  \"requests\": [\n    {\n      \"request_id\": \"37216373-e8f5-485d-99df-b3265a30a935\",\n      \"command\": \"submit\",\n      \"title\": null\n    }\n  ],\n  \"unverified\": [\n    {\n      \"time\": \"2026-11-08T03:00:32.330Z\",\n      \"reason\": \"Error: question_origin_unverified\",\n      \"hook_event_name\": \"PostToolUse\"\n    }\n  ],\n  \"next\": \"看 unverified 是哪个钩子核对不上。要继续这项工作：等 worker 空闲后回收这个 attempt 再派发（它的提交还在 attempt 分支上，新卡可以 cherry-pick）；还忙时回收会被拒（worker_working）。\"\n}"
+      }
+    ],
+    "inbox_receipts": [
+      {
+        "entry": "0b03ca55-b5b5-4bea-b0b4-c9ef6d89c235",
+        "state": "pending",
+        "entry_id": "0b03ca55-b5b5-4bea-b0b4-c9ef6d89c235",
+        "created_at": "2026-11-08T03:00:34.069Z"
+      },
+      {
+        "entry": "0b03ca55-b5b5-4bea-b0b4-c9ef6d89c235",
+        "state": "pending",
+        "entry_id": "0b03ca55-b5b5-4bea-b0b4-c9ef6d89c235",
+        "created_at": "2026-11-08T03:00:34.069Z",
+        "reason": "role_session_missing"
+      }
+    ],
+    "reclaim": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "redispatch": {
+      "ok": true,
+      "error": null,
+      "details": null
+    }
+  },
+  "fixture": "/private/tmp/t251-hm6h1xjq",
+  "details": {
+    "outside_hook_judged_foreign": [
+      {
+        "seq": 89,
+        "reason": "Error: question_origin_unverified",
+        "hook": "PostToolUse"
+      }
+    ],
+    "untrusted_delivery_not_executed": "claimed",
+    "turn_ended_not_running": "idle",
+    "controller_status_shows_reason": [
+      {
+        "title": "交付没被受理：这一回合不可信",
+        "blocking": true,
+        "from_": "system",
+        "to": "executor",
+        "state": "待判断",
+        "body": "{\n  \"reason\": \"current_turn_untrusted\",\n  \"what\": \"worker 这一回合交来的请求门禁没有执行，已记为拒收，以后也不会再执行。这一回合本身照常结束；窗格之后是否空闲看 status（排着用户输入或被打断时还会继续忙）。\",\n  \"requests\": [\n    {\n      \"request_id\": \"37216373-e8f5-485d-99df-b3265a30a935\",\n      \"command\": \"submit\",\n      \"title\": null\n    }\n  ],\n  \"unverified\": [\n    {\n      \"time\": \"2026-11-08T03:00:32.330Z\",\n      \"reason\": \"Error: question_origin_unverified\",\n      \"hook_event_name\": \"PostToolUse\"\n    }\n  ],\n  \"next\": \"看 unverified 是哪个钩子核对不上。要继续这项工作：等 worker 空闲后回收这个 attempt 再派发（它的提交还在 attempt 分支上，新卡可以 cherry-pick）；还忙时回收会被拒（worker_working）。\"\n}"
+      }
+    ],
+    "issue_sent_through_inbox": {
+      "controller_launch": [
+        "975275fa-21de-4a84-9fce-56869dda5395"
+      ],
+      "terminal": "975275fa-21de-4a84-9fce-56869dda5395",
+      "receipts": [
+        {
+          "entry": "0b03ca55-b5b5-4bea-b0b4-c9ef6d89c235",
+          "state": "pending",
+          "entry_id": "0b03ca55-b5b5-4bea-b0b4-c9ef6d89c235",
+          "created_at": "2026-11-08T03:00:34.069Z"
+        },
+        {
+          "entry": "0b03ca55-b5b5-4bea-b0b4-c9ef6d89c235",
+          "state": "pending",
+          "entry_id": "0b03ca55-b5b5-4bea-b0b4-c9ef6d89c235",
+          "created_at": "2026-11-08T03:00:34.069Z",
+          "reason": "role_session_missing"
+        }
+      ]
+    },
+    "old_attempt_reclaimed": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "new_worker_dispatched": {
+      "ok": true,
+      "error": null,
+      "details": null
+    }
+  },
+  "api": {
+    "requests": 10,
+    "main": 8,
+    "results": {
+      "worker": [
+        {
+          "is_error": false,
+          "text": "/private/tmp/t251-hm6h1xjq/state/worktrees/demo/T-1-a1"
+        },
+        {
+          "is_error": false,
+          "text": "{\"ok\":false,\"error\":\"question_origin_unverified\",\"details\":\"Error: question_origin_unverified\"}"
+        },
+        {
+          "is_error": false,
+          "text": "File created successfully at: /private/tmp/t251-hm6h1xjq/state/worktrees/demo/T-1-a1/answer.txt (file state is current in your context — no need to Read it back)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "{\"ok\":true,\"queued\":true,\"delivered\":false,\"request_id\":\"37216373-e8f5-485d-99df-b3265a30a935\",\"path\":\"/private/tmp/a2a-requests-Z8YmTr/37216373-e8f5-485d-99df-b3265a30a935.json\"}"
+        }
+      ]
+    }
+  }
+}

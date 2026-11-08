@@ -12,6 +12,8 @@
 | compact | 回合中途送一条与真实记录同形的 `source: "compact"` SessionStart，再 submit | `red/e2e-compact.json` FAIL：同上两项 | `green/e2e-compact.json` PASS |
 | untrusted | 回合中途送一条 cwd 在工作区以外的钩子（真不可信），再 submit | `red/e2e-untrusted-r2.json` FAIL：窗格停在 busy，Stop 被拒 `current_turn_untrusted`，回收被拒 `worker_working`，再派被拒 `already_claimed`，`status` 里没有问题 | `green/e2e-untrusted-r2.json` PASS |
 
+审查 01 之后的修复在 `8e546df51` 上重跑：`green/e2e-cd-r3.json` PASS，`green/e2e-compact-r3.json` PASS；untrusted 场景见“审查 01 与处理”最后一条（`r3` 因检查期望写错而失败，改检查后在 `cce9e9635` 上重跑为 `green/e2e-untrusted-r4.json`，PASS：问题的 `controller_launch` 等于派发它的终端，回执 pending/role_session_missing）。
+
 untrusted 场景的检查：前提 `outside_hook_judged_foreign`（那条钩子确实被判为来源不符）；`untrusted_delivery_not_executed`（任务仍是 claimed）；`turn_ended_not_running`（窗格回到 idle）；`controller_status_shows_reason`（执行主控的 `status` 里有一条阻塞系统问题，正文含 `current_turn_untrusted` 和被拒的 `submit`）；`old_attempt_reclaimed`；`new_worker_dispatched`。期望值来自票据的验收条目，不取实现输出。
 
 `red/e2e-untrusted.json` 与 `green/e2e-untrusted.json` 是第一轮：测试按错误字段读 `status` 的问题视图（`A2AIssueView` 的记录在 `issue` 下），绿态因此误判 `controller_status_shows_reason` 失败。保留原文件；`ab912013b` 修正读取后重跑为 `-r2`。
@@ -26,6 +28,7 @@ untrusted 场景的检查：前提 `outside_hook_judged_foreign`（那条钩子�
 | `compact-refused` | 去掉 compact 放行 | `mutants/e2e-compact-refused.json` FAIL：同上 |
 | `untrusted-executes` | Stop 不把 refusal 交给中继 | `mutants/e2e-untrusted-executes-r2.json` FAIL：`untrusted_delivery_not_executed`（交付被执行成 submitted）、`controller_status_shows_reason` |
 | `no-issue` | 不调用 `turnRefused` | `mutants/e2e-no-issue-r2.json` FAIL：只有 `controller_status_shows_reason` |
+| `no-delivery` | 问题只记录、不交收件箱 | `mutants/e2e-no-delivery-r2.json` FAIL：只有 `issue_sent_through_inbox`（没有任何送达回执）；`mutants/e2e-no-delivery.json` 是旧检查下的运行 |
 | `turn-stays-busy` | 拒收后窗格仍记为 busy | `mutants/e2e-turn-stays-busy-r2.json` FAIL：`turn_ended_not_running`、`old_attempt_reclaimed`、`new_worker_dispatched` |
 
 单元测试 `workbench/tests/test_t251_hook_cwd.ts`：`red/hook_cwd.json`（父提交）拒了子目录、`..` 回到工作区内、extra 目录及其子目录、Codex 子目录；`green/hook_cwd.json` 全过，反例（工作区外、前缀相同的兄弟目录、`..` 逃出、相对路径、缺 cwd、未授予的 extra 目录）都拒。三个单元变异：`mutants/unit-prefix.json`（字符串前缀比较）、`unit-nonormalize.json`（不规范化 `..`）、`unit-exact.json`（严格相等）各判失败。
@@ -35,6 +38,7 @@ untrusted 场景的检查：前提 `outside_hook_judged_foreign`（那条钩子�
 - `green/t207_interrupted_turn_hooks.json` PASS（被打断回合的钩子语义）。
 - `regression/t157_turn_identity.txt` PASS；`relay_role.txt` PASS；`relay_core.txt` 无失败；`native_final_read.txt` 无失败。
 - `regression/relay_scope.txt` INCOMPLETE，4 项失败；在父提交 `94abc1347` 上同样 4 项失败（`relay_scope-parent-94abc1347.txt`），是已有问题，不是本票回归。
+- 改了排队绑定后（`8e546df51` 的源码）重跑：`regression/t157_turn_identity-r2.json`、`regression/t165_queued_stop-r2.txt`、`regression/t166_queued_input-r2.txt`、`green/t207_interrupted_turn_hooks-r2.json`、`green/hook_cwd-r2.json` 全部 PASS（T-157 里 cwd 为 `/elsewhere` 的排队记录仍不绑定）。
 - 没跑全量测试：本票改动集中在 Claude worker 的钩子与 Stop 路径和一个新的门禁方法，上面这些测试覆盖这些路径。
 
 ## 审查 01 与处理
@@ -45,7 +49,7 @@ Codex（gpt-6.1-sol high，只读，干净会话）审 `ab912013b`，结论“�
 2. 系统问题写“worker 已回到空闲，可以回收”，但有排队的用户输入或被打断时窗格仍忙。属实（文案过度断言，状态保护本身没错）。改为“这一回合本身照常结束；窗格之后是否空闲看 status”，下一步写“等 worker 空闲后回收，还忙时回收会被拒（worker_working）”（`8e546df51`）。README 同一处同改。
 3. README 有一句“异常 Stop 不完成回合”与新行为矛盾，地图报 README、REVIEW 两项核对过期。README 补了 T-251 例外与压缩、cwd 规则；地图核对见票据收尾。
 - 未证实项“排队输入的会话记录 cwd 严格相等”：用 T-249 worker 的真实会话记录核对，记录里每条消息的 cwd 都跟着 `cd` 走（`/workbench/app/panels` 等），所以属实，是同一类问题：worker 在子目录时用户往窗格里排的输入永远绑不上回合，窗格一直忙、回收不了。`panes.ts` 的排队绑定改用同一条工作区规则（`8e546df51`）。新测试 `test_t251_queued_subdir.ts`：`red/queued_subdir.json`（`ab912013b` 源码）子目录项失败；`green/queued_subdir.json` 全过，前缀相同的兄弟目录与工作区外仍不绑定。
-- 收件箱送达没有断言：端到端测试补 `issue_delivered_to_executor`（问题经收件箱送到执行主控终端，回执 delivered），加变异 `no-delivery`。
+- 收件箱送达没有断言：端到端测试先补了 `issue_delivered_to_executor`（要求回执 delivered），在 `8e546df51` 上跑绿态失败（`green/e2e-untrusted-r3.json`）。查夹具数据库：回执是 `pending / role_session_missing`，问题的 `controller_launch` 正是派发 worker 的那个终端。原因是收件箱只送进前台正在跑 CLI 的已批准主控终端（`panes.ts` 的 `controllerThreads` 要求 `foregroundCli === held.cli`），夹具里的执行主控终端只是批准过角色的 zsh，前台没有 CLI；T-216 规定这时保存 pending 回执，主控 CLI 就绪后由 `resumeControllerInbox` 补送。所以是检查写错了期望，不是缺陷。检查改为 `issue_sent_through_inbox`：直接读夹具数据库的送达回执，要求问题发给派发它的执行主控，最后一条回执是 delivered、queued，或等角色就绪的 pending（`cce9e9635`）。变异 `no-delivery`（只记录、不交收件箱）应在这一项失败。真正写进终端那一步是 T-216 的投递路径，本票的夹具证明不了，没有重新证明。
 
 ## 设计自查（design-integrity，实现者自查）
 
@@ -69,4 +73,4 @@ ENCHANTED_HC_CACHE_DIR=/Users/luckye/Documents/Code/hc-cache python3 test_t251_u
 
 `red/e2e-cd.json` 是 cd 红态的第一版：等待条件写成等 `turn_end_signal`，旧代码在记这条事件之前就拒了 Stop，所以超时；改为等 Stop 的 `hook_received` 后重跑为 `red/e2e-cd-r2.json`。
 
-测试夹具都在 `/private/tmp/t251-*`，跑完后已删除（14 个目录，每个 250 个左右文件，12 MB 到 334 MB，共约 2.5 GB；带 `--revision` 的夹具含一份源码与依赖，所以更大）。草稿目录里的回归输出目录也已删除。仓库里只留本目录的文本摘要。
+测试夹具都在 `/private/tmp/t251-*`，跑完后已删除（含审查后的重跑与探针共 21 个目录，每个 250 个左右文件，12 MB 到 334 MB，共约 2.9 GB；带 `--revision` 的夹具含一份源码与依赖，所以更大）。草稿目录里的回归输出目录也已删除。仓库里只留本目录的文本摘要。

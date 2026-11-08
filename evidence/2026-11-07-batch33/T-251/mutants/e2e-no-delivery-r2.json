@@ -1,0 +1,203 @@
+{
+  "status": "FAIL",
+  "argv": [
+    "test_t251_untrusted_turn_e2e.py",
+    "--scenario",
+    "untrusted",
+    "--mutant",
+    "no-delivery",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a-wt/t251/evidence/2026-11-07-batch33/T-251/mutants/e2e-no-delivery-r2.json"
+  ],
+  "scenario": "untrusted",
+  "revision": null,
+  "mutant": "no-delivery",
+  "runtime": "real daemon/gate/Claude Code; scripted Messages API; zero vendor model calls; no Electron",
+  "checks": [
+    "untrusted_delivery_not_executed",
+    "turn_ended_not_running",
+    "controller_status_shows_reason",
+    "old_attempt_reclaimed",
+    "new_worker_dispatched"
+  ],
+  "preconditions": [
+    "outside_hook_judged_foreign"
+  ],
+  "observed": {
+    "attempt": "f815098b-4ce9-4221-9f6a-99a6d7dc4204",
+    "gate_state": "claimed",
+    "pane": {
+      "ok": true,
+      "thread": "df132395-cf7f-4382-bf46-bcd85ef173e4",
+      "launch": "563f7cd2-8f96-45f9-9cb8-7ffa0e151858",
+      "state": "idle",
+      "lifecycle": "running",
+      "shell_pid": 45895,
+      "size": {
+        "cols": 160,
+        "rows": 45
+      },
+      "state_source": "host_events",
+      "active": null,
+      "native_session": "f7e48734-e806-447d-b9bf-cc274a4a5fed",
+      "start_missing": false,
+      "silent_foreground": null,
+      "unwired_cli": null,
+      "cli_turn": null,
+      "foreground_cli": null,
+      "hook_turn": null,
+      "turn": null,
+      "writing": false,
+      "user_draft": false,
+      "interrupted": false,
+      "input_generation": 0,
+      "interruption": null,
+      "queued": [],
+      "failed": null,
+      "stopped": false,
+      "restoration": null,
+      "delivery": {
+        "task": "demo+T-1",
+        "attempt": "f815098b-4ce9-4221-9f6a-99a6d7dc4204",
+        "session": "894b0c3b-5fc3-4fd8-8159-ed51e2acdfcb",
+        "fence": 1,
+        "spec_rev": 1,
+        "request_id": "b7a0320c-0729-4325-973d-890fef3298a8",
+        "commit": "364d35fa6454048236588746fc86f30d8e40f34b",
+        "received_at": "2026-11-08T03:00:45.514Z",
+        "result_at": "2026-11-08T03:00:45.515Z",
+        "state": "rejected",
+        "reason": "current_turn_untrusted",
+        "request_turn": "d5e2bea2-a957-47d3-b9c1-ea41ea5a5139",
+        "current_turn": "d5e2bea2-a957-47d3-b9c1-ea41ea5a5139",
+        "native_turn_changed": false,
+        "recovery_request_id": "recover-152"
+      }
+    },
+    "unverified": [
+      {
+        "seq": 91,
+        "reason": "Error: question_origin_unverified",
+        "hook": "PostToolUse"
+      }
+    ],
+    "hook_cwds": [
+      "/private/tmp",
+      "/private/tmp/t251-cwp4pijy/state/worktrees/demo/T-1-a1"
+    ],
+    "relay": [
+      {
+        "seq": 152,
+        "type": "relay_received",
+        "error": null
+      },
+      {
+        "seq": 153,
+        "type": "relay_rejected",
+        "error": "current_turn_untrusted"
+      },
+      {
+        "seq": 176,
+        "type": "relay_replayed",
+        "error": "current_turn_untrusted"
+      }
+    ],
+    "issues": [
+      {
+        "title": "交付没被受理：这一回合不可信",
+        "blocking": true,
+        "from_": "system",
+        "to": "executor",
+        "state": "待判断",
+        "body": "{\n  \"reason\": \"current_turn_untrusted\",\n  \"what\": \"worker 这一回合交来的请求门禁没有执行，已记为拒收，以后也不会再执行。这一回合本身照常结束；窗格之后是否空闲看 status（排着用户输入或被打断时还会继续忙）。\",\n  \"requests\": [\n    {\n      \"request_id\": \"b7a0320c-0729-4325-973d-890fef3298a8\",\n      \"command\": \"submit\",\n      \"title\": null\n    }\n  ],\n  \"unverified\": [\n    {\n      \"time\": \"2026-11-08T03:00:43.757Z\",\n      \"reason\": \"Error: question_origin_unverified\",\n      \"hook_event_name\": \"PostToolUse\"\n    }\n  ],\n  \"next\": \"看 unverified 是哪个钩子核对不上。要继续这项工作：等 worker 空闲后回收这个 attempt 再派发（它的提交还在 attempt 分支上，新卡可以 cherry-pick）；还忙时回收会被拒（worker_working）。\"\n}"
+      }
+    ],
+    "inbox_receipts": [],
+    "reclaim": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "redispatch": {
+      "ok": true,
+      "error": null,
+      "details": null
+    }
+  },
+  "fixture": "/private/tmp/t251-cwp4pijy",
+  "details": {
+    "outside_hook_judged_foreign": [
+      {
+        "seq": 91,
+        "reason": "Error: question_origin_unverified",
+        "hook": "PostToolUse"
+      }
+    ],
+    "untrusted_delivery_not_executed": "claimed",
+    "turn_ended_not_running": "idle",
+    "controller_status_shows_reason": [
+      {
+        "title": "交付没被受理：这一回合不可信",
+        "blocking": true,
+        "from_": "system",
+        "to": "executor",
+        "state": "待判断",
+        "body": "{\n  \"reason\": \"current_turn_untrusted\",\n  \"what\": \"worker 这一回合交来的请求门禁没有执行，已记为拒收，以后也不会再执行。这一回合本身照常结束；窗格之后是否空闲看 status（排着用户输入或被打断时还会继续忙）。\",\n  \"requests\": [\n    {\n      \"request_id\": \"b7a0320c-0729-4325-973d-890fef3298a8\",\n      \"command\": \"submit\",\n      \"title\": null\n    }\n  ],\n  \"unverified\": [\n    {\n      \"time\": \"2026-11-08T03:00:43.757Z\",\n      \"reason\": \"Error: question_origin_unverified\",\n      \"hook_event_name\": \"PostToolUse\"\n    }\n  ],\n  \"next\": \"看 unverified 是哪个钩子核对不上。要继续这项工作：等 worker 空闲后回收这个 attempt 再派发（它的提交还在 attempt 分支上，新卡可以 cherry-pick）；还忙时回收会被拒（worker_working）。\"\n}"
+      }
+    ],
+    "issue_sent_through_inbox": {
+      "controller_launch": [
+        "b443e8bf-120a-4cbe-9c63-91fa810f51d5"
+      ],
+      "terminal": "b443e8bf-120a-4cbe-9c63-91fa810f51d5",
+      "receipts": []
+    },
+    "old_attempt_reclaimed": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "new_worker_dispatched": {
+      "ok": true,
+      "error": null,
+      "details": null
+    }
+  },
+  "failed": [
+    "issue_sent_through_inbox"
+  ],
+  "error": "AssertionError: 未通过：issue_sent_through_inbox",
+  "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt/t251/workbench/tests/test_t251_untrusted_turn_e2e.py\", line 217, in main\n    raise AssertionError('未通过：' + '、'.join(report['failed']))\nAssertionError: 未通过：issue_sent_through_inbox\n",
+  "api": {
+    "requests": 10,
+    "main": 8,
+    "results": {
+      "worker": [
+        {
+          "is_error": false,
+          "text": "/private/tmp/t251-cwp4pijy/state/worktrees/demo/T-1-a1"
+        },
+        {
+          "is_error": false,
+          "text": "{\"ok\":false,\"error\":\"question_origin_unverified\",\"details\":\"Error: question_origin_unverified\"}"
+        },
+        {
+          "is_error": false,
+          "text": "File created successfully at: /private/tmp/t251-cwp4pijy/state/worktrees/demo/T-1-a1/answer.txt (file state is current in your context — no need to Read it back)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "{\"ok\":true,\"queued\":true,\"delivered\":false,\"request_id\":\"b7a0320c-0729-4325-973d-890fef3298a8\",\"path\":\"/private/tmp/a2a-requests-GqOmEi/b7a0320c-0729-4325-973d-890fef3298a8.json\"}"
+        }
+      ]
+    }
+  }
+}
