@@ -66,7 +66,9 @@ v3 attempt `6ca3622b-b0e7-41ad-a21f-7ff810441994` 交付 `045e815ff390a0e2e50b77
 
 代码修复 PASS；正式应用更新与旧 worker 回收待标准打包安装后完成。门禁保留了含测试摘要的验证工作区（问题 `b45f888d-b9f4-4b20-a584-0ed9866d48a2`），摘要已另存，不强制删除或改库掩盖清理失败。
 
-## Resolution（2026-11-08 13:27Z）
+## Resolution
+
+2026-11-08 13:27Z。
 
 PASS：修复已集成并装入正式应用。版本 0.1.6，包源码 `08b8318f54224790916b7b95016e551499a0a0fa`，产品代码与门禁集成一致；新后台 PID 36212，原执行主控身份继续有效。T-257 a3 和旧 T-249 attempt 均经门禁回收成功，后者恢复 ready。见 [安装收据](../../evidence/2026-11-08-batch34/T-257/controller/installation.json) 和 [恢复结果](../../evidence/2026-11-08-batch34/T-257/controller/recovery-final.json)。
 
