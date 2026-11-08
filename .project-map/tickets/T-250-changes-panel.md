@@ -44,4 +44,8 @@ ready_rev: 1
 
 ## 执行与授权
 
-同 [T-249](T-249-git-graph-panel.md)：Claude Code `claude-opus-5-5` medium 执行，Codex `gpt-6.1-terra` 用 Computer Use 与常规测试验收；“文稿”授权框可代点，规则见 T-249。
+分工（2026-11-08 改，用户原话，Claude Code 会话 `local_e9998522-d926-46a1-aac9-eda70d24d2b9`）：
+
+> 先装新版,然后你自己启动软件继续,这次用 opus5.5 extra 当主控,然后 astra extra 当 worker 和 reviewer
+
+执行主控 Claude Code `claude-opus-5-5` xhigh；worker 与 reviewer 都是 Codex `gpt-6-astra` xhigh，不开 Fast。验收同 [T-249](T-249-git-graph-panel.md)：Codex `gpt-6.1-terra` 用 Computer Use 与常规测试验收；“文稿”授权框可代点，规则见 T-249。

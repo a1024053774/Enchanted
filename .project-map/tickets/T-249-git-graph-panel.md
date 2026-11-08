@@ -55,6 +55,10 @@ ready_rev: 1
 
 ## 执行与授权
 
-- 分工（用户原话见上）：构思主控开票；Claude Code `claude-opus-5-5`、medium 强度执行；Codex `gpt-6.1-terra` 用 Computer Use 和常规测试验收。
+- 分工（2026-11-08 改，用户原话，Claude Code 会话 `local_e9998522-d926-46a1-aac9-eda70d24d2b9`）：
+
+  > 先装新版,然后你自己启动软件继续,这次用 opus5.5 extra 当主控,然后 astra extra 当 worker 和 reviewer
+
+  执行主控 Claude Code `claude-opus-5-5` xhigh；worker 与 reviewer 都是 Codex `gpt-6-astra` xhigh，不开 Fast。验收没有改：Codex `gpt-6.1-terra` 用 Computer Use 和常规测试验收。此前（2026-11-07）的分工是 Claude Code `claude-opus-5-5` medium 执行，这个写法已被上面这句取代。
 - macOS 隐私授权：新包首次访问“文稿”时，若弹出系统授权框，用户已授权执行方用 Computer Use 点“允许”；点不了就让验收的 Codex 点。只限这一个针对 Enchanted Test 的“文稿”授权框；其他系统设置、登录、付款等仍要停下问用户。每次代点记入证据（时间、谁点的、对话框原文）。
 - 完成后在 worktree 的分支上提交，经验收 PASS 后合入本地 main，不 push。
