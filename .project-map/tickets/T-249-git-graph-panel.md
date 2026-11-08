@@ -11,7 +11,13 @@ ready_by: ideation
 ready_rev: 1
 ---
 
-## 最新执行停点（2026-11-08 13:56Z）
+## 当前执行状态（2026-11-08，真实窗口已完成）
+
+INCOMPLETE：候选 `1243bc15f979976967cfd2d5cdd3a2acce6df635` 已提交，真实 Electron 正例两次各 142 项通过，no-panel、no-details、no-diff、parents、order 五项反例均命中指定业务断言。Enchanted Test 已标准打包，包内版本与候选一致，正式后台 PID 81233 和启动时间未变。原首轮启动超时保留为 INCOMPLETE，未冒充红态；自有缓存和夹具已清理。完整结果见 [窗口与打包报告](../../evidence/2026-11-08-batch34/T-249/controller/DETAILS-WINDOW.md)。
+
+下一步是 T-240 要求的最终门禁审查：只核对修复范围与新增测试能否拒绝错误实现，不再整体盲审。审查员可只读核对上述绝对来源 ticket 所链接的主控实跑报告。之后仍须 gpt-6.1-terra Computer Use 加常规测试，并由用户阅读敏感变更证据批准，才能集成。下文保留历次失败与恢复记录，不把旧 BLOCKED 当作最新状态。
+
+## 上次执行停点（2026-11-08 13:56Z）
 
 BLOCKED：T-257 已修复、打包安装并经门禁回收旧 attempt 后，v4 新 attempt 27481daa-4502-44a9-873e-c00a7b1cab4a 完成两条 P2 修复与 no-panel 变异覆盖，候选为 9f96a9121ba6ed8d77a514a0a78c9341ceaacb86。worker 保留了修前红态；冻结机械验收、22 个宿主场景、5 个脚本安全检查和标准构建通过。真实窗口和 terra 验收尚未执行，新面板尚未打包。
 
