@@ -1465,6 +1465,16 @@ attempt（T-253，用户选 B）。和 run 的观察一样，读窗格在任务�
 最多等 10 秒（T-254；停止后一次绑定在下一次窗格读取后就结束，读取里的进程查询上限 5 秒，取其两倍）。到期仍在进行的绑定，在关库前记 `native_session_bind_abandoned`（会话号、等了多久），
 attempt 保持未绑定；它之后再收尾时什么都不写。
 这条记录本身写不进去时，后台在 stderr 报 `event_write_failed`，并把用户输入记录标为失败，与窗格事件写失败的处理相同。此前只有 run 的观察、被受理的 submit 与审查提交会补，经 dispatch 派出、没交付过的 Codex worker 回收不了。
+
+首次提交超过启动期限后才出现原生身份时，Codex worker 和 reviewer 可以解除对应的
+`native_session_unbound`（T-258）。恢复只发生在真实 UserPromptSubmit 已认领原始派发之后：
+后台核对根 rollout、当前 session/turn、派发全文、当前 attempt/fence/spec 与运行时进程；
+reviewer 另核对当前 review、原 worker attempt、候选和 verification，以及审查自己的会话和目录。
+异步进程观察返回后再次核对这些事实，先记录 `native_session_late_start_confirmed`，再恢复为 busy，
+保留原活动提交。只有该启动失败且没有其他失败、不可信 hook 或中断时才允许恢复；
+扫描到 session 本身不恢复，不重发任务或按键。后续仍由真实 Stop、请求去重和门禁决定交付与回收，
+工作中的回合仍不可回收。
+
 run/reclaim 核对该身份，回执回合改变不会覆盖已提交的 turn_id。submit 仍要求当前活动
 caller/turn 和受管 session/fence/spec/attempt 一致。换领导者、换原生会话或缺已绑定事实
 拒收；停止后只沿用已核对的身份及确认的生命周期，不按新 PID 接管。
