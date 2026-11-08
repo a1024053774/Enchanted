@@ -1,0 +1,69 @@
+{
+  "id": "T-257-1",
+  "source": {
+    "ticket": "/Users/luckye/Documents/Code/a2a/.project-map/tickets/T-257-codex-stop-continuation-pane-stuck-busy.md",
+    "ready_rev": 2
+  },
+  "goal": "本次为同票 v2 恢复执行。用户本轮批准：“批准重启并经门禁恢复（推荐）”。旧 attempt 因 T-257 本身卡住，现已正常重启并经门禁恢复；不是修复通过。你从当前工作分支开始，将旧 worker 5c7df3a93019cea1a690194773d967bebb69a4ef..e9e9f2db8ce6f2c50b453a868c8bcaa026e9fa8b 中仅你的卡内测试/worker 证据 diff --binary 后 git apply（不 cherry-pick 旧身份提交、不改主控证据）。阅读 evidence/2026-11-08-batch34/T-257/controller/recovery-approved.md、red-controller-diagnostic-02.json、replay-stop-identity.py。主控已在已知坏生产版本 5c7df3a93019cea1a690194773d967bebb69a4ef 通过真实后台/门禁/交互 Codex 完整取得本票红态，可据此开始最小修复，不必等待新的批准或再结束回合请求主控红态。\n先修正继承的开发测试：第二 Stop 按相同 session/turn 且后台 seq 晚于第二 UPS 匹配，stop_hook_active 只记录不要求 true（CLI0.167 实测 false）；Python3.9/macOS 的 monotonic_ns 跨进程不可比较，证据用 UTC 和后台 seq 排序。这不改 Acceptance。主控诊断已证明原代码 10 个前提成立、5 个预期行为失败；保存旧结果，不覆盖。\n沙箱无法写 /private/tmp 是已知环境事实，不要重复提交这个问题或扩大权限；真实入口测试由主控在你的候选提交上在沙箱外执行，门禁 verify 也须执行。你可以在自身工作区做静态及可运行的针对性测试，结果如实分开；完成最小修复、开发测试、静态检查与自查证据后 commit 并 submit（submit 交候选，不宣称业务 PASS），由主控运行候选红绿与回归并核对。生产代码由你写。只因 /private/tmp 权限不可写不应再次停在等待主控；若发现新的权限/范围/验收冲突仍须 issue。避免不必要的多个 status 请求造成旧运行时竞态，但不得绕门禁。\n当前运行时未修，submit 后回执仍可能使 pane 卡住；主控按真实情况处理，不许伪造 idle。红绿执行缓存使用主控准备的 /private/tmp/t257-hc-cache-20261108，完成/红态命令显式带该环境变量，测试内容及 oracle 不变。不要写或删此缓存。\n\n修复 T-257，先读 AGENTS.md、REVIEW.md、票、交接 evidence/2026-11-08-controller-switch/executor-handoff.md 与 workbench/README.md 当前运行时部分。用户本轮原话：“先修 T-257，走门禁派发并盯到结果，再继续 T-249/T-250；别启动 Claude，别跳过敏感变更集成前的用户证据批准。”明确选择：“先修 T-257，再继续两个面板（推荐）”。你是本票唯一实现写入者；你并非独占仓库，不能撤销其他人改动。主控维护票及 controller 证据，旧 T-249 不动。\n先用 evidence-first-testing 与 reality-first-engineering：命名行为所在代码、调用者和验证入口；先取得修前红态再改变生产行为。票里的原因只是推断。复现必须经过隔离真实后台、门禁和真实原生交互 Codex CLI，可复用 test_t252_untrusted_turn_other_cli_e2e.py 的本地 scripted Responses 模型，不调用真实供应商模型、不启动 Claude；不得只用 fake pane/直接写状态当实证。捕捉回执贴入、Stop 钩子返回、同 turn UPS/Stop、native task_complete、busy、reclaim worker_working 的时间顺序。需要隔离单元测试时先写出失败方式。顺序契约先写不变式，并对有意义的 0～2 次事件顺序或带种子的真实模块调度作小范围系统搜索；每个反例保存序列/种子。\n验收严格对应票：修前真实竞态导致 busy 且 reclaim worker_working；同一信号修后 idle、排队消息继续且 reclaim 成功；真实仍在工作时 reclaim 必须 worker_working。身份/attempt/fence/操作锁/中断拒绝不放宽，不能靠定时强制 idle、改库、盲目重试或重启修复。新测试在已知坏父版本判红，在候选判绿，失败原因必须是本票而非环境。\n新增真实入口测试为 workbench/tests/test_t257_codex_stop_continuation_e2e.py，默认不带参数即可运行完整场景，摘要输出路径必须每次唯一并在 stdout 打印；支持 --summary <新文件> 和 --revision <已知坏版本> 以保留可重复红绿证据。如果确有必要加隔离状态测试，使用 workbench/tests/test_t257_codex_stop_continuation.ts，写清其不能替代真实入口。红态门禁只把 Python 文件移植到父版本；Python 真实入口测试不能依赖可选 TS 或其他未列的新文件。\n修改只落根因所需最小位置，优先 panes.ts；daemon.ts 与 hook 仅确实必要才改，解释证据。不得改 acceptance/**、REVIEW.md 或既有 test_t252 验收。不会因实现卡内就豁免敏感路径审查。候选完成后按触发条件自查 design-integrity-review，按 behavioral-acceptance-review 核对 oracle 和反例，证据写中文。审查另由门禁新开 astra xhigh 会话，别自行派 agent。\n先提交复现测试和修前文本证据，再提交最小修复与绿态；使用 git add --sparse 精确路径（主仓库 sparse，不改 sparse 配置）。提交都保留自动 A2A 尾注。证据放 evidence/2026-11-08-batch34/T-257/worker/，RESULTS.md 记录版本、命令、退出码、通过/未测范围与复现方式。不要把 SQL 数据库、hc 私有目录、凭据或大 fixture 提交。测试结束按规则先保存状态摘要，再清本次缓存和夹具；不删旧现场。后台须 start_new_session。不碰正式 Enchanted/用户 Herdr，测试使用 /tmp 隔离 home。\n完成条件的 Python 端到端会由门禁运行；主控还会运行必要的相关回归与候选实测。若沙箱不能运行，保留确切错误并 issue 上报，不能绕沙箱或将缺少实测称 PASS；完成后 commit 并经 worker submit 显式交付。",
+  "non_goals": [
+    "不修 T-255/T-256/T-235，不做 T-249/T-250 面板",
+    "不启动 Claude、不改全局配置、不碰正式 Enchanted 或用户 Herdr",
+    "不改门禁核心/冻结验收/权限边界，不加依赖，不 push",
+    "不改项目地图或 controller 证据，不丢旧现场"
+  ],
+  "paths": {
+    "allow": [
+      "workbench/src/panes.ts",
+      "workbench/src/daemon.ts",
+      "workbench/terminal/plugin/",
+      "workbench/tests/test_t257_codex_stop_continuation_e2e.py",
+      "workbench/tests/test_t257_codex_stop_continuation.ts",
+      "evidence/2026-11-08-batch34/T-257/worker/"
+    ],
+    "deny": [
+      "acceptance/",
+      "REVIEW.md",
+      "workbench/src/gates/",
+      "workbench/package.json",
+      "workbench/package-lock.json"
+    ]
+  },
+  "oracle_paths": [
+    "acceptance/",
+    "REVIEW.md",
+    "workbench/tests/test_t252_untrusted_turn_other_cli_e2e.py"
+  ],
+  "completion_conditions": [
+    {
+      "argv": [
+        "env",
+        "ENCHANTED_HC_CACHE_DIR=/private/tmp/t257-hc-cache-20261108",
+        "python3",
+        "workbench/tests/test_t257_codex_stop_continuation_e2e.py"
+      ]
+    }
+  ],
+  "red_commands": [
+    {
+      "argv": [
+        "env",
+        "ENCHANTED_HC_CACHE_DIR=/private/tmp/t257-hc-cache-20261108",
+        "python3",
+        "workbench/tests/test_t257_codex_stop_continuation_e2e.py"
+      ],
+      "test_paths": [
+        "workbench/tests/test_t257_codex_stop_continuation_e2e.py"
+      ]
+    }
+  ],
+  "task_type": "后端逻辑",
+  "repair_target": "T-257",
+  "complexity": "M",
+  "executor": {
+    "cli": "Codex",
+    "model": "gpt-6-astra",
+    "effort": "xhigh"
+  },
+  "base_commit": null,
+  "writer": null
+}
