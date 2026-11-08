@@ -31,8 +31,8 @@ ready_rev: 3
 
 ## Acceptance
 
-- [ ] 修前红态：真实入口下，回执在 Stop 钩子返回前贴入，窗格停在 busy，`reclaim` 返回 `worker_working`。
-- [ ] 修后：同一场景窗格回到空闲，排队消息照常发送，`reclaim` 成功；真在工作中的回合仍返回 `worker_working`（反例）。
+- [x] 修前红态：真实入口下，回执在 Stop 钩子返回前贴入，窗格停在 busy，`reclaim` 返回 `worker_working`。
+- [x] 修后：同一场景窗格回到空闲，排队消息照常发送，`reclaim` 成功；真在工作中的回合仍返回 `worker_working`（反例）。
 
 ## 本轮执行授权与计划（2026-11-08）
 
@@ -57,3 +57,11 @@ REALITY GATE: PASS（仅因果复现）。隔离真实后台/门禁/交互 Codex
 候选 5484315a5e318bce557dcc32e429f5d251453e84 的 4 行生产差异已通过真实入口绿态、同测试坏版本红态及 T-252 Codex 回归，见 [候选检查点](../../evidence/2026-11-08-batch34/T-257/controller/candidate-a2-checkpoint.md)。整体仍 INCOMPLETE，尚无独立审查或集成。
 
 主控在派发后新增保留引用导致 verify 被共享 Git 元数据保护拒绝，该引用已撤回并保留拒绝证据；旧正式运行时又使 submit 回执续跑卡 busy，门禁退回无法送达。沿用本轮已批准的正常重启和门禁恢复。v3 只把门禁工作区的既有依赖准备写进完成及红态命令，导入已提交的卡内候选，不更改 Acceptance，不绕过重新交付或验收。
+
+## 门禁通过与集成
+
+v3 attempt `6ca3622b-b0e7-41ad-a21f-7ff810441994` 交付 `045e815ff390a0e2e50b7788966e2a5bf655fbdb`。完成检查和红态对照均经真实后台/门禁/Codex 0.167.0；父版本命中 5 项业务失败，候选 9 项业务检查通过。独立 astra xhigh 审查 `1042a9e2-4d76-4b00-8213-e4cb4252462c` 可合并、无 findings，104 个模块场景通过、4 个错误变异全部拒绝，结束边界与回收完成后任务进入 verified。
+
+已经唯一门禁 integrate 合入本地 main：`bf4b855619283711aff0a2f9ff2047e689e21fcb`，未 push。见 [门禁结果](../../evidence/2026-11-08-batch34/T-257/controller/gate-v3-mechanical.json)、[独立审查](../../evidence/2026-11-08-batch34/T-257/controller/review-v3-result.json)、[集成收据](../../evidence/2026-11-08-batch34/T-257/controller/integration-v3.json)。实际产品差异不在 REVIEW.md 的敏感代码段。README 已改正“回执必定新建原生回合”的描述，并核对地图 Verified。全套测试未运行，既有 T-252 Codex 相关回归通过。
+
+代码修复 PASS；正式应用更新与旧 worker 回收待标准打包安装后完成。门禁保留了含测试摘要的验证工作区（问题 `b45f888d-b9f4-4b20-a584-0ed9866d48a2`），摘要已另存，不强制删除或改库掩盖清理失败。
