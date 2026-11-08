@@ -305,6 +305,8 @@ export class Panes implements GateRuntime {
   controllerReady?: (thread: string, role: "ideation" | "executor", project: string) => Promise<void>;
   // T-229: keeps one user submission of a managed Claude Code or Codex pane, as its UserPromptSubmit hook reported it.
   recordUserSubmission?: (pane: Pane, text: string, received_at: string) => void;
+  // T-253: a Codex worker pane has just learned its native session from its root rollout; the gate binds it to the attempt.
+  nativeSessionLearned?: (pane: Pane) => void;
   constructor(root: string, store: OrchestrationStore, config: LaunchConfig, onEventWriteFailed: (reason: string) => void) {
     this.root = root; this.store = store; this.config = config;
     this.onEventWriteFailed = onEventWriteFailed;
@@ -1553,9 +1555,11 @@ export class Panes implements GateRuntime {
         this.appendTrace(pane, join(this.root, "traces", pane.record.id, "native.jsonl"), raw + "\n");
         if (event.type === "session_meta" && event.payload.source === "cli" && rootFile) {
           check(!pane.native || pane.native === event.payload.id, "ambiguous_native_session");
-          if (!pane.native) this.store.event("pane_native_session", { native_session: event.payload.id,
+          const learned = !pane.native;
+          if (learned) this.store.event("pane_native_session", { native_session: event.payload.id,
             resume_argv: resumeArgv(pane.record, event.payload.id) }, pane.record);
           pane.native = event.payload.id;
+          if (learned && pane.record.role === "worker") this.nativeSessionLearned?.(pane);
         }
         // Only the root CLI file contributes identity or model facts.
         if (rootFile && pane.native === metadata.payload.id) {

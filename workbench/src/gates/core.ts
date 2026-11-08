@@ -828,6 +828,30 @@ export class A2AGates {
     this.appendIssue(issue);
     return { id: issueId, delivery: await this.deliverInbox(issue) };
   }
+  // T-253, user's choice B: the daemon calls this when a Codex worker's pane first learns its native session (the root
+  // rollout's session_meta). Dispatch reads the pane before the CLI has started its turn, so without this only a run's
+  // observation, an accepted submit or a review binds the session, and reclaim refuses an attempt that lacks it
+  // (identity_conflict). As in observeRun: read the pane outside the task operation lock, check and bind under it, never
+  // holding the lock across an await. A gate command holding the lock (the dispatch that started this turn, among others)
+  // is waited out instead of losing the binding; a replaced attempt or a pane that is not the attempt's is refused.
+  async nativeSessionLearned(taskId: string, attemptId: string, thread: string) {
+    for (;;) {
+      requireGate(!this.shuttingDown, "daemon_stopping");
+      const live = await this.runtime!.readThread(thread);
+      let lock: DatabaseSync;
+      try { lock = this.operationLock(taskId); }
+      catch (error) {
+        if (!(error instanceof Refusal && error.code === "operation_busy")) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        continue;
+      }
+      try {
+        const task = this.load(taskId), attempt = this.current(task, attemptId);
+        if (this.bindObservedIdentity(attempt, live)) this.save(task, "runtime_bound", { attempt, by: "native_session_learned" });
+        return;
+      } finally { lock.close(); }
+    }
+  }
   private async disposeIssue(
     args: A2AGateRequest,
     caller?: SubmitCaller,

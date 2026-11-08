@@ -6,9 +6,9 @@ status: open
 blocked_by: []
 claimed_by:
 supersedes:
-ready: no
-ready_by:
-ready_rev:
+ready: yes
+ready_by: executor
+ready_rev: 1
 ---
 
 ## What to build
@@ -28,10 +28,12 @@ ready_rev:
 
 所以经 `dispatch` 派出的 Codex worker，只要没有一次被受理的 submit（交付被拒、只上报了问题就停下、被用户打断后不再交付），就永远回收不了，同一任务也派不出新 worker。Claude worker 不受影响（会话号在启动参数里，派发时已知）；agy、opencode 用后台自造的会话号，派发时已知。
 
-可能的修法（待定，不在 T-252 做）：
+可能的修法（不在 T-252 做）：
 
 - A：`reclaim` 在核对前用当前窗格读数补绑身份，与 `observeRun` 相同（先 `checkThread` 核对 launch、thread、shell 进程一致，再补空项），在任务操作锁内写回。
 - B：后台在得知 Codex 原生会话号时（首个钩子或 rollout 扫描）就把它绑定到 attempt。
+
+决定（2026-11-08）：用户选 B，原话“先合并,然后修法选 B”（用户在本会话的父会话“Worker 回收与派发问题” `local_e9998522-d926-46a1-aac9-eda70d24d2b9` 里答复合并问题，由该会话逐字转来）。T-251、T-252 已先合并进本地 main（`faf1b0d7a`）。
 
 ## Acceptance
 

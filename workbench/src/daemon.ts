@@ -87,6 +87,13 @@ export async function serve(
     return held ? { role: held.role, project: held.project, cli: held.cli } : undefined;
   };
   panes.controllerReady = (thread, role, project) => gates.resumeControllerInbox(thread, role, project);
+  // T-253: bind a Codex worker's native session to its attempt as soon as its pane learns it. A refusal (the attempt was
+  // replaced, the pane is not the attempt's) leaves the attempt unbound, so reclaim keeps refusing it; it is recorded here.
+  panes.nativeSessionLearned = pane => {
+    gates.nativeSessionLearned(pane.record.task, pane.record.attempt, pane.record.thread).catch(error =>
+      store.event("native_session_bind_failed", { native_session: pane.native, error: error instanceof Refusal ? error.code : String(error),
+        details: error instanceof Refusal ? error.details ?? null : null }, pane.record));
+  };
   // T-229: a managed Claude Code or Codex pane's submission, as its UserPromptSubmit hook reported it. One hook call is one
   // submission (a Claude prompt queued during a turn shares that turn's prompt id), so each record gets an id of its own.
   panes.recordUserSubmission = (pane, text, received_at) => gates.appendUserInput({ id: randomUUID(), schema: 1, form: "message", text,

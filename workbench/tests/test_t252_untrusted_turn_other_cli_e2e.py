@@ -21,7 +21,8 @@ PostToolUse（照真实钩子复制，只改 cwd 与工具调用号）；agy、o
 --launch：执行主控怎么派出 worker。dispatch 同 T-251；run 是 T-251 之后执行主控技能的默认做法（后台 run 盯到结果），run 每轮观察
 都把 worker 的领导进程与原生会话号绑定到 attempt。Codex 在 dispatch 时还没开始回合，这两项是空的，之后只有 run 的观察或一次被受理的
 submit 会绑定；回收要求它们已绑定（`identity_conflict`）。所以 Codex 经 dispatch 派出、交付又被拒时，回收另有一道与回合可信度无关
-的拒绝（本票红态实测），另开票处理；本票 Codex 的验收用 run。用 run 时，测试在问题出现后照执行主控的做法回收、等 run 结束，再派新 worker。
+的拒绝（本票红态实测），另开票处理；本票 Codex 的验收用 run。T-253（用户 2026-11-08 选 B）改为后台从 rollout 得知会话号时就
+绑定到 attempt，此后 Codex 经 dispatch 派出也应全过；变异 t253-no-bind 去掉这一绑定。用 run 时，测试在问题出现后照执行主控的做法回收、等 run 结束，再派新 worker。
 --revision 在该版本源码上跑；--mutant 见 MUTANTS。
 """
 import argparse
@@ -63,6 +64,8 @@ MUTANTS = {
                                   'pane.active = null; pane.state = pane.failed && !protocolFailure ? "unknown" : refusal || pane.interrupted ? "busy" : "idle";\n      this.store.event(pane.state === "idle" ? "pane_idle" : "pane_completion_held", { submission: active!.id, state: pane.state, stop: value, ...(refusal')],
     # The issue names the turn only by a Claude prompt id.
     'issue-no-turn': [('src/daemon.ts', 'turn_id: stop.prompt_id ?? stop.turn_id ?? null,', 'turn_id: stop.prompt_id ?? null,')],
+    # T-253: the pane learns the Codex session but nothing binds it to the attempt (reclaim after dispatch: identity_conflict).
+    't253-no-bind': [('src/panes.ts', '          if (learned && pane.record.role === "worker") this.nativeSessionLearned?.(pane);\n', '')],
 }
 FILES = {'README.md': 'T-252 fixture\n', 'check.py': 'from pathlib import Path\nassert Path("answer.txt").read_text() == "accepted"\n'}
 # The fake agy/opencode worker writes done.txt (T-187); its card allows that file.
@@ -309,7 +312,20 @@ def main():
               and (last.get('state') in ('queued', 'delivered') or (last.get('state') == 'pending' and last.get('reason') == 'role_session_missing')),
               dict(controller_launch=[issue.get('controller_launch') for issue in sent], terminal=fixture.terminal['launch'], receipts=receipts))
         report['observed']['attempt_identity'] = (status()['task'].get('current_attempt') or {}).get('runtime_identity')
-        reclaimed = fixture.request('reclaim', fixture.terminal, task='T-1', attempt=attempt['attempt_id'])
+        # T-253: when the pane learned its native session and which gate events bound the attempt's identity.
+        store = sqlite3.connect(f"file:{fixture.dir / 'state' / 'state.sqlite3'}?mode=ro", uri=True)
+        try:
+            report['observed']['identity_binding'] = dict(
+                gate=[dict(seq=seq, time=time, type=kind, by=json.loads(details).get('by'),
+                           runtime_identity=(json.loads(details).get('attempt') or {}).get('runtime_identity'))
+                      for seq, time, kind, details in store.execute(
+                          "SELECT seq, time, type, details FROM events WHERE task='demo+T-1' AND type IN ('dispatched', 'runtime_bound') ORDER BY seq")],
+                pane=[dict(seq=seq, time=time, type=kind, data=json.loads(data)) for seq, time, kind, data in store.execute(
+                    "SELECT seq, time, type, data FROM orchestration_events WHERE launch=? AND type IN ('pane_native_session', 'native_session_bind_failed') ORDER BY seq",
+                    (launch,))])
+        finally:
+            store.close()
+        reclaimed =fixture.request('reclaim', fixture.terminal, task='T-1', attempt=attempt['attempt_id'])
         report['observed']['reclaim'] = {k: reclaimed.get(k) for k in ('ok', 'error', 'details')}
         check('old_attempt_reclaimed', bool(reclaimed.get('ok')), report['observed']['reclaim'])
         if running:

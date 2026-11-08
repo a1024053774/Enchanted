@@ -1456,6 +1456,10 @@ A2A_MODEL_REQUESTED/A2A_EFFORT_REQUESTED；实际沙箱读取与提交时序还�
 运行时 agent 身份与交付回合分开：attempt 绑定 launch/thread、shell、原生会话和 Codex 领导者；
 首次输入前原生日志可以尚未出现，后台答完 “Open restricted” 并核对有效前台领导者后放行首次派发；
 门禁只补首次可观测的原生会话，不用请求值补身份。
+Codex worker 的原生会话在派发时还看不到：窗格从根 rollout 首行 `session_meta` 第一次得知会话号时，后台就经门禁把它补进
+attempt（T-253，用户选 B）。和 run 的观察一样，读窗格在任务操作锁外，核对身份与写入在锁内；锁被其他门禁命令占着时等它释放，
+不丢这次绑定；attempt 已换掉或窗格身份与 attempt 记录不符（别的 launch、别的 shell 进程）时不补，记 `native_session_bind_failed`，
+回收照旧拒 `identity_conflict`。此前只有 run 的观察、被受理的 submit 与审查提交会补，经 dispatch 派出、没交付过的 Codex worker 回收不了。
 run/reclaim 核对该身份，回执回合改变不会覆盖已提交的 turn_id。submit 仍要求当前活动
 caller/turn 和受管 session/fence/spec/attempt 一致。换领导者、换原生会话或缺已绑定事实
 拒收；停止后只沿用已核对的身份及确认的生命周期，不按新 PID 接管。
