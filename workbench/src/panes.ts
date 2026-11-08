@@ -2266,12 +2266,16 @@ export class Panes implements GateRuntime {
       const matched = Boolean(!pane.failed && !pane.stopInProgress && active?.nativeTurn && value.turn_id === active.nativeTurn && Date.parse(received_at) >= Date.parse(active.at));
       // The Stop handler transfers explicit files while the submitted turn still
       // owns its gate caller identity. A Stop alone never performs a gate command.
-      if (active) check(currentTurnTrust(pane, this.store.read().filter(e => e.launch === launch)) === 'verified', 'current_turn_untrusted');
+      const trust = active ? currentTurnTrust(pane, this.store.read().filter(e => e.launch === launch)) : 'verified';
+      // T-252, as T-251 for Claude: the matched Stop of a worker turn judged untrusted still ends that turn. Its requests
+      // are refused, never run, and the daemon tells the executor; otherwise the pane stays in its turn and cannot be reclaimed.
+      const refusal = matched && trust === 'unknown' && pane.record.role === 'worker' ? 'current_turn_untrusted' : undefined;
+      check(trust === 'verified' || refusal, 'current_turn_untrusted');
       if (matched) pane.stopInProgress = true;
       try {
-        if (transfer) await transfer(pane, value, matched);
+        if (transfer) await transfer(pane, value, matched, refusal);
         if (!matched) { this.store.event("stop_not_matched", value, pane.record); return; }
-        check(currentTurnTrust(pane, this.store.read().filter(e => e.launch === launch)) === 'verified', 'current_turn_untrusted');
+        check(refusal || currentTurnTrust(pane, this.store.read().filter(e => e.launch === launch)) === 'verified', 'current_turn_untrusted');
         const protocolFailure = pane.record.role === "reviewer" && pane.failed === "invalid_review_result";
         if (protocolFailure && (pane.active !== active || pane.active?.nativeTurn !== value.turn_id || pane.turn !== value.turn_id || pane.native !== value.session_id)) {
           pane.state = "unknown";
@@ -2280,7 +2284,7 @@ export class Panes implements GateRuntime {
         // A rejected protocol result still ended this matched review turn. Keep the
         // failure/blocking marker; only the gate may stop/archive it and start afresh.
         pane.active = null; pane.state = pane.failed && !protocolFailure ? "unknown" : pane.interrupted ? "busy" : "idle";
-        this.store.event(pane.state === "idle" ? "pane_idle" : "pane_completion_held", { submission: active!.id, state: pane.state, stop: value }, pane.record);
+        this.store.event(pane.state === "idle" ? "pane_idle" : "pane_completion_held", { submission: active!.id, state: pane.state, stop: value, ...(refusal ? { refused: refusal } : {}) }, pane.record);
       } catch (error) {
         if (matched) this.recordFailure(pane, "stop_transfer_failed", error);
         throw error;
@@ -2302,14 +2306,17 @@ export class Panes implements GateRuntime {
     const active = pane.active;
     const matched = Boolean(!pane.failed && !pane.stopInProgress && active?.nativeTurn && value.turn_id === active.nativeTurn &&
       Date.parse(received_at) >= Date.parse(active.at));
-    if (active) check(currentTurnTrust(pane, this.store.read().filter(e => e.launch === pane.record.id)) === "verified", "current_turn_untrusted");
+    const trust = active ? currentTurnTrust(pane, this.store.read().filter(e => e.launch === pane.record.id)) : "verified";
+    // T-252: as for a Codex Stop. Any hook that reaches an agy or opencode launch is unverified (it has no hooks of its own).
+    const refusal = matched && trust === "unknown" && pane.record.role === "worker" ? "current_turn_untrusted" : undefined;
+    check(trust === "verified" || refusal, "current_turn_untrusted");
     if (matched) pane.stopInProgress = true;
     try {
-      if (transfer) await transfer(pane, value, matched);
+      if (transfer) await transfer(pane, value, matched, refusal);
       if (!matched) { this.store.event("stop_not_matched", value, pane.record); return; }
       const protocolFailure = pane.record.role === "reviewer" && pane.failed === "invalid_review_result";
       pane.active = null; pane.state = pane.failed && !protocolFailure ? "unknown" : pane.interrupted ? "busy" : "idle";
-      this.store.event(pane.state === "idle" ? "pane_idle" : "pane_completion_held", { submission: active!.id, state: pane.state, stop: value }, pane.record);
+      this.store.event(pane.state === "idle" ? "pane_idle" : "pane_completion_held", { submission: active!.id, state: pane.state, stop: value, ...(refusal ? { refused: refusal } : {}) }, pane.record);
     } catch (error) {
       if (matched) this.recordFailure(pane, "stop_transfer_failed", error);
       throw error;

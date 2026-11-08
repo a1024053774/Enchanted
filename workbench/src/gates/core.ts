@@ -797,7 +797,7 @@ export class A2AGates {
   }
   /** T-251: a worker turn ended untrusted and the daemon refused the requests it left (relay journal). The executor gets
    * a blocking system issue, in status and its inbox, instead of a task that sits in claimed with nobody told. */
-  async turnRefused(taskId: string, attemptId: string, details: { reason: string; prompt_id: string | null;
+  async turnRefused(taskId: string, attemptId: string, details: { reason: string; turn_id: string | null;
     requests: { request_id: string | null; command: string | null; title: string | null }[]; unverified: unknown[] }) {
     // No task operation lock: this changes no task state, only appends a record (its own DB transaction), and a busy
     // lock here would fail the worker's Stop. deliverInbox takes its own per-entry lock.
@@ -820,7 +820,7 @@ export class A2AGates {
         requests: details.requests, unverified: details.unverified,
         next: "看 unverified 是哪个钩子核对不上。要继续这项工作：等 worker 空闲后回收这个 attempt 再派发（它的提交还在 attempt 分支上，新卡可以 cherry-pick）；还忙时回收会被拒（worker_working）。",
       }, null, 2),
-      task_id: taskId, attempt_id: attempt.attempt_id, thread_id: attempt.thread_id, turn_id: details.prompt_id ?? "",
+      task_id: taskId, attempt_id: attempt.attempt_id, thread_id: attempt.thread_id, turn_id: details.turn_id ?? "",
       number: this.issueNumber(attempt.attempt_id, attempt.thread_id),
       title: "交付没被受理：这一回合不可信", blocking: true,
       ...(facts?.launch.parent_launch ? { controller_launch: facts.launch.parent_launch } : {}),

@@ -990,7 +990,8 @@ export async function serve(
         // T-251: the requests of an untrusted worker turn were refused above; the executor hears of it with what was lost
         // and the hook that made the turn untrusted, instead of the task sitting in claimed with nobody told.
         if (refusal && pane.record.role === "worker") await gates.turnRefused(pane.record.task, pane.record.attempt, {
-          reason: refusal, prompt_id: stop.prompt_id ?? null,
+          // T-252: Codex, agy and opencode Stops name their turn by turn_id; a Claude Stop by prompt_id.
+          reason: refusal, turn_id: stop.prompt_id ?? stop.turn_id ?? null,
           requests: receipts.map(receipt => ({ request_id: receipt.request_id, command: relayCommand(receipt.key), title: relayTitle(receipt.key) })),
           unverified: store.read().filter(event => event.launch === pane.record.id && event.type === "native_question_unverified" &&
             event.data.submission === pane.active?.id).slice(0, 3).map(event => ({ time: event.time, reason: event.data.reason,

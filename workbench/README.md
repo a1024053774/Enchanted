@@ -354,7 +354,7 @@ shell 和子进程退出后才确认关闭。`window_close` 只撤销视图凭�
 
 agy 与 opencode 的回合状态不经钩子，取自它们自己报给终端的 OSC 7501（`ESC ] 7501 ; state=…[:kind=…] BEL`，T-187）：后台从项目终端的输出里读出最后一条报告（`pane_status` 的 `cli_turn`；一条报告被拆在两段输出里也能读出），前台程序退出后清掉。经角色申请成为主控的 agy、opencode 终端，侧栏与窗格头按它取状态：`working` 为运行中，`idle`、`done`、`clear` 为空闲，`blocked` 且 `kind=question` 为等待用户回答；`blocked` 的权限确认、登录和还没有报告时显示未知，不猜。`a2a request` 按运行它的 CLI 给子进程的环境认出是哪个 CLI（`CLAUDECODE`、`CODEX_THREAD_ID`、`OPENCODE_SESSION_ID`，agy 用包装脚本的 `A2A_SHIM=agy`），CLI 自己设的变量优先于包装脚本的。
 
-agy、opencode 也可作 worker 与审查员（任务卡 `executor.cli` 为 `agy` 或 `opencode`；T-187 ready_rev 2，用户选 C）。没有按会话的钩子，回合同样取自 OSC 7501：派发写入后的 `working` 是回合开始，之后的 `idle`、`done`、`clear` 是回合结束，worker 写在请求目录里的交付请求在这里转交门禁（与 Stop 钩子同一条路径）；审查员经 `review_submit`（opencode 为 MCP 工具，agy 为提示里的命令，T-203）把结论写进请求目录的 `review-result.json`，回合结束时读取。
+agy、opencode 也可作 worker 与审查员（任务卡 `executor.cli` 为 `agy` 或 `opencode`；T-187 ready_rev 2，用户选 C）。没有按会话的钩子，回合同样取自 OSC 7501：派发写入后的 `working` 是回合开始，之后的 `idle`、`done`、`clear` 是回合结束，worker 写在请求目录里的交付请求在这里转交门禁（与 Stop 钩子同一条路径）。它们自己不发钩子，经它们的启动身份进来的任何钩子都按来源不符记 `native_question_unverified`，这一回合随之不可信，回合结束时按下文 T-251、T-252 的例外处理；审查员经 `review_submit`（opencode 为 MCP 工具，agy 为提示里的命令，T-203）把结论写进请求目录的 `review-result.json`，回合结束时读取。
 
 - 启动参数：agy 为 `agy --dangerously-skip-permissions --model <卡上模型> --effort <卡上强度>`，环境 `AGY_CLI_OSC7501=on`；opencode 为 `opencode --standalone --auto <worktree>`，模型经 `OPENCODE_CONFIG_CONTENT` 传入。两者都在用户自己的 HOME 运行（登录在那里，不复制凭据），没有操作系统沙箱；门禁核对完整 argv。它们报不出本回合的模型与强度，交付与提交尾注记为 `unknown`。
 - agy 的目录信任：agy 对每个新目录弹一次“Trust this folder?”。后台核对屏幕上选中的是 “Yes, I trust this folder”、目录是本会话的 worktree 后才按回车，再核对 `~/.gemini/antigravity-cli/settings.json` 只有 `trustedWorkspaces` 多了这一个目录、其他键不变；写入条数记在 `agy_trust_written` 事件里。对不上就记 `agy_trust_failed`，不按键。每次派发（worker 与审查员各一个新目录）写一条。
@@ -1274,9 +1274,10 @@ T-108 通过每会话启动参数加入 PreToolUse／PostToolUse hook，按根�
 无法取得原生 turn 时明确记为 null。显示状态、问题作答资格、逐键写入与 Stop 完成
 共同读取当前 submission 的可信度，后续工具不能清除未知。异常 Stop 不完成回合、
 触发交付或解除锁；明确的过期回合、异 session 和子 agent 保留拒绝或忽略语义。
-例外（T-251）：Claude worker 的回合可信度为未知时，本会话匹配的 Stop 仍结束回合，
-回合留下的请求按 `current_turn_untrusted` 记为拒收、不执行，执行主控收到阻塞系统问题；
-否则窗格永远停在回合中，门禁回收不了。Codex、agy、opencode 的 Stop 仍按上一句处理。
+例外（T-251、T-252）：worker 的回合可信度为未知时，与当前回合匹配的 Stop 仍结束回合（Claude Code、Codex 的
+Stop 钩子，agy、opencode 由 OSC 7501 得出的回合结束），回合留下的请求按 `current_turn_untrusted` 记为拒收、不执行，
+执行主控收到阻塞系统问题（问题的回合号取 Claude 的 `prompt_id`，其他 CLI 取 `turn_id`）；否则窗格永远停在回合中，
+门禁回收不了。reviewer、monitor 与主控的不可信回合、与当前回合不匹配的 Stop 仍按上一句处理。
 
 Claude 的同一 AskUserQuestion 自身发出的 PermissionRequest 仍属于该提问：须匹配
 当前唯一待答问题的 session、prompt／turn、submission。tool_input 必须仅包含完整且
