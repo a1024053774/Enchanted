@@ -1,0 +1,363 @@
+{
+  "status": "FAIL",
+  "argv": [
+    "test_t252_untrusted_turn_other_cli_e2e.py",
+    "--cli",
+    "codex",
+    "--launch",
+    "dispatch",
+    "--summary",
+    "../../evidence/2026-11-07-batch33/T-252/green/e2e-codex-dispatch.json"
+  ],
+  "cli": "codex",
+  "launch": "dispatch",
+  "revision": null,
+  "mutant": null,
+  "runtime": "real daemon/gate/Codex CLI; scripted Responses API; zero vendor model calls; no Electron",
+  "checks": [
+    "untrusted_delivery_not_executed",
+    "turn_ended_not_running",
+    "controller_status_shows_reason",
+    "issue_names_the_turn",
+    "issue_sent_through_inbox"
+  ],
+  "preconditions": [
+    "outside_hook_judged_foreign"
+  ],
+  "observed": {
+    "attempt": "2eb5b035-3cde-47dd-a59d-abe0eb99b35f",
+    "gate_state": "claimed",
+    "pane": {
+      "ok": true,
+      "thread": "e0484d14-4378-4182-97db-4a5a7e8083f6",
+      "launch": "caf23598-9f48-4928-9273-d1de15de148d",
+      "state": "idle",
+      "lifecycle": "running",
+      "shell_pid": 96881,
+      "size": {
+        "cols": 160,
+        "rows": 45
+      },
+      "state_source": "host_events",
+      "active": null,
+      "native_session": "01a1b95c-d69e-77c2-8b8e-4ec1bb726c16",
+      "start_missing": false,
+      "silent_foreground": null,
+      "unwired_cli": null,
+      "cli_turn": null,
+      "foreground_cli": null,
+      "hook_turn": null,
+      "turn": "01a1b95c-e4f8-75b3-8411-08d035c5d738",
+      "writing": false,
+      "user_draft": false,
+      "interrupted": false,
+      "input_generation": 0,
+      "interruption": null,
+      "queued": [],
+      "failed": null,
+      "stopped": false,
+      "restoration": null,
+      "delivery": {
+        "task": "demo+T-1",
+        "attempt": "2eb5b035-3cde-47dd-a59d-abe0eb99b35f",
+        "session": "6e184b69-5437-47c4-b195-266323a93773",
+        "fence": 1,
+        "spec_rev": 1,
+        "request_id": "e8893875-585a-4afe-9dd3-47af0eacdb0a",
+        "commit": "881d63d5332a5600947e9a93871a18f1a96bfe6a",
+        "received_at": "2026-11-08T04:13:55.004Z",
+        "result_at": "2026-11-08T04:13:55.005Z",
+        "state": "rejected",
+        "reason": "current_turn_untrusted",
+        "request_turn": "01a1b95c-d8c2-71c3-90b7-690d52d8b811",
+        "current_turn": "01a1b95c-d8c2-71c3-90b7-690d52d8b811",
+        "native_turn_changed": false,
+        "recovery_request_id": "recover-173"
+      }
+    },
+    "unverified": [
+      {
+        "seq": 100,
+        "reason": "Error: question_origin_unverified",
+        "hook": "PostToolUse",
+        "turn": "01a1b95c-d8c2-71c3-90b7-690d52d8b811"
+      }
+    ],
+    "relay": [
+      {
+        "seq": 173,
+        "type": "relay_received",
+        "error": null
+      },
+      {
+        "seq": 174,
+        "type": "relay_rejected",
+        "error": "current_turn_untrusted"
+      },
+      {
+        "seq": 204,
+        "type": "relay_replayed",
+        "error": "current_turn_untrusted"
+      }
+    ],
+    "stop_failures": [],
+    "issues": [
+      {
+        "title": "交付没被受理：这一回合不可信",
+        "blocking": true,
+        "from_": "system",
+        "to": "executor",
+        "turn_id": "01a1b95c-d8c2-71c3-90b7-690d52d8b811",
+        "state": "待判断",
+        "body": "{\n  \"reason\": \"current_turn_untrusted\",\n  \"what\": \"worker 这一回合交来的请求门禁没有执行，已记为拒收，以后也不会再执行。这一回合本身照常结束；窗格之后是否空闲看 status（排着用户输入或被打断时还会继续忙）。\",\n  \"requests\": [\n    {\n      \"request_id\": \"e8893875-585a-4afe-9dd3-47af0eacdb0a\",\n      \"command\": \"submit\",\n      \"title\": null\n    }\n  ],\n  \"unverified\": [\n    {\n      \"time\": \"2026-11-08T04:13:53.514Z\",\n      \"reason\": \"Error: question_origin_unverified\",\n      \"hook_event_name\": \"PostToolUse\"\n    }\n  ],\n  \"next\": \"看 unverified 是哪个钩子核对不上。要继续这项工作：等 worker 空闲后回收这个 attempt 再派发（它的提交还在 attempt 分支上，新卡可以 cherry-pick）；还忙时回收会被拒（worker_working）。\"\n}"
+      }
+    ],
+    "forged_hook": {
+      "session_id": "01a1b95c-d69e-77c2-8b8e-4ec1bb726c16",
+      "turn_id": "01a1b95c-d8c2-71c3-90b7-690d52d8b811",
+      "transcript_path": "/private/tmp/t252-bamm4iq6/home/.codex/sessions/2026/11/07/rollout-2026-11-07T23-13-51-01a1b95c-d69e-77c2-8b8e-4ec1bb726c16.jsonl",
+      "cwd": "/private/tmp",
+      "hook_event_name": "PostToolUse",
+      "model": "gpt-6.1-sol",
+      "permission_mode": "bypassPermissions",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "pwd"
+      },
+      "tool_response": "/private/tmp/t252-bamm4iq6/state/worktrees/demo/T-1-a1\n",
+      "tool_use_id": "call_t252_outside"
+    },
+    "inbox_receipts": [
+      {
+        "entry": "5dd7cbc2-c8c0-43b1-af98-ddc57666f56f",
+        "state": "pending",
+        "entry_id": "5dd7cbc2-c8c0-43b1-af98-ddc57666f56f",
+        "created_at": "2026-11-08T04:13:55.008Z"
+      },
+      {
+        "entry": "5dd7cbc2-c8c0-43b1-af98-ddc57666f56f",
+        "state": "pending",
+        "entry_id": "5dd7cbc2-c8c0-43b1-af98-ddc57666f56f",
+        "created_at": "2026-11-08T04:13:55.008Z",
+        "reason": "role_session_missing"
+      }
+    ],
+    "attempt_identity": {
+      "launch": "caf23598-9f48-4928-9273-d1de15de148d",
+      "thread": "e0484d14-4378-4182-97db-4a5a7e8083f6",
+      "shell_pid": 96881,
+      "leader_pid": 96884,
+      "native_session": null
+    },
+    "reclaim": {
+      "ok": false,
+      "error": "identity_conflict",
+      "details": {
+        "attempt": {
+          "task_id": "demo+T-1",
+          "attempt_id": "2eb5b035-3cde-47dd-a59d-abe0eb99b35f",
+          "session_id": "6e184b69-5437-47c4-b195-266323a93773",
+          "fence": 1,
+          "spec_rev": 1,
+          "thread_id": "e0484d14-4378-4182-97db-4a5a7e8083f6",
+          "runtime_mode": "workspace-write",
+          "turn_id": null,
+          "runtime_identity": {
+            "launch": "caf23598-9f48-4928-9273-d1de15de148d",
+            "thread": "e0484d14-4378-4182-97db-4a5a7e8083f6",
+            "shell_pid": 96881,
+            "leader_pid": 96884,
+            "native_session": null
+          },
+          "workspace": "/private/tmp/t252-bamm4iq6/state/worktrees/demo/T-1-a1",
+          "base_commit": "ae7d692c6be36d293b21ba6561d23e311604ea05",
+          "card_snapshot_id": "13aaaa16-1047-4c27-9c4c-9dd435fa3b5f",
+          "reclaimed": false,
+          "owner": "demo+T-1",
+          "state": "claimed",
+          "extra_directories": [],
+          "git_metadata": {
+            "head": "ref: refs/heads/a2a/T-1-a1",
+            "config": "100644:cae33efdb02cf774435c1ff9cb16bcc1014606908530c6e1dc727615fe3e8cda",
+            "worktree_config": null,
+            "hooks": {
+              "applypatch-msg.sample": "100755:0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7",
+              "commit-msg.sample": "100755:1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437",
+              "fsmonitor-watchman.sample": "100755:e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0",
+              "post-update.sample": "100755:81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5",
+              "pre-applypatch.sample": "100755:e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475",
+              "pre-commit.sample": "100755:57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b",
+              "pre-merge-commit.sample": "100755:d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53",
+              "pre-push.sample": "100755:ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a",
+              "pre-rebase.sample": "100755:4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3",
+              "pre-receive.sample": "100755:a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989",
+              "prepare-commit-msg.sample": "100755:e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619",
+              "push-to-checkout.sample": "100755:a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f",
+              "sendemail-validate.sample": "100755:44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92",
+              "update.sample": "100755:8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+            }
+          }
+        },
+        "live": {
+          "workspace": "/private/tmp/t252-bamm4iq6/state/worktrees/demo/T-1-a1",
+          "provider": "codex",
+          "turn": "01a1b95c-e4f8-75b3-8411-08d035c5d738",
+          "runtime_identity": {
+            "launch": "caf23598-9f48-4928-9273-d1de15de148d",
+            "thread": "e0484d14-4378-4182-97db-4a5a7e8083f6",
+            "shell_pid": 96881,
+            "leader_pid": 96884,
+            "native_session": "01a1b95c-d69e-77c2-8b8e-4ec1bb726c16"
+          },
+          "running": false,
+          "stopped": false,
+          "archived": false,
+          "session_ended": false,
+          "blocked": false
+        }
+      }
+    },
+    "redispatch": {
+      "ok": false,
+      "error": "already_claimed",
+      "details": null
+    }
+  },
+  "fixture": "/private/tmp/t252-bamm4iq6",
+  "versions": {
+    "codex": "codex-cli 0.164.0"
+  },
+  "details": {
+    "outside_hook_judged_foreign": [
+      {
+        "seq": 100,
+        "reason": "Error: question_origin_unverified",
+        "hook": "PostToolUse",
+        "turn": "01a1b95c-d8c2-71c3-90b7-690d52d8b811"
+      }
+    ],
+    "untrusted_delivery_not_executed": "claimed",
+    "turn_ended_not_running": "idle",
+    "controller_status_shows_reason": [
+      {
+        "title": "交付没被受理：这一回合不可信",
+        "blocking": true,
+        "from_": "system",
+        "to": "executor",
+        "turn_id": "01a1b95c-d8c2-71c3-90b7-690d52d8b811",
+        "state": "待判断",
+        "body": "{\n  \"reason\": \"current_turn_untrusted\",\n  \"what\": \"worker 这一回合交来的请求门禁没有执行，已记为拒收，以后也不会再执行。这一回合本身照常结束；窗格之后是否空闲看 status（排着用户输入或被打断时还会继续忙）。\",\n  \"requests\": [\n    {\n      \"request_id\": \"e8893875-585a-4afe-9dd3-47af0eacdb0a\",\n      \"command\": \"submit\",\n      \"title\": null\n    }\n  ],\n  \"unverified\": [\n    {\n      \"time\": \"2026-11-08T04:13:53.514Z\",\n      \"reason\": \"Error: question_origin_unverified\",\n      \"hook_event_name\": \"PostToolUse\"\n    }\n  ],\n  \"next\": \"看 unverified 是哪个钩子核对不上。要继续这项工作：等 worker 空闲后回收这个 attempt 再派发（它的提交还在 attempt 分支上，新卡可以 cherry-pick）；还忙时回收会被拒（worker_working）。\"\n}"
+      }
+    ],
+    "issue_names_the_turn": {
+      "turn": "01a1b95c-d8c2-71c3-90b7-690d52d8b811",
+      "issues": [
+        "01a1b95c-d8c2-71c3-90b7-690d52d8b811"
+      ]
+    },
+    "issue_sent_through_inbox": {
+      "controller_launch": [
+        "da9b716d-708c-4d8d-bca6-d3493f78baf0"
+      ],
+      "terminal": "da9b716d-708c-4d8d-bca6-d3493f78baf0",
+      "receipts": [
+        {
+          "entry": "5dd7cbc2-c8c0-43b1-af98-ddc57666f56f",
+          "state": "pending",
+          "entry_id": "5dd7cbc2-c8c0-43b1-af98-ddc57666f56f",
+          "created_at": "2026-11-08T04:13:55.008Z"
+        },
+        {
+          "entry": "5dd7cbc2-c8c0-43b1-af98-ddc57666f56f",
+          "state": "pending",
+          "entry_id": "5dd7cbc2-c8c0-43b1-af98-ddc57666f56f",
+          "created_at": "2026-11-08T04:13:55.008Z",
+          "reason": "role_session_missing"
+        }
+      ]
+    },
+    "old_attempt_reclaimed": {
+      "ok": false,
+      "error": "identity_conflict",
+      "details": {
+        "attempt": {
+          "task_id": "demo+T-1",
+          "attempt_id": "2eb5b035-3cde-47dd-a59d-abe0eb99b35f",
+          "session_id": "6e184b69-5437-47c4-b195-266323a93773",
+          "fence": 1,
+          "spec_rev": 1,
+          "thread_id": "e0484d14-4378-4182-97db-4a5a7e8083f6",
+          "runtime_mode": "workspace-write",
+          "turn_id": null,
+          "runtime_identity": {
+            "launch": "caf23598-9f48-4928-9273-d1de15de148d",
+            "thread": "e0484d14-4378-4182-97db-4a5a7e8083f6",
+            "shell_pid": 96881,
+            "leader_pid": 96884,
+            "native_session": null
+          },
+          "workspace": "/private/tmp/t252-bamm4iq6/state/worktrees/demo/T-1-a1",
+          "base_commit": "ae7d692c6be36d293b21ba6561d23e311604ea05",
+          "card_snapshot_id": "13aaaa16-1047-4c27-9c4c-9dd435fa3b5f",
+          "reclaimed": false,
+          "owner": "demo+T-1",
+          "state": "claimed",
+          "extra_directories": [],
+          "git_metadata": {
+            "head": "ref: refs/heads/a2a/T-1-a1",
+            "config": "100644:cae33efdb02cf774435c1ff9cb16bcc1014606908530c6e1dc727615fe3e8cda",
+            "worktree_config": null,
+            "hooks": {
+              "applypatch-msg.sample": "100755:0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7",
+              "commit-msg.sample": "100755:1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437",
+              "fsmonitor-watchman.sample": "100755:e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0",
+              "post-update.sample": "100755:81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5",
+              "pre-applypatch.sample": "100755:e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475",
+              "pre-commit.sample": "100755:57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b",
+              "pre-merge-commit.sample": "100755:d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53",
+              "pre-push.sample": "100755:ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a",
+              "pre-rebase.sample": "100755:4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3",
+              "pre-receive.sample": "100755:a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989",
+              "prepare-commit-msg.sample": "100755:e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619",
+              "push-to-checkout.sample": "100755:a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f",
+              "sendemail-validate.sample": "100755:44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92",
+              "update.sample": "100755:8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+            }
+          }
+        },
+        "live": {
+          "workspace": "/private/tmp/t252-bamm4iq6/state/worktrees/demo/T-1-a1",
+          "provider": "codex",
+          "turn": "01a1b95c-e4f8-75b3-8411-08d035c5d738",
+          "runtime_identity": {
+            "launch": "caf23598-9f48-4928-9273-d1de15de148d",
+            "thread": "e0484d14-4378-4182-97db-4a5a7e8083f6",
+            "shell_pid": 96881,
+            "leader_pid": 96884,
+            "native_session": "01a1b95c-d69e-77c2-8b8e-4ec1bb726c16"
+          },
+          "running": false,
+          "stopped": false,
+          "archived": false,
+          "session_ended": false,
+          "blocked": false
+        }
+      }
+    },
+    "new_worker_dispatched": {
+      "ok": false,
+      "error": "already_claimed",
+      "details": null
+    }
+  },
+  "failed": [
+    "old_attempt_reclaimed",
+    "new_worker_dispatched"
+  ],
+  "error": "AssertionError: 未通过：old_attempt_reclaimed、new_worker_dispatched",
+  "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/.claude/worktrees/dreamy-ptolemy-d0f2f0/workbench/tests/test_t252_untrusted_turn_other_cli_e2e.py\", line 328, in main\n    raise AssertionError('未通过：' + '、'.join(report['failed']))\nAssertionError: 未通过：old_attempt_reclaimed、new_worker_dispatched\n",
+  "api": {
+    "requests": 9,
+    "error": null
+  }
+}

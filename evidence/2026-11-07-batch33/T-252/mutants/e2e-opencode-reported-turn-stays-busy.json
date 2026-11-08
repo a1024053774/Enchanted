@@ -1,0 +1,228 @@
+{
+  "status": "FAIL",
+  "argv": [
+    "test_t252_untrusted_turn_other_cli_e2e.py",
+    "--cli",
+    "opencode",
+    "--mutant",
+    "reported-turn-stays-busy",
+    "--summary",
+    "../../evidence/2026-11-07-batch33/T-252/mutants/e2e-opencode-reported-turn-stays-busy.json"
+  ],
+  "cli": "opencode",
+  "launch": "dispatch",
+  "revision": null,
+  "mutant": "reported-turn-stays-busy",
+  "runtime": "real daemon/gate; T-187 fake agy/opencode CLI with OSC 7501 reports; no model; no Electron",
+  "checks": [
+    "untrusted_delivery_not_executed",
+    "controller_status_shows_reason",
+    "issue_names_the_turn",
+    "issue_sent_through_inbox"
+  ],
+  "preconditions": [
+    "outside_hook_judged_foreign"
+  ],
+  "observed": {
+    "attempt": "c62b083c-5096-4754-8e51-b3208997d039",
+    "wait_idle": "超时：窗格不在回合中",
+    "gate_state": "claimed",
+    "pane": {
+      "ok": true,
+      "thread": "aa743d01-fff8-48cb-835d-53ee8e1378d9",
+      "launch": "0a323a9a-5e0b-4a5f-8d6b-aad9431789f3",
+      "state": "busy",
+      "lifecycle": "running",
+      "shell_pid": 89524,
+      "size": {
+        "cols": 160,
+        "rows": 45
+      },
+      "state_source": "host_events",
+      "active": null,
+      "native_session": "osc7501:0a323a9a-5e0b-4a5f-8d6b-aad9431789f3",
+      "start_missing": false,
+      "silent_foreground": null,
+      "unwired_cli": null,
+      "cli_turn": {
+        "state": "idle",
+        "kind": null,
+        "msg": null,
+        "app": "opencode",
+        "id": null
+      },
+      "foreground_cli": null,
+      "hook_turn": null,
+      "turn": "osc7501:032ae642-4ca2-4fe1-a1ce-778fbe3ab4c4",
+      "writing": false,
+      "user_draft": false,
+      "interrupted": false,
+      "input_generation": 0,
+      "interruption": null,
+      "queued": [
+        "e63f5cc9-6d45-4b05-99a7-89546f7085ea"
+      ],
+      "failed": null,
+      "stopped": false,
+      "restoration": null,
+      "delivery": {
+        "task": "demo+T-1",
+        "attempt": "c62b083c-5096-4754-8e51-b3208997d039",
+        "session": "b636fede-e60b-46c8-a445-64c3f53d5461",
+        "fence": 1,
+        "spec_rev": 1,
+        "request_id": "7d3e1202-604e-4dec-84c4-9d8bd3115bb3",
+        "commit": "4dbc2e2f843db88d3a18727fbc29eaf6a5f677e9",
+        "received_at": "2026-11-08T04:11:54.838Z",
+        "result_at": "2026-11-08T04:11:54.838Z",
+        "state": "rejected",
+        "reason": "current_turn_untrusted",
+        "request_turn": "osc7501:032ae642-4ca2-4fe1-a1ce-778fbe3ab4c4",
+        "current_turn": "osc7501:032ae642-4ca2-4fe1-a1ce-778fbe3ab4c4",
+        "native_turn_changed": false,
+        "recovery_request_id": "recover-104"
+      }
+    },
+    "unverified": [
+      {
+        "seq": 66,
+        "reason": "Error: unsupported_hook",
+        "hook": "PostToolUse",
+        "turn": "osc7501:032ae642-4ca2-4fe1-a1ce-778fbe3ab4c4"
+      }
+    ],
+    "relay": [
+      {
+        "seq": 104,
+        "type": "relay_received",
+        "error": null
+      },
+      {
+        "seq": 105,
+        "type": "relay_rejected",
+        "error": "current_turn_untrusted"
+      }
+    ],
+    "stop_failures": [],
+    "issues": [
+      {
+        "title": "交付没被受理：这一回合不可信",
+        "blocking": true,
+        "from_": "system",
+        "to": "executor",
+        "turn_id": "osc7501:032ae642-4ca2-4fe1-a1ce-778fbe3ab4c4",
+        "state": "待判断",
+        "body": "{\n  \"reason\": \"current_turn_untrusted\",\n  \"what\": \"worker 这一回合交来的请求门禁没有执行，已记为拒收，以后也不会再执行。这一回合本身照常结束；窗格之后是否空闲看 status（排着用户输入或被打断时还会继续忙）。\",\n  \"requests\": [\n    {\n      \"request_id\": \"7d3e1202-604e-4dec-84c4-9d8bd3115bb3\",\n      \"command\": \"submit\",\n      \"title\": null\n    }\n  ],\n  \"unverified\": [\n    {\n      \"time\": \"2026-11-08T04:11:51.540Z\",\n      \"reason\": \"Error: unsupported_hook\",\n      \"hook_event_name\": \"PostToolUse\"\n    }\n  ],\n  \"next\": \"看 unverified 是哪个钩子核对不上。要继续这项工作：等 worker 空闲后回收这个 attempt 再派发（它的提交还在 attempt 分支上，新卡可以 cherry-pick）；还忙时回收会被拒（worker_working）。\"\n}"
+      }
+    ],
+    "forged_hook": {
+      "code": 1,
+      "stdout": "{\"ok\":false,\"error\":\"unsupported_hook\",\"details\":\"Error: unsupported_hook\"}\n",
+      "stderr": ""
+    },
+    "inbox_receipts": [
+      {
+        "entry": "f8b567af-c5f8-4feb-b57c-b0c3e444c8ae",
+        "state": "pending",
+        "entry_id": "f8b567af-c5f8-4feb-b57c-b0c3e444c8ae",
+        "created_at": "2026-11-08T04:11:54.840Z"
+      },
+      {
+        "entry": "f8b567af-c5f8-4feb-b57c-b0c3e444c8ae",
+        "state": "pending",
+        "entry_id": "f8b567af-c5f8-4feb-b57c-b0c3e444c8ae",
+        "created_at": "2026-11-08T04:11:54.840Z",
+        "reason": "role_session_missing"
+      }
+    ],
+    "attempt_identity": {
+      "launch": "0a323a9a-5e0b-4a5f-8d6b-aad9431789f3",
+      "thread": "aa743d01-fff8-48cb-835d-53ee8e1378d9",
+      "shell_pid": 89524,
+      "leader_pid": 89527,
+      "native_session": "osc7501:0a323a9a-5e0b-4a5f-8d6b-aad9431789f3"
+    },
+    "reclaim": {
+      "ok": false,
+      "error": "worker_working",
+      "details": null
+    },
+    "redispatch": {
+      "ok": false,
+      "error": "already_claimed",
+      "details": null
+    }
+  },
+  "fixture": "/private/tmp/t252-n13q5sxi",
+  "details": {
+    "outside_hook_judged_foreign": [
+      {
+        "seq": 66,
+        "reason": "Error: unsupported_hook",
+        "hook": "PostToolUse",
+        "turn": "osc7501:032ae642-4ca2-4fe1-a1ce-778fbe3ab4c4"
+      }
+    ],
+    "untrusted_delivery_not_executed": "claimed",
+    "turn_ended_not_running": "busy",
+    "controller_status_shows_reason": [
+      {
+        "title": "交付没被受理：这一回合不可信",
+        "blocking": true,
+        "from_": "system",
+        "to": "executor",
+        "turn_id": "osc7501:032ae642-4ca2-4fe1-a1ce-778fbe3ab4c4",
+        "state": "待判断",
+        "body": "{\n  \"reason\": \"current_turn_untrusted\",\n  \"what\": \"worker 这一回合交来的请求门禁没有执行，已记为拒收，以后也不会再执行。这一回合本身照常结束；窗格之后是否空闲看 status（排着用户输入或被打断时还会继续忙）。\",\n  \"requests\": [\n    {\n      \"request_id\": \"7d3e1202-604e-4dec-84c4-9d8bd3115bb3\",\n      \"command\": \"submit\",\n      \"title\": null\n    }\n  ],\n  \"unverified\": [\n    {\n      \"time\": \"2026-11-08T04:11:51.540Z\",\n      \"reason\": \"Error: unsupported_hook\",\n      \"hook_event_name\": \"PostToolUse\"\n    }\n  ],\n  \"next\": \"看 unverified 是哪个钩子核对不上。要继续这项工作：等 worker 空闲后回收这个 attempt 再派发（它的提交还在 attempt 分支上，新卡可以 cherry-pick）；还忙时回收会被拒（worker_working）。\"\n}"
+      }
+    ],
+    "issue_names_the_turn": {
+      "turn": "osc7501:032ae642-4ca2-4fe1-a1ce-778fbe3ab4c4",
+      "issues": [
+        "osc7501:032ae642-4ca2-4fe1-a1ce-778fbe3ab4c4"
+      ]
+    },
+    "issue_sent_through_inbox": {
+      "controller_launch": [
+        "a552214c-3cc0-4539-b2a5-210783e8cb00"
+      ],
+      "terminal": "a552214c-3cc0-4539-b2a5-210783e8cb00",
+      "receipts": [
+        {
+          "entry": "f8b567af-c5f8-4feb-b57c-b0c3e444c8ae",
+          "state": "pending",
+          "entry_id": "f8b567af-c5f8-4feb-b57c-b0c3e444c8ae",
+          "created_at": "2026-11-08T04:11:54.840Z"
+        },
+        {
+          "entry": "f8b567af-c5f8-4feb-b57c-b0c3e444c8ae",
+          "state": "pending",
+          "entry_id": "f8b567af-c5f8-4feb-b57c-b0c3e444c8ae",
+          "created_at": "2026-11-08T04:11:54.840Z",
+          "reason": "role_session_missing"
+        }
+      ]
+    },
+    "old_attempt_reclaimed": {
+      "ok": false,
+      "error": "worker_working",
+      "details": null
+    },
+    "new_worker_dispatched": {
+      "ok": false,
+      "error": "already_claimed",
+      "details": null
+    }
+  },
+  "failed": [
+    "turn_ended_not_running",
+    "old_attempt_reclaimed",
+    "new_worker_dispatched"
+  ],
+  "error": "AssertionError: 未通过：turn_ended_not_running、old_attempt_reclaimed、new_worker_dispatched",
+  "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/.claude/worktrees/dreamy-ptolemy-d0f2f0/workbench/tests/test_t252_untrusted_turn_other_cli_e2e.py\", line 328, in main\n    raise AssertionError('未通过：' + '、'.join(report['failed']))\nAssertionError: 未通过：turn_ended_not_running、old_attempt_reclaimed、new_worker_dispatched\n",
+  "api": {
+    "requests": 0,
+    "error": null
+  }
+}
