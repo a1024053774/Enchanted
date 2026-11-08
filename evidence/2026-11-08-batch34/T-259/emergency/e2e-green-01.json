@@ -1,0 +1,106 @@
+{
+  "status": "INCOMPLETE",
+  "argv": [
+    "workbench/tests/test_t259_preparing_reclaim_e2e.py",
+    "--summary",
+    "evidence/2026-11-08-batch34/T-259/emergency/e2e-green-01.json"
+  ],
+  "revision": null,
+  "checks": [
+    {
+      "name": "dispatch_failed_after_creation_before_binding",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "running_preparation_still_refused",
+      "passed": true,
+      "detail": {
+        "ok": false,
+        "error": "preparation_not_stopped_or_unsent",
+        "user_input_observer": {
+          "state": "healthy",
+          "updated_at": "2026-11-08T17:58:36.470Z"
+        }
+      }
+    },
+    {
+      "name": "first_daemon_exited",
+      "passed": true,
+      "detail": null
+    }
+  ],
+  "errors": [
+    {
+      "error": "超时：isolated daemon readiness",
+      "stack": "Traceback (most recent call last):\n  File \"/private/tmp/a2a-t259-repair-20261108/workbench/tests/test_t259_preparing_reclaim_e2e.py\", line 66, in main\n    start_host()\n  File \"/private/tmp/a2a-t259-repair-20261108/workbench/tests/test_t259_preparing_reclaim_e2e.py\", line 46, in start_host\n    fixture.wait('isolated daemon readiness', lambda: ready.exists(), 25)\n  File \"/private/tmp/a2a-t259-repair-20261108/workbench/tests/scripted_claude.py\", line 307, in wait\n    assert time.monotonic() < deadline, f'超时：{label}'\nAssertionError: 超时：isolated daemon readiness\n"
+    }
+  ],
+  "observed": {
+    "dispatch": {
+      "ok": false,
+      "error": "gate_failure",
+      "details": "SyntaxError: T259 injected first read failure after real pane creation",
+      "user_input_observer": {
+        "state": "healthy",
+        "updated_at": "2026-11-08T17:58:36.470Z"
+      }
+    },
+    "attempt": {
+      "task_id": "demo+T-259",
+      "attempt_id": "33cfe144-5725-4e91-b031-e6c720b0bd27",
+      "session_id": "797e0b13-a4b3-4a61-b1b4-e63a76169cb2",
+      "fence": 1,
+      "spec_rev": 1,
+      "thread_id": "77338497-f293-46af-8e98-736416d8d19a",
+      "runtime_mode": "workspace-write",
+      "turn_id": null,
+      "runtime_identity": null,
+      "workspace": "/private/tmp/t259-e2e-fmmzoqgi/state/worktrees/demo/T-259-a1",
+      "base_commit": "d2c5ee863e99e37d1af3a7dfde9065ef7e5d4497",
+      "card_snapshot_id": "f01aa7dd-2e76-4f11-9428-d9d5127264f9",
+      "reclaimed": false,
+      "owner": "demo+T-259",
+      "state": "preparing",
+      "extra_directories": [],
+      "git_metadata": {
+        "head": "ref: refs/heads/a2a/T-259-a1",
+        "config": "100644:cae33efdb02cf774435c1ff9cb16bcc1014606908530c6e1dc727615fe3e8cda",
+        "worktree_config": null,
+        "hooks": {
+          "applypatch-msg.sample": "100755:0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7",
+          "commit-msg.sample": "100755:1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437",
+          "fsmonitor-watchman.sample": "100755:e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0",
+          "post-update.sample": "100755:81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5",
+          "pre-applypatch.sample": "100755:e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475",
+          "pre-commit.sample": "100755:57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b",
+          "pre-merge-commit.sample": "100755:d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53",
+          "pre-push.sample": "100755:ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a",
+          "pre-rebase.sample": "100755:4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3",
+          "pre-receive.sample": "100755:a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989",
+          "prepare-commit-msg.sample": "100755:e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619",
+          "push-to-checkout.sample": "100755:a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f",
+          "sendemail-validate.sample": "100755:44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92",
+          "update.sample": "100755:8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+        }
+      }
+    }
+  },
+  "model_calls": 0,
+  "fixture": "/private/tmp/t259-e2e-fmmzoqgi",
+  "core_cleanup": {
+    "exit": 0,
+    "stdout": "{\"stopped\":true}\n",
+    "stderr": "",
+    "session": "enchanted-e5e4c6e9-525c-46f7-9626-49bd0bd73ac6"
+  },
+  "host_logs": [
+    "",
+    "node:fs:697\n  return binding.open(\n                 ^\n\nError: EEXIST: file already exists, open '/private/tmp/t259-e2e-fmmzoqgi/operator.json'\n    at Object.openSync (node:fs:697:18)\n    at writeFileSync (node:fs:2928:35)\n    at createOperatorCredential (file:///private/tmp/a2a-t259-repair-20261108/workbench/src/credentials.ts:18:3)\n    at file:///private/tmp/a2a-t259-repair-20261108/workbench/tests/t259_preparing_host.ts:12:1 {\n  errno: -17,\n  code: 'EEXIST',\n  syscall: 'open',\n  path: '/private/tmp/t259-e2e-fmmzoqgi/operator.json'\n}\n\nNode.js v26.5.0\n"
+  ],
+  "cleanup": {
+    "directory": "/private/tmp/t259-e2e-fmmzoqgi",
+    "files": 70,
+    "bytes": 7205087
+  }
+}
