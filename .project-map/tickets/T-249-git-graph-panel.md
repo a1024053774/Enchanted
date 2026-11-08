@@ -62,3 +62,25 @@ ready_rev: 1
   执行主控 Claude Code `claude-opus-5-5` xhigh；worker 与 reviewer 都是 Codex `gpt-6-astra` xhigh，不开 Fast。验收没有改：Codex `gpt-6.1-terra` 用 Computer Use 和常规测试验收。此前（2026-11-07）的分工是 Claude Code `claude-opus-5-5` medium 执行，这个写法已被上面这句取代。
 - macOS 隐私授权：新包首次访问“文稿”时，若弹出系统授权框，用户已授权执行方用 Computer Use 点“允许”；点不了就让验收的 Codex 点。只限这一个针对 Enchanted Test 的“文稿”授权框；其他系统设置、登录、付款等仍要停下问用户。每次代点记入证据（时间、谁点的、对话框原文）。
 - 完成后在 worktree 的分支上提交，经验收 PASS 后合入本地 main，不 push。
+
+## 进度（2026-11-08，执行主控）
+
+交接来自会话 `local_e9998522-d926-46a1-aac9-eda70d24d2b9`；2026-11-08 Claude 额度将尽，这一节写给接手的人。
+
+- 第三次派发（attempt `6bab2eb9`，候选 `0c3da7ade`）的审查结论“需修复”，现场见 [review-01](../../evidence/2026-11-07-batch33/T-249/controller/review-01.md)。两条 P2 已用真实 git 复现。
+- 用户选择“改设置并重审”。审查员设置已于 09:14:44Z 保存为 `gpt-6-astra` xhigh（`orchestration_events` seq 137637）。
+- 第四次派发用任务卡 v4，修两条 P2，并补 `no-panel` 变异。
+- 新缺陷票：[T-255](T-255-run-verify-operation-busy.md)、[T-256](T-256-codex-reviewer-ignores-worker-selection.md)。
+
+下一步：
+
+1. 这次用 `dispatch`，不用 `run`：主控额度用完时，`run` 会在 `verified` 后自己集成，跳过端到端和 terra 验收。任务停在 `submitted` 时手动发 `verify`。
+2. 审查开始后读 `launch_records`，核对审查员是 `gpt-6-astra` xhigh，不符就停下上报。
+3. **审查进行中不要向 main 提交，也不要在本仓库新建或移动任何引用**，否则门禁回收时报 `review_shared_refs_changed`，任务转入 `paused`。
+4. 审查“可合并”后，由主控在沙箱外、候选 worktree 里运行 `bash workbench/app/RUN-OUTSIDE-T249.sh <slot>`。`no-panel`、`parents`、`order` 三个变异都要判红。
+5. 开 Codex `gpt-6.1-terra` 用 Computer Use 与常规测试按 Acceptance 逐条验收，并核对审查员留下的 Esc 与焦点问题。Enchanted Test 弹“文稿”授权框时不代点，停下告诉用户（交接说明比下面的授权更窄，按窄的做）。
+6. 候选含 `workbench/app/RUN-OUTSIDE-T249.sh`，属于 REVIEW.md 的敏感路径：集成前把证据交用户读，用户批准后才集成。
+7. 带 `score_file` 集成到本地 main，不 push；手动 `reclaim`；核对 `evidence/` 有没有被稀疏 checkout 删掉；地图核对 REVIEW.md 的 Verified；关票。
+8. 同样的做法做 T-250。
+
+现场遗留：审查 01 的副本 `review-copies/368d3d31-…` 和 `worktrees/a2a/T-249-1-a2-review-1` 由门禁管理，没有手动删，等用户决定。
