@@ -1,0 +1,66 @@
+{
+  "id": "T-249-1",
+  "source": {
+    "ticket": "/Users/luckye/Documents/Code/a2a/.project-map/tickets/T-249-git-graph-panel.md",
+    "ready_rev": 1
+  },
+  "goal": "T-249-1 第六版恢复卡：接回已完成代码，补齐主控实跑证据，不做新的产品修复。用户本轮原话“打包完后用 astra xhigh 做执行主控，分配任务继续”，以及“worker 与 reviewer 都用 gpt-6-astra xhigh 普通速度，最后两个面板仍用 gpt-6.1-terra Computer Use 加常规测试验收……别启动 Claude，别跳过敏感变更集成前的用户证据批准”；授权见本轮消息及 evidence/2026-11-08-controller-switch/executor-handoff.md。T-257 已完成；T-249 前一 attempt b33751df-0d57-4223-834d-4d467b199e22 已提交且空闲，但达到正常六回合上限，现已 gate reclaim 成功。没有重启后台、增加限额或绕过队列。\n\n完成的代码候选 C=1243bc15f979976967cfd2d5cdd3a2acce6df635，原基线 B=b7cce248c5ed85dd9342ade10886287365273863。主控在最后审查前已真实运行窗口正例两次各 142 项 PASS，no-panel/no-details/no-diff/parents/order 五项分别命中指定业务断言；全部 cleanup PASS、fixture_removed true、user_core_unchanged true。Test App 已标准打包，bundle org.a2a.workbench.test，revision 精确为 C，无 +dirty，并经 Computer Use 打开、显示后台已连接；正式后台 PID81233/启动13:56:08Z未变。\n\n外部证据已提交 main c1e737a6b608ae36f6537073422d3deac9c22e78，路径 evidence/2026-11-08-batch34/T-249/controller/ 下的 DETAILS-WINDOW.md、window-details-cache-02/、outside-details-01-preservation.json、outside-details-01/。首轮空 hc 缓存五项启动超时为 INCOMPLETE，失败原样保留；补固定缓存后七次真实窗口运行符合预期。review 170295e4-b8ce-4804-8954-925c1fca8bba 仅因未取得这些外部证据而要求补证；没有新产品缺陷。它自身窗口运行在 ps 被沙箱拒绝，不算业务红态。完整报告在 main cee49e1df 的 evidence/2026-11-08-batch34/T-249/controller/review-final-result.json。按 T-240，最终门禁只核对该已知缺口的实际检测能力证据，不再泛化源码审查。\n\n步骤：\n1. 你不是唯一参与者；主控写 .project-map 与 batch34/controller，你只写卡内文件，不撤销他人的改动。读主仓库当前 T-249 ticket 与上述实跑事实。\n2. 在新 worktree 根执行 git diff --binary B C | git apply（把 B/C 换成上面完整提交），只恢复旧卡内实现与证据。不要 cherry-pick 旧身份提交、移动共享引用、修改 sparse 设置。核对 workbench/ 与 C 一致。\n3. 在 evidence/2026-11-07-batch33/T-249/attempt-fence5/outside-controller-02/ 复制上述小型文本结果并写 RESULTS.md，标明原路径、完整来源 commit、执行人为主控、实际被测版本 C；不能冒充自己跑过。包含首轮失败与之后两次正例、五项指定反例、清理及包版本。回应最后审查唯一证据条目。不要修改任何产品、测试或脚本逻辑，不绕过沙箱。\n4. 重跑卡上三条无界面完成条件，TMPDIR/TMP/TEMP 用本会话 A2A 请求目录的自有子目录，保存结果并清理。无需重复窗口、打包、扫描或产品评审。主控已补跑扫描及人工核对；main 地图 Problems0/Stale0，候选 REVIEW.md Verified 的 stale 由主控集成后处理，worker 不改冻结文档。\n5. git add --sparse、git commit，使用当前真实身份尾注。保存 git diff --exit-code C HEAD -- workbench acceptance 为零的事实；本次恢复只导入既有实现与补交文本。显式 submit 一次，queued 不是受理，结束回合等待，不为正常回执制造提交。\n\n后续：提交受理 → astra xhigh 最终限定证据核对（必须读取候选内 outside-controller-02/ 实跑证据，不再误称窗口未跑）→ terra Computer Use 加常规测试 → 用户读敏感证据批准 → gate integrate 带 score_file → reclaim。代码一致即可沿用版本 C 的 Test 包与窗口结果，不能冒称新文本提交也重新打包。最多三条 Codex CLI，不启动 Claude，不 push。T-250 在本票完成后继续。冻结验收和权限不变。\n\n以下是原功能要求，恢复既有实现即可：\n\n\n按 .project-map/tickets/T-249-git-graph-panel.md 做：工作台右侧的面板位（内部注册表，只做 T-249、T-250 两个面板要用的部分），和第一个面板“Git 图”，功能照 herdr-git-graph（MIT，Copyright (c) 2026 Rabeeh T A，借鉴的源文件保留版权声明）。票里“要做的”1～5 条全部做，“Acceptance”是要达成的结果。\n\n先读：AGENTS.md、票、workbench/README.md、workbench/app/（renderer.tsx、main.ts、preload.ts、package.mjs、start.mjs）。动手前说得出面板放在哪个组件、聚焦窗格的 cwd 从哪来、git 在哪一层按 argv 执行。\n\n无界面入口（完成条件依赖它，必须照做）：workbench/app/panels/gitGraphCli.ts，用 `node workbench/app/panels/gitGraphCli.ts <repo> [--scope all|current]` 运行（Node 26 直接跑 .ts，不加依赖），stdout 输出一个 JSON：{\"rows\":[{\"hash\",\"parents\",\"refs\",\"head\",\"lane\",\"segments\"}],\"uncommitted\":{\"files\":N}|null}。rows 只含提交、从新到旧；refs 是指向该提交的完整引用名（refs/heads/x、refs/tags/x；“所有分支”不含远程时不列远程）；segments 是该行线段 [fromLane,fromY,toLane,toY,colorLane,dashed]。`--action '<JSON>'`（如 {\"type\":\"createBranch\",\"name\":\"x\",\"hash\":\"<oid>\"}、{\"type\":\"deleteBranch\",\"name\":\"x\"}）用界面同一份命令代码执行写操作，名字非法时非零退出。这个入口必须调用界面用的同一份模型与命令代码，不能另写一套。泳道规则照原 mod 的 lanes.js（第一个父提交继承本列；其他父提交优先用已在等它的列，否则占第一个空列或新开一列；多列等同一提交时取最左的一列并合并其余列；末尾空列去掉）。\n\n可参考的半成品：之前一个被停掉的会话在 /Users/luckye/Documents/Code/a2a-wt/git-panels/workbench/app/（gitHost.ts，panels/ 下的 GitGraphPanel.tsx、PanelDock.tsx、gitGraphModel.ts、panels.css）写了一部分，未经审查。能读到就可以参考或搬过来；搬过来的代码一样要自己核对，并进入交付和审查。不要改那个目录。\n\ngit 一律按 argv 执行、不经 shell，读操作带 --no-optional-locks -c core.fsmonitor=false -c diff.autoRefreshIndex=false。名字以 - 开头的拒绝。跟随门禁管理的任务 worktree 时，面板只读，写操作不可用，并说明原因。\n\n测试与界面验证：加一个经真实入口的端到端测试，放在 workbench/tests/ 下，写法参照 test_t212_shell_hc_e2e.py 和 cdp.mjs。用独立数据目录启动 Electron，夹具仓库在测试里新建，期望值从 git 读。测试要在已知坏的实现上判红，红态、绿态两次结果都留下。沙箱里起不了 Electron 的话，写一个 workbench/app/RUN-OUTSIDE-T249.sh，由主控在沙箱外运行：用 `npm run package:mac -- --variant test --slot <新 slot>` 打出 Enchanted Test（独立 bundle id 与数据目录），跑端到端测试，结束后清理构建目录、缓存和夹具，只按需保留待验收的包。不替换、不启动 /Applications/Enchanted.app，不碰正在运行的 Enchanted 后台、它的数据目录和 hc core。\n\n交付前：完成条件 python3 acceptance/T-249/check_git_graph.py 通过；在 evidence/2026-11-07-batch33/T-249/ 写 RESULTS.md，内容包括做了什么、测试命令、红绿结果、留给主控在沙箱外运行的命令。文档和交付说明用中文写。",
+  "non_goals": [
+    "不做 T-250 的改动面板（下一张卡）",
+    "不做公开的 mod 接口、第三方 mod 加载、清单文件与沙箱",
+    "不做远程机器和原 mod 的自动更新检查",
+    "不改门禁 workbench/src/gates/ 与 acceptance/",
+    "不加新依赖；确实需要时先用 issue 上报理由",
+    "不替换或启动 /Applications/Enchanted.app，不碰正在运行的 Enchanted 后台与 hc core",
+    "不 push"
+  ],
+  "paths": {
+    "allow": [
+      "workbench/app/",
+      "workbench/tests/",
+      "workbench/README.md",
+      "evidence/2026-11-07-batch33/T-249/"
+    ],
+    "deny": [
+      "workbench/src/gates/",
+      "acceptance/",
+      "workbench/package.json",
+      "workbench/package-lock.json"
+    ]
+  },
+  "oracle_paths": [
+    "acceptance/T-249/check_git_graph.py"
+  ],
+  "completion_conditions": [
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "acceptance/T-249/check_git_graph.py"
+      ]
+    },
+    {
+      "argv": [
+        "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+        "--test",
+        "workbench/tests/test_t249_git_host.mjs"
+      ]
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "workbench/tests/test_t249_outside_safety.py"
+      ]
+    }
+  ],
+  "red_commands": [],
+  "task_type": "前端界面",
+  "repair_target": null,
+  "complexity": "L",
+  "executor": {
+    "cli": "Codex",
+    "model": "gpt-6-astra",
+    "effort": "xhigh"
+  },
+  "base_commit": null,
+  "writer": null
+}
