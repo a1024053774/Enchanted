@@ -1,0 +1,20 @@
+$ /usr/bin/python3 acceptance/T-249/check_git_graph.py
+ok   [all] 提交顺序与 git rev-list --date-order --branches --tags --ignore-missing HEAD 一致
+ok   [all] 每行父提交与 git rev-list --parents 一致
+ok   [all] 每行的引用与 git for-each-ref refs/heads refs/tags 一致
+ok   [all] 恰好 HEAD 那一行标为 head
+ok   [all] 泳道与按原 mod 规则手推的一致：期望 {'s1': 0, 'm': 1, 'f2': 2, 'c3': 1, 'f1': 2, 'c2': 0, 'c1': 0}，实际 {'s1': 0, 'm': 1, 'f2': 2, 'c3': 1, 'f1': 2, 'c2': 0, 'c1': 0}
+ok   [current] 提交顺序与 git rev-list --date-order HEAD 一致
+ok   [current] 每行父提交与 git rev-list --parents 一致
+ok   [current] 每行的引用与 git for-each-ref refs/heads refs/tags 一致
+ok   [current] 恰好 HEAD 那一行标为 head
+ok   [current] 泳道与按原 mod 规则手推的一致：期望 {'m': 0, 'f2': 1, 'c3': 0, 'f1': 1, 'c2': 0, 'c1': 0}，实际 {'m': 0, 'f2': 1, 'c3': 0, 'f1': 1, 'c2': 0, 'c1': 0}
+ok   未提交行存在，文件数与 git status 一致（期望 2，实际 {'files': 2, 'staged': 0, 'lane': 1, 'segments': [[1, 0.5, 1, 1, 1, True]], 'head': '829698aa40e896d0344cbf3f96690e85dc53fb46'}）
+ok   merge 那一行有一条从自己的圆点（第 1 列）通向第二个父提交所在第 2 列的线段：[[0, 0, 0, 1], [1, 0.5, 1, 1], [1, 0.5, 2, 1], [1, 0, 1, 0.5]]
+ok   新建分支后多出且只多出 refs/heads/made-by-panel，指向 c3
+ok   删除分支后引用回到原样
+ok   名字以 - 开头的新建分支被拒（非零退出），引用不变
+ok   写操作没有动未提交的改动
+PASS
+
+exit=0

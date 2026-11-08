@@ -1,0 +1,11 @@
+--- workbench/app/panels/gitGraphModel.ts
++++ workbench/app/panels/gitGraphModel.ts
+@@ -65,7 +65,7 @@
+   for (let i = 0; i < fields.length; i += 7) {
+     const [hash, parents, author, email, time, refs, subject] = fields.slice(i, i + 7) as string[];
+     const parsed = parseRefs(refs!);
+-    const commit: Commit = { hash: hash!, parents: parents ? parents.split(' ') : [], author: author!, email: email!, time: Number(time),
++    const commit: Commit = { hash: hash!, parents: parents ? parents.split(' ').reverse() : [], author: author!, email: email!, time: Number(time),
+       refs: parsed, subject: subject!, head: parsed.some(r => r.head || r.kind === 'detached') };
+     checkCommit(commit);
+     if (!/^\d+$/.test(time!) || !Number.isSafeInteger(commit.time)) throw new Error('Invalid commit time');

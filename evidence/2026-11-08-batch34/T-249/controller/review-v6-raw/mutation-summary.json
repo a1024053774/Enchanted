@@ -1,0 +1,42 @@
+[
+  {
+    "name": "parents",
+    "path": "workbench/app/panels/gitGraphModel.ts",
+    "before": "parents: parents ? parents.split(' ') : [],",
+    "after": "parents: parents ? parents.split(' ').reverse() : [],",
+    "command": [
+      "/usr/bin/python3",
+      "acceptance/T-249/check_git_graph.py"
+    ],
+    "exit": 1,
+    "killed": true,
+    "signal": "FAIL [all] 每行父提交"
+  },
+  {
+    "name": "literal-pathspec",
+    "path": "workbench/app/panels/gitGraphModel.ts",
+    "before": "const file = `:(top,literal)${path}`;",
+    "after": "const file = path;",
+    "command": [
+      "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+      "--test",
+      "workbench/tests/test_t249_git_host.mjs"
+    ],
+    "exit": 1,
+    "killed": true,
+    "signal": "another file leaked into the selected diff"
+  },
+  {
+    "name": "wrong-assertion",
+    "path": "workbench/app/RUN-OUTSIDE-T249.sh",
+    "before": "'e2e-red-no-diff': '点击文件后单文件 diff 可见'",
+    "after": "'e2e-red-no-diff': '点击提交后详情可见'",
+    "command": [
+      "/usr/bin/python3",
+      "workbench/tests/test_t249_outside_safety.py"
+    ],
+    "exit": 1,
+    "killed": true,
+    "signal": "test_disconnected_ui_requires_its_specific_business_assertion"
+  }
+]

@@ -21,6 +21,8 @@ INCOMPLETE：候选 `1243bc15f979976967cfd2d5cdd3a2acce6df635` 已提交，真�
 
 补充（15:03Z）：旧 attempt 达到正常六回合上限，空闲后经门禁回收成功；没有重启后台或增大限额。card/spec 6 的新 attempt `90127e07-7aa0-41d3-ade9-55a56a9ff584` 已交付候选 `18c108fcaed1c4ecf51831f2272578a3b09427be`。主控独立核对其 workbench/ 和 acceptance/ 与实际实跑版本 `1243bc15` 完全一致；候选内新增来源明确的主控窗口证据，三条机械条件重新通过。核对记录见 [生产树一致性](../../evidence/2026-11-08-batch34/T-249/controller/worker-v6-product-equivalence.json)。Test 包仍准确标记为 `1243bc15`，不冒称对这次文本提交重新打包。
 
+补充（15:10Z）：最终限定审查 `9155d2de-7eeb-4515-b31b-46214d7f7532` 为“可合并”、findings 为空，门禁状态 verified。审查员独立核对代码一致性、46 份证据来源与两次正例／五项红态，并亲自运行三个小变异，均被拒绝；[原始结论](../../evidence/2026-11-08-batch34/T-249/controller/review-v6-result.json)明确整票仍 INCOMPLETE。现在进入 terra 的独立 Computer Use 与常规测试，随后仍须用户阅读敏感证据批准，尚未集成。
+
 ## 上次执行停点（2026-11-08 13:56Z）
 
 BLOCKED：T-257 已修复、打包安装并经门禁回收旧 attempt 后，v4 新 attempt 27481daa-4502-44a9-873e-c00a7b1cab4a 完成两条 P2 修复与 no-panel 变异覆盖，候选为 9f96a9121ba6ed8d77a514a0a78c9341ceaacb86。worker 保留了修前红态；冻结机械验收、22 个宿主场景、5 个脚本安全检查和标准构建通过。真实窗口和 terra 验收尚未执行，新面板尚未打包。
