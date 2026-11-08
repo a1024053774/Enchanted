@@ -10,7 +10,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { StringDecoder } from "node:string_decoder";
 import { HcRuntime, HcTerminal } from './hc.ts';
 import { ByProcess, type Front } from './byProcess.ts';
-import { validateHookEnvelope, questionFromHook, questionPermission, questionAnswerConfirmed, projectQuestions, nativeAnswerKeys, currentTurnBinding, noncurrentHook, currentTurnTrust } from './questions.ts';
+import { validateHookEnvelope, questionFromHook, questionPermission, questionAnswerConfirmed, projectQuestions, nativeAnswerKeys, currentTurnBinding, noncurrentHook, currentTurnTrust, insideLaunchDirectories } from './questions.ts';
 import type { A2AAttachment, A2AAttempt, A2ATask, A2AReview, A2ARepair } from "./contracts/a2aGates.ts";
 import { Refusal, treeWritable, type GateRuntime, type SubmitCaller } from "./gates/core.ts";
 import { OrchestrationStore, type DispatchSource } from "./store.ts";
@@ -259,7 +259,7 @@ type Pane = {
   claudePromptIds?: Set<string>;
   claudeQueuedPrompts?: { prompt: string; received_at: string;
     stops?: Map<string, { value: any; received_at: string;
-      transfer?: (pane: Pane, stop: any, matched: boolean) => Promise<void> }> }[];
+      transfer?: (pane: Pane, stop: any, matched: boolean, refusal?: string) => Promise<void> }> }[];
   permission?: { prompt_id: string; submission: string } | null;
   login?: ClaudeLogin;
   loginCleanup?: Promise<void>;
@@ -2061,7 +2061,7 @@ export class Panes implements GateRuntime {
       delivery: record.role === 'worker' ? this.deliveryStatus(record) : null };
   }
   async signal(launch: string, raw: string, received_at: string,
-    transfer?: (pane: Pane, stop: any, matched: boolean) => Promise<void>) {
+    transfer?: (pane: Pane, stop: any, matched: boolean, refusal?: string) => Promise<void>) {
     const pane = this.byLaunch(launch);
     this.store.event("hook_received", { raw_stdin: raw, received_at }, pane.record);
     let value: any;
@@ -2106,7 +2106,7 @@ export class Panes implements GateRuntime {
       // SessionEnd is session-scoped: the CLI can exit at its prompt, after the last turn has been cleared.
       if (pane.record.cli === "Claude Code" && value.hook_event_name === "SessionEnd") {
         check(typeof value.session_id === "string" && value.session_id.length > 0 && value.session_id === pane.native &&
-          !value.agent_id && value.cwd === pane.record.worktree &&
+          !value.agent_id && insideLaunchDirectories(pane.record, value.cwd) &&
           typeof value.transcript_path === "string" && basename(value.transcript_path) === `${pane.native}.jsonl` &&
           typeof value.reason === "string" && value.reason.length > 0, "session_end_mismatch");
         this.store.event("native_session_ended", { native_session: pane.native, shell_pid: pane.pty.pid,
@@ -2116,6 +2116,14 @@ export class Panes implements GateRuntime {
       }
       // A Claude worker's session start is its ready signal: release the first task to it.
       if (pane.record.cli === "Claude Code" && pane.record.role !== "controller" && value.hook_event_name === "SessionStart") {
+        // T-251: after compacting its context (mid-turn too) Claude Code starts the same session again with source
+        // "compact" (seen 2026-11-07 on the T-249 worker). Same envelope as any hook of this session; no turn state changes.
+        if (value.source === "compact" && pane.started) {
+          check(value.session_id === pane.native && !value.agent_id && insideLaunchDirectories(pane.record, value.cwd) &&
+            typeof value.transcript_path === "string" && basename(value.transcript_path) === `${pane.native}.jsonl`, "session_start_mismatch");
+          this.store.event("native_session_compacted", { native_session: value.session_id }, pane.record);
+          return;
+        }
         // A monitor resumed after a restart (T-124) starts its session again with source "resume".
         check(value.session_id === pane.native && value.cwd === pane.record.worktree && value.source === (pane.restored ? "resume" : "startup"), "session_start_mismatch");
         check(pane.state === "unknown" && !pane.active && !pane.failed, "initial_release_only");
@@ -2286,7 +2294,7 @@ export class Panes implements GateRuntime {
   // T-187: the end of an agy or opencode turn, sent by the daemon itself under the pane's launch identity when the CLI
   // reports it (reportedTurns). The same transfer and completion as a Codex Stop, without a hook envelope to check.
   private async reportedStop(pane: Pane, value: any, received_at: string,
-    transfer?: (pane: Pane, stop: any, matched: boolean) => Promise<void>) {
+    transfer?: (pane: Pane, stop: any, matched: boolean, refusal?: string) => Promise<void>) {
     check(value.hook_event_name === "Stop" && value.source === "osc7501" && value.session_id === pane.native, "unsupported_hook");
     check(Number.isFinite(Date.parse(received_at)), "hook_received_at_required");
     this.store.event("turn_end_signal", value, pane.record);
@@ -2398,7 +2406,7 @@ export class Panes implements GateRuntime {
     })().catch(error => this.recordFailure(pane, "agy_trust_failed", error, { screen: pane.startupScreen }));
   }
   async claudeStop(pane: Pane, value: any, received_at: string,
-    transfer?: (pane: Pane, stop: any, matched: boolean) => Promise<void>) {
+    transfer?: (pane: Pane, stop: any, matched: boolean, refusal?: string) => Promise<void>) {
     validateHookEnvelope(pane, value);
     check(Number.isFinite(Date.parse(received_at)), 'hook_received_at_required');
     const active = pane.active;
@@ -2422,12 +2430,17 @@ export class Panes implements GateRuntime {
       }
       this.store.event('stop_not_matched', value, pane.record); return;
     }
-    check(currentTurnTrust(pane, this.store.read().filter(e => e.launch === pane.record.id)) === 'verified', 'current_turn_untrusted');
+    const trust = currentTurnTrust(pane, this.store.read().filter(e => e.launch === pane.record.id));
+    // T-251: a worker turn judged untrusted (a hook of unverified origin) has still ended; this Stop is the session's own,
+    // matched by prompt id. Its requests are refused, never run, and the turn ends like any other: otherwise the gate sees
+    // a worker in its turn forever, cannot reclaim it, and nobody hears of the lost delivery. The daemon tells the executor.
+    const refusal = trust === 'unknown' && pane.record.role === 'worker' ? 'current_turn_untrusted' : undefined;
+    check(trust === 'verified' || refusal, 'current_turn_untrusted');
     if (pane.record.role !== 'controller') this.claudeTurnFacts(pane, value);
     pane.stopInProgress = true;
     try {
-      if (transfer) await transfer(pane, value, true);
-      check(currentTurnTrust(pane, this.store.read().filter(e => e.launch === pane.record.id)) === 'verified', 'current_turn_untrusted');
+      if (transfer) await transfer(pane, value, true, refusal);
+      check(refusal || currentTurnTrust(pane, this.store.read().filter(e => e.launch === pane.record.id)) === 'verified', 'current_turn_untrusted');
       if (pane.active !== active || pane.claudePromptId !== value.prompt_id) {
         this.store.event('stop_not_matched', { ...value, stage: 'after_transfer' }, pane.record); return;
       }
@@ -2435,7 +2448,7 @@ export class Panes implements GateRuntime {
       pane.active = null; pane.claudePromptId = null; pane.permission = null;
       pane.state = pane.interrupted || pane.claudeQueuedPrompts?.length ? 'busy' : 'idle';
       this.store.event(pane.claudeQueuedPrompts?.length ? 'pane_waiting_native_queue' : pane.state === 'idle' ? 'pane_idle' : 'pane_completion_held',
-        { submission: active!.id, stop: value }, pane.record);
+        { submission: active!.id, stop: value, ...(refusal ? { refused: refusal } : {}) }, pane.record);
     } catch (error) {
       this.recordFailure(pane, 'stop_transfer_failed', error); throw error;
     } finally { pane.stopInProgress = false; }

@@ -1,4 +1,4 @@
-import { basename } from 'node:path';
+import { basename, isAbsolute, relative } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { nativeSessionFile } from './paneRecovery.ts';
 import { Refusal } from './gates/core.ts';
@@ -45,6 +45,20 @@ export function currentTurnTrust(pane: any, events: any[]): 'verified' | 'unknow
   return permission ? 'permission' : 'verified';
 }
 
+// T-251: a hook's cwd is the agent shell's current directory, which follows `cd`. A cwd in the launch's workspace or
+// in a directory the gate gave it with --add-dir (extra_directories), subdirectories included, is this session's;
+// anything else, a relative path, or a sibling that only shares the prefix, is not.
+export function insideLaunchDirectories(record: { worktree: string; extra_directories?: string[] }, cwd: unknown): boolean {
+  if (typeof cwd !== 'string' || !isAbsolute(cwd)) return false;
+  return [record.worktree, ...(record.extra_directories ?? [])].some(root => {
+    const path = relative(root, cwd);
+    return inside(path);
+  });
+}
+function inside(relative: string) {
+  return relative === '' || relative !== '..' && !relative.startsWith('../') && !isAbsolute(relative);
+}
+
 // All hook kinds pass the same envelope checks before event-specific logic.
 // Exclusion of explicit foreign/old/child identity precedes this function.
 // Fresh Codex launches use the same strict root-file locator as recovery; a
@@ -52,7 +66,7 @@ export function currentTurnTrust(pane: any, events: any[]): 'verified' | 'unknow
 export function validateHookEnvelope(pane: any, value: any): void {
   const claude = pane.record.cli === 'Claude Code';
   requireField(typeof value.session_id === 'string' && value.session_id.length > 0 && value.session_id === pane.native, 'hook_native_session_mismatch');
-  requireField(!value.agent_id && value.cwd === pane.record.worktree && typeof value.transcript_path === 'string' &&
+  requireField(!value.agent_id && insideLaunchDirectories(pane.record, value.cwd) && typeof value.transcript_path === 'string' &&
     (claude ? basename(value.transcript_path) === `${pane.native}.jsonl` :
       value.transcript_path === (pane.nativeFile ?? nativeSessionFile(pane.record, pane.native))), 'question_origin_unverified');
   if (claude) {

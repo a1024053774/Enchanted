@@ -65,8 +65,10 @@ export class RequestRelay {
     this.store.event("relay_feedback_intent", { key, entry_id: delivery.entry_id, delivery });
     return true;
   }
+  // refusal (T-251): the turn that wrote the file ended untrusted. The request is journaled as refused with that code,
+  // so its key replays the refusal and no later Stop runs it.
   async receive(binding: RelayBinding, file: RelayFile, matchedStop: boolean,
-    perform: (input: Record<string, any>) => Promise<any>) {
+    perform: (input: Record<string, any>) => Promise<any>, refusal?: string) {
     let input: any = null;
     let parseError: string | null = file.error ?? null;
     if (!parseError) {
@@ -147,6 +149,7 @@ export class RequestRelay {
         throw new Refusal("invalid_relay_request", { field: "issue" });
       }
       const { schema: _schema, request_id: _id, ...command } = input;
+      if (refusal) throw new Refusal(refusal);
       result = await perform(command);
     } catch (error) {
       result = { ok: false, error: error instanceof Refusal ? error.code : "relay_outcome_unknown",

@@ -185,6 +185,10 @@ export async function serve(
     const why = result?.ok === false ? explainRefusal(result.error) : null;
     return why ? { ...result, explanation: why } : result;
   };
+  const relayTitle = (key: string): string | null => {
+    const row = store.db.prepare("SELECT json_extract(input,'$.title') AS title FROM relay_requests WHERE key=?").get(key) as any;
+    return row?.title ?? null;
+  };
   const relayCommand = (key: string): string | null => {
     const row = store.db.prepare("SELECT json_extract(input,'$.command') AS command FROM relay_requests WHERE key=?").get(key) as any;
     return row?.command ?? null;
@@ -909,7 +913,7 @@ export async function serve(
       // pane's handling is synchronous, so a request refused here changes nothing.
       if (typeof input.submit_deadline === "number" && Date.now() > input.submit_deadline) throw new Refusal("prompt_submit_deadline_passed");
       let completedReview: { task: string; id: string } | undefined;
-      const decision = await panes.signal(input.launch, input.raw_stdin, input.received_at, async (pane, stop, matched) => {
+      const decision = await panes.signal(input.launch, input.raw_stdin, input.received_at, async (pane, stop, matched, refusal) => {
         let files = input.relay_files;
         if (pane.record.role === "reviewer") {
           if (!matched) return;
@@ -972,7 +976,7 @@ export async function serve(
               return result;
             }
             return await createGate(command, input => panes.parentLaunch.run(controller ? pane.record.id : null, () => gates.call(input, caller)));
-          });
+          }, refusal);
           if (!receipt.replayed && !isPendingInboxResult(receipt.result)) receipts.push(receipt);
           if (pane.record.role === "reviewer" && !receipt.replayed) {
             if (receipt.result.ok) completedReview = { task: pane.record.task, id: pane.record.review_id };
@@ -983,6 +987,14 @@ export async function serve(
             }
           }
         }
+        // T-251: the requests of an untrusted worker turn were refused above; the executor hears of it with what was lost
+        // and the hook that made the turn untrusted, instead of the task sitting in claimed with nobody told.
+        if (refusal && pane.record.role === "worker") await gates.turnRefused(pane.record.task, pane.record.attempt, {
+          reason: refusal, prompt_id: stop.prompt_id ?? null,
+          requests: receipts.map(receipt => ({ request_id: receipt.request_id, command: relayCommand(receipt.key), title: relayTitle(receipt.key) })),
+          unverified: store.read().filter(event => event.launch === pane.record.id && event.type === "native_question_unverified" &&
+            event.data.submission === pane.active?.id).slice(0, 3).map(event => ({ time: event.time, reason: event.data.reason,
+              hook_event_name: event.data.hook_event_name })) });
         if (matched && receipts.length && ["worker", "controller"].includes(pane.record.role)) await panes.dispatch(pane, feedbackText(receipts, pane.record.role), "gate");
       });
       const payload = JSON.parse(input.raw_stdin);

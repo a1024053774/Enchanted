@@ -795,6 +795,39 @@ export class A2AGates {
       lock.close();
     }
   }
+  /** T-251: a worker turn ended untrusted and the daemon refused the requests it left (relay journal). The executor gets
+   * a blocking system issue, in status and its inbox, instead of a task that sits in claimed with nobody told. */
+  async turnRefused(taskId: string, attemptId: string, details: { reason: string; prompt_id: string | null;
+    requests: { request_id: string | null; command: string | null; title: string | null }[]; unverified: unknown[] }) {
+    // No task operation lock: this changes no task state, only appends a record (its own DB transaction), and a busy
+    // lock here would fail the worker's Stop. deliverInbox takes its own per-entry lock.
+    const task = this.load(taskId);
+    const attempt = task.current_attempt;
+    // A revoked or replaced attempt's requests would have been refused as stale anyway; nothing new to report.
+    if (attempt?.attempt_id !== attemptId) {
+      this.event(taskId, "turn_refused_not_current", { attempt: attemptId, ...details }, attemptId);
+      return null;
+    }
+    const facts = await this.runtime?.sessionFacts?.(attempt.thread_id);
+    const issueId = randomUUID();
+    const issue: A2AIssueRecord = {
+      id: issueId, issue_id: issueId, schema: 1, kind: "issue", from: "system", to: "executor", reply_to: null,
+      refs: [`task:${taskId}`, `attempt:${attempt.attempt_id}`, `session:${attempt.session_id}`, `thread:${attempt.thread_id}`],
+      created_at: new Date(this.now()).toISOString(),
+      body: JSON.stringify({
+        reason: details.reason,
+        what: "worker 这一回合交来的请求门禁没有执行，已记为拒收，以后也不会再执行。worker 已结束这一回合、回到空闲，可以回收。",
+        requests: details.requests, unverified: details.unverified,
+        next: "看 unverified 是哪个钩子核对不上。要继续这项工作：回收这个 attempt 再派发（它的提交还在 attempt 分支上，新卡可以 cherry-pick）。",
+      }, null, 2),
+      task_id: taskId, attempt_id: attempt.attempt_id, thread_id: attempt.thread_id, turn_id: details.prompt_id ?? "",
+      number: this.issueNumber(attempt.attempt_id, attempt.thread_id),
+      title: "交付没被受理：这一回合不可信", blocking: true,
+      ...(facts?.launch.parent_launch ? { controller_launch: facts.launch.parent_launch } : {}),
+    };
+    this.appendIssue(issue);
+    return { id: issueId, delivery: await this.deliverInbox(issue) };
+  }
   private async disposeIssue(
     args: A2AGateRequest,
     caller?: SubmitCaller,

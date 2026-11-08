@@ -24,6 +24,8 @@ const explanations: Record<string, RefusalExplanation> = {
   run_blocked: { reason: 'worker 的 CLI 停在确认框、权限请求或其他提示上，门禁没法继续，这时回收也会被拒。',
     next: '到 worker 窗格看它停在哪个提示上，由用户处理后再继续。' },
   worker_working: { reason: '会话还在回合中，门禁不在它工作时回收或停止它。', next: '等它这一回合结束后再试。' },
+  current_turn_untrusted: { reason: '这一回合里有来源核对不上的钩子，门禁不执行这一回合交来的请求；请求已记为拒收，以后也不会再执行。',
+    next: 'worker 结束本回合，不自己重交。主控看任务的阻塞问题：回收后重派，或按问题里写的原因处理。' },
   stale_turn: { reason: '这个 attempt 已经交付过；交付被打回（验收或审查判“需修复”）之前，不能再交。',
     next: 'worker 结束本回合。要补改：主控改卡后按“card_save 存新卡 → revise → reclaim 旧 attempt → dispatch”重派。' },
   stale_attempt: staleRunner,
