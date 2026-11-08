@@ -8,7 +8,7 @@ claimed_by: executor-55d61e9f
 supersedes:
 ready: yes
 ready_by: executor
-ready_rev: 1
+ready_rev: 2
 ---
 
 ## What to build
@@ -43,3 +43,11 @@ ready_rev: 1
 REALITY GATE: INCOMPLETE。已观察到旧 attempt 的 Stop/续跑/未匹配 Stop 与 busy 记录；“反馈先于 Stop 钩子返回导致同 turn 续跑”仍是待验证推断。worker 先经隔离真实后台、门禁、原生 Codex CLI 复现，记录时间顺序与 reclaim 返回，再决定最小修复；实现前不得将推断写成事实。预期是结束后空闲、反馈继续投递且可回收；负例是真正在工作时仍拒绝回收。不得通过重启、改库、伪造 idle 或宽松回收掩盖问题。
 
 证据放 `evidence/2026-11-08-batch34/T-257/`；主控维护本票与该目录的 controller 子目录，worker 只写 worker 子目录及任务卡列出的实现/测试文件。旧现场保留。
+
+## 红态与恢复（2026-11-08，ready_rev 2）
+
+REALITY GATE: PASS（仅因果复现）。隔离真实后台/门禁/交互 Codex 已复现首 Stop 未返回时贴入回执、同 turn 续跑后 Stop 不匹配、busy 与 reclaim worker_working；真正工作中的两次回收也拒绝。见 [红态摘要](../../evidence/2026-11-08-batch34/T-257/controller/red-controller-diagnostic-02.json) 与 [恢复记录](../../evidence/2026-11-08-batch34/T-257/controller/recovery-approved.md)。产品修复仍为 INCOMPLETE。
+
+正式 worker 自身也触发此缺陷，主控答复未送达。用户本轮在“是否批准现在正常重启 Enchanted 后台、保留现有提交与证据，再经门禁回收旧 attempt 并用 astra xhigh 重派继续修复？”下明确回答：“批准重启并经门禁恢复（推荐）”。已正常停止旧后台和受管进程，正式应用启动新后台 71177，主控身份仍有效，旧 worker stopped=true、queued=[]；随后经门禁修订、回收、重新派发。
+
+旧提交 e9e9f2db8ce6f2c50b453a868c8bcaa026e9fa8b 保存在 keep/T-257-1-a1。v2 延续相同范围与 Acceptance：继承复现测试、修正第二个 Stop 的多余 active=true 限定与跨进程时间排序，基于已取得红态做最小修复。沙箱外真实测试由主控运行，worker 不扩大权限；未完成实测必须明示，候选通过门禁及敏感变更的用户证据批准后才集成。
