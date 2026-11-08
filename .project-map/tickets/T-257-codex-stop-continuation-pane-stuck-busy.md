@@ -8,7 +8,7 @@ claimed_by: executor-55d61e9f
 supersedes:
 ready: yes
 ready_by: executor
-ready_rev: 2
+ready_rev: 3
 ---
 
 ## What to build
@@ -51,3 +51,9 @@ REALITY GATE: PASS（仅因果复现）。隔离真实后台/门禁/交互 Codex
 正式 worker 自身也触发此缺陷，主控答复未送达。用户本轮在“是否批准现在正常重启 Enchanted 后台、保留现有提交与证据，再经门禁回收旧 attempt 并用 astra xhigh 重派继续修复？”下明确回答：“批准重启并经门禁恢复（推荐）”。已正常停止旧后台和受管进程，正式应用启动新后台 71177，主控身份仍有效，旧 worker stopped=true、queued=[]；随后经门禁修订、回收、重新派发。
 
 旧提交 e9e9f2db8ce6f2c50b453a868c8bcaa026e9fa8b 保存在 keep/T-257-1-a1。v2 延续相同范围与 Acceptance：继承复现测试、修正第二个 Stop 的多余 active=true 限定与跨进程时间排序，基于已取得红态做最小修复。沙箱外真实测试由主控运行，worker 不扩大权限；未完成实测必须明示，候选通过门禁及敏感变更的用户证据批准后才集成。
+
+## 第二次交付与验收准备（ready_rev 3）
+
+候选 5484315a5e318bce557dcc32e429f5d251453e84 的 4 行生产差异已通过真实入口绿态、同测试坏版本红态及 T-252 Codex 回归，见 [候选检查点](../../evidence/2026-11-08-batch34/T-257/controller/candidate-a2-checkpoint.md)。整体仍 INCOMPLETE，尚无独立审查或集成。
+
+主控在派发后新增保留引用导致 verify 被共享 Git 元数据保护拒绝，该引用已撤回并保留拒绝证据；旧正式运行时又使 submit 回执续跑卡 busy，门禁退回无法送达。沿用本轮已批准的正常重启和门禁恢复。v3 只把门禁工作区的既有依赖准备写进完成及红态命令，导入已提交的卡内候选，不更改 Acceptance，不绕过重新交付或验收。
