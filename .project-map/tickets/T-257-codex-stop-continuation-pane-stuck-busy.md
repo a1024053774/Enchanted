@@ -2,7 +2,7 @@
 id: T-257
 title: Codex 回执在 Stop 钩子返回前贴入，同一 turn 续跑后窗格永远停在 busy，回收被拒，队列卡住
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: executor-55d61e9f
 supersedes:
@@ -65,3 +65,13 @@ v3 attempt `6ca3622b-b0e7-41ad-a21f-7ff810441994` 交付 `045e815ff390a0e2e50b77
 已经唯一门禁 integrate 合入本地 main：`bf4b855619283711aff0a2f9ff2047e689e21fcb`，未 push。见 [门禁结果](../../evidence/2026-11-08-batch34/T-257/controller/gate-v3-mechanical.json)、[独立审查](../../evidence/2026-11-08-batch34/T-257/controller/review-v3-result.json)、[集成收据](../../evidence/2026-11-08-batch34/T-257/controller/integration-v3.json)。实际产品差异不在 REVIEW.md 的敏感代码段。README 已改正“回执必定新建原生回合”的描述，并核对地图 Verified。全套测试未运行，既有 T-252 Codex 相关回归通过。
 
 代码修复 PASS；正式应用更新与旧 worker 回收待标准打包安装后完成。门禁保留了含测试摘要的验证工作区（问题 `b45f888d-b9f4-4b20-a584-0ed9866d48a2`），摘要已另存，不强制删除或改库掩盖清理失败。
+
+## Resolution（2026-11-08 13:27Z）
+
+PASS：修复已集成并装入正式应用。版本 0.1.6，包源码 `08b8318f54224790916b7b95016e551499a0a0fa`，产品代码与门禁集成一致；新后台 PID 36212，原执行主控身份继续有效。T-257 a3 和旧 T-249 attempt 均经门禁回收成功，后者恢复 ready。见 [安装收据](../../evidence/2026-11-08-batch34/T-257/controller/installation.json) 和 [恢复结果](../../evidence/2026-11-08-batch34/T-257/controller/recovery-final.json)。
+
+Works：同一真实入口在父版本命中 5 项业务失败，在候选通过 9 项业务检查；完成后空闲、排队消息只发送一次、可回收，以及真实工作中拒绝回收均有证据。独立审查无 findings。
+
+No regression：T-252 Codex 相关 7 项回归、104 个模块场景通过，独立 4 项错误变异拒绝；标准打包与签名校验通过。未跑全套测试。project-map 脚本在本轮收尾读取外部技能路径时阻塞，没有取得新的脚本通过结果；README stale 已人工按实际产品差异核对并更新 Verified。
+
+Risk / undo：旧安装包保留在 `/private/tmp/enchanted-rollback-t257-20261108-1/Enchanted.app`。需要撤回时走正常停止后台、恢复旧包和重启；代码可经新门禁任务撤回 4 行产品差异。门禁验证工作区清理失败的现场仍保留，未强制删除；本次打包与下载缓存约 721 MB 已记录体量后清理。

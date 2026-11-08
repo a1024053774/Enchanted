@@ -86,3 +86,9 @@ ready_rev: 1
 8. 同样的做法做 T-250。
 
 现场遗留：审查 01 的副本 `review-copies/368d3d31-…` 和 `worktrees/a2a/T-249-1-a2-review-1` 由门禁管理，没有手动删，等用户决定。
+
+## 恢复执行（2026-11-08 13:27Z）
+
+本轮用户指定 gpt-6-astra xhigh 执行主控，worker、reviewer 同模型同强度、普通速度，最后仍由 gpt-6.1-terra 做 Computer Use 和常规测试；不启动 Claude。逐字原话及本轮优先顺序见 [当前交接](../../evidence/2026-11-08-controller-switch/executor-handoff.md)。本轮明确允许 Enchanted/Enchanted Test 的“文稿”访问提示，因此上文旧交接中“不代点”的临时限制已被取代；其他权限不扩大。
+
+T-257 已经门禁修复、安装并正常重启。旧 attempt `6bab2eb9-0d63-4bb1-b325-f70fa6df2d2b` 已经门禁 reclaim 成功，旧队列不再执行；T-249-1 为 ready、spec/card 4、无 current_attempt。按 v4 卡继续：导入旧候选、修两条已复现 P2、补 no-panel 变异、三条机械检查、独立 astra 审查、主控沙箱外真实窗口与三项指定变异、terra 独立验收、用户读敏感变更证据批准、门禁集成。T-250 在本票完成后再执行。
