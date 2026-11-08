@@ -7,13 +7,19 @@
 //    Expected: the daemon waits for the binding, records native_session_bind_failed (daemon_stopping) and exits 0.
 // 2. record_write_fails: the refusal record itself cannot be written. The throw inside the catch is an unhandled
 //    rejection that ends the daemon. Expected: the daemon stays up, reports event_write_failed on stderr, stops cleanly.
+// 3. binding_outlives_stop (T-254): the pane read returns 30 s after the stop began. Ways it can fail: the stop waits
+//    for it with no bound, so the stores stay open and daemon.pid stays; the bound fires but leaves no record; the late
+//    binding then writes into the closed stores (event_write_failed, a non-zero exit); the binding is written anyway.
+//    Expected: about 10 s after the wait began the stores close with one native_session_bind_abandoned recorded; when
+//    the read returns, nothing more is written and the daemon exits 0.
 import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const [source, state, control, ready, scenario] = process.argv.slice(2);
-if (!source || !state || !control || !ready || !["stop_while_binding", "record_write_fails"].includes(scenario ?? "")) {
-  throw new Error("usage: t253_shutdown_host.ts <source> <state> <control> <ready> stop_while_binding|record_write_fails");
+const scenarios = ["stop_while_binding", "record_write_fails", "binding_outlives_stop"];
+if (!source || !state || !control || !ready || !scenarios.includes(scenario ?? "")) {
+  throw new Error(`usage: t253_shutdown_host.ts <source> <state> <control> <ready> ${scenarios.join("|")}`);
 }
 const load = (path: string) => import(pathToFileURL(join(source, "workbench/src", path)).href);
 const { serve } = await load("daemon.ts");
@@ -54,6 +60,14 @@ panes.readThread = async (thread: string) => {
     const until = Date.now() + 2000;
     while (!closed && Date.now() < until) await sleep(10);
     note("read_returned", { after: closed ? "gates_closed" : "timeout" });
+  }
+  if (scenario === "binding_outlives_stop") {
+    writeFileSync(join(control, "bind-entered"), "the binding is reading the pane\n");
+    while (!gates.shuttingDown) await sleep(10);
+    note("stop_seen");
+    // A read slower than any bound the stop may set; its timer keeps the process alive until it returns.
+    await sleep(30_000);
+    note("read_returned", { after: closed ? "gates_closed" : "still_open" });
   }
   return { workspace: control, provider: "codex", turn: null, running: true, stopped: false, archived: false, blocked: false,
     runtime_identity: { launch: pane.record.id, thread, shell_pid: 4100, leader_pid: 4101, native_session: pane.native } };

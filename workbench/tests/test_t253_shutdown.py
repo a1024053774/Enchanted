@@ -6,6 +6,10 @@
   （daemon_stopping）、门禁没有 runtime_bound、以 0 退出。
 - record_write_fails：绑定被拒，而这条记录本身写不进去。期望后台不退出、在 stderr 报 event_write_failed，
   之后照常 daemon_stop、以 0 退出。
+- binding_outlives_stop（T-254）：停止开始后窗格读取 30 秒才返回。期望来自 T-254 票据与用户要求（“这个应该设置一个
+  合理的上限”）：停止最多等 10 秒，到期在关库前记一条 native_session_bind_abandoned，然后关库、删 daemon.pid；
+  读取返回后不再写任何记录，stderr 没有 event_write_failed，以 0 退出，门禁没有 runtime_bound。
+另外两个场景也查：daemon.pid 已删；stop_while_binding 关库后 3 秒内退出（等绑定的计时器已清）。
 
 --revision 从 Git 取该版产品源码；--mutant 在当前源码副本上打 MUTANTS 里的变异；都不给时用当前工作区源码。
 摘要写到 --summary；通过时删除夹具目录，失败时保留并在摘要里写明。
@@ -21,6 +25,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from datetime import datetime, timezone
 
 from scripted_claude import ROOT, source_tree, stop_fixture_core
 
@@ -38,6 +43,16 @@ MUTANTS = {
         '        panes.onEventWriteFailed(reason);\n'
         '      }\n',
         '      store.event("native_session_bind_failed", data, pane.record);\n'),),
+    # T-254: the stop waits as long as the binding takes (a bound far beyond the scenario's 30 s read).
+    'stop-wait-unbounded': ((DAEMON, 'const BINDING_STOP_WAIT_MS = 10_000;\n', 'const BINDING_STOP_WAIT_MS = 600_000;\n'),),
+    # T-254: a binding past the bound is not marked, so its late refusal is written into the closed stores.
+    'abandon-unmarked': ((DAEMON, '      binding.abandoned = true;\n', ''),),
+    # T-254: a binding past the bound is left unbound without a record.
+    'abandon-unrecorded': ((DAEMON,
+        '      store.event("native_session_bind_abandoned", { native_session: binding.native_session,\n'
+        '        waited_ms: Date.now() - waitStarted }, binding.record);\n', ''),),
+    # T-254: the bound's timer outlives a wait that ended in time, holding the stopped daemon for 10 s.
+    'timer-kept': ((DAEMON, '    clearTimeout(timer);\n', ''),),
 }
 HOST = Path(__file__).resolve().parent / 't253_shutdown_host.ts'
 
@@ -66,7 +81,7 @@ def scenario(source, name, keep):
                             cwd=str(ROOT / 'workbench'), env=env, stdout=out, stderr=err, start_new_session=True)
     try:
         wait(lambda: (control / 'ready.json').exists(), host, 30, 'host did not reach ready')
-        if name == 'stop_while_binding':
+        if name in ('stop_while_binding', 'binding_outlives_stop'):
             wait(lambda: (control / 'bind-entered').exists(), host, 10, 'the binding did not reach the pane read')
         else:
             wait(lambda: (control / 'host.jsonl').exists() and 'record_refused' in (control / 'host.jsonl').read_text(),
@@ -77,7 +92,8 @@ def scenario(source, name, keep):
         stop = subprocess.run([*cli, 'daemon_stop'], env=env, capture_output=True, text=True, timeout=30)
         report['observed']['stop'] = dict(exit=stop.returncode, stdout=stop.stdout[-2000:], stderr=stop.stderr[-2000:])
         try:
-            host.wait(timeout=30)
+            host.wait(timeout=45 if name == 'binding_outlives_stop' else 30)
+            report['observed']['host_exit_at'] = datetime.now(timezone.utc).isoformat()
         except subprocess.TimeoutExpired:
             report['observed']['host_timeout'] = True
     except RuntimeError as error:
@@ -101,19 +117,39 @@ def scenario(source, name, keep):
         with contextlib.closing(sqlite3.connect(state / 'state.sqlite3')) as db:
             events = [dict(type=t, launch=l, data=json.loads(d)) for t, l, d in
                       db.execute("SELECT type, launch, data FROM orchestration_events WHERE type IN "
-                                 "('native_session_bind_failed','daemon_stopped') ORDER BY seq")]
+                                 "('native_session_bind_failed','native_session_bind_abandoned','daemon_stopped') ORDER BY seq")]
             gate_events = [t for (t,) in db.execute("SELECT type FROM events WHERE type='runtime_bound'")]
     report['observed'].update(orchestration_events=events, runtime_bound=gate_events)
     stop = report['observed'].get('stop', {})
     check('stop_accepted', stop.get('exit') == 0 and '"ok": true' in stop.get('stdout', '').replace('"ok":true', '"ok": true'), stop)
     check('host_exit_zero', host.returncode == 0, host.returncode)
     check('nothing_bound', gate_events == [], gate_events)
+    check('pid_removed', not (state / 'daemon.pid').exists())
+    notes = report['observed']['host_notes']
+    at = lambda note: next((datetime.fromisoformat(n['at'].replace('Z', '+00:00')) for n in notes if n['name'] == note), None)
+    exit_at = report['observed'].get('host_exit_at')
+    exit_at = datetime.fromisoformat(exit_at) if exit_at else None
     failures = [e for e in events if e['type'] == 'native_session_bind_failed' and e['launch'] == 't253-launch']
+    abandoned = [e for e in events if e['type'] == 'native_session_bind_abandoned' and e['launch'] == 't253-launch']
+    write_failures = [json.loads(line) for line in stderr.splitlines() if line.startswith('{"error":"event_write_failed"')]
     if name == 'stop_while_binding':
         check('bind_failure_recorded', len(failures) == 1 and failures[0]['data'].get('error') == 'daemon_stopping', failures)
+        closed_at = at('gates_closed')
+        lag = (exit_at - closed_at).total_seconds() if exit_at and closed_at else None
+        report['observed']['exit_after_close_seconds'] = lag
+        check('exits_soon_after_close', lag is not None and lag <= 3, lag)
+    elif name == 'binding_outlives_stop':
+        stop_at, closed_at = at('stop_seen'), at('gates_closed')
+        took = (closed_at - stop_at).total_seconds() if stop_at and closed_at else None
+        report['observed']['close_after_stop_seconds'] = took
+        check('stores_closed_within_bound', took is not None and took <= 15, took)
+        check('abandon_recorded', len(abandoned) == 1 and abandoned[0]['data'].get('native_session') == 'codex-fixture-session'
+              and isinstance(abandoned[0]['data'].get('waited_ms'), int) and abandoned[0]['data']['waited_ms'] >= 9900, abandoned)
+        returned = [n for n in notes if n['name'] == 'read_returned']
+        check('late_read_ran_after_close', len(returned) == 1 and returned[0].get('after') == 'gates_closed', returned)
+        check('nothing_written_after_close', failures == [] and write_failures == [], dict(failures=failures, stderr=write_failures))
     else:
-        reported = [json.loads(line) for line in stderr.splitlines() if line.startswith('{"error":"event_write_failed"')]
-        check('write_failure_reported', any(row.get('launch') == 't253-launch' for row in reported), reported)
+        check('write_failure_reported', any(row.get('launch') == 't253-launch' for row in write_failures), write_failures)
     report['status'] = 'FAIL' if report['failed'] or report.get('error') else 'PASS'
     if report['status'] == 'PASS' and not keep:
         shutil.rmtree(root, ignore_errors=True)
@@ -132,7 +168,7 @@ def main():
     summary.parent.mkdir(parents=True, exist_ok=True)
     fixture = Path(tempfile.mkdtemp(prefix='t253-src-', dir='/tmp')) if args.revision or args.mutant else None
     source = source_tree(fixture, args.revision, MUTANTS.get(args.mutant, ())) if fixture else ROOT
-    runs = [scenario(source, name, keep=False) for name in ('stop_while_binding', 'record_write_fails')]
+    runs = [scenario(source, name, keep=False) for name in ('stop_while_binding', 'record_write_fails', 'binding_outlives_stop')]
     report = dict(status='PASS' if all(run['status'] == 'PASS' for run in runs) else 'FAIL', argv=sys.argv,
                   revision=args.revision, mutant=args.mutant, source_fixture=str(fixture) if fixture else None,
                   failed=[f"{run['scenario']}:{name}" for run in runs for name in run['failed']] +

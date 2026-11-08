@@ -32,6 +32,8 @@ import { executionRole, executionOverrides } from './executionSettings.ts';
 
 // T-237: how long after a retrospective's start an empty prompt still counts as the CLI not having started yet.
 const RETROSPECTIVE_START_GRACE_MS = 60_000;
+// T-254: how long a stopping daemon waits for native-session bindings still in flight (twice the 5 s process query).
+const BINDING_STOP_WAIT_MS = 10_000;
 
 // Window payloads can contain shell passwords, even when identity/validation
 // fails. Agent input still has its existing dedicated recorder below.
@@ -89,10 +91,16 @@ export async function serve(
   panes.controllerReady = (thread, role, project) => gates.resumeControllerInbox(thread, role, project);
   // T-253: bind a Codex worker's native session to its attempt as soon as its pane learns it. A refusal (the attempt was
   // replaced, the pane is not the attempt's, the daemon is stopping) leaves the attempt unbound, so reclaim keeps refusing
-  // it; it is recorded here. Shutdown waits for bindings still in flight before it closes the stores.
-  const bindings = new Set<Promise<void>>();
+  // it; it is recorded here. Shutdown waits for bindings still in flight before it closes the stores, for at most
+  // BINDING_STOP_WAIT_MS (T-254); one still running then is recorded as abandoned there and writes nothing afterwards.
+  type Binding = { record: { id: string; task: string | null; attempt?: string | null }; native_session: string | null;
+    abandoned: boolean; settled?: Promise<void> };
+  const bindings = new Set<Binding>();
   panes.nativeSessionLearned = pane => {
-    const binding: Promise<void> = gates.nativeSessionLearned(pane.record.task, pane.record.attempt, pane.record.thread).catch(error => {
+    const binding: Binding = { record: pane.record, native_session: pane.native, abandoned: false };
+    binding.settled = gates.nativeSessionLearned(pane.record.task, pane.record.attempt, pane.record.thread).catch(error => {
+      // The stores are closed; shutdown has recorded this binding as native_session_bind_abandoned.
+      if (binding.abandoned) return;
       const data = { native_session: pane.native, error: error instanceof Refusal ? error.code : String(error),
         details: error instanceof Refusal ? error.details ?? null : null };
       try { store.event("native_session_bind_failed", data, pane.record); }
@@ -300,8 +308,21 @@ export async function serve(
     store.event("daemon_stopped", { pid: process.pid });
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
     await new Promise<void>((resolve, reject) => terminalServer.close((error) => error ? reject(error) : resolve()));
-    // T-253: no pane or connection is left to start one; each binding has recorded its own refusal.
-    await Promise.all([...bindings]);
+    // T-253: no pane or connection is left to start one; each binding records its own refusal. T-254: after the stop
+    // began a binding ends once its current pane read returns, and the read's process query is capped at 5 s, so the
+    // wait is bounded at twice that; a binding still running then is left unbound and recorded here.
+    const waitStarted = Date.now();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const settled = await Promise.race([
+      Promise.all([...bindings].map(binding => binding.settled)).then(() => true),
+      new Promise<false>(resolve => { timer = setTimeout(() => resolve(false), BINDING_STOP_WAIT_MS); }),
+    ]);
+    clearTimeout(timer);
+    if (!settled) for (const binding of bindings) {
+      binding.abandoned = true;
+      store.event("native_session_bind_abandoned", { native_session: binding.native_session,
+        waited_ms: Date.now() - waitStarted }, binding.record);
+    }
     gates.close(); store.close();
     if (existsSync(terminalSocket)) unlinkSync(terminalSocket);
     rmdirSync(terminalDirectory);
