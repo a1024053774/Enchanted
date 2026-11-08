@@ -1,6 +1,6 @@
 # T-251 证据摘要（2026-11-07）
 
-分支 `fix/t251-untrusted-turn`，父提交 `94abc1347`。修复提交 `b013c477a`（源码、测试、技能），`ab912013b` 只改测试读 `status` 的字段和票据。`b013c477a..ab912013b` 之间 `workbench/src` 没有改动。
+分支 `fix/t251-untrusted-turn`，父提交 `94abc1347`。修复提交 `b013c477a`（源码、测试、技能）；`ab912013b` 只改测试读 `status` 的字段和票据；`8e546df51` 按审查 01 改排队绑定与问题文案、补 README；之后的提交只改测试与证据。产品源码的最终版本是 `8e546df51`。
 
 测试环境：真实编排后台、门禁与 Claude Code，Messages API 由脚本应答，零次厂商模型调用，不起 Electron（`workbench/tests/scripted_claude.py`）。hc 缓存用 `ENCHANTED_HC_CACHE_DIR=/Users/luckye/Documents/Code/hc-cache`。
 
@@ -49,7 +49,18 @@ Codex（gpt-6.1-sol high，只读，干净会话）审 `ab912013b`，结论“�
 2. 系统问题写“worker 已回到空闲，可以回收”，但有排队的用户输入或被打断时窗格仍忙。属实（文案过度断言，状态保护本身没错）。改为“这一回合本身照常结束；窗格之后是否空闲看 status”，下一步写“等 worker 空闲后回收，还忙时回收会被拒（worker_working）”（`8e546df51`）。README 同一处同改。
 3. README 有一句“异常 Stop 不完成回合”与新行为矛盾，地图报 README、REVIEW 两项核对过期。README 补了 T-251 例外与压缩、cwd 规则；地图核对见票据收尾。
 - 未证实项“排队输入的会话记录 cwd 严格相等”：用 T-249 worker 的真实会话记录核对，记录里每条消息的 cwd 都跟着 `cd` 走（`/workbench/app/panels` 等），所以属实，是同一类问题：worker 在子目录时用户往窗格里排的输入永远绑不上回合，窗格一直忙、回收不了。`panes.ts` 的排队绑定改用同一条工作区规则（`8e546df51`）。新测试 `test_t251_queued_subdir.ts`：`red/queued_subdir.json`（`ab912013b` 源码）子目录项失败；`green/queued_subdir.json` 全过，前缀相同的兄弟目录与工作区外仍不绑定。
-- 收件箱送达没有断言：端到端测试先补了 `issue_delivered_to_executor`（要求回执 delivered），在 `8e546df51` 上跑绿态失败（`green/e2e-untrusted-r3.json`）。查夹具数据库：回执是 `pending / role_session_missing`，问题的 `controller_launch` 正是派发 worker 的那个终端。原因是收件箱只送进前台正在跑 CLI 的已批准主控终端（`panes.ts` 的 `controllerThreads` 要求 `foregroundCli === held.cli`），夹具里的执行主控终端只是批准过角色的 zsh，前台没有 CLI；T-216 规定这时保存 pending 回执，主控 CLI 就绪后由 `resumeControllerInbox` 补送。所以是检查写错了期望，不是缺陷。检查改为 `issue_sent_through_inbox`：直接读夹具数据库的送达回执，要求问题发给派发它的执行主控，最后一条回执是 delivered、queued，或等角色就绪的 pending（`cce9e9635`）。变异 `no-delivery`（只记录、不交收件箱）应在这一项失败。真正写进终端那一步是 T-216 的投递路径，本票的夹具证明不了，没有重新证明。
+- 收件箱送达没有断言：端到端测试先补了 `issue_delivered_to_executor`（要求回执 delivered），在 `8e546df51` 上跑绿态失败（`green/e2e-untrusted-r3.json`）。查夹具数据库：回执是 `pending / role_session_missing`，问题的 `controller_launch` 正是派发 worker 的那个终端。原因是收件箱只送进前台正在跑 CLI 的已批准主控终端（`panes.ts` 的 `controllerThreads` 要求 `foregroundCli === held.cli`），夹具里的执行主控终端只是批准过角色的 zsh，前台没有 CLI；T-216 规定这时保存 pending 回执，主控 CLI 就绪后由 `resumeControllerInbox` 补送。所以是检查写错了期望，不是缺陷。检查改为 `issue_sent_through_inbox`：直接读夹具数据库的送达回执，要求问题发给派发它的执行主控，最后一条回执是 delivered、queued，或等角色就绪的 pending（`cce9e9635`）。变异 `no-delivery`（只记录、不交收件箱）应在这一项失败。这个夹具证明不了真正送进主控 CLI，复审 02 正是指出这一缺口，补证见下一节。
+
+## 复审 02 与处理
+
+同一模型只读复审 `d5cb1da53`（范围 `ab912013b..HEAD`），结论 INCOMPLETE，原文见 `reviews/review-02.md`：第 2、3、4 项（文案、README、排队绑定）认可，未发现新的产品缺陷；第 1 项（符号链接）保留“未证实”，明确不据此要求按真实路径解析；缺的是“问题真的送进在线执行主控”的证据，以及能抓住“只记录不送达”的反例。按规则不开第三轮审查，由实现者补证：
+
+- 端到端测试加场景 `untrusted-online`：照 T-216 的做法，在项目终端里真起一个 Claude Code（脚本化接口），经 `a2a request executor` 申请、批准成为执行主控，再派 worker 走不可信回合。检查 `issue_reached_executor_cli`：执行主控 CLI 发给模型的请求里带着这条问题的编号，且收件箱回执指向主控终端。
+- 第一次在线运行（`green/e2e-untrusted-online.json`，`407b29bed`）FAIL：主控其实已收到（`controller_requests: 1`），失败的是我要求数据库最后一条回执为 delivered。收件箱只在交接时写一次回执（当时是 queued），之后的状态由 `inbox_list` 现算、不追加行，所以是检查写错。改为回执 queued 或 delivered 且指向主控终端（`7f01355c9`）。
+- `green/e2e-untrusted-online-r2.json`（`7f01355c9`）PASS，全部 7 项检查通过，包括 `issue_reached_executor_cli`。
+- `mutants/e2e-online-no-delivery-r2.json` FAIL，只在 `issue_reached_executor_cli`、`issue_sent_through_inbox` 两项（主控收到 0 次、没有回执），其余 5 项照常通过。
+- `red/e2e-untrusted-online.json`（`94abc1347`）FAIL：窗格不结束、没有问题、主控收不到、回收与再派都失败。
+- 产品源码自 `8e546df51` 起没有再改，`cce9e9635` 以后只改测试与证据。
 
 ## 设计自查（design-integrity，实现者自查）
 
@@ -73,4 +84,4 @@ ENCHANTED_HC_CACHE_DIR=/Users/luckye/Documents/Code/hc-cache python3 test_t251_u
 
 `red/e2e-cd.json` 是 cd 红态的第一版：等待条件写成等 `turn_end_signal`，旧代码在记这条事件之前就拒了 Stop，所以超时；改为等 Stop 的 `hook_received` 后重跑为 `red/e2e-cd-r2.json`。
 
-测试夹具都在 `/private/tmp/t251-*`，跑完后已删除（含审查后的重跑与探针共 21 个目录，每个 250 个左右文件，12 MB 到 334 MB，共约 2.9 GB；带 `--revision` 的夹具含一份源码与依赖，所以更大）。草稿目录里的回归输出目录也已删除。仓库里只留本目录的文本摘要。
+测试夹具都在 `/private/tmp/t251-*`，跑完后已删除（含审查后的重跑与探针共 25 个目录，每个 250 个左右文件，12 MB 到 334 MB，共约 3.9 GB；带 `--revision` 的夹具含一份源码与依赖，所以更大）。草稿目录里的回归输出目录也已删除。仓库里只留本目录的文本摘要。

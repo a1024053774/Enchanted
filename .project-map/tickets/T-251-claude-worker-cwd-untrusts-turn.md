@@ -2,7 +2,7 @@
 id: T-251
 title: Claude worker 在 Bash 里 cd 进子目录后，整个回合被判不可信，交付请求被静默丢弃
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -50,7 +50,7 @@ ready_rev: 2
 - [x] 回合中途的 compact SessionStart 不让回合变成不可信，交付照常受理（修前红态、修后绿态）。
 - [x] 真不可信的回合结束后窗格不在回合中，旧 attempt 能回收，回收后同一任务能派出新 worker（修前：`worker_working`、派不出）。
 - [x] 每条修复各有一个变异版本被测试判失败；单元测试拒绝前缀相同的兄弟目录、`..` 逃出工作区、相对路径。
-- [ ] 独立审查（GPT 只读，新开干净会话）。
+- [x] 独立审查（GPT 只读，新开干净会话）。
 
 ## 不做
 
@@ -59,3 +59,13 @@ ready_rev: 2
 ## 临时做法
 
 T-249-1 第二次派发时，任务卡要求 worker 把 Bash 的当前目录保持在工作区根目录（不 `cd`，用相对路径、`git -C`、`npm --prefix`）。第一次交付的提交用分支 `keep/T-249-1-a1` 钉住，新 attempt 从它 cherry-pick。
+
+## Resolution
+
+2026-11-07 关闭，PASS（[结果](../../evidence/2026-11-07-batch33/T-251/RESULTS.md)），分支 `fix/t251-untrusted-turn`，产品源码最终版本 `8e546df51`。
+
+- 钩子、SessionEnd、compact SessionStart 与排队输入的会话记录：cwd 在本次启动的工作区或 extra 目录以内（含子目录）即算本会话。排队输入一项是审查 01 列为未证实、经 T-249 worker 真实会话记录核对属实后一并修的。
+- 真不可信的 Claude worker 回合：请求记为拒收、永不执行；回合照常结束；给执行主控一条阻塞系统问题，`status` 可见，并实际送进在线执行主控的 CLI（端到端 `untrusted-online`）。修前该场景窗格一直在回合中，回收被拒 `worker_working`，再派被拒 `already_claimed`。
+- 端到端三个原场景加在线主控场景，修前红、修后绿；6 个变异各在自己针对的检查上失败；单元与回归 PASS。`relay_scope` 有 4 项失败，父提交上同样失败，是已有问题。
+- 审查：审查 01 需修复（3 条 P2）；第 2、3 条已改，第 1 条（符号链接）用真实 Claude Code 探针核对后复现不了，不改。复审 02 认可修复，缺送达证据，已由在线场景补上，没有开第三轮。
+- 没做：Codex、agy、opencode 回合不可信时的 Stop 仍是旧行为（会同样卡住，触发面小）；正在运行的 /Applications/Enchanted.app 未换版，线上 T-249-1 仍卡着（22:26Z 回收被拒 `worker_working`）。
