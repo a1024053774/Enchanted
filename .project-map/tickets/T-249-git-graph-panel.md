@@ -72,7 +72,9 @@ ready_rev: 1
 - 第四次派发用任务卡 v4，修两条 P2，并补 `no-panel` 变异。
 - 新缺陷票：[T-255](T-255-run-verify-operation-busy.md)、[T-256](T-256-codex-reviewer-ignores-worker-selection.md)。
 
-下一步：
+**当前停点（09:18Z，BLOCKED）：** 任务卡 v4 已采用（`spec_rev` 4，`state` ready，没有当前 attempt）。`reclaim` 旧 attempt `6bab2eb9-0d63-4bb1-b325-f70fa6df2d2b` 返回 `worker_working`，是缺陷 [T-257](T-257-codex-stop-continuation-pane-stuck-busy.md)：Codex 已结束，但窗格停在 busy。按交接说明保留现场，不用 `overlap_reason` 绕过，也没有重启后台。候选由分支 `keep/T-249-1-a2` 保留。门禁退回 #32 还卡在旧 worker 的队列里，内容已过期：窗格一旦恢复空闲它就会贴入，要先回收，别让旧 worker 照它修。
+
+解开之后的下一步：
 
 1. 这次用 `dispatch`，不用 `run`：主控额度用完时，`run` 会在 `verified` 后自己集成，跳过端到端和 terra 验收。任务停在 `submitted` 时手动发 `verify`。
 2. 审查开始后读 `launch_records`，核对审查员是 `gpt-6-astra` xhigh，不符就停下上报。
