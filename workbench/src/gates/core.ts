@@ -4517,10 +4517,61 @@ export class A2AGates {
         live.workspace === attempt.workspace && live.provider === this.threadProvider(undefined, attempt),
         "identity_conflict",
       );
+      const preparing = attempt.runtime_identity === null;
+      if (preparing) {
+        // T-259: creation can succeed before the first identity read fails. Recover only
+        // after the original process is confirmed gone; never infer an idle/live owner.
+        requireGate(ownsTask && task.state === "preparing" && attempt.state === "preparing" &&
+          attempt.spec_rev === task.spec_rev && attempt.fence === task.fence && attempt.turn_id === null &&
+          live.stopped && !live.running && live.turn === null && live.runtime_identity.native_session === null &&
+          (!live.error || live.error.providerPresent === false && live.error.activeTurn === null),
+          "preparation_not_stopped_or_unsent");
+        const identity = this.runtimeIdentity(attempt, live);
+        const launches = this.db.prepare("SELECT id,task,attempt,data FROM launch_records WHERE attempt=? OR json_extract(data,'$.thread')=?")
+          .all(attempt.attempt_id, attempt.thread_id);
+        requireGate(launches.length === 1, "preparation_creation_unproven");
+        const row = launches[0]!, launch = JSON.parse(String(row.data));
+        requireGate(row.id === identity.launch && row.task === taskId && row.attempt === attempt.attempt_id &&
+          launch.id === identity.launch && launch.task === taskId && launch.project === task.project_id &&
+          launch.attempt === attempt.attempt_id && launch.session === attempt.session_id && launch.fence === attempt.fence &&
+          launch.spec_rev === attempt.spec_rev && launch.thread === attempt.thread_id && launch.worktree === attempt.workspace &&
+          launch.base_commit === attempt.base_commit && launch.role === "worker" && launch.cli === "Codex" &&
+          typeof launch.cli_version === "string" && launch.cli_version.length > 0 &&
+          typeof launch.code_revision === "string" && launch.code_revision.length > 0,
+          "preparation_creation_unproven");
+        const starts = this.db.prepare("SELECT seq,task,attempt,data FROM orchestration_events WHERE launch=? AND type='pane_started'")
+          .all(identity.launch);
+        requireGate(starts.length === 1 && starts[0]!.task === taskId && starts[0]!.attempt === attempt.attempt_id &&
+          JSON.parse(String(starts[0]!.data)).shell_pid === identity.shell_pid, "preparation_creation_unproven");
+        const leaders = this.db.prepare("SELECT data FROM orchestration_events WHERE launch=? AND type='pane_leader_observed'")
+          .all(identity.launch);
+        requireGate(identity.leader_pid === null ? leaders.length === 0 : leaders.length === 1 &&
+          JSON.parse(String(leaders[0]!.data)).shell_pid === identity.shell_pid &&
+          JSON.parse(String(leaders[0]!.data)).leader_pid === identity.leader_pid, "preparation_creation_unproven");
+        const intentions = this.db.prepare("SELECT details FROM events WHERE task=? AND attempt=? AND type='dispatch_intent'")
+          .all(taskId, attempt.attempt_id);
+        requireGate(intentions.length === 1, "preparation_creation_unproven");
+        const intended = JSON.parse(String(intentions[0]!.details)).attempt;
+        requireGate(intended && ["attempt_id", "session_id", "fence", "spec_rev", "thread_id", "workspace", "base_commit"]
+          .every(field => intended[field] === (attempt as any)[field]), "preparation_creation_unproven");
+        // These records precede bytes or input acceptance. A queued or uncertain input
+        // is enough to refuse; absence of a completed turn alone proves nothing.
+        requireGate(!this.db.prepare("SELECT 1 FROM events WHERE task=? AND attempt=? AND type='prompt_intent' LIMIT 1")
+          .get(taskId, attempt.attempt_id) &&
+          !this.db.prepare("SELECT 1 FROM dispatch_records WHERE launch=? LIMIT 1").get(identity.launch) &&
+          !this.db.prepare(`SELECT 1 FROM orchestration_events WHERE launch=? AND type IN (
+            'terminal_composition_started','terminal_input_write_intent','terminal_input_written',
+            'controller_screen_key_intent','paste_intent','paste_written','turn_submit_intent','turn_submitted',
+            'turn_start_signal','native_record','pane_native_session','dispatch_unknown','hc_send_intent') LIMIT 1`)
+            .get(identity.launch), "preparation_input_unproven");
+        attempt.runtime_identity = { ...identity };
+        this.event(taskId, "preparation_reclaim_proven", { launch: identity.launch, pane_started: starts[0]!.seq,
+          runtime_identity: identity, cli_version: launch.cli_version, code_revision: launch.code_revision }, attempt.attempt_id);
+      }
       this.checkThread(attempt, live);
       // A CLI that exited before creating its native session (launch_failed)
       // left no agent and no turn; its exited pane is all there is to reclaim (T-170).
-      const neverStarted = attempt.runtime_identity!.native_session === null && live.runtime_identity.native_session === null &&
+      const neverStarted = preparing || attempt.runtime_identity!.native_session === null && live.runtime_identity.native_session === null &&
         live.stopped && !live.running && live.turn === null &&
         live.error?.providerPresent === false && live.error.activeTurn === null;
       // It may also have exited before its leader process was observed.
@@ -4532,7 +4583,7 @@ export class A2AGates {
       }
       requireGate(!live.running, "worker_working");
       this.event(taskId, "reclaim_intent", { attempt, live }, attempt.attempt_id);
-      if (ownsTask && !["accepted", "abandoned", "upgraded"].includes(task.state)) this.invalidate(task, "controller reclaim");
+      if (!preparing && ownsTask && !["accepted", "abandoned", "upgraded"].includes(task.state)) this.invalidate(task, "controller reclaim");
       this.checkUserInputObserver();
       await this.runtime.stopThread(attempt.thread_id);
       const stopped = await this.runtime.readThread(attempt.thread_id);
@@ -4545,6 +4596,7 @@ export class A2AGates {
       requireGate(archived.archived && archived.stopped, "reclaim_unconfirmed");
       attempt.reclaimed = true;
       attempt.reclaimed_at = new Date().toISOString();
+      if (preparing) this.invalidate(task, "controller reclaim of stopped unsent preparation");
       this.member(task, attempt.thread_id, "worker", attempt.reclaimed_at);
       this.save(task, "reclaimed", { attempt, archived }, attempt);
       await this.cleanupAttempt(task, attempt);
