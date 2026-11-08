@@ -4,9 +4,11 @@ title: Codex 回执在 Stop 钩子返回前贴入，同一 turn 续跑后窗格�
 type: build
 status: open
 blocked_by: []
-claimed_by:
+claimed_by: executor-55d61e9f
 supersedes:
-ready: no
+ready: yes
+ready_by: executor
+ready_rev: 1
 ---
 
 ## What to build
@@ -31,3 +33,13 @@ ready: no
 
 - [ ] 修前红态：真实入口下，回执在 Stop 钩子返回前贴入，窗格停在 busy，`reclaim` 返回 `worker_working`。
 - [ ] 修后：同一场景窗格回到空闲，排队消息照常发送，`reclaim` 成功；真在工作中的回合仍返回 `worker_working`（反例）。
+
+## 本轮执行授权与计划（2026-11-08）
+
+用户本轮逐字要求：“先修 T-257，走门禁派发并盯到结果，再继续 T-249/T-250；别启动 Claude，别跳过敏感变更集成前的用户证据批准。”用户选择：“先修 T-257，再继续两个面板（推荐）”。完整原话与此前现场见 [执行交接](../../evidence/2026-11-08-controller-switch/executor-handoff.md)。本轮执行主控的 Enchanted 角色申请 `94be9df4-1496-4c90-8a11-f3218398fa32` 已于 10:41:50Z 获界面批准。
+
+范围只含本票缺陷；T-255、T-256 与两个面板的实现不在这个 worker 子任务中。worker/reviewer 均用 Codex `gpt-6-astra`、`xhigh`、普通速度。经门禁 dispatch，submitted 后手动 verify；不用自动集成的 run。
+
+REALITY GATE: INCOMPLETE。已观察到旧 attempt 的 Stop/续跑/未匹配 Stop 与 busy 记录；“反馈先于 Stop 钩子返回导致同 turn 续跑”仍是待验证推断。worker 先经隔离真实后台、门禁、原生 Codex CLI 复现，记录时间顺序与 reclaim 返回，再决定最小修复；实现前不得将推断写成事实。预期是结束后空闲、反馈继续投递且可回收；负例是真正在工作时仍拒绝回收。不得通过重启、改库、伪造 idle 或宽松回收掩盖问题。
+
+证据放 `evidence/2026-11-08-batch34/T-257/`；主控维护本票与该目录的 controller 子目录，worker 只写 worker 子目录及任务卡列出的实现/测试文件。旧现场保留。
