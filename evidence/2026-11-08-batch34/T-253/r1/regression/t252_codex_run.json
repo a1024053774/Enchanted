@@ -1,0 +1,319 @@
+{
+  "status": "PASS",
+  "argv": [
+    "test_t252_untrusted_turn_other_cli_e2e.py",
+    "--cli",
+    "codex",
+    "--launch",
+    "run",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a/.claude/worktrees/dreamy-ptolemy-d0f2f0/evidence/2026-11-08-batch34/T-253/regression/t252_codex_run.json"
+  ],
+  "cli": "codex",
+  "launch": "run",
+  "revision": null,
+  "mutant": null,
+  "runtime": "real daemon/gate/Codex CLI; scripted Responses API; zero vendor model calls; no Electron",
+  "checks": [
+    "untrusted_delivery_not_executed",
+    "turn_ended_not_running",
+    "controller_status_shows_reason",
+    "issue_names_the_turn",
+    "issue_sent_through_inbox",
+    "old_attempt_reclaimed",
+    "new_worker_dispatched"
+  ],
+  "preconditions": [
+    "outside_hook_judged_foreign"
+  ],
+  "observed": {
+    "attempt": "e5d9fb4b-bca9-4087-b73c-944f8e85f65d",
+    "gate_state": "claimed",
+    "pane": {
+      "ok": true,
+      "thread": "fbdf21bf-6833-4796-9db0-c88314fd5757",
+      "launch": "bf6306e5-3358-4ad7-be8d-3433abd9724c",
+      "state": "idle",
+      "lifecycle": "running",
+      "shell_pid": 55306,
+      "size": {
+        "cols": 160,
+        "rows": 45
+      },
+      "state_source": "host_events",
+      "active": null,
+      "native_session": "01a1b9b5-d2c2-7b33-b8f6-906d2b3be74e",
+      "start_missing": false,
+      "silent_foreground": null,
+      "unwired_cli": null,
+      "cli_turn": null,
+      "foreground_cli": null,
+      "hook_turn": null,
+      "turn": "01a1b9b5-dcfb-7e52-bba2-7e0a3628e691",
+      "writing": false,
+      "user_draft": false,
+      "interrupted": false,
+      "input_generation": 0,
+      "interruption": null,
+      "queued": [],
+      "failed": null,
+      "stopped": false,
+      "restoration": null,
+      "delivery": {
+        "task": "demo+T-1",
+        "attempt": "e5d9fb4b-bca9-4087-b73c-944f8e85f65d",
+        "session": "424a2994-adc6-433a-b577-2740ea5f0c98",
+        "fence": 1,
+        "spec_rev": 1,
+        "request_id": "9455224b-16f5-41ec-9eb2-de2cfe1e640d",
+        "commit": "31c6a3d70c18bdde47656835782ec07bdc550bb8",
+        "received_at": "2026-11-08T05:51:05.668Z",
+        "result_at": "2026-11-08T05:51:05.669Z",
+        "state": "rejected",
+        "reason": "current_turn_untrusted",
+        "request_turn": "01a1b9b5-d431-73c1-85a3-3152f054f4ef",
+        "current_turn": "01a1b9b5-d431-73c1-85a3-3152f054f4ef",
+        "native_turn_changed": false,
+        "recovery_request_id": "recover-170"
+      }
+    },
+    "unverified": [
+      {
+        "seq": 99,
+        "reason": "Error: question_origin_unverified",
+        "hook": "PostToolUse",
+        "turn": "01a1b9b5-d431-73c1-85a3-3152f054f4ef"
+      }
+    ],
+    "relay": [
+      {
+        "seq": 170,
+        "type": "relay_received",
+        "error": null
+      },
+      {
+        "seq": 171,
+        "type": "relay_rejected",
+        "error": "current_turn_untrusted"
+      },
+      {
+        "seq": 201,
+        "type": "relay_replayed",
+        "error": "current_turn_untrusted"
+      }
+    ],
+    "stop_failures": [],
+    "issues": [
+      {
+        "title": "交付没被受理：这一回合不可信",
+        "blocking": true,
+        "from_": "system",
+        "to": "executor",
+        "turn_id": "01a1b9b5-d431-73c1-85a3-3152f054f4ef",
+        "state": "待判断",
+        "body": "{\n  \"reason\": \"current_turn_untrusted\",\n  \"what\": \"worker 这一回合交来的请求门禁没有执行，已记为拒收，以后也不会再执行。这一回合本身照常结束；窗格之后是否空闲看 status（排着用户输入或被打断时还会继续忙）。\",\n  \"requests\": [\n    {\n      \"request_id\": \"9455224b-16f5-41ec-9eb2-de2cfe1e640d\",\n      \"command\": \"submit\",\n      \"title\": null\n    }\n  ],\n  \"unverified\": [\n    {\n      \"time\": \"2026-11-08T05:51:04.434Z\",\n      \"reason\": \"Error: question_origin_unverified\",\n      \"hook_event_name\": \"PostToolUse\"\n    }\n  ],\n  \"next\": \"看 unverified 是哪个钩子核对不上。要继续这项工作：等 worker 空闲后回收这个 attempt 再派发（它的提交还在 attempt 分支上，新卡可以 cherry-pick）；还忙时回收会被拒（worker_working）。\"\n}"
+      }
+    ],
+    "forged_hook": {
+      "session_id": "01a1b9b5-d2c2-7b33-b8f6-906d2b3be74e",
+      "turn_id": "01a1b9b5-d431-73c1-85a3-3152f054f4ef",
+      "transcript_path": "/private/tmp/t252-5siovbu3/home/.codex/sessions/2026/11/08/rollout-2026-11-08T00-51-03-01a1b9b5-d2c2-7b33-b8f6-906d2b3be74e.jsonl",
+      "cwd": "/private/tmp",
+      "hook_event_name": "PostToolUse",
+      "model": "gpt-6.1-sol",
+      "permission_mode": "bypassPermissions",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "pwd"
+      },
+      "tool_response": "/private/tmp/t252-5siovbu3/state/worktrees/demo/T-1-a1\n",
+      "tool_use_id": "call_t252_outside"
+    },
+    "inbox_receipts": [
+      {
+        "entry": "da6a2a8e-4039-4f56-96e2-d3aa2649b0c3",
+        "state": "pending",
+        "entry_id": "da6a2a8e-4039-4f56-96e2-d3aa2649b0c3",
+        "created_at": "2026-11-08T05:51:05.671Z"
+      },
+      {
+        "entry": "da6a2a8e-4039-4f56-96e2-d3aa2649b0c3",
+        "state": "pending",
+        "entry_id": "da6a2a8e-4039-4f56-96e2-d3aa2649b0c3",
+        "created_at": "2026-11-08T05:51:05.671Z",
+        "reason": "role_session_missing"
+      }
+    ],
+    "attempt_identity": {
+      "launch": "bf6306e5-3358-4ad7-be8d-3433abd9724c",
+      "thread": "fbdf21bf-6833-4796-9db0-c88314fd5757",
+      "shell_pid": 55306,
+      "leader_pid": 55309,
+      "native_session": "01a1b9b5-d2c2-7b33-b8f6-906d2b3be74e"
+    },
+    "identity_binding": {
+      "gate": [
+        {
+          "seq": 34,
+          "time": "2026-11-08T05:51:03.262Z",
+          "type": "dispatched",
+          "runtime_identity": {
+            "launch": "bf6306e5-3358-4ad7-be8d-3433abd9724c",
+            "thread": "fbdf21bf-6833-4796-9db0-c88314fd5757",
+            "shell_pid": 55306,
+            "leader_pid": 55309,
+            "native_session": null
+          }
+        },
+        {
+          "seq": 37,
+          "time": "2026-11-08T05:51:03.838Z",
+          "type": "runtime_bound",
+          "runtime_identity": {
+            "launch": "bf6306e5-3358-4ad7-be8d-3433abd9724c",
+            "thread": "fbdf21bf-6833-4796-9db0-c88314fd5757",
+            "shell_pid": 55306,
+            "leader_pid": 55309,
+            "native_session": "01a1b9b5-d2c2-7b33-b8f6-906d2b3be74e"
+          }
+        }
+      ],
+      "pane": [
+        {
+          "seq": 53,
+          "time": "2026-11-08T05:51:03.764Z",
+          "type": "pane_native_session",
+          "data": {
+            "native_session": "01a1b9b5-d2c2-7b33-b8f6-906d2b3be74e",
+            "resume_argv": [
+              "/Users/luckye/.codex/packages/standalone/releases/0.164.0-aarch64-apple-darwin/bin/codex",
+              "--no-daemon",
+              "--no-alt-screen",
+              "-C",
+              "/private/tmp/t252-5siovbu3/state/worktrees/demo/T-1-a1",
+              "-a",
+              "never",
+              "--sandbox",
+              "workspace-write",
+              "-m",
+              "gpt-6.1-sol",
+              "-c",
+              "model_reasoning_effort=\"high\"",
+              "-c",
+              "service_tier=\"default\"",
+              "-c",
+              "check_for_update_on_startup=false",
+              "-c",
+              "notice.hide_rate_limit_model_nudge=true",
+              "-c",
+              "sandbox_workspace_write.network_access=true",
+              "-c",
+              "sandbox_workspace_write.writable_roots=[\"/private/tmp/a2a-requests-AGNsj0\"]",
+              "-c",
+              "sandbox_workspace_write.exclude_slash_tmp=true",
+              "-c",
+              "sandbox_workspace_write.exclude_tmpdir_env_var=true",
+              "-c",
+              "hooks.UserPromptSubmit=[{hooks=[{type=\"command\",command=\"ELECTRON_RUN_AS_NODE=1 '/opt/homebrew/Cellar/node/26.5.0/bin/node' '/Users/luckye/Documents/Code/a2a/.claude/worktrees/dreamy-ptolemy-d0f2f0/workbench/src/gates/cli.ts' '--state' '/private/tmp/t252-5siovbu3/state' 'signal' '--launch' 'bf6306e5-3358-4ad7-be8d-3433abd9724c'\",timeout=10}]}]",
+              "-c",
+              "hooks.Stop=[{hooks=[{type=\"command\",command=\"ELECTRON_RUN_AS_NODE=1 '/opt/homebrew/Cellar/node/26.5.0/bin/node' '/Users/luckye/Documents/Code/a2a/.claude/worktrees/dreamy-ptolemy-d0f2f0/workbench/src/gates/cli.ts' '--state' '/private/tmp/t252-5siovbu3/state' 'signal' '--launch' 'bf6306e5-3358-4ad7-be8d-3433abd9724c'\",timeout=10}]}]",
+              "-c",
+              "hooks.PermissionRequest=[{hooks=[{type=\"command\",command=\"ELECTRON_RUN_AS_NODE=1 '/opt/homebrew/Cellar/node/26.5.0/bin/node' '/Users/luckye/Documents/Code/a2a/.claude/worktrees/dreamy-ptolemy-d0f2f0/workbench/src/gates/cli.ts' '--state' '/private/tmp/t252-5siovbu3/state' 'signal' '--launch' 'bf6306e5-3358-4ad7-be8d-3433abd9724c'\",timeout=10}]}]",
+              "-c",
+              "hooks.PreToolUse=[{hooks=[{type=\"command\",command=\"ELECTRON_RUN_AS_NODE=1 '/opt/homebrew/Cellar/node/26.5.0/bin/node' '/Users/luckye/Documents/Code/a2a/.claude/worktrees/dreamy-ptolemy-d0f2f0/workbench/src/gates/cli.ts' '--state' '/private/tmp/t252-5siovbu3/state' 'signal' '--launch' 'bf6306e5-3358-4ad7-be8d-3433abd9724c'\",timeout=10}]}]",
+              "-c",
+              "hooks.PostToolUse=[{hooks=[{type=\"command\",command=\"ELECTRON_RUN_AS_NODE=1 '/opt/homebrew/Cellar/node/26.5.0/bin/node' '/Users/luckye/Documents/Code/a2a/.claude/worktrees/dreamy-ptolemy-d0f2f0/workbench/src/gates/cli.ts' '--state' '/private/tmp/t252-5siovbu3/state' 'signal' '--launch' 'bf6306e5-3358-4ad7-be8d-3433abd9724c'\",timeout=10}]}]",
+              "--dangerously-bypass-hook-trust",
+              "resume",
+              "01a1b9b5-d2c2-7b33-b8f6-906d2b3be74e"
+            ]
+          }
+        }
+      ]
+    },
+    "reclaim": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "run": {
+      "ended": true,
+      "ok": false,
+      "error": "run_superseded",
+      "outcome": "superseded"
+    },
+    "redispatch": {
+      "ok": true,
+      "error": null,
+      "details": null
+    }
+  },
+  "fixture": "/private/tmp/t252-5siovbu3",
+  "versions": {
+    "codex": "codex-cli 0.164.0"
+  },
+  "details": {
+    "outside_hook_judged_foreign": [
+      {
+        "seq": 99,
+        "reason": "Error: question_origin_unverified",
+        "hook": "PostToolUse",
+        "turn": "01a1b9b5-d431-73c1-85a3-3152f054f4ef"
+      }
+    ],
+    "untrusted_delivery_not_executed": "claimed",
+    "turn_ended_not_running": "idle",
+    "controller_status_shows_reason": [
+      {
+        "title": "交付没被受理：这一回合不可信",
+        "blocking": true,
+        "from_": "system",
+        "to": "executor",
+        "turn_id": "01a1b9b5-d431-73c1-85a3-3152f054f4ef",
+        "state": "待判断",
+        "body": "{\n  \"reason\": \"current_turn_untrusted\",\n  \"what\": \"worker 这一回合交来的请求门禁没有执行，已记为拒收，以后也不会再执行。这一回合本身照常结束；窗格之后是否空闲看 status（排着用户输入或被打断时还会继续忙）。\",\n  \"requests\": [\n    {\n      \"request_id\": \"9455224b-16f5-41ec-9eb2-de2cfe1e640d\",\n      \"command\": \"submit\",\n      \"title\": null\n    }\n  ],\n  \"unverified\": [\n    {\n      \"time\": \"2026-11-08T05:51:04.434Z\",\n      \"reason\": \"Error: question_origin_unverified\",\n      \"hook_event_name\": \"PostToolUse\"\n    }\n  ],\n  \"next\": \"看 unverified 是哪个钩子核对不上。要继续这项工作：等 worker 空闲后回收这个 attempt 再派发（它的提交还在 attempt 分支上，新卡可以 cherry-pick）；还忙时回收会被拒（worker_working）。\"\n}"
+      }
+    ],
+    "issue_names_the_turn": {
+      "turn": "01a1b9b5-d431-73c1-85a3-3152f054f4ef",
+      "issues": [
+        "01a1b9b5-d431-73c1-85a3-3152f054f4ef"
+      ]
+    },
+    "issue_sent_through_inbox": {
+      "controller_launch": [
+        "f33f3ac6-7afa-4ced-af22-541e348b894d"
+      ],
+      "terminal": "f33f3ac6-7afa-4ced-af22-541e348b894d",
+      "receipts": [
+        {
+          "entry": "da6a2a8e-4039-4f56-96e2-d3aa2649b0c3",
+          "state": "pending",
+          "entry_id": "da6a2a8e-4039-4f56-96e2-d3aa2649b0c3",
+          "created_at": "2026-11-08T05:51:05.671Z"
+        },
+        {
+          "entry": "da6a2a8e-4039-4f56-96e2-d3aa2649b0c3",
+          "state": "pending",
+          "entry_id": "da6a2a8e-4039-4f56-96e2-d3aa2649b0c3",
+          "created_at": "2026-11-08T05:51:05.671Z",
+          "reason": "role_session_missing"
+        }
+      ]
+    },
+    "old_attempt_reclaimed": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "new_worker_dispatched": {
+      "ok": true,
+      "error": null,
+      "details": null
+    }
+  },
+  "api": {
+    "requests": 9,
+    "error": null
+  }
+}

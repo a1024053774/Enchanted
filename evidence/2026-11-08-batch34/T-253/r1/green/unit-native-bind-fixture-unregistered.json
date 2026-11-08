@@ -1,0 +1,233 @@
+{
+  "status": "FAIL",
+  "source": "/Users/luckye/Documents/Code/a2a/.claude/worktrees/dreamy-ptolemy-d0f2f0",
+  "fixture": "/tmp/t253-bind-99zKqZ",
+  "checks": [
+    {
+      "name": "binds_pane_session",
+      "ok": true,
+      "detail": {
+        "result": "ok",
+        "bound": {
+          "launch": "launch-1",
+          "thread": "worker-1",
+          "shell_pid": 4100,
+          "leader_pid": 4101,
+          "native_session": "codex-session-1"
+        },
+        "events": 1,
+        "lock_free_during_reads": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "lock_free_while_reading",
+      "ok": true,
+      "detail": [
+        true
+      ]
+    },
+    {
+      "name": "second_call_changes_nothing",
+      "ok": true,
+      "detail": {
+        "result": "ok",
+        "bound": {
+          "launch": "launch-1",
+          "thread": "worker-1",
+          "shell_pid": 4100,
+          "leader_pid": 4101,
+          "native_session": "codex-session-1"
+        },
+        "events": 1
+      }
+    },
+    {
+      "name": "other_launch_refused",
+      "ok": false,
+      "detail": {
+        "result": "identity_conflict",
+        "bound": {
+          "launch": "launch-1",
+          "thread": "worker-1",
+          "shell_pid": 4100,
+          "leader_pid": 4101,
+          "native_session": null
+        },
+        "events": 0,
+        "reclaim": {
+          "ok": false,
+          "error": "task_card_registration_required"
+        }
+      }
+    },
+    {
+      "name": "other_shell_refused",
+      "ok": false,
+      "detail": {
+        "result": "identity_conflict",
+        "bound": {
+          "launch": "launch-1",
+          "thread": "worker-1",
+          "shell_pid": 4100,
+          "leader_pid": 4101,
+          "native_session": null
+        },
+        "events": 0,
+        "reclaim": {
+          "ok": false,
+          "error": "task_card_registration_required"
+        }
+      }
+    },
+    {
+      "name": "replaced_attempt_refused",
+      "ok": true,
+      "detail": {
+        "result": "stale_attempt",
+        "bound": {
+          "launch": "launch-1",
+          "thread": "worker-1",
+          "shell_pid": 4100,
+          "leader_pid": 4101,
+          "native_session": null
+        },
+        "events": 0
+      }
+    },
+    {
+      "name": "waits_for_busy_lock",
+      "ok": true,
+      "detail": {
+        "while_held": {
+          "settled": null,
+          "bound": {
+            "launch": "launch-1",
+            "thread": "worker-1",
+            "shell_pid": 4100,
+            "leader_pid": 4101,
+            "native_session": null
+          },
+          "events": 0,
+          "reads": 4
+        },
+        "result": "ok",
+        "bound": {
+          "launch": "launch-1",
+          "thread": "worker-1",
+          "shell_pid": 4100,
+          "leader_pid": 4101,
+          "native_session": "codex-session-1"
+        },
+        "events": 1
+      }
+    }
+  ],
+  "failed": [
+    "other_launch_refused",
+    "other_shell_refused"
+  ],
+  "observed": {
+    "bind": {
+      "result": "ok",
+      "bound": {
+        "launch": "launch-1",
+        "thread": "worker-1",
+        "shell_pid": 4100,
+        "leader_pid": 4101,
+        "native_session": "codex-session-1"
+      },
+      "events": 1,
+      "lock_free_during_reads": [
+        true
+      ]
+    },
+    "again": {
+      "result": "ok",
+      "bound": {
+        "launch": "launch-1",
+        "thread": "worker-1",
+        "shell_pid": 4100,
+        "leader_pid": 4101,
+        "native_session": "codex-session-1"
+      },
+      "events": 1
+    },
+    "other_launch": {
+      "result": "identity_conflict",
+      "bound": {
+        "launch": "launch-1",
+        "thread": "worker-1",
+        "shell_pid": 4100,
+        "leader_pid": 4101,
+        "native_session": null
+      },
+      "events": 0,
+      "reclaim": {
+        "ok": false,
+        "error": "task_card_registration_required"
+      }
+    },
+    "other_shell": {
+      "result": "identity_conflict",
+      "bound": {
+        "launch": "launch-1",
+        "thread": "worker-1",
+        "shell_pid": 4100,
+        "leader_pid": 4101,
+        "native_session": null
+      },
+      "events": 0,
+      "reclaim": {
+        "ok": false,
+        "error": "task_card_registration_required"
+      }
+    },
+    "replaced": {
+      "result": "stale_attempt",
+      "bound": {
+        "launch": "launch-1",
+        "thread": "worker-1",
+        "shell_pid": 4100,
+        "leader_pid": 4101,
+        "native_session": null
+      },
+      "events": 0
+    },
+    "busy": {
+      "while_held": {
+        "settled": null,
+        "bound": {
+          "launch": "launch-1",
+          "thread": "worker-1",
+          "shell_pid": 4100,
+          "leader_pid": 4101,
+          "native_session": null
+        },
+        "events": 0,
+        "reads": 4
+      },
+      "result": "ok",
+      "bound": {
+        "launch": "launch-1",
+        "thread": "worker-1",
+        "shell_pid": 4100,
+        "leader_pid": 4101,
+        "native_session": "codex-session-1"
+      },
+      "events": 1
+    }
+  },
+  "argv": [
+    "test_t253_native_bind.py",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a/.claude/worktrees/dreamy-ptolemy-d0f2f0/evidence/2026-11-08-batch34/T-253/green/unit-native-bind.json"
+  ],
+  "revision": null,
+  "mutant": null,
+  "source_fixture": null,
+  "host_exit": 1,
+  "host_stdout": "FAIL other_launch_refused,other_shell_refused \n",
+  "host_stderr": ""
+}

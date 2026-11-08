@@ -1,0 +1,236 @@
+{
+  "status": "FAIL",
+  "source": "/tmp/t253-src-hwuxouxw/source",
+  "fixture": "/tmp/t253-bind-jgoS8A",
+  "checks": [
+    {
+      "name": "binds_pane_session",
+      "ok": true,
+      "detail": {
+        "result": "ok",
+        "bound": {
+          "launch": "launch-1",
+          "thread": "worker-1",
+          "shell_pid": 4100,
+          "leader_pid": 4101,
+          "native_session": "codex-session-1"
+        },
+        "events": 1,
+        "lock_free_during_reads": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "lock_free_while_reading",
+      "ok": true,
+      "detail": [
+        true
+      ]
+    },
+    {
+      "name": "second_call_changes_nothing",
+      "ok": false,
+      "detail": {
+        "result": "ok",
+        "bound": {
+          "launch": "launch-1",
+          "thread": "worker-1",
+          "shell_pid": 4100,
+          "leader_pid": 4101,
+          "native_session": "codex-session-1"
+        },
+        "events": 2
+      }
+    },
+    {
+      "name": "other_launch_refused",
+      "ok": false,
+      "detail": {
+        "result": "ok",
+        "bound": {
+          "launch": "launch-1",
+          "thread": "worker-1",
+          "shell_pid": 4100,
+          "leader_pid": 4101,
+          "native_session": "codex-session-1"
+        },
+        "events": 1,
+        "reclaim": {
+          "ok": false,
+          "error": "identity_conflict"
+        }
+      }
+    },
+    {
+      "name": "other_shell_refused",
+      "ok": false,
+      "detail": {
+        "result": "ok",
+        "bound": {
+          "launch": "launch-1",
+          "thread": "worker-1",
+          "shell_pid": 4100,
+          "leader_pid": 4101,
+          "native_session": "codex-session-1"
+        },
+        "events": 1,
+        "reclaim": {
+          "ok": false,
+          "error": "identity_conflict"
+        }
+      }
+    },
+    {
+      "name": "replaced_attempt_refused",
+      "ok": true,
+      "detail": {
+        "result": "stale_attempt",
+        "bound": {
+          "launch": "launch-1",
+          "thread": "worker-1",
+          "shell_pid": 4100,
+          "leader_pid": 4101,
+          "native_session": null
+        },
+        "events": 0
+      }
+    },
+    {
+      "name": "waits_for_busy_lock",
+      "ok": true,
+      "detail": {
+        "while_held": {
+          "settled": null,
+          "bound": {
+            "launch": "launch-1",
+            "thread": "worker-1",
+            "shell_pid": 4100,
+            "leader_pid": 4101,
+            "native_session": null
+          },
+          "events": 0,
+          "reads": 4
+        },
+        "result": "ok",
+        "bound": {
+          "launch": "launch-1",
+          "thread": "worker-1",
+          "shell_pid": 4100,
+          "leader_pid": 4101,
+          "native_session": "codex-session-1"
+        },
+        "events": 1
+      }
+    }
+  ],
+  "failed": [
+    "second_call_changes_nothing",
+    "other_launch_refused",
+    "other_shell_refused"
+  ],
+  "observed": {
+    "bind": {
+      "result": "ok",
+      "bound": {
+        "launch": "launch-1",
+        "thread": "worker-1",
+        "shell_pid": 4100,
+        "leader_pid": 4101,
+        "native_session": "codex-session-1"
+      },
+      "events": 1,
+      "lock_free_during_reads": [
+        true
+      ]
+    },
+    "again": {
+      "result": "ok",
+      "bound": {
+        "launch": "launch-1",
+        "thread": "worker-1",
+        "shell_pid": 4100,
+        "leader_pid": 4101,
+        "native_session": "codex-session-1"
+      },
+      "events": 2
+    },
+    "other_launch": {
+      "result": "ok",
+      "bound": {
+        "launch": "launch-1",
+        "thread": "worker-1",
+        "shell_pid": 4100,
+        "leader_pid": 4101,
+        "native_session": "codex-session-1"
+      },
+      "events": 1,
+      "reclaim": {
+        "ok": false,
+        "error": "identity_conflict"
+      }
+    },
+    "other_shell": {
+      "result": "ok",
+      "bound": {
+        "launch": "launch-1",
+        "thread": "worker-1",
+        "shell_pid": 4100,
+        "leader_pid": 4101,
+        "native_session": "codex-session-1"
+      },
+      "events": 1,
+      "reclaim": {
+        "ok": false,
+        "error": "identity_conflict"
+      }
+    },
+    "replaced": {
+      "result": "stale_attempt",
+      "bound": {
+        "launch": "launch-1",
+        "thread": "worker-1",
+        "shell_pid": 4100,
+        "leader_pid": 4101,
+        "native_session": null
+      },
+      "events": 0
+    },
+    "busy": {
+      "while_held": {
+        "settled": null,
+        "bound": {
+          "launch": "launch-1",
+          "thread": "worker-1",
+          "shell_pid": 4100,
+          "leader_pid": 4101,
+          "native_session": null
+        },
+        "events": 0,
+        "reads": 4
+      },
+      "result": "ok",
+      "bound": {
+        "launch": "launch-1",
+        "thread": "worker-1",
+        "shell_pid": 4100,
+        "leader_pid": 4101,
+        "native_session": "codex-session-1"
+      },
+      "events": 1
+    }
+  },
+  "argv": [
+    "test_t253_native_bind.py",
+    "--mutant",
+    "bind-skips-identity-check",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a/.claude/worktrees/dreamy-ptolemy-d0f2f0/evidence/2026-11-08-batch34/T-253/mutants/unit-bind-skips-identity-check.json"
+  ],
+  "revision": null,
+  "mutant": "bind-skips-identity-check",
+  "source_fixture": "/tmp/t253-src-hwuxouxw",
+  "host_exit": 1,
+  "host_stdout": "FAIL second_call_changes_nothing,other_launch_refused,other_shell_refused \n",
+  "host_stderr": ""
+}
