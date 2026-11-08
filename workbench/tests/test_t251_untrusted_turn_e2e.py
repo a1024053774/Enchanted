@@ -9,6 +9,8 @@
 场景 untrusted：回合中途进来一个工作区以外的钩子（工作区外的 cwd，经同一个钩子入口），回合确实不可信。门禁仍不受理这一回合的交付
   （不放宽身份核对），但是：回合结束后窗格不再算“在回合中”；执行主控的 status 能看到一条阻塞问题，写明交付没被受理和原因，
   这条问题交给收件箱、发给派发这个 worker 的执行主控（有送达回执）；旧 attempt 能回收，回收后同一任务能派出新 worker。
+场景 untrusted-online：同 untrusted，但执行主控是项目终端里真实运行的 Claude Code（照 T-216 的做法经 a2a request 申请并批准），
+  这条问题要实际送进它的 CLI（主控收到的消息里有这条问题的编号），送达回执为 delivered。
 
 失败方式（先列再写）：
 1. 修前：子目录钩子被判不符，回合不可信，交付搁在队列里，任务停在 claimed，没有任何提醒；窗格一直“在回合中”，回收返回 worker_working。
@@ -27,6 +29,7 @@ import sqlite3
 import sys
 import time
 import traceback
+import uuid
 
 from scripted_claude import Fixture, prompt_text, quote, working_directory, gate_line
 
@@ -50,7 +53,7 @@ MUTANTS = {
     'turn-stays-busy': [('src/panes.ts', "pane.state = pane.interrupted || pane.claudeQueuedPrompts?.length ? 'busy' : 'idle';",
                          "pane.state = refusal || pane.interrupted || pane.claudeQueuedPrompts?.length ? 'busy' : 'idle';")],
 }
-SCENARIOS = ('cd', 'compact', 'untrusted')
+SCENARIOS = ('cd', 'compact', 'untrusted', 'untrusted-online')
 
 
 def main():
@@ -92,6 +95,8 @@ def main():
 
     def plan(body):
         text = prompt_text(body)
+        if 'T251_CONTROLLER' in text:
+            return 'controller', [('Bash', dict(command='a2a request executor', description='request executor role'))], '主控就位 T251。'
         cwd = working_directory(body)
         submit = re.search(r'显式交付：\n(.+)\n', text).group(1).replace("'FULL_COMMIT_SHA'", '"$(git rev-parse HEAD)"')
         step = sum(1 for message in body['messages'] if message['role'] == 'assistant' and isinstance(message['content'], list)
@@ -124,6 +129,22 @@ def main():
         fixture.start(args.claude, {'README.md': 'T-251 fixture\n', 'check.py':
             'from pathlib import Path\nassert Path("answer.txt").read_text() == "accepted"\n'})
         fixture.card('T-1', 'answer.txt', 'check.py')
+        if args.scenario == 'untrusted-online':
+            # T-216's setup: the user starts Claude Code in the project terminal and it asks for the executor role.
+            assert fixture.request('role_release', fixture.terminal)['ok']
+            config = fixture.home / '.claude.json'
+            value = json.loads(config.read_text(encoding='utf-8'))
+            value.update(hasSeenAutoDefaultNudge=True, projects={str(fixture.repo): {'hasTrustDialogAccepted': True}})
+            config.write_text(json.dumps(value), encoding='utf-8')
+            window = fixture.request('window_open', fixture.operator, launch=fixture.terminal_launch, project='demo')
+            command = (f'claude --model claude-haiku-5-5 --effort low --permission-mode dontAsk --allowedTools Bash '
+                       f'--session-id {uuid.uuid4()} T251_CONTROLLER')
+            assert fixture.request('window_input', window['identity'], sequence=1, request_id=str(uuid.uuid4()), data=command + '\r')['ok']
+            pending = fixture.wait('主控申请角色', lambda: fixture.request('sidebar_snapshot').get('role_requests'), 90)
+            assert fixture.request('role_request_decide', fixture.operator, role_request=pending[0]['id'], approved=True)['ok']
+            fixture.wait('主控角色生效', lambda: fixture.request('terminal_whoami', fixture.terminal).get('role') == 'executor', 30)
+            fixture.wait('主控结束初始回合', lambda: '主控就位 T251。' in (fixture.state / 'traces' / fixture.terminal_launch / 'pty.raw')
+                         .read_text(encoding='utf-8', errors='replace'), 45)
         dispatched = fixture.request('dispatch', fixture.terminal, task='T-1', runtimeMode='workspace-write')
         assert dispatched.get('ok'), dispatched
         attempt = dispatched['attempt']
@@ -142,7 +163,7 @@ def main():
             return submitted and any(e['type'] == 'hook_received' and '"hook_event_name":"Stop"' in e['data'].get('raw_stdin', '')
                                      and e['seq'] > submitted[0] for e in seen)
         fixture.wait('交付的回合结束', submit_turn_ended, 180)
-        if args.scenario != 'untrusted':
+        if not args.scenario.startswith('untrusted'):
             try:
                 fixture.wait('门禁已交付', lambda: status()['task']['state'] == 'submitted', 20)
             except BaseException as error:
@@ -201,6 +222,25 @@ def main():
                 store.close()
             last = receipts[-1] if receipts else {}
             report['observed']['inbox_receipts'] = receipts
+            if args.scenario == 'untrusted-online':
+                ids = {issue['id'] for issue in sent}
+
+                def received():
+                    return [b for b in fixture.api.bodies if b['key'] == 'controller' and any(
+                        i in json.dumps(m, ensure_ascii=False) for i in ids for m in b['messages'] if m['role'] == 'user')]
+                try:
+                    fixture.wait('执行主控的 CLI 收到问题', lambda: ids and received(), 60)
+                except BaseException as error:
+                    report['observed']['wait_received'] = str(error)
+                store = sqlite3.connect(f"file:{fixture.dir / 'state' / 'state.sqlite3'}?mode=ro", uri=True)
+                try:
+                    receipts = [dict(entry=entry, **json.loads(data)) for entry, data in store.execute(
+                        'SELECT entry, data FROM inbox_deliveries ORDER BY seq') if entry in ids]
+                finally:
+                    store.close()
+                report['observed']['inbox_receipts'] = receipts
+                check('issue_reached_executor_cli', bool(ids) and bool(received()) and receipts and receipts[-1].get('state') == 'delivered',
+                      dict(receipts=receipts, controller_requests=len(received())))
             check('issue_sent_through_inbox', bool(sent) and all(issue.get('controller_launch') == fixture.terminal['launch'] for issue in sent)
                   and (last.get('state') in ('queued', 'delivered') or (last.get('state') == 'pending' and last.get('reason') == 'role_session_missing')),
                   dict(controller_launch=[issue.get('controller_launch') for issue in sent], terminal=fixture.terminal['launch'], receipts=receipts))
