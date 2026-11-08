@@ -1,0 +1,126 @@
+[
+  {
+    "seq": 148986,
+    "type": "pane_started",
+    "data": {
+      "shell_pid": 79025,
+      "state": "unknown"
+    }
+  },
+  {
+    "seq": 148987,
+    "type": "terminal_protocol_write",
+    "data": {
+      "query": "\u001b[?u",
+      "response": "\u001b[?0u"
+    }
+  },
+  {
+    "seq": 148988,
+    "type": "terminal_protocol_write",
+    "data": {
+      "query": "\u001b[c",
+      "response": "\u001b[?1;2c"
+    }
+  },
+  {
+    "seq": 148989,
+    "type": "terminal_protocol_write",
+    "data": {
+      "query": "\u001b[6n",
+      "response": "\u001b[1;1R"
+    }
+  },
+  {
+    "seq": 148990,
+    "type": "terminal_protocol_write",
+    "data": {
+      "query": "\u001b]11;?\u001b\\",
+      "response": "\u001b]11;rgb:0000/0000/0000\u001b\\"
+    }
+  },
+  {
+    "seq": 148991,
+    "type": "pane_leader_observed",
+    "data": {
+      "shell_pid": 79025,
+      "leader_pid": 79027
+    }
+  },
+  {
+    "seq": 148992,
+    "type": "dispatch_queued",
+    "data": {
+      "id": "a87cd6b3-e5d6-48c2-aa76-f3941d142dc2",
+      "seq": 68,
+      "source": "executor",
+      "text": "⟦主控 #68⟧\n# 角色卡：worker\n\n你是 Enchanted 派出的 worker：主控把一个受管任务交给你，你在这个任务专用的 Git worktree 里完成它。下面的任务卡与受管身份由门禁生成。\n\n**做**\n\n- 只做任务卡范围内的事，按卡上的完成条件验证。\n- 改完用 Git 提交，然后运行提示里给的交付命令显式交付，再结束回合。不要只说“做完了”：没有交付请求就没有交付。\n- 主控为本次派发给的额外目录（启动时列出，没给就没有）可写，但其中的改动不进门禁的审查与集成；交付说明须列出改过的额外目录，没有改动也写明。\n- 发现范围外的问题（卡与代码不符、验收条件像有缺陷、不确定该不该做），用提示里同一入口的 `issue --task <任务> --title <标题> --body <正文>` 上报，写清看到了什么、在哪里、为什么是问题、建议怎么办。上报后继续你的工作；只有必须等人回答才能继续时才停下。\n- Codex 保留 `-a never`：需要原生审批的动作会立即返回拒绝。把拒绝原因、所需操作与建议通过上述 `issue` 命令上报；必须等答复时加 `--blocking true`，结束当前回合等待。上报会立即经收件箱交给执行主控（blocking 也先给主控），主控答复或交给用户处理后，答案会送进本会话并注明是谁答的。涉及权限、范围、验收条件、安全、不可逆操作的问题只交给用户决定。答复不自动授予文件写入权限，仍须遵守写入边界。\n\n**不做**\n\n- 不扩大范围，不动别的任务。\n- 不改任务卡列为验收文件的测试、脚本、夹具与配置；你认为它们有误，就上报。\n- 任务卡需要修订时，用 `issue` 交给执行主控处理。改卡重派由执行主控按 `card_save` → `revise` → 对旧 attempt 显式 `reclaim` → 正常 `dispatch` 操作；你不自行改卡、回收或重派。旧会话未回收时仍占用路径，不能用交叠参数绕过；收到撤销通知后停止旧 attempt 的工作，不接管新 attempt。回收后的未提交证据按规则保留，但不继续占用路径。\n- 提交说明里不手写 `A2A-*` 尾注：提交时由钩子自动加上。\n- 任务写入范围是 worktree、请求目录与本次派发给的额外目录；CLI 自己的临时目录只用于临时文件。原生文件工具或 shell 的范围外写入被拒时，不要换路径、换命令绕过，也不要改权限设置；需要时上报。用户 MCP 服务的写入不受这层沙箱约束，但仍须遵守任务卡范围。\n\n\n主控为本次派发给的额外可写目录：[\"/private/tmp/t249-terra-20261108-02\"]。其中的改动不进门禁的审查与集成；没列出的目录不要写。\n\n{\n  \"id\": \"T-249-2\",\n  \"source\": {\n    \"ticket\": \"/Users/luckye/Documents/Code/a2a/.project-map/tickets/T-249-git-graph-panel.md\",\n    \"ready_rev\": 1\n  },\n  \"goal\": \"你负责 T-249 的独立验收，不实现产品。用户原话：“最后让codex用 6.1 terra用 computer use以及常规测试来验收。”本轮继续明确“最后两个面板仍用 gpt-6.1-terra Computer Use 加常规测试验收”，授权和模型约束在 /Users/luckye/Documents/Code/a2a/evidence/2026-11-08-controller-switch/executor-handoff.md。当前仅验收 T-249，T-250 尚未实现。本任务使用 gpt-6.1-terra xhigh 普通速度；审查仍由 astra xhigh 完成。你不是代码库的唯一参与者，不撤销别人改动，只写本卡证据目录及明确分配的临时夹具。\\n\\n固定产品候选：1243bc15f979976967cfd2d5cdd3a2acce6df635；只读源码在 /Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a5。你自己的 gate worktree 基于主分支，不含未集成的面板；不能把自己 worktree 的旧产品当成该候选。正式 Enchanted PID 81233，启动时间 2026-11-08 13:56:08Z；不要操作正式 Enchanted、正式后台或用户自己的 hc core。不要启动 Claude、其他 agent CLI，或重启任何已有后台。\\n\\n新包已经由标准命令打好：/private/tmp/t249-outside-9iitgp1b/a2a-build-t249-fence4-details-20261108-01/Enchanted Test.app。包内 revision 必须等于候选、bundle id org.a2a.workbench.test。主控与第一轮验收都已通过 Computer Use 读到这一包；第一轮结束已关闭 Test 窗口。用 Computer Use 按这个完整路径重新打开 Test App，核对“后台已连接”。使用标准 Test 数据目录 /Users/luckye/Library/Application Support/a2a-orchestrator-test 与其 ui 子目录；这两处及 Enchanted Test 凭据目录在启动前均确认不存在，本次由主控创建并负责清理。先核对路径和窗口，不另开其他包或数据目录。Computer Use 只操作这一个 Test App 及本任务新建的夹具。用户已明确授权 Enchanted/Test 的“文稿”访问提示；若真出现，只可点此项“允许”，记录原文与时间，其他系统隐私或账号要求停下上报。程序性创建 UI 状态或直接调用产品接口不能替代 Computer Use；遵循 CUA 文档的初始化、操作及 completion_summary 要求。\\n\\n夹具根目录 /private/tmp/t249-terra-20261108-02，包含 repos/alpha（两分支、一次 merge、tag、工作改动）、beta、many（3 个仓库）、unborn（已暂存／混合／未跟踪），真正用于受管只读验收的 linked worktree 是 /Users/luckye/Library/Application Support/a2a-orchestrator-test/worktrees/terra/readonly-02；临时根中另一个 state/worktrees 路径是准备过程留下的夹具，不用于受管识别。oracle-before.json 在任何 UI 操作前已由独立 Git 命令生成，重放脚本在主仓库 evidence/2026-11-08-batch34/T-249/controller/prepare-terra-fixture.py。这些路径是本次额外可写目录，操作不进入代码集成；不写其他目录或用户全局配置。需要节点测试临时目录时使用此根下新建 tmp，把 TMPDIR/TMP/TEMP 指向它，不能放在门禁 worktree 内误触只读判据。\\n\\n按票的 Acceptance 逐项从 Test 窗口核对并记录：\\n1. 提交顺序、父子关系、标签、未提交行与 Git rev-list --date-order --parents --all、for-each-ref、status 对照；从可见提交行打开详情，点文件看 diff，核对根提交、普通提交、未提交与首次提交前；字面特殊文件名不能混入另一文件。\\n2. 从界面创建 terra-created 分支再删除；Git 读回仅预期引用变化；以 - 开头名称被拒且引用不变。取消确认不写仓库。只在上述夹具操作，不 push、pull 或接远程。\\n3. 打开普通终端并 cd 到 beta，聚焦后观察跟随；固定后切到另一夹具终端不变，取消固定恢复；many 的列表与独立 Git 夹具一致。只开普通 shell，不开模型 CLI。\\n4. 跟随 readonly worktree，写菜单不可用并有原因，操作前后 Git 元数据与引用一致。不得改真实门禁状态来模拟。\\n5. 特别核对原审查未覆盖的 Esc、焦点和重复选择：详情→diff 后连续两次 Esc，分别关闭 diff、详情；选择不同提交、重复选择、返回列表不残留旧内容；输入确认框时 Esc 不误写终端；左右调整面板宽度及双击复原，记录实际动作与可见结果。使用至多两次的有界序列，发现问题先保存证据、给出复现，不修产品、不无限扩展审查。\\n6. 常规测试：从上述固定候选运行冻结 acceptance/T-249/check_git_graph.py、node --test workbench/tests/test_t249_git_host.mjs 和 python3 workbench/tests/test_t249_outside_safety.py，保存独立原始输出。以实际代码和 Git 数据核对根提交、特殊路径、unborn。主控已在同版本运行真实窗口正例两次各 142 项及五个变异；你可以引用其已绑定证据，但不能把它冒充你本次 CU。报告区分自己实际运行、主控来源、未覆盖项。\\n7. 开始/结束记录正式后台 PID 和启动时间；包不替换 /Applications。结束关闭自己创建的终端和 Test 窗口，保留自己的 state/fixture 给主控按所有权清理，不关闭正式后台。不自行删原始失败证据。截图放临时根，仓库只留文字说明及必要文本数据。\\n\\n交付：在 evidence/2026-11-08-batch34/T-249/terra/ 保存中文 RESULTS.md、可复跑命令、实际 CU 动作与观察、独立 Git 对照、常规测试原始输出、包版本与前后进程事实。报告使用 PASS / FAIL / INCOMPLETE / BLOCKED，不将缺证据上调。发现任何范围、权限、产品问题先 issue；只在自己的证据目录编写机械观察核对脚本 check_observations.py：输入为本次记录的可机械核对界面值和独立 Git oracle，检查明确事实（例如选择提交的哈希、父提交、文件及 diff 内容对应），不以固定报告措辞、关键词或源码字符串判断行为。先确定 Git 期望，再记录 UI；对至少两个明显错误的观察副本（如错提交、混入文件）要判红，原正确观察恢复后判绿。中文报告的真实性、界面操作与状态结论由人/独立审查判断，不把机械检查器宣称为全文语义证明。\\n\\ngit add --sparse、git commit 后显式 submit 一次，queued 不等于已接收。所有结果必须绑定产品候选和本 task/attempt。验收证据交付也走门禁，不自行 integrate。主控等你提交与空闲后审读；敏感产品变更仍须用户读证据批准，父任务集成回收后才有空位审查本证据任务，以维持最多三条 Codex CLI。\\n\\n工具边界补充：测试资料、待验收 App 与 Test 数据目录允许只读核对；shell 写入只限你的受管证据目录与 /private/tmp/t249-terra-20261108-02。Test 数据写入经已授权的 Test App 正常 UI 发生。ps 等诊断若沙箱拒绝，不换命令绕过，不申请扩大权限；记录 INCOMPLETE 并 issue，由主控从已有授权范围核对。参考环境记录 /Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-249/controller/terra-environment-start.json。\\n\\n版本绑定补充：父任务最终交付候选为 18c108fcaed1c4ecf51831f2272578a3b09427be；Test 包及已执行窗口用例的源码版本为 1243bc15f979976967cfd2d5cdd3a2acce6df635。父候选只是恢复旧代码并补来源明确的文本证据；主控 git diff --exit-code 1243bc15… 18c108fc… -- workbench acceptance 为 0，完整记录在主仓库 evidence/2026-11-08-batch34/T-249/controller/worker-v6-product-equivalence.json。读取源 worktree 时 HEAD 是18c108fc；不要把文本补交误认作产品代码变更，也不冒称 Test 包由18c108fc重新打包。报告同时记父交付与实际包版本。\\n\\n交付可重放性：check_observations.py 应读取本任务证据目录中保存的独立 Git 输出与实际 UI 观察副本，不依赖验收后会清理的 /private/tmp 夹具、Test 数据目录或父 worker worktree。常规产品测试的原始命令与结果另外保存；机械核对脚本只验证已观察事实之间的关系，不把报告文字含义编码成关键词规则。最终候选内须保留可运行检查所需的小型输入文件。\\n\\n父任务已经门禁 verified：review 9155d2de-7eeb-4515-b31b-46214d7f7532 可合并、findings=[]，机械三项通过；该结论只关闭已有证据缺口，不替代你本次独立 Computer Use。原始审查在主仓库 evidence/2026-11-08-batch34/T-249/controller/review-v6-result.json。\\n\\n第二次独立验收（spec_rev 2）：前一次提交 2be3972665b8b7631b187842b24b166228bcffd4 整个回合被门禁拒收，不能接续其交付或冒称它已通过。拒收原因已查实：测试 exec_command 把 cwd 设置成父任务工作区，违反 T-251 本会话目录边界。请重新执行完整验收，自己记录本次观察。旧报告只供诊断，保存在主仓库 controller/terra-attempt1-rejected/，不可直接复制旧观察充当本次结果。新夹具是独立的 -02；旧 -01 保留。\\n\\n工具身份约束：所有 exec_command 的外层 workdir 始终是你自己的 gate worktree（或你独占的 -02 extra 目录）；不得设为父任务、主仓库、包目录或 Test 数据目录。只读产品脚本使用绝对路径调用，读取 Git 用 git -C，但不要改变工具外层 cwd 或钩子上报内容，不扩大权限。三条常规命令形如 python3 '/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a5/acceptance/T-249/check_git_graph.py'、node --test '.../workbench/tests/test_t249_git_host.mjs'、python3 '.../workbench/tests/test_t249_outside_safety.py'。脚本若要求参数，先读其说明，不自行假定旧工作区为当前目录。\\n\\n本次必须把以下缺口变成可核对结果：1）创建两个普通 shell 终端，真实切换焦点，核对跟随、固定、解固定；同一终端 cd 不能代替切换焦点。2）先从屏幕确认真正的侧栏分隔条坐标，再做左右拖动和双击复原，截图暂存 -02；记录前后可见宽度。两次尝试仍未完成就说明具体阻塞，不猜测产品缺陷。3）实际只读路径是 .../a2a-orchestrator-test/worktrees/terra/readonly-02；在任何只读菜单操作前解析其 git-dir、git-common-dir，保存真实 Git 元数据字节快照到自己 -02 目录，操作后逐文件直接比较字节、路径和 refs，报告差异。不得用临时 state 目录或 alpha 本体冒充受管路径；不要改 Test 状态数据库。4）展开 merge 详情也核对两个父哈希。5）Esc 输入不泄漏到终端用实际可见终端输入缓冲/可复现观察核对，保留可见证据。\\n\\n正式后台核实可由主控补证：controller/terra-attempt2-process-before.json 记录主控本机 ps 原始输出，正式 PID 81233 未变化。若你的 ps 被沙箱拒绝，按原约束停止该命令、不绕过；其余验收继续，报告清楚把前后进程检查归于主控，由主控在你结束时补 after。这一来源划分不是产品验收缺项，不须为相同限制重复申请权限或放弃其他已授权检查。\\n\\n若遇到操作问题，只要还有已授权的不同定位办法（如截图确认分隔条），继续完成；不要将首个未命中的鼠标动作直接当成停止条件。一旦可复现产品缺陷成立，保留最短复现与独立预期并 issue，不改产品。最终报告逐项列出完整 Acceptance 对应证据与任何真实缺口。\",\n  \"non_goals\": [\n    \"不改产品源码、任务票或治理规则\",\n    \"不修改冻结验收\",\n    \"不操作正式 Enchanted 或用户 hc core\",\n    \"不修改 /Applications、全局配置，不 push\",\n    \"不接管 T-250，不启动其他 agent\"\n  ],\n  \"paths\": {\n    \"allow\": [\n      \"evidence/2026-11-08-batch34/T-249/terra/\"\n    ],\n    \"deny\": [\n      \"workbench/\",\n      \"acceptance/\",\n      \".project-map/\",\n      \"REVIEW.md\"\n    ]\n  },\n  \"oracle_paths\": [\n    \"acceptance/T-249/check_git_graph.py\",\n    \"evidence/2026-11-08-batch34/T-249/controller/prepare-terra-fixture.py\"\n  ],\n  \"completion_conditions\": [\n    {\n      \"argv\": [\n        \"/usr/bin/python3\",\n        \"evidence/2026-11-08-batch34/T-249/terra/check_observations.py\"\n      ]\n    }\n  ],\n  \"red_commands\": [],\n  \"task_type\": \"测试\",\n  \"repair_target\": null,\n  \"complexity\": \"M\",\n  \"executor\": {\n    \"cli\": \"Codex\",\n    \"model\": \"gpt-6.1-terra\",\n    \"effort\": \"xhigh\"\n  },\n  \"base_commit\": \"793a043ee67b8cc6e17abe0d3d319f0b1c36282b\",\n  \"writer\": {\n    \"task_id\": \"a2a+T-249-2\",\n    \"attempt_id\": \"843d4f55-505a-487e-8b0e-149ea092ec3e\",\n    \"session_id\": \"ccb74d44-141d-4ec9-9287-84cb71c8a37f\",\n    \"fence\": 2,\n    \"thread_id\": \"4c70d97d-1077-4444-bf87-e3347793d8f2\"\n  }\n}\n\n受管身份：{\"command\":\"submit\",\"task\":\"a2a+T-249-2\",\"attempt\":\"843d4f55-505a-487e-8b0e-149ea092ec3e\",\"session\":\"ccb74d44-141d-4ec9-9287-84cb71c8a37f\",\"fence\":2,\"spec_rev\":2,\"commit\":\"<FULL_COMMIT_SHA>\"}\nGit 写操作：把执行工具的工作目录设为本 attempt 的 worktree。git add <路径> 和 git commit … 必须各自作为一条独立的工具命令执行；不要与 cd、检查命令或彼此用 &&、分号、管道、换行、变量赋值或重定向拼接。git status、git diff、测试和 git rev-parse 另行执行。两条 Git 前缀 allow 规则只授权对应命令；git mv、git rm、git restore、git stash、git reset 等其他 Git 写操作会被拒，改用普通 mv、rm 后 git add <路径>，恢复文件用 git show HEAD:<路径> > <路径>；若独立执行仍被沙箱拒绝，上报问题并结束，不重试或修改权限。\n完成并 Git 提交后，把 FULL_COMMIT_SHA 换成完整提交号，运行以下 CLI 显式交付：\nELECTRON_RUN_AS_NODE=1 '/Applications/Enchanted.app/Contents/MacOS/Enchanted' '/Applications/Enchanted.app/Contents/Resources/app/src/gates/cli.ts' '--state' '/Users/luckye/Library/Application Support/a2a-orchestrator' 'submit' '--task' 'a2a+T-249-2' '--attempt' '843d4f55-505a-487e-8b0e-149ea092ec3e' '--session' 'ccb74d44-141d-4ec9-9287-84cb71c8a37f' '--fence' '2' '--spec-rev' '2' '--commit' 'FULL_COMMIT_SHA'\n本会话的 CLI 会将 submit、status、issue 请求写到 A2A_REQUEST_DIR 指向的本 attempt 专用 /tmp 目录；不直接连接 socket。queued=true 只表示已排队，不是门禁通过。最后结束回合，让 Stop hook 读取并转交；没有请求文件就不交付。请求文件不得进入 Git 提交。查状态用同一入口 status --task，问题上报用 issue --task --title --body。不要修改合同、验收程序或沙箱权限。",
+      "registered_at": "2026-11-08T15:28:37.159Z",
+      "parent_launch": "55d61e9f-3657-41c2-9827-8cfd5c04cb9b"
+    }
+  },
+  {
+    "seq": 148994,
+    "type": "codex_startup_ready",
+    "data": {
+      "source": "native_terminal_protocol",
+      "packet": "7501;state=idle:app=codex"
+    }
+  },
+  {
+    "seq": 148995,
+    "type": "paste_intent",
+    "data": {
+      "dispatch": "a87cd6b3-e5d6-48c2-aa76-f3941d142dc2",
+      "text": "⟦主控 #68⟧\n# 角色卡：worker\n\n你是 Enchanted 派出的 worker：主控把一个受管任务交给你，你在这个任务专用的 Git worktree 里完成它。下面的任务卡与受管身份由门禁生成。\n\n**做**\n\n- 只做任务卡范围内的事，按卡上的完成条件验证。\n- 改完用 Git 提交，然后运行提示里给的交付命令显式交付，再结束回合。不要只说“做完了”：没有交付请求就没有交付。\n- 主控为本次派发给的额外目录（启动时列出，没给就没有）可写，但其中的改动不进门禁的审查与集成；交付说明须列出改过的额外目录，没有改动也写明。\n- 发现范围外的问题（卡与代码不符、验收条件像有缺陷、不确定该不该做），用提示里同一入口的 `issue --task <任务> --title <标题> --body <正文>` 上报，写清看到了什么、在哪里、为什么是问题、建议怎么办。上报后继续你的工作；只有必须等人回答才能继续时才停下。\n- Codex 保留 `-a never`：需要原生审批的动作会立即返回拒绝。把拒绝原因、所需操作与建议通过上述 `issue` 命令上报；必须等答复时加 `--blocking true`，结束当前回合等待。上报会立即经收件箱交给执行主控（blocking 也先给主控），主控答复或交给用户处理后，答案会送进本会话并注明是谁答的。涉及权限、范围、验收条件、安全、不可逆操作的问题只交给用户决定。答复不自动授予文件写入权限，仍须遵守写入边界。\n\n**不做**\n\n- 不扩大范围，不动别的任务。\n- 不改任务卡列为验收文件的测试、脚本、夹具与配置；你认为它们有误，就上报。\n- 任务卡需要修订时，用 `issue` 交给执行主控处理。改卡重派由执行主控按 `card_save` → `revise` → 对旧 attempt 显式 `reclaim` → 正常 `dispatch` 操作；你不自行改卡、回收或重派。旧会话未回收时仍占用路径，不能用交叠参数绕过；收到撤销通知后停止旧 attempt 的工作，不接管新 attempt。回收后的未提交证据按规则保留，但不继续占用路径。\n- 提交说明里不手写 `A2A-*` 尾注：提交时由钩子自动加上。\n- 任务写入范围是 worktree、请求目录与本次派发给的额外目录；CLI 自己的临时目录只用于临时文件。原生文件工具或 shell 的范围外写入被拒时，不要换路径、换命令绕过，也不要改权限设置；需要时上报。用户 MCP 服务的写入不受这层沙箱约束，但仍须遵守任务卡范围。\n\n\n主控为本次派发给的额外可写目录：[\"/private/tmp/t249-terra-20261108-02\"]。其中的改动不进门禁的审查与集成；没列出的目录不要写。\n\n{\n  \"id\": \"T-249-2\",\n  \"source\": {\n    \"ticket\": \"/Users/luckye/Documents/Code/a2a/.project-map/tickets/T-249-git-graph-panel.md\",\n    \"ready_rev\": 1\n  },\n  \"goal\": \"你负责 T-249 的独立验收，不实现产品。用户原话：“最后让codex用 6.1 terra用 computer use以及常规测试来验收。”本轮继续明确“最后两个面板仍用 gpt-6.1-terra Computer Use 加常规测试验收”，授权和模型约束在 /Users/luckye/Documents/Code/a2a/evidence/2026-11-08-controller-switch/executor-handoff.md。当前仅验收 T-249，T-250 尚未实现。本任务使用 gpt-6.1-terra xhigh 普通速度；审查仍由 astra xhigh 完成。你不是代码库的唯一参与者，不撤销别人改动，只写本卡证据目录及明确分配的临时夹具。\\n\\n固定产品候选：1243bc15f979976967cfd2d5cdd3a2acce6df635；只读源码在 /Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a5。你自己的 gate worktree 基于主分支，不含未集成的面板；不能把自己 worktree 的旧产品当成该候选。正式 Enchanted PID 81233，启动时间 2026-11-08 13:56:08Z；不要操作正式 Enchanted、正式后台或用户自己的 hc core。不要启动 Claude、其他 agent CLI，或重启任何已有后台。\\n\\n新包已经由标准命令打好：/private/tmp/t249-outside-9iitgp1b/a2a-build-t249-fence4-details-20261108-01/Enchanted Test.app。包内 revision 必须等于候选、bundle id org.a2a.workbench.test。主控与第一轮验收都已通过 Computer Use 读到这一包；第一轮结束已关闭 Test 窗口。用 Computer Use 按这个完整路径重新打开 Test App，核对“后台已连接”。使用标准 Test 数据目录 /Users/luckye/Library/Application Support/a2a-orchestrator-test 与其 ui 子目录；这两处及 Enchanted Test 凭据目录在启动前均确认不存在，本次由主控创建并负责清理。先核对路径和窗口，不另开其他包或数据目录。Computer Use 只操作这一个 Test App 及本任务新建的夹具。用户已明确授权 Enchanted/Test 的“文稿”访问提示；若真出现，只可点此项“允许”，记录原文与时间，其他系统隐私或账号要求停下上报。程序性创建 UI 状态或直接调用产品接口不能替代 Computer Use；遵循 CUA 文档的初始化、操作及 completion_summary 要求。\\n\\n夹具根目录 /private/tmp/t249-terra-20261108-02，包含 repos/alpha（两分支、一次 merge、tag、工作改动）、beta、many（3 个仓库）、unborn（已暂存／混合／未跟踪），真正用于受管只读验收的 linked worktree 是 /Users/luckye/Library/Application Support/a2a-orchestrator-test/worktrees/terra/readonly-02；临时根中另一个 state/worktrees 路径是准备过程留下的夹具，不用于受管识别。oracle-before.json 在任何 UI 操作前已由独立 Git 命令生成，重放脚本在主仓库 evidence/2026-11-08-batch34/T-249/controller/prepare-terra-fixture.py。这些路径是本次额外可写目录，操作不进入代码集成；不写其他目录或用户全局配置。需要节点测试临时目录时使用此根下新建 tmp，把 TMPDIR/TMP/TEMP 指向它，不能放在门禁 worktree 内误触只读判据。\\n\\n按票的 Acceptance 逐项从 Test 窗口核对并记录：\\n1. 提交顺序、父子关系、标签、未提交行与 Git rev-list --date-order --parents --all、for-each-ref、status 对照；从可见提交行打开详情，点文件看 diff，核对根提交、普通提交、未提交与首次提交前；字面特殊文件名不能混入另一文件。\\n2. 从界面创建 terra-created 分支再删除；Git 读回仅预期引用变化；以 - 开头名称被拒且引用不变。取消确认不写仓库。只在上述夹具操作，不 push、pull 或接远程。\\n3. 打开普通终端并 cd 到 beta，聚焦后观察跟随；固定后切到另一夹具终端不变，取消固定恢复；many 的列表与独立 Git 夹具一致。只开普通 shell，不开模型 CLI。\\n4. 跟随 readonly worktree，写菜单不可用并有原因，操作前后 Git 元数据与引用一致。不得改真实门禁状态来模拟。\\n5. 特别核对原审查未覆盖的 Esc、焦点和重复选择：详情→diff 后连续两次 Esc，分别关闭 diff、详情；选择不同提交、重复选择、返回列表不残留旧内容；输入确认框时 Esc 不误写终端；左右调整面板宽度及双击复原，记录实际动作与可见结果。使用至多两次的有界序列，发现问题先保存证据、给出复现，不修产品、不无限扩展审查。\\n6. 常规测试：从上述固定候选运行冻结 acceptance/T-249/check_git_graph.py、node --test workbench/tests/test_t249_git_host.mjs 和 python3 workbench/tests/test_t249_outside_safety.py，保存独立原始输出。以实际代码和 Git 数据核对根提交、特殊路径、unborn。主控已在同版本运行真实窗口正例两次各 142 项及五个变异；你可以引用其已绑定证据，但不能把它冒充你本次 CU。报告区分自己实际运行、主控来源、未覆盖项。\\n7. 开始/结束记录正式后台 PID 和启动时间；包不替换 /Applications。结束关闭自己创建的终端和 Test 窗口，保留自己的 state/fixture 给主控按所有权清理，不关闭正式后台。不自行删原始失败证据。截图放临时根，仓库只留文字说明及必要文本数据。\\n\\n交付：在 evidence/2026-11-08-batch34/T-249/terra/ 保存中文 RESULTS.md、可复跑命令、实际 CU 动作与观察、独立 Git 对照、常规测试原始输出、包版本与前后进程事实。报告使用 PASS / FAIL / INCOMPLETE / BLOCKED，不将缺证据上调。发现任何范围、权限、产品问题先 issue；只在自己的证据目录编写机械观察核对脚本 check_observations.py：输入为本次记录的可机械核对界面值和独立 Git oracle，检查明确事实（例如选择提交的哈希、父提交、文件及 diff 内容对应），不以固定报告措辞、关键词或源码字符串判断行为。先确定 Git 期望，再记录 UI；对至少两个明显错误的观察副本（如错提交、混入文件）要判红，原正确观察恢复后判绿。中文报告的真实性、界面操作与状态结论由人/独立审查判断，不把机械检查器宣称为全文语义证明。\\n\\ngit add --sparse、git commit 后显式 submit 一次，queued 不等于已接收。所有结果必须绑定产品候选和本 task/attempt。验收证据交付也走门禁，不自行 integrate。主控等你提交与空闲后审读；敏感产品变更仍须用户读证据批准，父任务集成回收后才有空位审查本证据任务，以维持最多三条 Codex CLI。\\n\\n工具边界补充：测试资料、待验收 App 与 Test 数据目录允许只读核对；shell 写入只限你的受管证据目录与 /private/tmp/t249-terra-20261108-02。Test 数据写入经已授权的 Test App 正常 UI 发生。ps 等诊断若沙箱拒绝，不换命令绕过，不申请扩大权限；记录 INCOMPLETE 并 issue，由主控从已有授权范围核对。参考环境记录 /Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-249/controller/terra-environment-start.json。\\n\\n版本绑定补充：父任务最终交付候选为 18c108fcaed1c4ecf51831f2272578a3b09427be；Test 包及已执行窗口用例的源码版本为 1243bc15f979976967cfd2d5cdd3a2acce6df635。父候选只是恢复旧代码并补来源明确的文本证据；主控 git diff --exit-code 1243bc15… 18c108fc… -- workbench acceptance 为 0，完整记录在主仓库 evidence/2026-11-08-batch34/T-249/controller/worker-v6-product-equivalence.json。读取源 worktree 时 HEAD 是18c108fc；不要把文本补交误认作产品代码变更，也不冒称 Test 包由18c108fc重新打包。报告同时记父交付与实际包版本。\\n\\n交付可重放性：check_observations.py 应读取本任务证据目录中保存的独立 Git 输出与实际 UI 观察副本，不依赖验收后会清理的 /private/tmp 夹具、Test 数据目录或父 worker worktree。常规产品测试的原始命令与结果另外保存；机械核对脚本只验证已观察事实之间的关系，不把报告文字含义编码成关键词规则。最终候选内须保留可运行检查所需的小型输入文件。\\n\\n父任务已经门禁 verified：review 9155d2de-7eeb-4515-b31b-46214d7f7532 可合并、findings=[]，机械三项通过；该结论只关闭已有证据缺口，不替代你本次独立 Computer Use。原始审查在主仓库 evidence/2026-11-08-batch34/T-249/controller/review-v6-result.json。\\n\\n第二次独立验收（spec_rev 2）：前一次提交 2be3972665b8b7631b187842b24b166228bcffd4 整个回合被门禁拒收，不能接续其交付或冒称它已通过。拒收原因已查实：测试 exec_command 把 cwd 设置成父任务工作区，违反 T-251 本会话目录边界。请重新执行完整验收，自己记录本次观察。旧报告只供诊断，保存在主仓库 controller/terra-attempt1-rejected/，不可直接复制旧观察充当本次结果。新夹具是独立的 -02；旧 -01 保留。\\n\\n工具身份约束：所有 exec_command 的外层 workdir 始终是你自己的 gate worktree（或你独占的 -02 extra 目录）；不得设为父任务、主仓库、包目录或 Test 数据目录。只读产品脚本使用绝对路径调用，读取 Git 用 git -C，但不要改变工具外层 cwd 或钩子上报内容，不扩大权限。三条常规命令形如 python3 '/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a5/acceptance/T-249/check_git_graph.py'、node --test '.../workbench/tests/test_t249_git_host.mjs'、python3 '.../workbench/tests/test_t249_outside_safety.py'。脚本若要求参数，先读其说明，不自行假定旧工作区为当前目录。\\n\\n本次必须把以下缺口变成可核对结果：1）创建两个普通 shell 终端，真实切换焦点，核对跟随、固定、解固定；同一终端 cd 不能代替切换焦点。2）先从屏幕确认真正的侧栏分隔条坐标，再做左右拖动和双击复原，截图暂存 -02；记录前后可见宽度。两次尝试仍未完成就说明具体阻塞，不猜测产品缺陷。3）实际只读路径是 .../a2a-orchestrator-test/worktrees/terra/readonly-02；在任何只读菜单操作前解析其 git-dir、git-common-dir，保存真实 Git 元数据字节快照到自己 -02 目录，操作后逐文件直接比较字节、路径和 refs，报告差异。不得用临时 state 目录或 alpha 本体冒充受管路径；不要改 Test 状态数据库。4）展开 merge 详情也核对两个父哈希。5）Esc 输入不泄漏到终端用实际可见终端输入缓冲/可复现观察核对，保留可见证据。\\n\\n正式后台核实可由主控补证：controller/terra-attempt2-process-before.json 记录主控本机 ps 原始输出，正式 PID 81233 未变化。若你的 ps 被沙箱拒绝，按原约束停止该命令、不绕过；其余验收继续，报告清楚把前后进程检查归于主控，由主控在你结束时补 after。这一来源划分不是产品验收缺项，不须为相同限制重复申请权限或放弃其他已授权检查。\\n\\n若遇到操作问题，只要还有已授权的不同定位办法（如截图确认分隔条），继续完成；不要将首个未命中的鼠标动作直接当成停止条件。一旦可复现产品缺陷成立，保留最短复现与独立预期并 issue，不改产品。最终报告逐项列出完整 Acceptance 对应证据与任何真实缺口。\",\n  \"non_goals\": [\n    \"不改产品源码、任务票或治理规则\",\n    \"不修改冻结验收\",\n    \"不操作正式 Enchanted 或用户 hc core\",\n    \"不修改 /Applications、全局配置，不 push\",\n    \"不接管 T-250，不启动其他 agent\"\n  ],\n  \"paths\": {\n    \"allow\": [\n      \"evidence/2026-11-08-batch34/T-249/terra/\"\n    ],\n    \"deny\": [\n      \"workbench/\",\n      \"acceptance/\",\n      \".project-map/\",\n      \"REVIEW.md\"\n    ]\n  },\n  \"oracle_paths\": [\n    \"acceptance/T-249/check_git_graph.py\",\n    \"evidence/2026-11-08-batch34/T-249/controller/prepare-terra-fixture.py\"\n  ],\n  \"completion_conditions\": [\n    {\n      \"argv\": [\n        \"/usr/bin/python3\",\n        \"evidence/2026-11-08-batch34/T-249/terra/check_observations.py\"\n      ]\n    }\n  ],\n  \"red_commands\": [],\n  \"task_type\": \"测试\",\n  \"repair_target\": null,\n  \"complexity\": \"M\",\n  \"executor\": {\n    \"cli\": \"Codex\",\n    \"model\": \"gpt-6.1-terra\",\n    \"effort\": \"xhigh\"\n  },\n  \"base_commit\": \"793a043ee67b8cc6e17abe0d3d319f0b1c36282b\",\n  \"writer\": {\n    \"task_id\": \"a2a+T-249-2\",\n    \"attempt_id\": \"843d4f55-505a-487e-8b0e-149ea092ec3e\",\n    \"session_id\": \"ccb74d44-141d-4ec9-9287-84cb71c8a37f\",\n    \"fence\": 2,\n    \"thread_id\": \"4c70d97d-1077-4444-bf87-e3347793d8f2\"\n  }\n}\n\n受管身份：{\"command\":\"submit\",\"task\":\"a2a+T-249-2\",\"attempt\":\"843d4f55-505a-487e-8b0e-149ea092ec3e\",\"session\":\"ccb74d44-141d-4ec9-9287-84cb71c8a37f\",\"fence\":2,\"spec_rev\":2,\"commit\":\"<FULL_COMMIT_SHA>\"}\nGit 写操作：把执行工具的工作目录设为本 attempt 的 worktree。git add <路径> 和 git commit … 必须各自作为一条独立的工具命令执行；不要与 cd、检查命令或彼此用 &&、分号、管道、换行、变量赋值或重定向拼接。git status、git diff、测试和 git rev-parse 另行执行。两条 Git 前缀 allow 规则只授权对应命令；git mv、git rm、git restore、git stash、git reset 等其他 Git 写操作会被拒，改用普通 mv、rm 后 git add <路径>，恢复文件用 git show HEAD:<路径> > <路径>；若独立执行仍被沙箱拒绝，上报问题并结束，不重试或修改权限。\n完成并 Git 提交后，把 FULL_COMMIT_SHA 换成完整提交号，运行以下 CLI 显式交付：\nELECTRON_RUN_AS_NODE=1 '/Applications/Enchanted.app/Contents/MacOS/Enchanted' '/Applications/Enchanted.app/Contents/Resources/app/src/gates/cli.ts' '--state' '/Users/luckye/Library/Application Support/a2a-orchestrator' 'submit' '--task' 'a2a+T-249-2' '--attempt' '843d4f55-505a-487e-8b0e-149ea092ec3e' '--session' 'ccb74d44-141d-4ec9-9287-84cb71c8a37f' '--fence' '2' '--spec-rev' '2' '--commit' 'FULL_COMMIT_SHA'\n本会话的 CLI 会将 submit、status、issue 请求写到 A2A_REQUEST_DIR 指向的本 attempt 专用 /tmp 目录；不直接连接 socket。queued=true 只表示已排队，不是门禁通过。最后结束回合，让 Stop hook 读取并转交；没有请求文件就不交付。请求文件不得进入 Git 提交。查状态用同一入口 status --task，问题上报用 issue --task --title --body。不要修改合同、验收程序或沙箱权限。"
+    }
+  },
+  {
+    "seq": 148996,
+    "type": "paste_written",
+    "data": {
+      "dispatch": "a87cd6b3-e5d6-48c2-aa76-f3941d142dc2"
+    }
+  },
+  {
+    "seq": 148997,
+    "type": "turn_submit_intent",
+    "data": {
+      "id": "591bd5e4-5845-400d-9206-0fd9f961b6ef",
+      "dispatch": "a87cd6b3-e5d6-48c2-aa76-f3941d142dc2",
+      "at": "2026-11-08T15:28:46.153Z",
+      "nativeTurn": null
+    }
+  },
+  {
+    "seq": 148998,
+    "type": "turn_submitted",
+    "data": {
+      "id": "591bd5e4-5845-400d-9206-0fd9f961b6ef",
+      "dispatch": "a87cd6b3-e5d6-48c2-aa76-f3941d142dc2",
+      "at": "2026-11-08T15:28:46.153Z",
+      "nativeTurn": null
+    }
+  },
+  {
+    "seq": 149001,
+    "type": "turn_start_missing",
+    "data": {
+      "submission": "591bd5e4-5845-400d-9206-0fd9f961b6ef",
+      "dispatch": "a87cd6b3-e5d6-48c2-aa76-f3941d142dc2",
+      "deadline_ms": 20000
+    }
+  },
+  {
+    "seq": 149006,
+    "type": "native_session_unbound",
+    "data": {
+      "error": "Error: no rollout in the launch folder after the first turn",
+      "state": "unknown",
+      "context": {
+        "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-2-a2",
+        "submission": "591bd5e4-5845-400d-9206-0fd9f961b6ef"
+      }
+    }
+  }
+]

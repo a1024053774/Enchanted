@@ -37,3 +37,14 @@ REALITY GATE: INCOMPLETE。代码可见启动超时设置 failed；Stop 的 matc
 BLOCKED（T-249 的门禁推进）。候选及测试文本已在原分支提交并保留，尚未进行独立审查、真实窗口测试或敏感变更集成。普通 gate reclaim 已拒绝，不能绕过。T-249 的明确约束是不重启正式后台，新的恢复操作须先由用户决定；旧 T-257 重启授权不自行扩张为本缺陷的实施授权。
 
 2026-11-08 13:56Z 补充：用户针对这一次 T-249 阻塞明确批准“批准重启并经门禁恢复（推荐）”。正常重启后后台 81233，经门禁回收原 attempt 成功；见 [恢复记录](../../evidence/2026-11-08-batch34/T-249/controller/recovery-a3-approved.md)。该操作恢复了派发条件，不代表本缺陷已修复，ready 仍为 no。
+
+### 2026-11-08 15:31Z 再次出现启动阻塞
+
+T-249 产品候选已经 verified，Test 包已完成；第二轮 terra 独立验收的 task 为 `a2a+T-249-2`，attempt `843d4f55-505a-487e-8b0e-149ea092ec3e`，launch `d66b45e8-e416-4788-9360-cc5562e114a0`，thread `4c70d97d-1077-4444-bf87-e3347793d8f2`。实际参数 gpt-6.1-terra、xhigh、default；正式后台仍为 81233。
+
+- 15:28:46Z 门禁写入并提交首次任务文字；终端可见文字留在 Codex 的 `Queued follow-up inputs`，没有原生 session 或 turn。
+- 随后依次记录 `turn_start_missing` 和 `native_session_unbound`（事件 149001、149006）。本次截至证据截止点仍未晚绑定身份，不能把它直接说成前一次完整复现；首次输入为何排队也尚未确认。
+- `pane_status` 为 unknown、active.nativeTurn 为 null、failed 为 native_session_unbound；工作区干净，尚未执行独立验收。
+- 正常门禁 reclaim 返回 `identity_conflict`，live.running=true、live.blocked=true、activeTurn=null。未直接停止进程、改状态或向窗格补 Enter。
+
+证据：[启动事件](../../evidence/2026-11-08-batch34/T-249/controller/terra-attempt2-startup/events.json)、[窗格状态](../../evidence/2026-11-08-batch34/T-249/controller/terra-attempt2-startup/pane-status.json)、[可见终端](../../evidence/2026-11-08-batch34/T-249/controller/terra-attempt2-startup/visible-terminal.txt)。现状 BLOCKED；已向用户提交“修启动阻塞后继续”与“仅重启并经门禁恢复”两个选项，等待决定。该记录不改变 ready，也不视为修复授权。
