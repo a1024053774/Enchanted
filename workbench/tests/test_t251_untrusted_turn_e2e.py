@@ -160,8 +160,10 @@ def main():
                                   hook_cwds=sorted({h.get('cwd') for h in hooks if h.get('cwd')}),
                                   relay=[dict(seq=e['seq'], type=e['type'], error=(e['data'].get('result') or {}).get('error'))
                                          for e in mine if e['type'].startswith('relay_')],
-                                  issues=[dict(title=i.get('title'), blocking=i.get('blocking'), from_=i.get('from'), state=i.get('state'),
-                                               body=str(i.get('body'))[:600]) for i in current.get('issues', [])])
+                                  # status lists issue views; the record itself is under 'issue'.
+                                  issues=[dict(title=v['issue'].get('title'), blocking=v['issue'].get('blocking'), from_=v['issue'].get('from'),
+                                               to=v['issue'].get('to'), state=v.get('state'), body=str(v['issue'].get('body'))[:900])
+                                          for v in current.get('issues', [])])
         worktree = attempt.get('workspace') or ''
         if args.scenario == 'cd':
             precondition('hooks_reported_the_subdirectory', any(h.get('cwd', '').endswith('/sub') for h in hooks),
@@ -178,8 +180,8 @@ def main():
             check('untrusted_delivery_not_executed', state == 'claimed' and not current['task'].get('candidate_commit'), state)
             pane_now = pane_status()
             check('turn_ended_not_running', pane_now.get('state') == 'idle', pane_now.get('state'))
-            reasons = [i for i in current.get('issues', []) if i.get('blocking') and 'current_turn_untrusted' in str(i.get('body'))
-                       and 'submit' in str(i.get('body'))]
+            reasons = [i for i in report['observed']['issues'] if i['blocking'] and i['to'] == 'executor'
+                       and 'current_turn_untrusted' in i['body'] and '"submit"' in i['body']]
             check('controller_status_shows_reason', bool(reasons), report['observed']['issues'])
             reclaimed = fixture.request('reclaim', fixture.terminal, task='T-1', attempt=attempt['attempt_id'])
             report['observed']['reclaim'] = {k: reclaimed.get(k) for k in ('ok', 'error', 'details')}
