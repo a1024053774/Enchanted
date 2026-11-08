@@ -816,9 +816,9 @@ export class A2AGates {
       created_at: new Date(this.now()).toISOString(),
       body: JSON.stringify({
         reason: details.reason,
-        what: "worker 这一回合交来的请求门禁没有执行，已记为拒收，以后也不会再执行。worker 已结束这一回合、回到空闲，可以回收。",
+        what: "worker 这一回合交来的请求门禁没有执行，已记为拒收，以后也不会再执行。这一回合本身照常结束；窗格之后是否空闲看 status（排着用户输入或被打断时还会继续忙）。",
         requests: details.requests, unverified: details.unverified,
-        next: "看 unverified 是哪个钩子核对不上。要继续这项工作：回收这个 attempt 再派发（它的提交还在 attempt 分支上，新卡可以 cherry-pick）。",
+        next: "看 unverified 是哪个钩子核对不上。要继续这项工作：等 worker 空闲后回收这个 attempt 再派发（它的提交还在 attempt 分支上，新卡可以 cherry-pick）；还忙时回收会被拒（worker_working）。",
       }, null, 2),
       task_id: taskId, attempt_id: attempt.attempt_id, thread_id: attempt.thread_id, turn_id: details.prompt_id ?? "",
       number: this.issueNumber(attempt.attempt_id, attempt.thread_id),

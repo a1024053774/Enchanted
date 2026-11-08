@@ -792,7 +792,12 @@ shell 沙箱不另开可写目录；门禁的 `reviewLaunch` 核对这组参数�
 按用户裁定，后台只在会话还没收到任何任务时代按“Yes, I trust this folder”，记 `worker_trust_confirm_intent`、
 `worker_trust_confirmed`（选项没选中则 `worker_trust_failed`，不按 Enter）；a2a 不写 `~/.claude.json`。
 SessionStart（`source` 为 startup、会话号与 cwd 相符）是初次放行，之后才送第一条任务，并永久关闭代按；120 秒内没有
-SessionStart 记 `worker_startup_unrecognised`。交付时的模型取会话记录里该回合最后一条非 `<synthetic>` 回复的模型
+SessionStart 记 `worker_startup_unrecognised`。已启动的会话回合中途压缩上下文后发来的 SessionStart（`source` 为 compact，
+会话号、记录文件与本会话相符）记 `native_session_compacted`，不改回合状态（T-251）。钩子的 cwd 跟着 Bash 的当前目录走：
+cwd 在本次启动的 worktree 或门禁给的 `extra_directories` 以内（含子目录）就算本会话；以外、相对路径、只是前缀相同的
+兄弟目录都按来源不符记 `native_question_unverified`（T-251）。worker 回合里有过来源不符的钩子时，这一回合不可信：
+Stop 照常结束回合（没有排队的用户输入、没被打断时窗格回到空闲，能回收），回合留下的请求不执行，按 `current_turn_untrusted` 记为拒收（以后的 Stop
+只重放拒收），门禁给执行主控追加一条阻塞系统问题，写明被拒的请求和核对不上的钩子，经收件箱送达（T-251）。交付时的模型取会话记录里该回合最后一条非 `<synthetic>` 回复的模型
 （跳过半写入的行），强度取 Stop 钩子报告的值（`native_turn_facts`）；提交钩子的 `A2A-Native-Session` 尾注取
 `--session-id`；Model 与 Effort 尾注取同一份会话记录里最后一条非 `<synthetic>` 回复的模型与强度（T-130：在
 `CLAUDE_CONFIG_DIR` 或 `$HOME/.claude` 的 `projects/*/` 下按会话号找唯一记录；强度字段 `effort`、`perTurnEffort`
@@ -1269,6 +1274,9 @@ T-108 通过每会话启动参数加入 PreToolUse／PostToolUse hook，按根�
 无法取得原生 turn 时明确记为 null。显示状态、问题作答资格、逐键写入与 Stop 完成
 共同读取当前 submission 的可信度，后续工具不能清除未知。异常 Stop 不完成回合、
 触发交付或解除锁；明确的过期回合、异 session 和子 agent 保留拒绝或忽略语义。
+例外（T-251）：Claude worker 的回合可信度为未知时，本会话匹配的 Stop 仍结束回合，
+回合留下的请求按 `current_turn_untrusted` 记为拒收、不执行，执行主控收到阻塞系统问题；
+否则窗格永远停在回合中，门禁回收不了。Codex、agy、opencode 的 Stop 仍按上一句处理。
 
 Claude 的同一 AskUserQuestion 自身发出的 PermissionRequest 仍属于该提问：须匹配
 当前唯一待答问题的 session、prompt／turn、submission。tool_input 必须仅包含完整且

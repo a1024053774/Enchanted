@@ -1,0 +1,190 @@
+{
+  "status": "PASS",
+  "argv": [
+    "test_t251_untrusted_turn_e2e.py",
+    "--scenario",
+    "untrusted",
+    "--revision",
+    "b013c477a",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a-wt/t251/evidence/2026-11-07-batch33/T-251/green/e2e-untrusted-r2.json"
+  ],
+  "scenario": "untrusted",
+  "revision": "b013c477a",
+  "mutant": null,
+  "runtime": "real daemon/gate/Claude Code; scripted Messages API; zero vendor model calls; no Electron",
+  "checks": [
+    "untrusted_delivery_not_executed",
+    "turn_ended_not_running",
+    "controller_status_shows_reason",
+    "old_attempt_reclaimed",
+    "new_worker_dispatched"
+  ],
+  "preconditions": [
+    "outside_hook_judged_foreign"
+  ],
+  "observed": {
+    "attempt": "80398365-0781-4d39-a4be-1a33743a3de8",
+    "gate_state": "claimed",
+    "pane": {
+      "ok": true,
+      "thread": "7ecdb905-5642-4f40-8984-9a1b411f0195",
+      "launch": "b28fa23a-6041-4aae-8198-d56c4f5bdf54",
+      "state": "idle",
+      "lifecycle": "running",
+      "shell_pid": 7503,
+      "size": {
+        "cols": 160,
+        "rows": 45
+      },
+      "state_source": "host_events",
+      "active": null,
+      "native_session": "86007543-9136-44c8-8cfa-349acf3dc479",
+      "start_missing": false,
+      "silent_foreground": null,
+      "unwired_cli": null,
+      "cli_turn": null,
+      "foreground_cli": null,
+      "hook_turn": null,
+      "turn": null,
+      "writing": false,
+      "user_draft": false,
+      "interrupted": false,
+      "input_generation": 0,
+      "interruption": null,
+      "queued": [],
+      "failed": null,
+      "stopped": false,
+      "restoration": null,
+      "delivery": {
+        "task": "demo+T-1",
+        "attempt": "80398365-0781-4d39-a4be-1a33743a3de8",
+        "session": "c81afcb0-5441-4172-9a82-2a5b54f8313f",
+        "fence": 1,
+        "spec_rev": 1,
+        "request_id": "78c88879-658e-4e01-981b-aa56076b7a50",
+        "commit": "7012bd48a04e7070357343598fe24fc344bff458",
+        "received_at": "2026-11-08T01:17:51.987Z",
+        "result_at": "2026-11-08T01:17:51.987Z",
+        "state": "rejected",
+        "reason": "current_turn_untrusted",
+        "request_turn": "193c9180-a60e-49b8-bc64-36f0c4cd3203",
+        "current_turn": "193c9180-a60e-49b8-bc64-36f0c4cd3203",
+        "native_turn_changed": false,
+        "recovery_request_id": "recover-148"
+      }
+    },
+    "unverified": [
+      {
+        "seq": 89,
+        "reason": "Error: question_origin_unverified",
+        "hook": "PostToolUse"
+      }
+    ],
+    "hook_cwds": [
+      "/private/tmp",
+      "/private/tmp/t251-ppq8ct_9/state/worktrees/demo/T-1-a1"
+    ],
+    "relay": [
+      {
+        "seq": 148,
+        "type": "relay_received",
+        "error": null
+      },
+      {
+        "seq": 149,
+        "type": "relay_rejected",
+        "error": "current_turn_untrusted"
+      },
+      {
+        "seq": 172,
+        "type": "relay_replayed",
+        "error": "current_turn_untrusted"
+      }
+    ],
+    "issues": [
+      {
+        "title": "交付没被受理：这一回合不可信",
+        "blocking": true,
+        "from_": "system",
+        "to": "executor",
+        "state": "待判断",
+        "body": "{\n  \"reason\": \"current_turn_untrusted\",\n  \"what\": \"worker 这一回合交来的请求门禁没有执行，已记为拒收，以后也不会再执行。worker 已结束这一回合、回到空闲，可以回收。\",\n  \"requests\": [\n    {\n      \"request_id\": \"78c88879-658e-4e01-981b-aa56076b7a50\",\n      \"command\": \"submit\",\n      \"title\": null\n    }\n  ],\n  \"unverified\": [\n    {\n      \"time\": \"2026-11-08T01:17:50.290Z\",\n      \"reason\": \"Error: question_origin_unverified\",\n      \"hook_event_name\": \"PostToolUse\"\n    }\n  ],\n  \"next\": \"看 unverified 是哪个钩子核对不上。要继续这项工作：回收这个 attempt 再派发（它的提交还在 attempt 分支上，新卡可以 cherry-pick）。\"\n}"
+      }
+    ],
+    "reclaim": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "redispatch": {
+      "ok": true,
+      "error": null,
+      "details": null
+    }
+  },
+  "fixture": "/private/tmp/t251-ppq8ct_9",
+  "details": {
+    "outside_hook_judged_foreign": [
+      {
+        "seq": 89,
+        "reason": "Error: question_origin_unverified",
+        "hook": "PostToolUse"
+      }
+    ],
+    "untrusted_delivery_not_executed": "claimed",
+    "turn_ended_not_running": "idle",
+    "controller_status_shows_reason": [
+      {
+        "title": "交付没被受理：这一回合不可信",
+        "blocking": true,
+        "from_": "system",
+        "to": "executor",
+        "state": "待判断",
+        "body": "{\n  \"reason\": \"current_turn_untrusted\",\n  \"what\": \"worker 这一回合交来的请求门禁没有执行，已记为拒收，以后也不会再执行。worker 已结束这一回合、回到空闲，可以回收。\",\n  \"requests\": [\n    {\n      \"request_id\": \"78c88879-658e-4e01-981b-aa56076b7a50\",\n      \"command\": \"submit\",\n      \"title\": null\n    }\n  ],\n  \"unverified\": [\n    {\n      \"time\": \"2026-11-08T01:17:50.290Z\",\n      \"reason\": \"Error: question_origin_unverified\",\n      \"hook_event_name\": \"PostToolUse\"\n    }\n  ],\n  \"next\": \"看 unverified 是哪个钩子核对不上。要继续这项工作：回收这个 attempt 再派发（它的提交还在 attempt 分支上，新卡可以 cherry-pick）。\"\n}"
+      }
+    ],
+    "old_attempt_reclaimed": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "new_worker_dispatched": {
+      "ok": true,
+      "error": null,
+      "details": null
+    }
+  },
+  "api": {
+    "requests": 10,
+    "main": 8,
+    "results": {
+      "worker": [
+        {
+          "is_error": false,
+          "text": "/private/tmp/t251-ppq8ct_9/state/worktrees/demo/T-1-a1"
+        },
+        {
+          "is_error": false,
+          "text": "{\"ok\":false,\"error\":\"question_origin_unverified\",\"details\":\"Error: question_origin_unverified\"}"
+        },
+        {
+          "is_error": false,
+          "text": "File created successfully at: /private/tmp/t251-ppq8ct_9/state/worktrees/demo/T-1-a1/answer.txt (file state is current in your context — no need to Read it back)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "{\"ok\":true,\"queued\":true,\"delivered\":false,\"request_id\":\"78c88879-658e-4e01-981b-aa56076b7a50\",\"path\":\"/private/tmp/a2a-requests-kvbNSo/78c88879-658e-4e01-981b-aa56076b7a50.json\"}"
+        }
+      ]
+    }
+  }
+}

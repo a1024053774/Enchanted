@@ -1489,7 +1489,8 @@ export class Panes implements GateRuntime {
       while (pane.claudeQueuedPrompts.length) {
         const queued = pane.claudeQueuedPrompts[0]!;
         const entry = entries.find(value => value.type === 'user' && value.isSidechain === false &&
-          value.sessionId === pane.native && value.cwd === pane.record.worktree &&
+          // T-251: transcript entries carry the shell's current directory too (T-249 worker: `<worktree>/workbench/app/panels`).
+          value.sessionId === pane.native && insideLaunchDirectories(pane.record, value.cwd) &&
           value.promptSource === 'queued' && value.turnOrigin === 'human' && value.origin?.kind === 'human' &&
           typeof value.promptId === 'string' && value.promptId.length > 0 && value.promptId.length <= 128 &&
           !pane.claudePromptIds!.has(value.promptId) && typeof value.uuid === 'string' && value.uuid.length > 0 &&
