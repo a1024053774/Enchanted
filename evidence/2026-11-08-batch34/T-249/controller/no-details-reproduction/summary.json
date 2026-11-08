@@ -1,0 +1,51 @@
+{
+  "candidate": "1e1e5ef7bfb1faa8a0af8df064ac6834e2579a93",
+  "fixture": "/private/tmp/t249-no-details-repro-o_jqxnlz",
+  "status": "PASS（审查反例已复现）；FAIL（现有检查的详情覆盖）",
+  "runs": [
+    {
+      "variant": "baseline",
+      "check": 1,
+      "exit": 0
+    },
+    {
+      "variant": "baseline",
+      "check": 2,
+      "exit": 0
+    },
+    {
+      "variant": "baseline",
+      "check": 3,
+      "exit": 0
+    },
+    {
+      "variant": "no-details",
+      "check": 1,
+      "exit": 0
+    },
+    {
+      "variant": "no-details",
+      "check": 2,
+      "exit": 0
+    },
+    {
+      "variant": "no-details",
+      "check": 3,
+      "exit": 0
+    }
+  ],
+  "requirement": "T-249 要做的第3条：点击提交打开详情，点击文件看 diff；删除整个详情路径应被必经验收拒绝。",
+  "mutation": {
+    "path": "workbench/app/panels/GitGraphPanel.tsx",
+    "before": "{selectedCommit && <CommitDetails",
+    "after": "{false && selectedCommit && <CommitDetails"
+  },
+  "observation": "未变异与 no-details 的三条机械检查均退出0；未运行真实窗口，不声称原候选详情实际失效。",
+  "cleanup": {
+    "time": "2026-11-08T14:14:58.092076+00:00",
+    "directory": "/private/tmp/t249-no-details-repro-o_jqxnlz",
+    "files": 628,
+    "bytes": 6736341,
+    "removed": true
+  }
+}

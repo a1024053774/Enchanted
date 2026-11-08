@@ -1,0 +1,42 @@
+{
+  "task": "a2a+T-249-1",
+  "attempt": "b33751df-0d57-4223-834d-4d467b199e22",
+  "candidate": "1e1e5ef7bfb1faa8a0af8df064ac6834e2579a93",
+  "review_id": "2f1f7856-ab7e-4128-b1e3-8b66e4333a39",
+  "state": "needs_fix",
+  "result": {
+    "verdict": "需修复",
+    "findings": [
+      {
+        "location": {
+          "path": "workbench/tests/test_t249_git_graph_e2e.py",
+          "line": 283
+        },
+        "failure_scenario": "[P2] 完成条件不能拒绝详情与 diff 整条用户路径消失的明显错误实现。在一次性副本中，仅将 GitGraphPanel.tsx:221 的 {selectedCommit && <CommitDetails 改成 {false && selectedCommit && <CommitDetails，三个完成条件仍分别 exit=0（冻结验收 PASS、宿主 22/22、脚本安全 5/5）。既有窗口测试在检查提交表后直接进入右键建分支，没有点击提交、读取详情或点击文件核对 diff 的断言；因此当前新增的 no-panel 编排只补足外层面板存在，未补足任务卡“要做的”第 3 条的详情功能及两条详情修复的界面接线证据。本发现是已复现的验收充分性缺陷，不是声称原候选已取消详情组件。",
+        "suggestion": "保留冻结 oracle；由主控把详情与单文件 diff 的真实窗口检查补入必经验收编排。扩展现有 Electron 测试：从可见行点击进入详情，再点击文件，独立从 Git 核对文件名和内容，覆盖含 pathspec 字符的文件及首次提交前场景；加入 no-details 或等价断开详情组件的变异，要求命中指定业务断言而不是启动失败。按已批准的两层流程由主控在沙箱外跑正例和该反例、保留证据。不要用源码字符串存在检查或只调用模型代替用户路径。"
+      }
+    ],
+    "review_requirements": {
+      "completion_conditions_sufficiency": true,
+      "mutation_checks": {
+        "min": 2,
+        "max": 5,
+        "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/2f1f7856-ab7e-4128-b1e3-8b66e4333a39",
+        "report_section": "完成条件与变异检查"
+      }
+    },
+    "report": {
+      "结论与范围": "需修复。STATUS: FAIL（完成条件充分性）；恢复范围核对 PASS；RELEASE: INCOMPLETE。仅有 1 条 P2 验收缺口，没有新增已确认的产品运行时缺陷。目标候选 C=1e1e5ef7bfb1faa8a0af8df064ac6834e2579a93，基线 b7cce248c5ed85dd9342ade10886287365273863；门禁机械验收 M=7442bcf6ae34889a448688fa819372293a15f1ec。此次独立审查遵循 behavioral-acceptance-review、design-integrity-review、evidence-first-testing 和 frontend-production，中文报告按 document-writing 整理。真实窗口、打包、terra 与敏感脚本批准明确属于后续阶段，本次不因这些按卡延期的工作本身而判缺陷；阻断点是当前及已安排的测试缺少详情用户路径的业务断言。",
+      "恢复与卡外改动": "只读使用主仓库 Git 对象核对：git diff --name-only b7cce248c5ed85dd9342ade10886287365273863 1e1e5ef7bfb1faa8a0af8df064ac6834e2579a93 共 69 个文件，全部在任务卡允许路径内，卡外改动为零。旧候选 8683c4edba5ff635fea7e2918af059e4cd5ba07c..9f96a9121ba6ed8d77a514a0a78c9341ceaacb86 的 57 个导入文件逐字节与 C 相同，其余 12 个均为 attempt-fence4 下的报告、检查封装和运行记录，符合仅恢复范围。acceptance/**、根 REVIEW.md、门禁及依赖清单没有候选改动；既有失败证据原样保留。当前副本实际存在的 15 个候选变更文件与 C 相同；54 个 evidence 文件未实体化，门禁提供的差异及 Git 对象用于查阅，缺文件不误记为内容变更。scope.json 的 copy_mismatches 包含这些缺失项，copy-and-cleanup.json 已单列澄清。",
+      "完成条件与变异检查": "先在未变异副本运行三条原始命令，全部 exit=0：\nA=/usr/bin/python3 acceptance/T-249/check_git_graph.py（PASS）；\nB=/opt/homebrew/Cellar/node/26.5.0/bin/node --test workbench/tests/test_t249_git_host.mjs（22/22）；\nC=/usr/bin/python3 workbench/tests/test_t249_outside_safety.py（5/5）。\n工作目录均为门禁的一次性副本 /Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/2f1f7856-ab7e-4128-b1e3-8b66e4333a39；TMPDIR/TMP/TEMP 指向其 .review-t249/tmp，PATH 前置指定 Node 目录，PYTHONDONTWRITEBYTECODE=1。环境 Node v26.5.0、Git 2.52.0、Python 3.9.6。未改测试或冻结 oracle。\n逐项构造了 5 个错误实现，每次单独改生产文件、运行检查、保存原始输出后恢复：\n1. parents：gitGraphModel.ts 将 parents.split(' ') 改为 parents.split(' ').reverse()。运行 A；exit=1，all/current 父提交和泳道断言共 4 项 FAIL，正确拒绝。\n2. literal：gitGraphModel.ts 将 const file = `:(top,literal)${path}` 改为 const file = path。运行 B；exit=1，root/normal/uncommitted 三种路径乘以 file*.txt、file[1].txt、:(glob)*.txt 三种名字，9 项字面单文件 diff 检查失败，正确拒绝。\n3. managed：gitHost.ts 将 if (repo.managed) throw 改为 if (false && repo.managed) throw。运行 B；exit=1，仅 managed write action is rejected without metadata changes 失败（缺少预期拒绝），正确拒绝。\n4. empty-tree：gitGraphModel.ts 将按 HEAD 查询退出 1 读取空树的选择表达式改为 const base = output(head).trim()。运行 B；exit=1，unborn single-file diff 和 HEAD=false 的混合状态详情共 2 项失败，原因是没有 HEAD 时读取失败，正确拒绝。\n5. no-details：GitGraphPanel.tsx:221 将 {selectedCommit && <CommitDetails 改为 {false && selectedCommit && <CommitDetails，彻底禁止详情组件挂载。依次运行 A、B、C；三个均 exit=0，B 仍 22/22、C 仍 5/5。该变异存活，违反任务卡要求的点击提交打开详情及点击文件看 diff，因此完成条件未达到拒绝明显错误实现的要求。未运行 Electron，未宣称该变异的真实窗口测试已通过；源码审查确认现有 E2E 未观察该用户路径。\n本次运行入口：/usr/bin/python3 .review-t249/run_review.py baseline；PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 .review-t249/mutations.py。每个变异的补丁为 .review-t249/<名称>.patch，原始 argv/工作目录/环境/退出码/stdout/stderr 为 <名称>-<检查>.json；汇总 mutations.json。四个判红都是所测行为故障，不是启动或依赖失败；第五个不能上调为 PASS。所有源码变异已恢复并逐字节复核，临时 Git 夹具已清空。",
+      "旧审查复核": "只读从 Git 的 78767a5a82582c10dac240dc73bb89b073952ec3:evidence/2026-11-07-batch33/T-249/controller/review-01.md 取得旧独立审查全文，未采用其通过结论。两条已复现 P2（字面 pathspec、没有 HEAD 时详情读取失败）在当前模型的真实 Git 测试中通过，并由本次 literal、empty-tree 反例验证检测能力，未重复列为未修复缺陷。受管写保护已纳入卡上必跑宿主测试且本次 managed 变异被拒绝；no-panel 已登记在窗口测试及 RUN-OUTSIDE 必跑循环中，并要求“侧边面板存在”指定断言。旧的外层 no-panel 缺口不重复提为新发现。新发现是尚未覆盖的详情用户路径；按同类不变量复发规则停止继续寻找其他变体。",
+      "结构与前端审查": "按提供的完整差异人工核对 Workbench → PanelDock → preload/main IPC → gitHost.execFile 及 CLI → readGraph/gitAction/commandsFor。CLI 未另做一套模型，Git 由 argv 执行；读操作有 no-lock 配置、参数白名单和外部 diff/textconv 禁用，写入前检查受管目录和引用名。Deep modules：共用模型承载解析、泳道、菜单、校验、命令；IPC 的转发属于进程边界。MIT 声明保留。localStorage 失败仅降级视图偏好；lsof 失败记录并退回启动目录；watch 失败记录且有需求规定的轮询；未看到新增自动写重试或平行门禁。RUN-OUTSIDE 只清理自建临时根，未确认进程退出时保留现场，变异需指定断言；脚本模拟检查不能代替实际打包、进程清理和界面证据。前端审查为主路径源码与 Git 边界检查，不宣称完整视觉、键盘或交互验收。",
+      "限制与后续": "needs model: 保留共享模型但断开已承诺的界面功能时，必经用户旅程必须在对应业务断言上判红；界面正确展示的详情、文件列表和 diff 必须能与独立 Git 结果对应。该不变量的又一反例是本次 no-details，建议据需求清单系统核对 UI 观察点，而不是再追加若干次盲审。真实 Electron、no-panel/parents/order 窗口反例、新包、terra Computer Use、Esc/终端焦点、watch 时序、拖宽及菜单均未在本次运行；未安装或启动正式 Enchanted，未操作其后台或 hc core，未做全仓测试。design_integrity.py 在无 .git 的副本返回 root:null，空 findings 不作为通过证据。project_map.py status 因副本无 Git 而报 6 个 Verified 格式问题，这是审查副本环境限制，不是候选治理缺陷；根 REVIEW.md 的覆盖版本仍由主控核对。保留任务卡原有次序与权限：主控沙箱外真实窗口检查 → 新包与 terra → 用户读敏感脚本证据批准 → 门禁集成。本次审查没有实现修复、改权限、提交或集成。",
+      "Works": "PASS（恢复与已覆盖模型行为）：导入范围与来源逐字节一致；当前候选三条机械检查均绿，字面路径和无 HEAD 模型修复有本次针对性反例支持。FAIL（验收充分性）：详情组件完全不挂载的变异仍通过全部完成条件。",
+      "No regression": "本次冻结验收、宿主 22/22、脚本安全 5/5 通过。未运行全仓、构建或真实窗口；历史构建结果没有冒充本次回归证据。",
+      "Risk / undo": "候选尚无本次窗口证据，不能据机械 PASS 集成。只在指定一次性副本中临时变异，已恢复原字节；审查输出留在 .review-t249，tmp 中没有残余夹具。没有修改原候选 worktree、审查 worktree、worker worktree、共享引用或请求文件。主控可保留现有候选与证据，按发现补足验收后依门禁继续。"
+    },
+    "turn_id": "01a1bb7c-0c75-76d3-bf44-e2f683d77425",
+    "received_at": "2026-11-08T14:12:07.976Z"
+  }
+}
