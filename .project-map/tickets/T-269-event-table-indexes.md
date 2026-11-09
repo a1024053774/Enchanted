@@ -2,7 +2,7 @@
 id: T-269
 title: 编排事件表没有索引，后台主线程被全表扫描占满
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -44,3 +44,7 @@ ready_rev: 1
 ## 当前状态
 
 进行中。
+
+## 2026-11-09 结论
+
+PASS：索引已装进正式版（`install/package-runtime-01.json`：旧库打开后两个索引都在，行数与触发器不变）。装后后台 CPU 从约 99% 降到 1–5%（`install/daemon-cpu-after-install.txt`，一次 54.5% 的短时尖峰后 6 次读数 1.3–5.2%）。审查两轮已做，结论见 RESULTS.md；按用户“用户 2026-11-09：“不用 codex 了,你自己做完这些部分结束””与“为什么还要采样 CPU? 你考虑一下这里面有没有过度设计”，不再开第三轮审查，也不做持续采样。hook 处理时长没有单独测量，以 T-266/T-268 不再复现为间接依据。

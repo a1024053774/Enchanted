@@ -2,7 +2,7 @@
 id: T-264
 title: Codex 额度错误结束回合后受管会话仍显示运行中
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -35,3 +35,9 @@ INCOMPLETE。根因入口已定位，错误信号与安全恢复动作之间的�
 当前接口事实：`ControllerQuota` 已能读取同形状的额度错误，但只覆盖获批主控角色；受管 worker/reviewer 的原生读取路径没有处理这个错误结束。`releaseByUser` 要求匹配的中断代次、空输入声明和当前身份，且拒绝 failed pane；审查重开按钮只在任务 paused、review unknown 时出现，经原 `verify` 入口处理。后续修复须证明这些现有入口能安全续接或有界重开，不能把错误结束当作正常 Stop，也不能以现有主控额度提示替代受管会话的交付生命周期。
 
 2026-11-09 续接：用户明确确认“已再次重置，继续”。主控真实窗口确认空输入并执行 Esc；第一次放行因进程查询失败被拒绝。诊断确认是该 Terra 子树中的两个旧 `node_repl` 辅助进程占用 Sparkle 更新前的应用文件，libproc 对它们返回 ENOENT，主进程与 shell 的身份正常。主控保存 PID、父进程、启动时间和已加载文件位置后，只终止这两个辅助进程；随后正式 `pane_process_info` 返回同一 leader、native session 和 shell，未放宽门禁。刷新窗口，再经“输入框已空，放行”成功恢复；门禁派发续接后同一 attempt 开始新回合。操作由主控执行，不冒称用户亲自点击。证据见本票 controller 下 `terra-a5-retired-helper-cleanup.json`、`terra-a5-process-info-after-helper-cleanup.json` 与 `terra-a5-release-recovery-events.json`。本票产品修复仍 INCOMPLETE；这次环境清理不替代错误回合状态修复。
+
+## 2026-11-09 结论（主控自做）
+
+PASS（范围收窄后）：用户 2026-11-09：“不用 codex 了,你自己做完这些部分结束”。受管 Codex 根回合以带 `error` 的 `task_complete` 结束且窗格仍 busy 时，侧栏显示“回合出错结束”，不再是“运行中”；不结算回合、不执行排队输入、不接受审查草稿，恢复仍走现有放行。证据见 [构建结果](../../evidence/2026-11-09-batch35/T-264/build/RESULTS.md)：11 项绿态含反例，父版判红。
+
+未做、不宣称：真实 Codex 隔离复现、独立审查、额度恢复检测与自动续接、审查员恢复入口。需要时另开票。

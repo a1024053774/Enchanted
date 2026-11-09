@@ -2,7 +2,7 @@
 id: T-260
 title: 已处理问题不再错误提示等待用户
 type: build
-status: done
+status: closed
 blocked_by: [T-259]
 claimed_by: executor
 supersedes:

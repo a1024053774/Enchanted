@@ -2,7 +2,7 @@
 id: T-250
 title: 第二个面板“改动”（照 herdr-gitview）：分组文件列表、暂存与提交、diff
 type: build
-status: done
+status: closed
 blocked_by: [T-249]
 claimed_by:
 supersedes:

@@ -3,7 +3,7 @@ import { flowStages } from '../src/flowStages.ts';
 import type { FlowAgent, FlowSnapshot } from '../src/flow.ts';
 import './flow.css';
 
-const icons: Record<string, string> = { running: '●', waiting_user_answer: '◐', waiting_controller_answer: '◑', idle: '○', ended: '✓', unrestored: '◌', unknown: '?' };
+const icons: Record<string, string> = { running: '●', waiting_user_answer: '◐', waiting_controller_answer: '◑', turn_error: '!', idle: '○', ended: '✓', unrestored: '◌', unknown: '?' };
 const colors = ['#58b9a7', '#b29af5', '#70a9f0', '#eda456', '#e685a6', '#78c98d'];
 function Agents({ agents, group }: { agents: FlowAgent[]; group: string }) {
   const [expanded, setExpanded] = useState(false);

@@ -9,9 +9,9 @@ import { questionState, projectQuestions } from './questions.ts';
 import type { RoleRequests } from './roleRequests.ts';
 import type { QuotaState } from './controllerQuota.ts';
 
-export type AgentState = 'running' | 'waiting_user_answer' | 'waiting_controller_answer' | 'idle' | 'ended' | 'unrestored' | 'unknown';
+export type AgentState = 'running' | 'waiting_user_answer' | 'waiting_controller_answer' | 'turn_error' | 'idle' | 'ended' | 'unrestored' | 'unknown';
 export const stateLabels: Record<AgentState, string> = {
-  running: '运行中', waiting_user_answer: '等待用户回答', waiting_controller_answer: '等待主控回答',
+  running: '运行中', waiting_user_answer: '等待用户回答', waiting_controller_answer: '等待主控回答', turn_error: '回合出错结束',
   idle: '空闲', ended: '已结束', unrestored: '未恢复', unknown: '未知',
 };
 // T-191: the registered CLI a launch runs ('claude', 'codex', 'agy', 'opencode'), as the sidebar names and draws it.
@@ -36,7 +36,7 @@ export function agentState(pane: any, events: any[], worktree: string | undefine
   if (pane.cli_turn?.state === 'blocked') return 'unknown';
   const resolvedQuestions = new Set(projectQuestions(events).filter(q => ['answered', 'cancelled'].includes(q.status)).map(q => q.tool_use_id));
   const pending = new Set<string>();
-  const files = new Map<string, { kind: ReturnType<typeof codexSessionOrigin>; turn: string | null }>();
+  const files = new Map<string, { kind: ReturnType<typeof codexSessionOrigin>; turn: string | null; failed?: string }>();
   let uncertainQuestion = false;
   let permission = false;
   for (const event of events) {
@@ -53,6 +53,10 @@ export function agentState(pane: any, events: any[], worktree: string | undefine
     if (record?.type === 'event_msg' && payload?.type === 'task_started' && origin?.kind === 'root' && typeof payload.turn_id === 'string') {
       origin.turn = payload.turn_id;
     }
+    // T-264: Codex ends a turn on an account error (usage_limit_exceeded) with task_complete carrying `error` and no
+    // Stop. Only the root log's own current turn counts; the pane stays busy and nothing is settled here.
+    if (record?.type === 'event_msg' && payload?.type === 'task_complete' && origin?.kind === 'root' && payload.error &&
+        payload.turn_id === origin.turn) origin.failed = origin.turn;
     if (record?.type === 'response_item' && payload?.type === 'function_call' &&
         ['request_user_input', 'request_user_input_async'].includes(payload.name)) {
       if (origin?.kind === 'root' && origin.turn === pane.turn &&
@@ -69,6 +73,7 @@ export function agentState(pane: any, events: any[], worktree: string | undefine
   const roots = [...files.values()].filter(origin => origin.kind === 'root');
   const rootTurnObserved = roots.length === 1 && roots[0].turn === pane.turn;
   if (roots.length > 1) return 'unknown';
+  if (pane.state === 'busy' && pane.active && rootTurnObserved && roots[0].failed === pane.turn && pane.active.nativeTurn === pane.turn) return 'turn_error';
   const submission = events.findLast(event => event.type === 'turn_submitted' && event.data?.id === pane.active?.id);
   if (pane.state === 'busy' && pane.active && !pane.writing && pane.native_session &&
       (rootTurnObserved && pane.active.nativeTurn && pane.turn === pane.active.nativeTurn || submission && events.some(event =>
@@ -79,6 +84,7 @@ export function agentState(pane: any, events: any[], worktree: string | undefine
 export function aggregate(states: AgentState[]): AgentState {
   if (states.includes('waiting_user_answer')) return 'waiting_user_answer';
   if (states.includes('waiting_controller_answer')) return 'waiting_controller_answer';
+  if (states.includes('turn_error')) return 'turn_error';
   if (states.includes('running')) return 'running';
   if (!states.length || states.includes('unknown')) return 'unknown';
   if (states.includes('unrestored')) return 'unrestored';
@@ -142,7 +148,7 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
     WHERE type IN ('permission_wait','permission_control_written','turn_start_signal','turn_submitted','pane_idle',
       'native_question_opened','native_question_resolved','native_question_answer_intent','native_question_unverified')
       OR type='native_record' AND (json_extract(data,'$.record.type')='session_meta'
-        OR json_extract(data,'$.record.payload.type') IN ('function_call','task_started'))
+        OR json_extract(data,'$.record.payload.type') IN ('function_call','task_started','task_complete'))
     ORDER BY seq`).all().map(row => ({ ...row, data: JSON.parse(String(row.data)) }));
   // T-176: when each session ended, so a finished row says how long ago it ended rather than how long ago it started.
   const endedAt = new Map(store.db.prepare(`SELECT launch, MAX(time) AS time FROM orchestration_events

@@ -2,7 +2,7 @@
 id: T-261
 title: 任务导航按新旧排序并折叠较早任务
 type: build
-status: done
+status: closed
 blocked_by: [T-259]
 claimed_by:
 supersedes:

@@ -80,6 +80,7 @@ const glyphs: Record<string, ReactNode> = {
   waiting_controller_answer: <circle cx="8" cy="8" r="5.8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeDasharray="3 2.4" />,
   idle: <path d="M3.8 8.4 6.6 11 12.2 5.2" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />,
   ended: <path d="M10.9 11.6A5 5 0 0 1 6.4 3.1a5.2 5.2 0 1 0 6.6 6.6 5 5 0 0 1-2.1 1.9Z" fill="currentColor" />,
+  turn_error: <><circle cx="8" cy="8" r="5.8" fill="none" stroke="currentColor" strokeWidth="1.5" /><path d="M8 4.5v4.2M8 10.8v.7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></>,
   unrestored: <><circle cx="8" cy="8" r="5.8" fill="none" stroke="currentColor" strokeWidth="1.5" /><path d="M4 12 12 4" stroke="currentColor" strokeWidth="1.5" /></>,
   unknown: <circle cx="8" cy="8" r="2.2" fill="currentColor" />,
 };
@@ -87,7 +88,7 @@ function StatusIcon({ state }: { state: string }) {
   return <span className="status-icon" data-glyph={state in glyphs ? state : 'unknown'} aria-hidden="true">
     <svg viewBox="0 0 16 16" width="16" height="16">{glyphs[state] ?? glyphs.unknown}</svg></span>;
 }
-const stateNames: Record<string, string> = { running: '运行中', waiting_user_answer: '等你回答', waiting_controller_answer: '等主控回答', idle: '空闲', ended: '已结束', unrestored: '未恢复', unknown: '未知' };
+const stateNames: Record<string, string> = { running: '运行中', waiting_user_answer: '等你回答', waiting_controller_answer: '等主控回答', turn_error: '回合出错结束', idle: '空闲', ended: '已结束', unrestored: '未恢复', unknown: '未知' };
 // Elapsed time from a launch or an end; the catalog has no per-turn timestamps.
 function since(iso: string | null | undefined, now: number) {
   const seconds = iso ? (now - Date.parse(iso)) / 1000 : NaN;

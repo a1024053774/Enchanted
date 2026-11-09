@@ -2,7 +2,7 @@
 id: T-249
 title: 工作台的侧边面板位与第一个面板“Git 图”（照 herdr-git-graph）
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -143,3 +143,7 @@ T-257 已经门禁修复、安装并正常重启。旧 attempt `6bab2eb9-0d63-4b
 INCOMPLETE：Terra 第三次独立验收交付 `83cd1cc8f5873975f80b9438525044e299ea07dd`。三项常规测试通过，实际核对了分支操作、双终端跟随/固定、真实受管 worktree 的 Git 元数据未变。未跟踪文件点开只有占位说明，主控已在同一 Test 包中独立复现；现有开发测试也错误地只断言该说明。详见 [缺口与复现](../../evidence/2026-11-08-batch34/T-249/controller/untracked-reproduction/RESULTS.md) 与 [Terra 原报告副本](../../evidence/2026-11-08-batch34/T-249/controller/terra-v3-incomplete/RESULTS.md)。列宽拖动两次因 Computer Use 的 `noWindowsAvailable` 未完成，不判产品失败。
 
 原候选尚未集成。父 attempt 与该 Terra attempt 已正常回收，提交和失败证据保留。v7 卡导入原候选，只修复未跟踪内容路径与相关测试、补真实窗口列宽输入证据；冻结验收和功能目标不改，不重新展开整体盲审。修后须限定独立审查、新 Test 包与 Terra 验收，再经唯一门禁集成。用户本轮已预先授权后续经审查的本地合入、安装和继续，不为同类操作重复等确认。
+
+## 2026-11-09 结论
+
+PASS：Git 图已经门禁集成到 main（`2e001ddf0 A2A managed integration a2a+T-249-2`），之前的审查与 Terra 验收证据在 `evidence/2026-11-09-batch35/T-249/`。按用户“不用 codex 了,你自己做完这些部分结束”关票，不再开新的验收轮次。
