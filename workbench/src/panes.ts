@@ -1351,7 +1351,8 @@ export class Panes implements GateRuntime {
     try { appendFileSync(trace, bytes); return true; }
     catch (error) { pane.traceFailed = true; this.recordFailure(pane, "trace_write_failed", error); return false; }
   }
-  // T-227: a pane fails once and never recovers; its first failure stays the cause. Each kind of failure is recorded
+  // T-227: the first failure stays the cause. Only a late, verified Codex start can resolve the absence recorded by
+  // its startup deadline (T-258, in signal); other failures never recover here. Each kind of failure is recorded
   // once per pane, and a failed event write is reported once, so a stream that keeps failing the same way (every
   // frame, every protocol query) does not grow the event table or repeat the alarm.
   recordFailure(pane: Pane, type: string, error: unknown, context?: unknown) {
@@ -1878,6 +1879,65 @@ export class Panes implements GateRuntime {
       throw error;
     } finally { pane.writing = false; pane.sending = null; }
   }
+  // The startup deadline owns an absence of evidence, not a failed native turn. Resolve that absence only at the
+  // authenticated UPS for the original paste, after collecting its root rollout and checking the current attempt.
+  // Scanning alone never releases the pane, replays input, or repairs an unverified hook/another runtime failure.
+  private async confirmLateCodexStart(pane: Pane, value: any) {
+    const active = pane.active, failure = this.store.lastEvent(pane.record.id, ["native_session_unbound"]);
+    const assertCurrent = () => {
+      check(pane.record.cli === "Codex" && ["worker", "reviewer"].includes(pane.record.role) && active && pane.active === active &&
+        !pane.stopped && !pane.archived && !pane.closing && !pane.nativeEnded && !pane.interrupted && !pane.stopInProgress &&
+        !pane.traceFailed && !pane.eventWriteFailed && pane.failureTypes?.size === 1 &&
+        failure?.data.context?.submission === active.id && failure.data.context.workspace === pane.attempt.workspace &&
+        pane.failed === `native_session_unbound: ${failure.data.error}`, "late_start_unverified");
+      check(pane.native === value.session_id && pane.turn === value.turn_id && active.nativeTurn === value.turn_id &&
+        currentTurnTrust(pane, this.store.read().filter(e => e.launch === pane.record.id)) === "verified", "late_start_unverified");
+      const pasted = this.store.lastEvent(pane.record.id, ["paste_intent"]);
+      const dispatch = this.store.dispatchRecord(active.dispatch);
+      const claimed = this.store.lastEvent(pane.record.id, ["dispatch_prompt_claimed"]);
+      check(dispatch?.launch === pane.record.id && dispatch.text === value.prompt && pasted?.data.dispatch === active.dispatch &&
+        claimed?.data.dispatch === active.dispatch && claimed.data.submission === value.turn_id && claimed.seq > pasted.seq,
+        "late_start_source_mismatch");
+      const row = this.store.db.prepare("SELECT data FROM tasks WHERE id=?").get(pane.record.task);
+      const task = row && JSON.parse(String(row.data)), attempt = task?.current_attempt;
+      check(task?.task_id === pane.record.task && task.spec_rev === pane.record.spec_rev &&
+        attempt?.attempt_id === pane.record.attempt && attempt.fence === pane.record.fence &&
+        attempt.spec_rev === pane.record.spec_rev && !attempt.reclaimed, "stale_attempt");
+      let bound;
+      if (pane.record.role === "worker") {
+        check(attempt.session_id === pane.record.session && attempt.thread_id === pane.record.thread &&
+          attempt.workspace === pane.record.worktree, "stale_attempt");
+        bound = attempt.runtime_identity;
+      } else {
+        // A reviewer has its own session/thread/candidate copy, bound by the gate's current review, not the worker.
+        const review = task.review;
+        check(task.state === "reviewing" && review?.state === "running" && review.review_id === pane.record.review_id &&
+          review.task_id === task.task_id && review.spec_rev === task.spec_rev &&
+          review.attempt.attempt_id === attempt.attempt_id && review.attempt.session_id === attempt.session_id &&
+          review.attempt.fence === attempt.fence && review.card_snapshot_id === attempt.card_snapshot_id &&
+          review.verification_id === pane.record.review_verification_id && task.verification?.state === "passed" &&
+          task.verification.verification_id === review.verification_id && task.candidate_commit === review.candidate_commit &&
+          review.session_id === pane.record.session && review.thread_id === pane.record.thread &&
+          review.candidate_workspace === pane.record.worktree && review.launch_id === pane.record.id &&
+          review.session_id !== attempt.session_id && review.thread_id !== attempt.thread_id &&
+          review.launch_id !== attempt.runtime_identity?.launch, "stale_review");
+        bound = review.runtime_identity;
+      }
+      check(bound?.launch === pane.record.id && bound.thread === pane.record.thread && bound.shell_pid === pane.pty.pid &&
+        pane.leader && (bound.leader_pid === null || bound.leader_pid === pane.leader) &&
+        (bound.native_session === null || bound.native_session === pane.native),
+        "identity_conflict");
+    };
+    assertCurrent();
+    const live = await this.processInfo(pane.record.thread);
+    // The observer yields. A revoked attempt or another failure during that read must stay failed.
+    assertCurrent();
+    check(live.leader === pane.leader && live.shell_pid === pane.pty.pid && live.native_session === pane.native &&
+      !live.session_ended && live.failed === pane.failed, "identity_conflict");
+    this.store.event("native_session_late_start_confirmed", { failure: failure!.seq, submission: active!.id,
+      dispatch: active!.dispatch, native_session: pane.native, turn: value.turn_id }, pane.record);
+    pane.failed = null; pane.state = "busy";
+  }
   async releaseByUser(thread: string, declaration: EmptyInputDeclaration, recordAction: () => Promise<void>, assertCurrent: () => Promise<void>) {
     const pane = this.get(thread);
     check(!pane.failed && !pane.stopped && !pane.archived, "pane_unavailable");
@@ -2082,7 +2142,9 @@ export class Panes implements GateRuntime {
       value = JSON.parse(raw);
       check(value && typeof value === 'object' && !Array.isArray(value), 'hook_object_required');
       if (pane.reports) return await this.reportedStop(pane, value, received_at, transfer);
-      if (pane.record.cli === 'Claude Code') { this.scan(pane); binding = currentTurnBinding(pane); }
+      if (pane.record.cli === 'Claude Code' || pane.record.cli === 'Codex' && pane.failureTypes?.has('native_session_unbound')) {
+        this.scan(pane); binding = currentTurnBinding(pane);
+      }
       // A new authenticated Claude UPS is the native CLI's turn transition.
       // Do not infer it from Enter, and do not let a reused old prompt replace it.
       const newClaudePrompt = pane.record.cli === 'Claude Code' && value.hook_event_name === 'UserPromptSubmit' &&
@@ -2251,6 +2313,7 @@ export class Panes implements GateRuntime {
           // reusing the native turn without another rollout task_started (T-257).
           // This validated UPS binds that dispatch's submission for its next Stop.
           if (pane.active) pane.active.nativeTurn = value.turn_id;
+          if (pane.failed && pane.failureTypes?.has("native_session_unbound")) await this.confirmLateCodexStart(pane, value);
           this.store.event("turn_start_signal", value, pane.record);
           return;
         }
