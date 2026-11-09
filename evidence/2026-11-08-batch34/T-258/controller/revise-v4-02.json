@@ -1,0 +1,107 @@
+{
+  "command": [
+    "/Applications/Enchanted.app/Contents/MacOS/Enchanted",
+    "/Applications/Enchanted.app/Contents/Resources/app/src/gates/cli.ts",
+    "--state",
+    "/Users/luckye/Library/Application Support/a2a-orchestrator",
+    "revise",
+    "--task",
+    "a2a+T-258-1",
+    "--spec-rev",
+    "4",
+    "--card-version",
+    "4"
+  ],
+  "exit_code": 0,
+  "result": {
+    "ok": true,
+    "task": {
+      "task_id": "a2a+T-258-1",
+      "name": "T-258-1",
+      "title": "T-258-1",
+      "project_id": "a2a",
+      "repo": "/Users/luckye/Documents/Code/a2a",
+      "integration_ref": "refs/heads/main",
+      "card_snapshot_id": "99d90733-ccff-4eca-92c1-184445cd30f7",
+      "card_version": 4,
+      "card": {
+        "id": "T-258-1",
+        "source": {
+          "ticket": "/Users/luckye/Documents/Code/a2a/.project-map/tickets/T-258-codex-late-session-startup-failure-sticky.md",
+          "ready_rev": 1
+        },
+        "goal": "T-258 恢复交付（T-259 安装后新基线）。只恢复已测修复与精简证据，不做新实现。用户当前原话：“批准合入、安装并继续（推荐）”；随后：“以后再遇到这种合入我同意,不用等我,然后我截图中提到的几个问题也要开票修复”。安装与授权证据在主仓库 evidence/2026-11-08-batch34/T-259/controller-install/；旧 T-258 准备 attempt 3bba04f2 已经唯一 reclaim 入口成功回收，后台现为已审查 T-259 2083f72，新 main 已包含该修复。你是受管 worker，仍只负责 T-258。你不是代码库唯一参与者，不能撤销他人的改动。worker/reviewer 沿用 Codex gpt-6-astra xhigh 普通速度，不启动 Claude，不 push。\n\n先读 AGENTS.md、REVIEW.md、source.ticket 和旧候选 49c7b9a9435f68aec38a862125b8f00220b9b3af 中 RESULTS-FINAL.md / SELF-CHECK-FINAL.md。按 project-map、evidence-first-testing、document-writing 和两项 review skill 的适用要求自查；正式独立审查由主控安排。旧报告、日志、工作树与引用不删除或改写；冻结 acceptance/**、REVIEW.md、任务卡及 .project-map 不修改。\n\n只从 49c7b9a9435f68aec38a862125b8f00220b9b3af 读取并恢复三个文件：workbench/src/panes.ts、workbench/tests/test_t258_codex_late_start.ts、workbench/tests/test_t258_codex_late_start_e2e.py。逐文件核对它们与已测 4c93144df22d486a2d9bf3e948b3e7084723ae6e 一致；与当前基线冲突或出现实际新缺陷时先 issue，不自行加兼容逻辑。不 cherry-pick 整个旧提交、旧身份尾注或兆字节证据。questions.ts 本次没有已知修改需要。\n\n核心契约：仅合法原始 UPS、可信 root rollout/current turn、当前 attempt/fence/spec 及进程身份一致时恢复唯一 native_session_unbound；reviewer 另核对当前 review、原 worker、candidate/verification 及独立会话身份。异步观察前后都核对；不能扫描即清错、重发输入、延长期限或弱化不可信 hook。此三个文件是既有修复，此卡不扩大为 T-249/250/260/261/262。\n\n重要版本边界：新基线的 core.ts 含 T-259，所以整个产品输入与旧 4c93144df 不再等价。旧真实 CLI 八项通过只能作为历史来源，不能冒用为当前集成验收。主控会在你的最终冻结候选上重新运行真实 Codex CLI 的父版红态与候选绿态（本地 Responses 驱动），你不要启动额外真实 CLI 或改主控探针/正式后台。你负责在新基线跑 117 项模块及同模块父版/不安全恢复反例，T-257 与 native-origin 定向回归；主控与独立审查负责新冻结候选最终入口验证。门禁会重跑 completion condition。\n\n证据只存精简中文 RESULTS、原始来源索引和必要小脚本/输入；每个测试留命令、代码版本、每案名称及成败、退出码、失败业务断言和清理状态，不重复 dump 整个 pane/数据库。旧证据可 git show 49c7b9a...:<路径> 只读；主控旧真实入口汇总在 /Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-258/controller/e2e-mcp-results-01.json。旧 SIGSTOP 探针仍 INCOMPLETE/NO_GO，不算红态。依赖通过 worktree 父目录已有 node_modules 只读解析，不安装或改写依赖/global config；自己创建的夹具先留状态再清理。\n\n所有 exec 外层 cwd 仅为自己的受管 worktree；git show 可以读取旧提交，其他路径只读。产品与测试只写本卡 allow 路径。完成最小恢复、模块证据和来源报告后提交并显式 submit 当前完整 SHA 一次，queued 不等于受理；报告清楚主控真实入口、独立审查尚未完成，不自称整票 PASS。不运行 verify/integrate/自动 run。主控将在提交冻结后补实际入口并继续审查与集成。",
+        "non_goals": [
+          "不实现T249/T250、不修T255/T256",
+          "不修改正式后台/安装包、用户hc或全局配置",
+          "不改变冻结验收或角色权限",
+          "不通过延长期限、自动重发输入或一概清空失败绕过缺陷",
+          "不增加依赖、公开接口、schema或migration，不push"
+        ],
+        "paths": {
+          "allow": [
+            "workbench/src/panes.ts",
+            "workbench/tests/test_t258_codex_late_start.ts",
+            "workbench/tests/test_t258_codex_late_start_e2e.py",
+            "evidence/2026-11-08-batch34/T-258/worker/"
+          ],
+          "deny": [
+            "acceptance/",
+            "REVIEW.md",
+            ".project-map/",
+            "workbench/app/",
+            "workbench/src/gates/",
+            "workbench/src/credentials.ts",
+            "workbench/src/desktopCredentials.ts"
+          ]
+        },
+        "oracle_paths": [
+          ".project-map/tickets/T-258-codex-late-session-startup-failure-sticky.md",
+          "workbench/tests/test_t257_codex_stop_continuation.ts",
+          "workbench/tests/test_t257_codex_stop_continuation_e2e.py"
+        ],
+        "completion_conditions": [
+          {
+            "argv": [
+              "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+              "--test",
+              "workbench/tests/test_t258_codex_late_start.ts"
+            ]
+          }
+        ],
+        "red_commands": [],
+        "task_type": "后端逻辑",
+        "repair_target": null,
+        "complexity": "L",
+        "executor": {
+          "cli": "Codex",
+          "model": "gpt-6-astra",
+          "effort": "xhigh"
+        },
+        "base_commit": null,
+        "writer": null
+      },
+      "base_commit": "6bdc629da2c930ce201632a49bf5476b6b7ed7dc",
+      "state": "ready",
+      "spec_rev": 4,
+      "fence": 3,
+      "current_attempt": null,
+      "candidate_commit": null,
+      "verification": null,
+      "integration_intent": null,
+      "quality": {
+        "source_commit": "6bdc629da2c930ce201632a49bf5476b6b7ed7dc",
+        "path": ".a2a/quality.json",
+        "raw": null,
+        "rule_checks": []
+      },
+      "repair": null,
+      "review": null
+    },
+    "user_input_observer": {
+      "state": "healthy",
+      "updated_at": "2026-11-09T00:40:41.924Z"
+    }
+  },
+  "stderr": ""
+}

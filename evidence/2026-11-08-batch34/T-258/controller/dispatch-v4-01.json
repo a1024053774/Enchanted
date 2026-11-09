@@ -1,0 +1,47 @@
+{
+  "command": [
+    "/Applications/Enchanted.app/Contents/MacOS/Enchanted",
+    "/Applications/Enchanted.app/Contents/Resources/app/src/gates/cli.ts",
+    "--state",
+    "/Users/luckye/Library/Application Support/a2a-orchestrator",
+    "dispatch",
+    "--task",
+    "a2a+T-258-1",
+    "--runtime-mode",
+    "workspace-write",
+    "--model",
+    "gpt-6-astra",
+    "--effort",
+    "xhigh",
+    "--fast",
+    "false"
+  ],
+  "exit_code": 1,
+  "result": {
+    "ok": false,
+    "error": "path_overlap",
+    "details": {
+      "conflicts": [
+        {
+          "task": "a2a+T-249-1",
+          "attempt": "90127e07-7aa0-41d3-ade9-55a56a9ff584",
+          "snapshot": "79e6b9f1-ce59-4350-9c9e-248a5d878c86",
+          "paths": [
+            "workbench/tests/test_t258_codex_late_start.ts",
+            "workbench/tests/test_t258_codex_late_start_e2e.py"
+          ]
+        }
+      ],
+      "next": "看清单判断：要并行就在 dispatch 里带 overlap_reason 写明理由；否则等这些执行尝试验收或回收"
+    },
+    "user_input_observer": {
+      "state": "healthy",
+      "updated_at": "2026-11-09T00:40:41.924Z"
+    },
+    "explanation": {
+      "reason": "这张卡允许改的路径与进行中的任务重叠，回执的 conflicts 列出与谁重叠。",
+      "next": "能并行就重发同一条 dispatch 并写 overlap_reason；不能就等对方验收或回收后再派。"
+    }
+  },
+  "stderr": ""
+}
