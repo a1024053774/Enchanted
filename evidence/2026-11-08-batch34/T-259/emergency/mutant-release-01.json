@@ -1,0 +1,101 @@
+{
+  "status": "FAIL",
+  "argv": [
+    "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+    "/private/tmp/a2a-t259-repair-20261108/workbench/tests/test_t259_preparing_reclaim.ts",
+    "/private/tmp/t259-source-umcflq4o/source",
+    "/private/tmp/a2a-t259-repair-20261108/evidence/2026-11-08-batch34/T-259/emergency/mutant-release-01.json",
+    "archive-fails"
+  ],
+  "source": "/private/tmp/t259-source-umcflq4o/source",
+  "fixture": "/private/tmp/t259-probe-ALlQW1",
+  "boundary": "real A2AGates, Panes, PTY, Git, SQLite; compiled CLI stand-in; one injected read failure",
+  "model_calls": 0,
+  "checks": [
+    {
+      "name": "archive-fails: real dispatch failed before binding",
+      "passed": true,
+      "detail": {
+        "error": "gate_failure",
+        "details": "SyntaxError: T259 injected failure after real pane creation"
+      }
+    },
+    {
+      "name": "archive-fails: reclaim contract",
+      "passed": true,
+      "detail": {
+        "result": {
+          "ok": false,
+          "error": "gate_failure",
+          "details": "Error: injected archive refusal"
+        },
+        "before": {
+          "workspace": "/private/tmp/t259-probe-ALlQW1/archive-fails/state/worktrees/demo/T-259-a1",
+          "provider": "codex",
+          "turn": null,
+          "runtime_identity": {
+            "launch": "4fe658d3-49c7-4520-a172-06fa67dc5d30",
+            "thread": "4c3b9e85-af9f-4252-8c42-e243f18be131",
+            "shell_pid": 15984,
+            "leader_pid": 15988,
+            "native_session": null
+          },
+          "running": false,
+          "stopped": true,
+          "archived": false,
+          "session_ended": false,
+          "blocked": true,
+          "error": {
+            "providerPresent": false,
+            "activeTurn": null
+          }
+        },
+        "effects": [
+          "stop",
+          "archive"
+        ]
+      }
+    },
+    {
+      "name": "archive-fails: paths and evidence remain reserved",
+      "passed": false
+    },
+    {
+      "name": "archive-fails: no unrelated runtime action",
+      "passed": true
+    },
+    {
+      "name": "archive-fails: no task input was sent",
+      "passed": true
+    },
+    {
+      "name": "archive-fails: fixture shell stopped 4fe658d3-49c7-4520-a172-06fa67dc5d30",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "cleanup": {
+    "fixture": "/private/tmp/t259-probe-ALlQW1",
+    "files": 50,
+    "bytes": 287842,
+    "action": "removed after text results captured"
+  },
+  "revision": null,
+  "mutant": "release-before-archive",
+  "command": [
+    "node",
+    "/private/tmp/a2a-t259-repair-20261108/workbench/tests/test_t259_preparing_reclaim.ts",
+    "/private/tmp/t259-source-umcflq4o/source",
+    "/private/tmp/a2a-t259-repair-20261108/evidence/2026-11-08-batch34/T-259/emergency/mutant-release-01.json",
+    "archive-fails"
+  ],
+  "exit_code": 1,
+  "stdout": "{\"status\":\"FAIL\",\"checks\":6,\"failed\":[\"archive-fails: paths and evidence remain reserved\"],\"errors\":[],\"summary\":\"/private/tmp/a2a-t259-repair-20261108/evidence/2026-11-08-batch34/T-259/emergency/mutant-release-01.json\"}\n",
+  "stderr": "",
+  "source_cleanup": {
+    "directory": "/private/tmp/t259-source-umcflq4o",
+    "files": 120,
+    "bytes": 1977819,
+    "action": "remove copied source"
+  }
+}

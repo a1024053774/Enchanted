@@ -1,0 +1,30 @@
+{
+  "status": "INCOMPLETE",
+  "argv": [
+    "workbench/tests/test_t259_preparing_reclaim_e2e.py",
+    "--revision",
+    "1013b542377325cc1e37f89bdbf37ceb70b7e0ef",
+    "--summary",
+    "evidence/2026-11-08-batch34/T-259/emergency/e2e-parent-02.json"
+  ],
+  "revision": "1013b542377325cc1e37f89bdbf37ceb70b7e0ef",
+  "checks": [],
+  "errors": [
+    {
+      "error": "超时：isolated daemon readiness",
+      "stack": "Traceback (most recent call last):\n  File \"/private/tmp/a2a-t259-repair-20261108/workbench/tests/test_t259_preparing_reclaim_e2e.py\", line 51, in main\n    fixture.start('/usr/bin/false', {'note.txt':'original\\n', 'check.py':'raise SystemExit(0)\\n'})\n  File \"/private/tmp/a2a-t259-repair-20261108/workbench/tests/scripted_claude.py\", line 322, in start\n    self.run_cli('daemon_start', '--launch-config', str(self.dir / 'launch-config.json'))\n  File \"/private/tmp/a2a-t259-repair-20261108/workbench/tests/test_t259_preparing_reclaim_e2e.py\", line 49, in cli\n    def cli(*argv): return start_host() if argv[0] == 'daemon_start' else run_cli(*argv)\n  File \"/private/tmp/a2a-t259-repair-20261108/workbench/tests/test_t259_preparing_reclaim_e2e.py\", line 46, in start_host\n    fixture.wait('isolated daemon readiness', lambda: ready.exists(), 25)\n  File \"/private/tmp/a2a-t259-repair-20261108/workbench/tests/scripted_claude.py\", line 307, in wait\n    assert time.monotonic() < deadline, f'超时：{label}'\nAssertionError: 超时：isolated daemon readiness\n"
+    }
+  ],
+  "observed": {},
+  "model_calls": 0,
+  "fixture": "/private/tmp/t259-e2e-xk8ods30",
+  "core_cleanup": null,
+  "host_logs": [
+    "node:fs:697\n  return binding.open(\n                 ^\n\nError: ENOENT: no such file or directory, open '/private/tmp/t259-e2e-xk8ods30/operator.json'\n    at openSync (node:fs:697:18)\n    at readOperatorCredential (file:///private/tmp/t259-e2e-xk8ods30/source/workbench/src/credentials.ts:24:14)\n    at file:///private/tmp/a2a-t259-repair-20261108/workbench/tests/t259_preparing_host.ts:12:6 {\n  errno: -2,\n  code: 'ENOENT',\n  syscall: 'open',\n  path: '/private/tmp/t259-e2e-xk8ods30/operator.json'\n}\n\nNode.js v26.5.0\n"
+  ],
+  "cleanup": {
+    "directory": "/private/tmp/t259-e2e-xk8ods30",
+    "files": 125,
+    "bytes": 2008164
+  }
+}
