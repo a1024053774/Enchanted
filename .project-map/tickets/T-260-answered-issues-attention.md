@@ -4,11 +4,11 @@ title: 已处理问题不再错误提示等待用户
 type: build
 status: open
 blocked_by: [T-259]
-claimed_by:
+claimed_by: executor
 supersedes:
 ready: yes
-ready_by: ideation
-ready_rev: 1
+ready_by: executor
+ready_rev: 2
 ---
 
 ## What to build
@@ -33,3 +33,11 @@ ready_rev: 1
 ## 2026-11-08 只读核对
 
 截图中的 `a2908dee-d8d2-43fa-a39b-0366c8b03043` 最后记录为 executor 的 `needs-user`，没有 answer。其处置理由已经写明只是非阻塞诊断限制、无需改变权限；不能把这段说明当成数据库中已有答复。T-249-2 的回合不可信与 dirty_worktree、T-258-1 的 verification_cleanup_failed 与旧审查无法确认也还没有关闭记录。先对照真实修复证据，通过门禁处置已经解决的事项；只有能复现投影错误时才修改投影代码。当前只读 SQLite，未改正式状态。
+
+## 当前执行范围（2026-11-09）
+
+INCOMPLETE。原截图五项已经执行主控核对修复证据后，通过门禁完成处置；生产刷新、重连后待决定计数为 0，原记录保留。这是正常处置，不是投影代码修复。
+
+隔离审计发现了可复现的产品缺陷：问题卡的“重新打开”发送 `reopen`，但 `main.ts` 的 `a2a:issue-dispose` 白名单只接受 `close`、`snooze`。请求在到达门禁前报 `Invalid disposition`，问题仍为已关闭，三个显示面的计数没有按独立预期增加。真实窗口失败见 [外部运行结果](../../evidence/2026-11-08-batch34/T-260/controller/external-green-01.json)，当次测试源码保存在同目录 `external-test-01.py`。
+
+任务卡 v2 的产品写入限定为 `main.ts` 的现有动作白名单，以及 `preload.ts`、`renderer.tsx` 的对应动作类型；门禁已经支持 `reopen`，不改状态推导、计数、schema 或公开接口。沿用原验收条件，新增测试须在父版本拒绝重开、候选版本完成重开及之后的答复、刷新、重连，坏状态与计数变异仍须判红。先保留 v1 测试和诊断提交，再经门禁升级、回收和重新派发。T-249 最终验收及父票集成前不开始共享产品文件的写入。
