@@ -30,13 +30,13 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 端到端测试经真实入口（Enchanted Test 或独立数据目录的 Electron）：夹具仓库含已暂存、未暂存、未跟踪、冲突各至少一个文件。面板分组和 +/- 行数与 `git status --porcelain=v2 -z`、`git diff --numstat`、`git diff --cached --numstat` 一致（期望值从 git 读）。
-- [ ] 从界面暂存、取消暂存、丢弃、提交各一次，每次之后 `git status` 与 `git log -1` 的变化与预期一致；丢弃先出现确认框，取消时仓库不变。
-- [ ] 基线比较：夹具里从 `main` 分出 `feature` 并提交两次，基线识别为 `main`，列出的文件与 `git diff $(git merge-base HEAD main) --name-status` 一致。
+- [x] 端到端测试经真实入口（Enchanted Test 或独立数据目录的 Electron）：夹具仓库含已暂存、未暂存、未跟踪、冲突各至少一个文件。面板分组和 +/- 行数与 `git status --porcelain=v2 -z`、`git diff --numstat`、`git diff --cached --numstat` 一致（期望值从 git 读）。
+- [x] 从界面暂存、取消暂存、丢弃、提交各一次，每次之后 `git status` 与 `git log -1` 的变化与预期一致；丢弃先出现确认框，取消时仓库不变。
+- [x] 基线比较：夹具里从 `main` 分出 `feature` 并提交两次，基线识别为 `main`，列出的文件与 `git diff $(git merge-base HEAD main) --name-status` 一致。
 - [ ] 审阅备注发到一个普通终端（终端里跑 `cat` 之类能回显的程序），终端收到的文字与备注一致，输入记录里有这条。
-- [ ] 测试对已知坏的实现失败（如分组或行数故意算错的变异版本判红）。
+- [x] 测试对已知坏的实现失败（如分组或行数故意算错的变异版本判红）。
 - [ ] 独立验收：Codex `gpt-6.1-terra` 新开会话，用 Computer Use 和常规测试逐条核对，写验收报告。
-- [ ] 正在运行的 Enchanted 不受影响（同 T-249 的核对）；构建缓存与夹具用完即清。
+- [x] 正在运行的 Enchanted 不受影响（同 T-249 的核对）；构建缓存与夹具用完即清。
 
 ## 不做
 
@@ -61,3 +61,7 @@ ready_rev: 1
 没有完成的验收项：
 - Terra 独立验收：按用户这次的要求没有做。
 - 输入记录：普通终端的打字本来就不写 `user_inputs`，所以改为核对备注的记法与打字相同。
+
+## Resolution
+
+主控在本会话实现并提交 `46fecff43`，证据 `evidence/2026-11-09-batch35/T-250/`。第 36 条部分满足：备注确实送达终端，但普通 shell 的输入按设计不写输入记录，测试改为核对键入与备注两者一致，偏差写在 RESULTS.md。第 38 条（Terra 独立验收）按用户 2026-11-09：“不用 codex 了,你自己做完这些部分结束”免去，没有做。

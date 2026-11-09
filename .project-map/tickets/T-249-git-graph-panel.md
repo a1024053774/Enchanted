@@ -147,3 +147,7 @@ INCOMPLETE：Terra 第三次独立验收交付 `83cd1cc8f5873975f80b9438525044e2
 ## 2026-11-09 结论
 
 PASS：Git 图已经门禁集成到 main（`2e001ddf0 A2A managed integration a2a+T-249-2`），之前的审查与 Terra 验收证据在 `evidence/2026-11-09-batch35/T-249/`。按用户“不用 codex 了,你自己做完这些部分结束”关票，不再开新的验收轮次。
+
+## Resolution
+
+经唯一门禁集成到 main（`2e001ddf0 A2A managed integration a2a+T-249-2`），集成前的审查与 Terra 验收证据在 `evidence/2026-11-09-batch35/T-249/`。上面各条没有在本次关票时逐条重新核对，所以不勾；以集成记录为准。遗留测试进程已清（`fixture-cleanup.txt`）。按用户 2026-11-09：“不用 codex 了,你自己做完这些部分结束”关闭。
