@@ -1,0 +1,61 @@
+{
+  "id": "T-250-1",
+  "source": {
+    "ticket": "/Users/luckye/Documents/Code/a2a/.project-map/tickets/T-250-changes-panel.md",
+    "ready_rev": 1
+  },
+  "goal": "完成 T-250“改动”面板，覆盖任务票全部功能与验收，不能只交一个文件列表。用户主线是 T-249 Git 图和 T-250 改动两个面板。只有 T-249 已最终验收并集成后才派发本卡；使用其面板位和 Git 宿主。你不是唯一参与者，不撤销别人的改动；本次独占本卡产品文件，T-261 在本票交付或暂停后才改共享 renderer/style。Codex gpt-6-astra xhigh 普通速度，不开 Claude、其他 agent 或 Fast，不 push。\n\n先读 AGENTS.md、REVIEW.md、T-250 与 T-249、controller-preflight.md，按 project-map、evidence-first-testing、frontend-production、reality-first-engineering 执行。说明小目标、非目标、独立期望和会改变方向的未知项。Ubiquitous language 沿用任务票。先做 Tracer bullet：真实 Git → 宿主 → 面板，包含冲突/已暂存/未暂存/未跟踪的列表、行数与单文件 diff，再扩写操作、范围与备注。Deep modules：复用现有 PanelDock/PanelHost、目录跟随、通知、监视与终端输入，不另建一套 Git 运行器或门禁。\n\n上游功能规范 https://github.com/ChmaraX/herdr-gitview ，MIT Adam Chmara；diff 借鉴来源 herdr-reviewr 也需保留其 MIT 声明。主控已经读取 README 与 src/git.rs（blob c88ad15ae67907e83d5fefc88d29768c9581420e）；具体 detect_base 事实在本票 preflight。借鉴代码前仍读对应原文件及许可，不执行上游安装脚本。不引入 Rust 或新依赖；现有依赖没有 Markdown/高亮库，需用现有能力或最小充分实现，不自称支持未实现的语法。任何新增依赖或超出卡边界的必要变更先上报。\n\n产品行为以冻结 T-250 为准：三组文件及平铺/树、文件及总计 +/-；暂存、取消暂存、确认后丢弃、提交。没有已暂存内容时按需求 add -A 后提交；Enter 提交、Shift+Enter 换行，忙时禁止重复操作并报告部分执行失败。路径按字面 argv 处理，覆盖空格、换行、引号、冒号和前导短横线、重命名/删除、未跟踪、二进制与 unborn。只读路径带 diff.autoRefreshIndex=false，禁用 external diff/textconv，不执行仓库提供的程序。受管 worktree 的写入拒绝必须在主进程成立，不能只靠按钮 disabled。\n\ndiff 包括明暗主题语法高亮、词级强调、可折叠上下文、Markdown 安全预览、图片前后对比；原始内容不执行 HTML/脚本，不读出所选仓库以外的任意路径。未提交范围和基线范围正确区别；detect_base 按上游最近祖先分支及主干候选规则，固定基线可见，历史只列本分支。覆盖 stacked branch、main 已向前、无候选和 unborn，不以 main 硬编码替代算法。\n\n备注可选择多行、编辑并批量发送给当前聚焦的终端，目标明确；经现有 window.a2a.input/终端原输入路径，保存用户输入，受管 worker 仍记人工介入。上游 README 明确“you decide when to press enter”：只把备注送进输入，保留终端正常粘贴语义，不自动提交回车，用户决定执行。不要用 pane_dispatch、门禁命令或另一套记录方法。发送发生时核对目标，不把旧焦点的备注发到新会话；未知发送结果不得自动重发。只在隔离普通 cat 终端验收，不向真实 worker 注入测试文字。\n\n实现任务票列明的 j/k/方向键、s/u/x/c/t/w/l/J/K/? 与鼠标行为，编辑框中的键不触发面板动作，确认框 Escape 不泄漏到终端。目录切换、固定/取消固定、加载/空态/错误态、外部文件变化和自己的写操作均正确刷新；自己的写入事件一批合并，不反复重扫。保留 Git 图全部现有功能与独立只读边界。\n\n验证新增 test_t250_changes_e2e.py（默认无参数运行、JSON 输出、失败非零，可选 --revision/--summary/--mutant），通过隔离真实 Electron/IPC/后台/Git，不替换 window.a2a 或组件状态。所有预期从独立 Git 原始结果及明确操作顺序取得，主场景至少同时含四类文件。暂存/取消/丢弃取消与确认/提交分别从 UI 做并读回 Git；核对备注目标回显与真实输入记录，基线/历史/预览/快捷键/目录切换/外部刷新/受管只读均有实际证据。父版在真实业务断言判红；2—5 个已知坏实现必须被相应断言检出。共享宿主的 argv 和写边界可补必要模块反例，但不靠源码字符串或报告关键词判通过。冻结 acceptance/T-249/check_git_graph.py、现有宿主/安全测试照常回归，不改它们；禁止启动 Claude。\n\n测试和打包使用本机标准构建入口、自有隔离目录，结束及时清理自有缓存、大夹具，文本证据留本票。不触碰正在运行的正式 Enchanted、现有 Test 窗口、用户 core 或 /Applications。新的包权限提示保留现场交主控；已知 ps 沙箱限制只报告一次及精确外部命令，不换命令绕过。exec_command 外层 cwd 始终自己的 attempt worktree。不要将未运行的检查计 PASS。\n\n交付中文 RESULTS.md、行为红绿、已知坏实现、准确命令、许可来源、自查和限制。实现者完成 design-integrity-review 自查，所有异常处理/部分执行边界写明真实调用者与谁拥有恢复。主控安排干净独立 Astra 审查，完整产品候选还需单独 Terra Computer Use＋常规测试，不拿自动 E2E 冒充 Terra。提交后显式 submit 本次完整 SHA 一次，不自行 verify/integrate/reclaim。README/MAP 的同步由主控完成。\n",
+  "non_goals": [
+    "不更改门禁、正式状态、全局配置、冻结验收或新增依赖",
+    "不操作正式应用、已有 Test 环境和用户 core，不替换 /Applications",
+    "不启动其他 agent，不 push；不实现 nvim、远程机器或独立标签页"
+  ],
+  "paths": {
+    "allow": [
+      "workbench/app/panels/",
+      "workbench/app/gitHost.ts",
+      "workbench/app/preload.ts",
+      "workbench/app/main.ts",
+      "workbench/app/renderer.tsx",
+      "workbench/app/style.css",
+      "workbench/LICENSE.herdr-gitview",
+      "workbench/LICENSE.herdr-reviewr",
+      "workbench/tests/test_t250_changes_e2e.py",
+      "workbench/tests/test_t250_changes_host.mjs",
+      "evidence/2026-11-08-batch34/T-250/worker/"
+    ],
+    "deny": [
+      "acceptance/",
+      "REVIEW.md",
+      ".project-map/",
+      "workbench/src/",
+      "workbench/app/build.mjs",
+      "workbench/app/package.mjs"
+    ]
+  },
+  "oracle_paths": [
+    ".project-map/tickets/T-250-changes-panel.md",
+    "acceptance/T-249/check_git_graph.py",
+    "workbench/tests/test_t249_git_host.mjs",
+    "workbench/tests/test_t249_outside_safety.py"
+  ],
+  "completion_conditions": [
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "workbench/tests/test_t250_changes_e2e.py"
+      ]
+    }
+  ],
+  "red_commands": [],
+  "task_type": "前端界面",
+  "repair_target": null,
+  "complexity": "L",
+  "executor": {
+    "cli": "Codex",
+    "model": "gpt-6-astra",
+    "effort": "xhigh"
+  },
+  "base_commit": null,
+  "writer": null
+}
