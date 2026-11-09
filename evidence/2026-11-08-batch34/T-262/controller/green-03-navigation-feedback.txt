@@ -1,0 +1,7 @@
+主控已跑新的完整窗口场景，green-outside-03.json：26 项已执行检查通过；随后切换 beta 的业务等待失败，状态 FAIL，未运行四个 mutant。真实窗口 900×700，core_cleanup stopped、cleanup.removed=true。原结果与 diagnostics/stdout 均保留。
+
+先按失败事实检查测试入口：renderer.tsx navigate() 成功后明确 setPage('terminal')，selectProject() 也走 navigate。现有 full_scenario 点击侧栏 beta 后直接等待记录 i-b，没有重新进入“记录”。这是现有产品导航语义，卡内不应改变 renderer。请核对真实页面读回，按既有真实用户旅程补齐每次项目/独立终端切换后的“记录”页点击，再检查新项目标题/身份就绪后等记录；不要仅延长超时或改变业务期望。保留延迟的真实 alpha 响应直到 beta 已显示记录，再释放并确认不覆盖。alpha、empty、free-terminals 的同类步骤一起核对。增加失败时页面/选中项目的精简诊断，让下一次证据可区分停在终端与记录加载失败。
+
+本轮不要求新产品功能。若真实入口证明是记录页产品缺陷，在本卡原产品范围修；否则只修测试驱动。不要改冻结验收、预期数据、四个 mutant、其他页面。父版 red-outside-05 继续作为有效排序/过滤红态，不必重跑；下一次完整候选用 green-outside-04.json，再跑四个既有 mutant。主控负责外部运行，worker 不再尝试已知被拒的 ps 或新开后台。
+
+请把修订和命令写入 worker/NAVIGATION-07.md 及 controller-runs-07.command，然后集中一个回合结束等待，不为状态发多条 issue，避免消耗回合预算。后续主控会集中给完整证据，让你完成提交与 submit。README 已由主控接手；正式 Enchanted 和 T-249 Test 都不操作。

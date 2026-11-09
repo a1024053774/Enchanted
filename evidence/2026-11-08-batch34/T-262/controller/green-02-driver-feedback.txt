@@ -1,0 +1,7 @@
+主控已经在你的新 worktree 跑完 controller-runs-05 前两条，不需要等待或重跑它们。red-outside-05 为有效 FAIL：排序与双区任务筛选两个独立断言都检出父版缺陷，表单选择真实产生变化，清理成功。
+
+green-outside-02 已通过前 21 项业务检查，没有业务失败，但整轮 INCOMPLETE：当前 Electron 的页面 CDP 端点返回 Browser.getWindowForTarget 不存在（-32601）。没有跑到窄窗口及其后的异步/错误/空态部分，四个 mutant 也暂未运行。原摘要和 diagnostics/stdout 均在主仓库 controller 目录，清理成功。
+
+请只修这个真实窗口尺寸的测试驱动问题，再给主控新的完整命令。先检查现有 Electron 类型和同仓测试入口；不要再猜 CDP 命令，不加兼容回退。可以在本票自有夹具启动器里用 Electron BrowserWindow 的官方 setBounds/setContentSize 设置真实窗口尺寸（例如从一开始就运行 900px 窄窗口，并读回真实尺寸），不改共享 cdp_launch.cjs 或产品代码，不伪造 DOM 宽度/产品返回值。原窄窗口不溢出断言、后续业务期望、已有红态与四个 mutant 都保留。只修改本卡测试及证据。
+
+准备好后集中一条 issue，主控继续跑。不要额外重复父版构建或启动新测试。README 的候选范围说明由主控同步；旧 base 的 stale 不表示让你越权改文档。T-258 已安装；没有等待重启事项。此消息覆盖你还没结束的“待主控开始外部运行”状态。
