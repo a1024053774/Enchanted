@@ -1,0 +1,12 @@
+STATUS: PASS
+SUMMARY: No findings. 本轮为仓库规则指定的实现者结构自查，不是独立审查。
+TARGET: native-04 冻结驱动到当前 test_t265_review_cli_e2e.py 的 interact.finally 差异；具体差异在 driver-scope-06.json。
+FINDINGS:
+- 无已复现的范围内结构缺陷。
+LIMITATIONS:
+- 可达性由主控 process-wait-probe-02 的真实退出时序确认；interact 创建并持有 PTY master，资源关闭仍由这个所有者负责。只移动自有资源的释放时机，无新驱动、API、重试或权限路径。
+- 新 OSError 捕获只保存关闭失败；diagnostic_errors 使正常返回路径抛出 INCOMPLETE，原交互异常保持原样。close-error 离线场景证明失败没有被转换成成功或触发再次关闭。stop_owned 未改，仍由同一 Popen.wait 的结果证明退出。
+- 主控候选业务 PASS 不覆盖测试脚本自动清理；本轮真实整轮运行尚未执行，不能将结构自查或 mock 通过当作真实 PTY 回收证据。
+- design-scan-06.json 未报风险；扫描器只是定位工具。新驱动未提交，本次用 native-04 快照与当前文件的直接差异、完整 finally 和现有调用路径补查。
+RULE:
+- test_driver_diagnostics.py::test_owned_master_closes_once_after_diagnostics_before_reaping 检查“诊断先落盘 → 自有 master 关闭一次 → 原回收路径”，四种结束场景均拒绝 native-04 旧顺序；现有退出表继续要求 wait 证据、拒绝身份变化及 EPERM。
