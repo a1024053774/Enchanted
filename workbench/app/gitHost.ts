@@ -3,10 +3,13 @@
 // action and the argv is built here (commandsFor), so a name starting with "-" never reaches git as an option. A
 // directory under the gate's task worktrees (<state>/worktrees/) is read-only: the gate guards its Git metadata.
 import { execFile } from 'node:child_process';
-import { existsSync, lstatSync, realpathSync, statSync, watch, type FSWatcher } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, realpathSync, statSync, watch, type FSWatcher } from 'node:fs';
 import { isAbsolute, join, relative, sep } from 'node:path';
 import { commandsFor, doneText, findArgs, gitError, LATEST_TAG, objectId, parseFound, parseRepoStatus, READ, REF_CHANGE, REPO_STATUS,
   unsearched, type Action, type RepoStatus } from './panels/gitGraphModel.ts';
+import { changeCommands, commitNameStatus, commitNumstat, diffArgsFor, excludedFromBase, groupEntries, LOG_FORMAT, parseLog, parseNameStatus,
+  parseNumstat, parseStatusV2, pickBase, rangeNameStatus, rangeNumstat, safePath, STAGED_NUMSTAT, STATUS_ARGS, UNSTAGED_NUMSTAT,
+  UNTRACKED_COUNT_LIMIT, untrackedNumstat, TRUNKS, type ChangesAction, type DiffSide } from './panels/changesModel.ts';
 
 export type GitResult = { code: number | null; stdout: string; stderr: string };
 const env = () => ({ ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_OPTIONAL_LOCKS: '0', GCM_INTERACTIVE: '0', LC_ALL: 'C' });
@@ -192,4 +195,132 @@ export function unwatchRepo(id: string) {
   for (const watcher of entry.watchers) watcher.close();
   if (entry.timer) clearTimeout(entry.timer);
   watches.delete(id);
+}
+
+// T-250: the "改动" panel's reads and writes. The panel names what it wants; the argv is built from changesModel.ts
+// here, so no argument from the renderer reaches git as an option. Reads run with the no-lock flags.
+async function readGit(cwd: string, argv: string[], ok: number[] = [0]) {
+  const result = await exec('git', [...READ, ...argv], cwd);
+  if (result.code === null || !ok.includes(result.code)) throw new Error(gitError(result));
+  return result.stdout;
+}
+async function headOf(cwd: string) {
+  const head = await exec('git', [...READ, 'rev-parse', '--verify', '-q', 'HEAD'], cwd);
+  return head.code === 0 ? head.stdout.trim() : null;
+}
+const revision = (value: unknown) => typeof value === 'string' && objectId(value);
+
+export async function changesStatus(top: string) {
+  const status = parseStatusV2(await readGit(top, STATUS_ARGS));
+  const staged = parseNumstat(await readGit(top, STAGED_NUMSTAT)), unstaged = parseNumstat(await readGit(top, UNSTAGED_NUMSTAT));
+  const untracked = new Map();
+  const files = status.unstaged.filter(entry => entry.untracked).slice(0, UNTRACKED_COUNT_LIMIT);
+  // --no-index exits 1 when the file differs from /dev/null, which every non-empty file does.
+  for (const entry of files) {
+    const [value] = parseNumstat(await readGit(top, untrackedNumstat(entry.path), [0, 1])).values();
+    // An empty file has no line to count and prints nothing.
+    untracked.set(entry.path, value ?? { add: 0, del: 0, binary: false });
+  }
+  return { head: await headOf(top), entries: groupEntries(status, staged, unstaged, untracked) };
+}
+
+export async function detectBase(top: string) {
+  const head = await headOf(top);
+  if (!head) return { head: null, current: null, base: null, candidates: [] };
+  const current = await exec('git', [...READ, 'symbolic-ref', '-q', '--short', 'HEAD'], top);
+  const name = current.code === 0 ? current.stdout.trim() : null;
+  const refs = (await readGit(top, ['for-each-ref', '--format=%(refname)%00%(refname:short)%00%(symref)', 'refs/heads', 'refs/remotes']))
+    .split('\n').filter(Boolean).map(line => line.split('\0')).filter(([, , symref]) => !symref)
+    .map(([full, short]) => ({ name: short!, remote: full!.startsWith('refs/remotes/') }))
+    .filter(ref => !excludedFromBase(ref.name, ref.remote, name));
+  const trunk = (ref: { name: string }) => TRUNKS.includes(ref.name.replace(/^[^/]+\//, ''));
+  // Trunk names first, then at most 40 others: each candidate costs two git runs.
+  const ordered = [...refs.filter(trunk), ...refs.filter(ref => !trunk(ref)).slice(0, 40)];
+  const candidates = [];
+  for (const ref of ordered) {
+    const base = await exec('git', [...READ, 'merge-base', 'HEAD', 'refs/' + (ref.remote ? 'remotes/' : 'heads/') + ref.name], top);
+    if (base.code !== 0) continue;
+    const mergeBase = base.stdout.trim();
+    const distance = Number((await readGit(top, ['rev-list', '--count', `${mergeBase}..HEAD`])).trim());
+    candidates.push({ ...ref, mergeBase, distance });
+  }
+  const best = pickBase(candidates, head);
+  return { head, current: name, base: best, candidates: candidates.filter(c => c.mergeBase !== head).map(c => c.name) };
+}
+
+async function mergeBaseWith(top: string, base: unknown) {
+  if (typeof base !== 'string' || !base || base.startsWith('-')) throw new Error('基线不合法');
+  const found = await exec('git', [...READ, 'merge-base', 'HEAD', base], top);
+  if (found.code !== 0) throw new Error('找不到与 ' + base + ' 的合并基点');
+  return found.stdout.trim();
+}
+
+export type ChangesRequest = { kind: 'status' } | { kind: 'base' } | { kind: 'range'; base: string } | { kind: 'commit'; hash: string }
+  | { kind: 'log'; base: string | null } | { kind: 'diff'; path: string; side: DiffSide }
+  | { kind: 'blob'; path: string; rev: string } | { kind: 'worktree'; path: string };
+
+export async function changesRead(dir: unknown, state: string, request: ChangesRequest) {
+  const repo = await repoOf(dir, state);
+  if (!repo.top) throw new Error('不是 Git 仓库');
+  const top = repo.top;
+  if (!request || typeof request !== 'object') throw new Error('Invalid request');
+  switch (request.kind) {
+    case 'status': return changesStatus(top);
+    case 'base': return detectBase(top);
+    case 'range': {
+      const mergeBase = await mergeBaseWith(top, request.base);
+      const counts = parseNumstat(await readGit(top, rangeNumstat(mergeBase)));
+      const files = parseNameStatus(await readGit(top, rangeNameStatus(mergeBase))).map(file => ({ ...file, ...(counts.get(file.path) ?? { add: null, del: null, binary: false }) }));
+      return { mergeBase, files };
+    }
+    case 'commit': {
+      if (!revision(request.hash)) throw new Error('提交哈希不合法');
+      const parents = (await readGit(top, ['rev-list', '--parents', '-n1', request.hash])).trim().split(' ').slice(1);
+      const counts = parseNumstat(await readGit(top, commitNumstat(request.hash)));
+      const files = parseNameStatus(await readGit(top, commitNameStatus(request.hash))).map(file => ({ ...file, ...(counts.get(file.path) ?? { add: null, del: null, binary: false }) }));
+      return { parent: parents[0] ?? null, files };
+    }
+    case 'log': {
+      const range = request.base ? [`${await mergeBaseWith(top, request.base)}..HEAD`] : ['-n200', 'HEAD'];
+      if (!(await headOf(top))) return { commits: [] };
+      return { commits: parseLog(await readGit(top, ['log', '-z', LOG_FORMAT, ...range])) };
+    }
+    case 'diff': {
+      if (!safePath(request.path)) throw new Error('文件路径不合法');
+      const side = request.side;
+      if (side?.kind === 'range' && !revision(side.base)) throw new Error('基线不合法');
+      if (side?.kind === 'commit' && (!revision(side.hash) || (side.parent !== null && !revision(side.parent)))) throw new Error('提交哈希不合法');
+      return { text: await readGit(top, diffArgsFor(request.path, side), side?.kind === 'untracked' ? [0, 1] : [0]) };
+    }
+    case 'blob': {
+      if (!safePath(request.path) || !(request.rev === 'HEAD' || request.rev === ':0' || revision(request.rev))) throw new Error('Invalid blob');
+      const spec = request.rev === ':0' ? ':0:' + request.path : request.rev + ':' + request.path;
+      const result = await exec('git', [...READ, 'show', '--no-textconv', spec], top, 'base64');
+      return { base64: result.code === 0 ? result.stdout : null };
+    }
+    case 'worktree': {
+      if (!safePath(request.path)) throw new Error('文件路径不合法');
+      const file = join(top, request.path);
+      if (!existsSync(file)) return { base64: null };
+      const resolved = realpathSync(file);
+      if (!resolved.startsWith(top + sep) || !lstatSync(resolved).isFile() || statSync(resolved).size > 20 * 1024 * 1024) throw new Error('只能读取仓库内 20 MB 以内的普通文件');
+      return { base64: readFileSync(resolved).toString('base64') };
+    }
+    default: throw new Error('未知的读取');
+  }
+}
+
+export async function changesAction(dir: unknown, state: string, action: ChangesAction) {
+  if (!action || typeof action !== 'object') throw new Error('Invalid action');
+  const repo = await writable(dir, state);
+  const top = repo.top!;
+  const status = action.type === 'commit' ? await changesStatus(top) : null;
+  const commands = changeCommands(action, { hasHead: Boolean(await headOf(top)),
+    stagedCount: status ? status.entries.filter(entry => entry.group === 'staged').length : 0 });
+  if (action.type === 'commit' && status && !status.entries.length) throw new Error('没有可提交的改动');
+  for (const argv of commands) {
+    const result = await exec('git', argv, top);
+    if (result.code !== 0) throw new Error(gitError(result));
+  }
+  return { argv: commands };
 }

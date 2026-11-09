@@ -312,6 +312,15 @@ function SessionPane({ paneKey, active, screenReader, fontFamily, name, confirme
       if (!composing) clearInputTimer = setTimeout(() => { term.textarea!.value = ''; }, 0);
     });
     term.onBinary(data => admitInput(() => window.a2a.input(paneKey, data, 'binary')));
+    // T-250: the "改动" panel sends review notes as a paste into this terminal, through the same onData input path as
+    // typing (bracketed when the program asked for it), so the input record and the intervention rule apply as usual.
+    const pasteFromPanel = (event: Event) => {
+      const { key, text, reply } = (event as CustomEvent<{ key: string; text: string; reply: (ok: boolean, why?: string) => void }>).detail;
+      if (key !== paneKey) return;
+      if (inputFailed || term.options.disableStdin) { reply(false, '这个终端现在不接受输入'); return; }
+      term.paste(text); reply(true);
+    };
+    window.addEventListener('a2a:panel-paste', pasteFromPanel);
     const beginComposition = () => {
       composing = true;
       clearTimeout(clearInputTimer);
@@ -415,6 +424,7 @@ function SessionPane({ paneKey, active, screenReader, fontFamily, name, confirme
       term.textarea!.removeEventListener('focus', focused);
       term.textarea!.removeEventListener('blur', blurred);
       darkQuery.removeEventListener('change', followScheme);
+      window.removeEventListener('a2a:panel-paste', pasteFromPanel);
       observer.disconnect(); term.dispose();
     };
   }, [paneKey]);

@@ -9,7 +9,7 @@ import { readOperatorCredential } from '../src/credentials.ts';
 import { randomUUID } from 'node:crypto';
 import { NotificationCenter, type NotificationPreference } from './notificationCenter.ts';
 import type { EmptyInputDeclaration } from '../src/panes.ts';
-import { gitAction, gitRead, managedWorktree, processCwd, repoOf, scanRepos, unwatchRepo, watchRepo } from './gitHost.ts';
+import { changesAction, changesRead, gitAction, gitRead, managedWorktree, processCwd, repoOf, scanRepos, unwatchRepo, watchRepo } from './gitHost.ts';
 
 type Options = { state: string; task?: string; project?: string; launch?: string | string[]; userData: string; inspect?: boolean };
 type PaneBinding = {
@@ -433,6 +433,9 @@ function registerHandlers() {
   ipcMain.handle('a2a:git-repo', async (event, dir: unknown) => repoOf(dir, windowTarget(event).options.state));
   ipcMain.handle('a2a:git-read', async (event, dir: unknown, argv: unknown, encoding: unknown) => { windowTarget(event); return gitRead(dir, argv, encoding ?? 'utf8'); });
   ipcMain.handle('a2a:git-action', async (event, dir: unknown, action: any, values: any) => gitAction(dir, windowTarget(event).options.state, action, values));
+  // T-250: the "改动" panel. The request names a read or a change; gitHost.ts builds the argv.
+  ipcMain.handle('a2a:changes-read', async (event, dir: unknown, request: any) => changesRead(dir, windowTarget(event).options.state, request));
+  ipcMain.handle('a2a:changes-action', async (event, dir: unknown, action: any) => changesAction(dir, windowTarget(event).options.state, action));
   ipcMain.handle('a2a:git-scan', async (event, root: unknown, depth: unknown, tags: unknown) => {
     windowTarget(event);
     return scanRepos(root, Number(depth), homedir(), tags === true);

@@ -4,6 +4,7 @@
 // is loaded; a public mod interface needs its own decision ticket.
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import { GitGraphPanel } from './GitGraphPanel';
+import { ChangesPanel } from './ChangesPanel';
 import { terminalPalettes } from '../terminalPalettes';
 import './panels.css';
 
@@ -20,6 +21,13 @@ export type PanelHost = {
     scan(root: string, depth: number, tags: boolean): Promise<any>;
     watch(dir: string, onChange: (refs: boolean) => void): () => void;
   };
+  // T-250: the "改动" panel's reads and writes (gitHost.ts changesRead / changesAction).
+  changes: {
+    read(dir: string, request: Record<string, unknown>): Promise<any>;
+    action(dir: string, action: Record<string, unknown>): Promise<{ argv: string[][] }>;
+  };
+  // Pastes text into the followed terminal pane, as typing there would (renderer.tsx a2a:panel-paste).
+  sendToPane(text: string): Promise<void>;
   openFile(path: string): Promise<void>;
   notify(text: string, level?: 'info' | 'error'): void;
   showPanel(id: string): void;
@@ -27,8 +35,10 @@ export type PanelHost = {
 export type PanelDefinition = { id: string; title: string; icon: ReactNode; Component: ComponentType<{ host: PanelHost }> };
 
 const graphIcon = <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><circle cx="4" cy="3.5" r="1.6" fill="none" stroke="currentColor" strokeWidth="1.3" /><circle cx="4" cy="12.5" r="1.6" fill="none" stroke="currentColor" strokeWidth="1.3" /><circle cx="12" cy="6" r="1.6" fill="none" stroke="currentColor" strokeWidth="1.3" /><path d="M4 5.1v5.8M12 7.6c0 2.5-3 2.9-7 4" fill="none" stroke="currentColor" strokeWidth="1.3" /></svg>;
+const changesIcon = <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3.5 2.5h6l3 3v8h-9z" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /><path d="M8 6.5v4M6 8.5h4" fill="none" stroke="currentColor" strokeWidth="1.3" /></svg>;
 export const panels: PanelDefinition[] = [
   { id: 'git-graph', title: 'Git 图', icon: graphIcon, Component: GitGraphPanel },
+  { id: 'changes', title: '改动', icon: changesIcon, Component: ChangesPanel },
 ];
 
 // The preload bridge's panel methods (preload.ts).
@@ -42,6 +52,8 @@ type PanelBridge = {
   onGitChanged(listener: (change: { id: string; refs: boolean }) => void): () => void;
   openPath(path: string): Promise<void>;
   copyText(text: string): Promise<void>;
+  changesRead(dir: string, request: Record<string, unknown>): Promise<any>;
+  changesAction(dir: string, action: Record<string, unknown>): Promise<{ argv: string[][] }>;
 };
 export const bridge = () => (window as unknown as { a2a: PanelBridge }).a2a;
 
@@ -108,6 +120,16 @@ export function PanelDock({ focusedPane, home, onClose }: { focusedPane: string 
     git: { repo: dir => bridge().gitRepo(dir), read: (dir, argv, encoding) => bridge().gitRead(dir, argv, encoding),
       action: (dir, action, values) => bridge().gitAction(dir, action, values),
       scan: (root, depth, tags) => bridge().gitScan(root, depth, tags), watch: watchRepo },
+    changes: { read: (dir, request) => bridge().changesRead(dir, request), action: (dir, action) => bridge().changesAction(dir, action) },
+    sendToPane: text => new Promise<void>((resolve, reject) => {
+      const key = directory.pane;
+      if (!key) { reject(new Error('没有聚焦的终端：先点一下要发送到的终端')); return; }
+      let answered = false;
+      window.dispatchEvent(new CustomEvent('a2a:panel-paste', { detail: { key, text, reply: (ok: boolean, why?: string) => {
+        answered = true; if (ok) resolve(); else reject(new Error(why ?? '发送失败'));
+      } } }));
+      if (!answered) reject(new Error('聚焦的终端已不在当前视图里'));
+    }),
     openFile: path => bridge().openPath(path),
     notify: (text, level = 'info') => setNotice({ text, level, at: Date.now() }),
     showPanel: id => { if (panels.some(panel => panel.id === id)) setActive(id); },

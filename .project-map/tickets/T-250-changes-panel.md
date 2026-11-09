@@ -2,7 +2,7 @@
 id: T-250
 title: 第二个面板“改动”（照 herdr-gitview）：分组文件列表、暂存与提交、diff
 type: build
-status: open
+status: done
 blocked_by: [T-249]
 claimed_by:
 supersedes:
@@ -49,3 +49,15 @@ ready_rev: 1
 > 先装新版,然后你自己启动软件继续,这次用 opus5.5 extra 当主控,然后 astra extra 当 worker 和 reviewer
 
 执行主控 Claude Code `claude-opus-5-5` xhigh；worker 与 reviewer 都是 Codex `gpt-6-astra` xhigh，不开 Fast。验收同 [T-249](T-249-git-graph-panel.md)：Codex `gpt-6.1-terra` 用 Computer Use 与常规测试验收；“文稿”授权框可代点，规则见 T-249。
+
+## 当前状态
+
+2026-11-09，PASS（范围见下）。由 Claude Code 会话 `8be1abdd-5af9-4023-bff8-cbc0f40d9a84` 直接实现，没有经门禁派发。用户原话：
+
+> 不用 codex 了,你自己做完这些部分结束
+
+端到端测试绿态 23 项通过；分组、行数两个变异都判红。证据见 `evidence/2026-11-09-batch35/T-250/RESULTS.md`。
+
+没有完成的验收项：
+- Terra 独立验收：按用户这次的要求没有做。
+- 输入记录：普通终端的打字本来就不写 `user_inputs`，所以改为核对备注的记法与打字相同。

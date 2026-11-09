@@ -118,3 +118,58 @@
 .manygit-sync.ok { color: var(--lane-2); } .manygit-sync.ahead, .manygit-sync.unpushed { color: var(--lane-4); }
 .manygit-sync.behind, .manygit-sync.diverged, .manygit-sync.gone, .manygit-sync.error { color: var(--lane-1); }
 .manygit-sync.local { color: var(--faint); }
+
+/* T-250: the "改动" panel. Colors are the terminal palette's (--lane-N) and the app's tokens. */
+.changes { flex: 1; min-height: 0; display: flex; flex-direction: column; outline: none; container-type: inline-size; font-size: 12px; }
+.changes .add { color: var(--lane-2); } .changes .del { color: var(--lane-1); } .changes .muted { color: var(--faint); }
+.changes-total { margin-left: auto; color: var(--muted); white-space: nowrap; }
+.changes-base { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+.changes-base select { font: inherit; max-width: 160px; }
+.changes-help { margin: 0; padding: 8px 14px; display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; border-bottom: 1px solid var(--line); background: var(--control); }
+.changes-help div { display: contents; } .changes-help dt { font-family: var(--mono); color: var(--ink); } .changes-help dd { margin: 0; color: var(--muted); }
+.changes-main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.changes-list { flex: 0 1 42%; min-height: 80px; overflow: auto; border-bottom: 1px solid var(--line); }
+.changes-diff { flex: 1; min-height: 0; overflow: auto; padding: 6px 10px; display: flex; flex-direction: column; }
+@container (min-width: 760px) {
+  .changes-main { flex-direction: row; }
+  .changes-list { flex: 0 0 40%; border-bottom: 0; border-right: 1px solid var(--line); }
+}
+.change-group h4, .changes-history h4 { margin: 8px 10px 2px; font-size: 11px; color: var(--faint); font-weight: 600; }
+.change-row { display: flex; align-items: center; gap: 8px; height: 22px; padding-right: 8px; cursor: default; white-space: nowrap; }
+.change-row:hover { background: var(--row-hover); }
+.change-row.selected { background: var(--control-hover); }
+.change-code { width: 12px; font-family: var(--mono); color: var(--muted); }
+.change-code.code-A, .change-code.code-\? { color: var(--lane-2); } .change-code.code-D { color: var(--lane-1); }
+.change-code.code-M { color: var(--lane-4); } .change-code.code-U { color: var(--danger); font-weight: 600; }
+.change-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-family: var(--mono); }
+.change-actions { display: none; gap: 2px; } .change-row:hover .change-actions, .change-row.selected .change-actions { display: inline-flex; }
+.change-actions .text-button { padding: 0 5px; font-size: 11px; } .change-actions .danger { color: var(--danger); }
+.change-folder { display: block; width: 100%; text-align: left; background: transparent; border-radius: 0; height: 22px; padding: 0 8px; color: var(--muted); font-family: var(--mono); }
+.change-folder:hover { background: var(--row-hover); }
+.history-row { display: flex; gap: 6px; width: 100%; text-align: left; background: transparent; border-radius: 0; padding: 2px 10px; white-space: nowrap; overflow: hidden; }
+.history-row:hover { background: var(--row-hover); } .history-row.selected { background: var(--control-hover); }
+.history-row code { color: var(--muted); } .history-row span { overflow: hidden; text-overflow: ellipsis; }
+.changes-commit-head { padding: 6px 10px; display: flex; gap: 6px; align-items: center; border-bottom: 1px solid var(--line); }
+.changes-lines .diff-line { cursor: text; }
+.changes-lines .diff-line.picked { box-shadow: inset 3px 0 0 var(--lane-0); background: color-mix(in srgb, var(--lane-0) 12%, transparent); }
+.changes-lines .diff-number { width: 36px; }
+.diff-sign { width: 12px; flex-shrink: 0; color: var(--faint); user-select: none; }
+.diff-line.del .diff-sign { color: var(--lane-1); }
+.diff-text { white-space: pre; }
+.diff-line.add .word { background: color-mix(in srgb, var(--lane-2) 30%, transparent); border-radius: 2px; }
+.diff-line.del .word { background: color-mix(in srgb, var(--lane-1) 28%, transparent); border-radius: 2px; }
+.diff-line.meta { color: var(--faint); }
+.tok-keyword { color: var(--lane-3); } .tok-string { color: var(--lane-2); } .tok-comment { color: var(--faint); font-style: italic; } .tok-number { color: var(--lane-4); }
+.diff-line.add .tok-string, .diff-line.del .tok-string { color: var(--lane-5); }
+.diff-fold { display: block; width: 100%; text-align: left; background: var(--control); border-radius: 0; color: var(--muted); padding: 1px 52px; font-family: var(--mono); font-size: 11px; }
+.image-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.image-compare figure { margin: 0; } .image-compare figcaption { color: var(--faint); margin-bottom: 4px; }
+.image-compare img { max-width: 100%; border: 1px solid var(--line); background: repeating-conic-gradient(var(--control) 0 25%, transparent 0 50%) 0 0 / 12px 12px; }
+.markdown-preview { line-height: 1.6; color: var(--ink); } .markdown-preview h1, .markdown-preview h2, .markdown-preview h3 { margin: 10px 0 4px; }
+.markdown-preview pre { background: var(--control); padding: 6px 8px; border-radius: 6px; overflow: auto; } .markdown-preview blockquote { margin: 4px 0; padding-left: 10px; border-left: 3px solid var(--line); color: var(--muted); }
+.note-draft { position: sticky; bottom: 0; display: grid; gap: 4px; padding: 6px; background: var(--sheet); border-top: 1px solid var(--line); }
+.note-draft textarea, .changes-commit textarea { font: inherit; resize: vertical; width: 100%; box-sizing: border-box; }
+.changes-notes { flex-shrink: 0; display: flex; gap: 8px; align-items: center; padding: 6px 10px; border-top: 1px solid var(--line); background: var(--control); }
+.changes-notes span { flex: 1; }
+.changes-commit { flex-shrink: 0; display: flex; gap: 8px; align-items: flex-end; padding: 8px 10px; border-top: 1px solid var(--line); }
+.changes-commit textarea { flex: 1; }

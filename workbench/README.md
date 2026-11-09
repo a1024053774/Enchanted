@@ -1392,6 +1392,34 @@ Vite 缓存、临时目录和 dist 都在 `os.tmpdir()/a2a-build-<槽名>` 中�
   不替换正在运行的 Enchanted。补充宿主检查：`node --test workbench/tests/test_t249_git_host.mjs`；
   清理与红态分类检查：`python3 workbench/tests/test_t249_outside_safety.py`。
 
+### 改动面板（T-250）
+
+面板位的第二个面板（`app/panels/ChangesPanel.tsx`、`changesModel.ts`，照 herdr-gitview，MIT，
+Copyright (c) 2026 Adam Chmara；它的 diff 视图改编自 herdr-reviewr，也是 MIT；声明保留在源码里）。
+不搬原 mod 的 Rust 引擎：面板只说要读什么、做什么，git 的 argv 在主进程（`gitHost.ts` 的
+`changesRead`、`changesAction`）由 `changesModel.ts` 拼好再执行，读操作带不加锁的参数。
+
+- **文件列表**：冲突、已暂存、未暂存（含未跟踪）三组，取自 `status --porcelain=v2 -z`；每个文件和
+  总计的 +/- 取自 `diff --numstat`、`diff --cached --numstat`，未跟踪文件用 `diff --no-index`。冲突文件
+  `diff --numstat` 打两行，取后一行（工作区对 ours）。可切平铺或目录树（单子目录合并显示）。
+- **写操作**：暂存 `add -A`、取消暂存 `reset -q HEAD`（没有 HEAD 时 `rm --cached`）、丢弃（先确认；
+  未暂存的 `restore --worktree`，已暂存的从 HEAD 恢复，未跟踪的 `clean -f`）、提交（底部输入框，
+  Enter 提交，Shift+Enter 换行；没有已暂存文件时先 `add -A`）。跟随门禁 worktree 时只读，主进程也拒绝。
+- **diff**：全上下文读取，超过 8 行的未改动段折叠成可展开的一行；语法着色是按行的小型分词
+  （关键字、字符串、注释、数字，颜色取终端调色板，随主题明暗）；一对删改行之间的不同部分加强调。
+  冲突按合并格式（两列前缀）显示。Markdown 可切预览，图片显示改动前后对比。
+- **范围**：未提交 / 与基线比较。基线按原 mod 的 `detect_base`：在本地和远程分支里找与 HEAD
+  合并基点最近的（包含 HEAD 的分支、当前分支及其远程副本不算），同距离时 main、master、trunk、
+  develop、dev 优先，再本地优先；可在下拉框里固定。历史（l）只列基线之后本分支的提交，点一个看它的改动。
+- **审阅备注**：在 diff 里拖选几行写备注，“发到聚焦的终端”把整批备注作为粘贴送进那个终端
+  （`term.paste`，与打字同一条 `onData` → `window_input` 路径，不自动回车）。目标是受管 worker 时照常记人工介入。
+- **键盘**：j/k、方向键、J/K 移动，s/u/x 暂存/取消暂存/丢弃，c 写提交说明，t 平铺或树，w 切范围，
+  l 历史，? 按键表。单击选中，双击用系统默认程序打开，点文件夹折叠。
+- **刷新**：监视仓库文件变化；自己的写操作之后立即重读，并忽略之后 800 ms 内的文件事件。
+- **端到端测试**：`tests/test_t250_changes_e2e.py --output 目录 [--mutant groups|counts]`，真实 Electron
+  入口、独立 state，夹具仓库含已暂存、未暂存、未跟踪、冲突文件；期望值由测试自己解析 git 输出。
+  沙箱外运行。
+
 ## 库版收件箱客户端（当前只在夹具项目验证）
 
 `workbench/bin/inbox` 复用同一门禁 CLI 与后台，不打开数据库、不读写文件版收件箱。

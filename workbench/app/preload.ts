@@ -73,4 +73,7 @@ contextBridge.exposeInMainWorld('a2a', Object.freeze({
     return () => { ipcRenderer.removeListener('a2a:git-changed', receive); };
   },
   openPath: (path: string) => ipcRenderer.invoke('a2a:open-path', path),
+  // T-250: the "改动" panel.
+  changesRead: (dir: string, request: Record<string, unknown>) => ipcRenderer.invoke('a2a:changes-read', dir, request),
+  changesAction: (dir: string, action: Record<string, unknown>) => ipcRenderer.invoke('a2a:changes-action', dir, action),
 }));
