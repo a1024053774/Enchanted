@@ -23,11 +23,16 @@ signature = subprocess.run(['/usr/bin/codesign', '--verify', '--deep', '--strict
                            text=True, capture_output=True)
 assert signature.returncode == 0, signature.stderr
 fixture = Path(tempfile.mkdtemp(prefix='t265-package-input-', dir='/private/tmp'))
-(fixture / 'tests').mkdir()
-# This is a disposable test input directory, never a build output directory.
-# rmtree removes the link itself; no build command touches this directory.
-(fixture / 'src').symlink_to(product / 'src', target_is_directory=True)
-test = fixture / 'tests/test_t265_review_materials.mjs'
+(fixture / 'workbench/tests').mkdir(parents=True)
+# The unchanged test expects the real server module under cwd/workbench/src.
+# Copy the packaged sources there and verify each input byte before running.
+shutil.copytree(product / 'src', fixture / 'workbench/src')
+sources = [p for p in (product / 'src').rglob('*') if p.is_file()]
+for source in sources:
+    assert source.read_bytes() == (fixture / 'workbench/src' / source.relative_to(product / 'src')).read_bytes()
+# Disposable test inputs only; no build command uses this link.
+(fixture / 'workbench/node_modules').symlink_to(product / 'node_modules', target_is_directory=True)
+test = fixture / 'workbench/tests/test_t265_review_materials.mjs'
 original = args.source / 'workbench/tests/test_t265_review_materials.mjs'
 shutil.copy2(original, test)
 assert test.read_bytes() == original.read_bytes()
@@ -37,7 +42,8 @@ command = [str(args.app / 'Contents/MacOS/Enchanted'), '--test', str(test)]
 run = subprocess.run(command, cwd=fixture, env=env, text=True, capture_output=True, timeout=180)
 record = dict(status='PASS' if run.returncode == 0 else 'INCOMPLETE', revision=args.revision,
               app=str(args.app), command=command, cwd=str(fixture), test_copy_byte_equal=True,
-              packaged_panes_byte_equal=True, exit_code=run.returncode, stdout=run.stdout, stderr=run.stderr,
+              packaged_panes_byte_equal=True, packaged_source_copies_byte_equal=len(sources),
+              exit_code=run.returncode, stdout=run.stdout, stderr=run.stderr,
               signature=dict(exit_code=signature.returncode, stderr=signature.stderr),
               scope='包内 Electron 与产品源码的材料检查；不替代原生 CLI 或完整审查生命周期',
               cleanup=dict(directory=str(fixture), removed=False))
