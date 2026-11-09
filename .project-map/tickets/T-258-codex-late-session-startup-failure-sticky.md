@@ -2,7 +2,7 @@
 id: T-258
 title: Codex 原生会话晚于启动期限出现后，失败标记保留并阻塞交付和回收
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -44,9 +44,9 @@ REALITY GATE: INCOMPLETE。代码可见启动超时设置 failed；Stop 的 matc
 
 ## Acceptance
 
-- [ ] 通过隔离后台、门禁和受控真实 CLI 场景复现晚绑定、结束后交付/回收受阻，保存修前红态和明确时间顺序。
-- [ ] 修后已核对身份的晚启动回合能够按契约结束并交付或明确拒收后回收；请求不重放、不重复执行，真正工作中仍禁止回收。
-- [ ] 没有原生身份、身份不符、未可信输入、过期 attempt 的反例继续拒绝；正式后台和其他会话不受隔离测试影响。
+- [x] 通过隔离后台、门禁和受控真实 CLI 场景复现晚绑定、结束后交付/回收受阻，保存修前红态和明确时间顺序。
+- [x] 修后已核对身份的晚启动回合能够按契约结束并交付或明确拒收后回收；请求不重放、不重复执行，真正工作中仍禁止回收。
+- [x] 没有原生身份、身份不符、未可信输入、过期 attempt 的反例继续拒绝；正式后台和其他会话不受隔离测试影响。
 
 ## 当前处置
 
@@ -73,4 +73,10 @@ T-259 已按本轮明确批准合入安装，准备中 attempt 3bba04f2 已通�
 
 候选 `66e88ffe2251ea045a398c9003fef1795c8a2af8` 已经唯一门禁集成到本地 main，集成提交 `b5fed20893d499aae47a0a87bb2718c5d893819a`；原 attempt 已正常回收。独立首审发现已绑定 leader 失配的测试缺口，worker 先复现后补两案，最终范围复审 119/119、4 个非等价变异均检出，结论可合并。新基线真实 CLI 父版红态及候选八项绿态已取得；最终候选只补测试，产品及真实 CLI 驱动逐字节相同。包内 Electron 与产品源码另跑 119 案通过，标准安装包已构建。证据见 [集成与安装检查](../../evidence/2026-11-08-batch34/T-258/controller-install/RESULTS.md)。
 
-当前 INCOMPLETE 仅剩正式安装、正常重启与读回；等待记录页 worker 安全交接后操作，不中断正在写入的会话。
+## Resolution
+
+PASS。正式应用已安装候选 `66e88ffe2251ea045a398c9003fef1795c8a2af8`，正常重启后后台 PID 为 38234，真实窗口显示“后台已连接”和 T-258“已集成”。T-262 空闲旧 attempt 先经门禁回收，未提交文件和检查点均保留；安装没有中断正在工作的受管 CLI。
+
+Works：新基线真实 CLI 父版红态、候选八项业务绿态证明晚启动恢复与一次性请求处理；独立复审证明身份反例仍拒绝。
+No regression：最终候选及安装包内产品运行 119 案通过；正式后台重新连接，原 hc core 42545 与 holder 99586 保持运行。
+Risk / undo：该修复不承诺消除原生 CLI 慢启动原因；仅在可信原输入、原 attempt 和进程身份一致时恢复。旧应用完整保存在 `/private/tmp/enchanted-rollback-t258-20261108/Enchanted.app`。安装证据见 `controller-install/install-01.json`、`daemon-status-new-01.json` 及 `readback-01.json`。
