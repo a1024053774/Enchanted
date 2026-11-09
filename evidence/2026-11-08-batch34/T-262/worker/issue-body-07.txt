@@ -1,0 +1,27 @@
+INCOMPLETE：按用户 #108 完成导航驱动修订，准备好外部完整复验；本轮只发这一条交接。
+
+身份：a2a+T-262-1 / attempt 64d48cf7-0cfc-4078-8a13-6f0067297990 / fence 2 / spec_rev 2，base 3647a07bdacb514cdc303965be8c52b84d9356b2。未提交、未 submit。
+
+已核对 renderer.navigate/selectProject 的现有“切项目后回到终端”语义。测试初次 alpha、beta、切回 alpha、empty、free-terminals 五处入口统一为：等待目标按钮启用并点击 -> 等侧栏选中身份及标题正确、导航结束 -> 点击记录 -> 确认当前页及 RecordsPage 挂载 -> 原记录等待与业务断言。beta 记录出现并核对后才释放迟到 alpha 响应，随后保留原不覆盖断言。没有改 renderer、产品、冻结测试、期望数据、超时、四个 mutant 或共享启动器。
+
+新增 navigation 的 project_ready/records_ready 真实 DOM 读回，以及 diagnostics.before_cleanup.page：当前标题、选中项目、活动页、记录页挂载、终端可见性、筛选、状态、少量行身份及错误。CDP 不可读显式记 page_capture_error，不覆盖原失败或阻止清理。原 green-outside-03 的 FAIL、26 项已通过及 900x700/清理成功事实均保留；旧证据没有失败页 DOM，不补称当时实际看到了终端。
+
+说明：evidence/2026-11-08-batch34/T-262/worker/NAVIGATION-07.md
+命令：evidence/2026-11-08-batch34/T-262/worker/controller-runs-07.command
+静态检查：static-navigation-07.json（AST、JS 语法、--help、diff；不是真实行为 PASS）。本轮未开 App、后台、模型或构建，未执行 ps。
+
+请主控在 /Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-262-1-a2 作为外层 cwd，沙箱外逐条运行：
+
+env -u A2A_REQUEST_DIR /usr/bin/python3 workbench/tests/test_t262_records_e2e.py --summary '/Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-262/controller/green-outside-04.json'
+
+env -u A2A_REQUEST_DIR /usr/bin/python3 workbench/tests/test_t262_records_e2e.py --mutant no-sort --summary '/Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-262/controller/mutant-no-sort-04.json'
+
+env -u A2A_REQUEST_DIR /usr/bin/python3 workbench/tests/test_t262_records_e2e.py --mutant receipt-task --summary '/Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-262/controller/mutant-receipt-task-04.json'
+
+env -u A2A_REQUEST_DIR /usr/bin/python3 workbench/tests/test_t262_records_e2e.py --mutant ignore-session --summary '/Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-262/controller/mutant-ignore-session-04.json'
+
+env -u A2A_REQUEST_DIR /usr/bin/python3 workbench/tests/test_t262_records_e2e.py --mutant no-full-receipt --summary '/Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-262/controller/mutant-no-full-receipt-04.json'
+
+父版 red-outside-05 已有效，不重跑。候选完整 PASS 后再跑四个既有 mutant，各需业务 FAIL/非零；INCOMPLETE 不算检出。请集中回传摘要、diagnostics、退出码及清理状态，并核对 navigation/native_window/transport。已有输出换新编号，不覆盖。
+
+Stop hook 提示的历史快照异常边界已按运行器调用与真实失败证据自查：合法保留，未为消除命中删除；说明在 NAVIGATION-07.md。README 继续由主控同步（本 worktree status 仍 Problems 0 / Stale 1），未越权修改。正式 Enchanted/T-249 Test 未操作，额外可写目录 []，无额外目录改动。等待集中外部证据后完成本次提交与 submit。

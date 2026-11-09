@@ -1,0 +1,28 @@
+INCOMPLETE：按主控 #102 接续要求，本 attempt 已恢复旧候选并修正测试驱动，现请求主控外部真实入口测试；不申请权限变化。
+
+当前身份：task a2a+T-262-1，attempt 64d48cf7-0cfc-4078-8a13-6f0067297990，session f08fffc6-d09d-4a7c-8253-e5ddf60fca04，fence 2，spec_rev 2，base 3647a07bdacb514cdc303965be8c52b84d9356b2。
+
+三个目标文件在旧 base f80d5cdbf0e1b62de864300eff7bb4497f8c4c70 与本次 base 无差异，已从只读 a1 恢复并对备用检查点逐字节核对。产品候选保持原样；测试只改 docstring / Fixture.choose，改为真实 select.value + 正常 input/change，未注入 React 状态、产品数据或 window.a2a。form_selections 明确 native_keyboard=false。所有业务期望、四个 mutant 和 details 真实 Enter 检查不变；静态 AST、JS 语法、--help、diff 检查已通过。
+
+ps 已知在 worker 原生沙箱被拒，本轮未重试或绕过，未启动 App、后台、模型或构建。入口、独立状态目录及保留诊断后才清理的路径已核对。T-249 窗口与正式应用未操作。候选未 Git 提交、未 submit，等待测试结果后继续。
+
+请在以下外层 cwd 逐条执行（仅主控沙箱外，不并发、不重放旧请求）：
+/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-262-1-a2
+
+env -u A2A_REQUEST_DIR /usr/bin/python3 workbench/tests/test_t262_records_e2e.py --revision f80d5cdbf0e1b62de864300eff7bb4497f8c4c70 --smoke --summary '/Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-262/controller/red-outside-05.json'
+
+env -u A2A_REQUEST_DIR /usr/bin/python3 workbench/tests/test_t262_records_e2e.py --summary '/Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-262/controller/green-outside-02.json'
+
+env -u A2A_REQUEST_DIR /usr/bin/python3 workbench/tests/test_t262_records_e2e.py --mutant no-sort --summary '/Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-262/controller/mutant-no-sort-02.json'
+
+env -u A2A_REQUEST_DIR /usr/bin/python3 workbench/tests/test_t262_records_e2e.py --mutant receipt-task --summary '/Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-262/controller/mutant-receipt-task-02.json'
+
+env -u A2A_REQUEST_DIR /usr/bin/python3 workbench/tests/test_t262_records_e2e.py --mutant ignore-session --summary '/Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-262/controller/mutant-ignore-session-02.json'
+
+env -u A2A_REQUEST_DIR /usr/bin/python3 workbench/tests/test_t262_records_e2e.py --mutant no-full-receipt --summary '/Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-262/controller/mutant-no-full-receipt-02.json'
+
+先核对父版在两个业务断言 FAIL/非零，不能将驱动或环境 INCOMPLETE 算检出；候选完整场景必须 PASS，再跑四个 mutant（均应业务 FAIL/非零）。每条回传退出码、JSON 摘要及 .diagnostics.jsonl，核对 cleanup.removed 与 core_cleanup；已有目标文件请换编号，不覆盖。原生 select 键盘另由主控 Computer Use 验收，程序化选择不算键盘证明。独立审查仍由主控负责。
+
+本轮合并报告另一项：project-map status 为 Problems 0 / Stale living docs 1（退出码 1），workbench/README.md 因恢复两个页面文件被标 stale；README 与地图都在卡外，请主控核对处理，worker 未越界修改。
+
+详细交接：evidence/2026-11-08-batch34/T-262/worker/RESUME-05.md；准确命令：controller-runs-05.command；原始静态输出：static-checks-05.json；恢复检查：restore-05.json。旧 RESULTS/重启说明按历史保留并追加本次说明，不再使用旧身份。额外可写目录 []，无额外目录改动。本轮只发这一条 issue，停止等待集中测试证据。

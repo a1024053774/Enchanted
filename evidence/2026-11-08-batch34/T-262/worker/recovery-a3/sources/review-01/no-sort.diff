@@ -1,0 +1,11 @@
+--- candidate/RecordsPage.tsx
++++ no-sort/RecordsPage.tsx
+@@ -67,7 +67,7 @@
+       session: sessionKey(input), role: input.role, input })),
+     ...(data?.receipts ?? []).map(receipt => ({ id: receipt.key, created_at: receipt.created_at, task: receipt.task,
+       session: 'launch:' + receipt.launch, role: receipt.role, receipt })),
+-  ].sort(newestFirst);
++  ];
+   const tasks = [...new Set(entries.map(entry => entry.task ?? projectScope))].sort((a, b) =>
+     a === projectScope ? -1 : b === projectScope ? 1 : compareText(a, b));
+   const inTask = (entry: Entry) => !task || (entry.task ?? projectScope) === task;
