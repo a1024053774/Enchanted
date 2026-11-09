@@ -33,3 +33,5 @@ INCOMPLETE。根因入口已定位，错误信号与安全恢复动作之间的�
 2026-11-09 再次复现：T-249-2 a5 的 Terra 会话在 `08:17:47Z`（纽约时间 03:17）完成 18/18 个比较器检查后，写入同一 `usage_limit_exceeded` 错误结束记录；未提交，工作台仍显示 busy。新证据为 [原生错误](../../evidence/2026-11-09-batch35/T-264/controller/terra-a5-quota-error.json) 和 [窗格状态](../../evidence/2026-11-09-batch35/T-264/controller/terra-a5-pane-after-quota.json)。这不是“文稿”授权等待。恢复该会话前须核对这次错误之后的额度状态，保留未提交的修复和检查输出。
 
 当前接口事实：`ControllerQuota` 已能读取同形状的额度错误，但只覆盖获批主控角色；受管 worker/reviewer 的原生读取路径没有处理这个错误结束。`releaseByUser` 要求匹配的中断代次、空输入声明和当前身份，且拒绝 failed pane；审查重开按钮只在任务 paused、review unknown 时出现，经原 `verify` 入口处理。后续修复须证明这些现有入口能安全续接或有界重开，不能把错误结束当作正常 Stop，也不能以现有主控额度提示替代受管会话的交付生命周期。
+
+2026-11-09 续接：用户明确确认“已再次重置，继续”。主控真实窗口确认空输入并执行 Esc；第一次放行因进程查询失败被拒绝。诊断确认是该 Terra 子树中的两个旧 `node_repl` 辅助进程占用 Sparkle 更新前的应用文件，libproc 对它们返回 ENOENT，主进程与 shell 的身份正常。主控保存 PID、父进程、启动时间和已加载文件位置后，只终止这两个辅助进程；随后正式 `pane_process_info` 返回同一 leader、native session 和 shell，未放宽门禁。刷新窗口，再经“输入框已空，放行”成功恢复；门禁派发续接后同一 attempt 开始新回合。操作由主控执行，不冒称用户亲自点击。证据见本票 controller 下 `terra-a5-retired-helper-cleanup.json`、`terra-a5-process-info-after-helper-cleanup.json` 与 `terra-a5-release-recovery-events.json`。本票产品修复仍 INCOMPLETE；这次环境清理不替代错误回合状态修复。
