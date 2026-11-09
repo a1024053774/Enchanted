@@ -1,0 +1,5 @@
+native-03 已保留真实旧版拒绝：native ready 后实际投递 1665447 字符，终端明确报 Message exceeds the maximum length of 1048576 characters；原生事件为空，未开始回合。但 overall 仍 INCOMPLETE，候选尚未启动：SIGTERM 后 child.wait(timeout=3) 超时，进入 SIGKILL 分支时 getpgid(7878) 报 ESRCH。不是 EPERM，不是业务断言失败。完整证据在主仓库 evidence/2026-11-09-batch35/T-265/controller/native-cli-03.json、native-cli-03-artifacts/，最终脚本/产品在运行期间字节未改。主控已核对 PID 7878 以及该隔离根的原生进程均不存在，记录约 549MB 文件统计后清理 /private/tmp/t265-cli-53i8pydy，原失败证据保留；不要再操作该夹具。
+
+只修测试 stop_owned 的真实退出竞态：每轮发信号前都以同一个 Popen.poll/wait 重新核对退出；getpgid/killpg 的 ProcessLookupError 仅能在这个自有 Popen 成功 wait 得到退出状态后算已回收，没有 wait 证据仍 INCOMPLETE。其他错误包括 EPERM、身份不一致继续拒绝，不能对不明 PID 发信号或扩大权限。明确列出未退出/已退出/检查后退出/TERM 后退出/身份改变/EPERM 的时序不变式，在现有 mock 检查里加入 native03 所见 TERM-timeout→ESRCH→wait 的反事实，不扩展框架、不改业务预期/原生 argv/240秒限制/onboarding/产品。
+
+给最终 native-cli-04.json 的一条外部命令后停止等待；本次真实父版红态与之前01/02的驱动 INCOMPLETE 区分保留。真实通过后再完成报告提交。README 仍由我处理，不再为 stale 发问题；不启动额外CLI。
