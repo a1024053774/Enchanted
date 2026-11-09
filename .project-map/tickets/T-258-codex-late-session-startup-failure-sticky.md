@@ -64,3 +64,7 @@ T-249 产品候选已经 verified，Test 包已完成；第二轮 terra 独立�
 - 正常门禁 reclaim 返回 `identity_conflict`，live.running=true、live.blocked=true、activeTurn=null。未直接停止进程、改状态或向窗格补 Enter。
 
 证据：[启动事件](../../evidence/2026-11-08-batch34/T-249/controller/terra-attempt2-startup/events.json)、[窗格状态](../../evidence/2026-11-08-batch34/T-249/controller/terra-attempt2-startup/pane-status.json)、[可见终端](../../evidence/2026-11-08-batch34/T-249/controller/terra-attempt2-startup/visible-terminal.txt)。现状 BLOCKED；已向用户提交“修启动阻塞后继续”与“仅重启并经门禁恢复”两个选项，等待决定。该记录不改变 ready，也不视为修复授权。
+
+## T-259 后续执行（2026-11-08）
+
+T-259 已按本轮明确批准合入安装，准备中 attempt 3bba04f2 已通过门禁回收，任务重新 ready。新产品基线含 T-259 的 core.ts 修改，因此不能宣称整个产品输入仍与旧 4c93144df 等价。下一受管 attempt 仅恢复已测 T-258 的三个产品/测试文件和精简证据，不做新实现；主控对新基线补跑真实 CLI 父版红态、候选绿态，之后重新独立审查。旧证据保留为来源明确的历史。用户最新原话：“以后再遇到这种合入我同意,不用等我,然后我截图中提到的几个问题也要开票修复”，后续同类修复完成必要审查和验证后直接合入继续。

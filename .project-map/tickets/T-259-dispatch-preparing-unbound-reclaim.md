@@ -2,7 +2,7 @@
 id: T-259
 title: dispatch 在窗格创建后、身份绑定前失败，preparing attempt 无法经门禁回收
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: executor
 supersedes:
@@ -39,13 +39,19 @@ REALITY GATE: INCOMPLETE。代码证实 claim 在 createThread/readThread 成功
 
 ## Acceptance
 
-- [ ] 使用真实 A2AGates 的 dispatch→失败→reclaim 入口复现；先从独立契约列预期，已知父版在“可核验的未发送准备失败能回收”断言判红。错误必须发生在真实创建之后、初始身份落库之前；不能把只写数据库伪造状态当唯一证据。
-- [ ] 候选中，确属原 attempt 的未发送准备失败能经门禁确认停止、归档与回收，再派同一任务；保留原错误、身份/版本/attempt 证据，输入及任务动作不重复执行。
-- [ ] 不同 launch/thread/shell/attempt/session/fence/spec、工作中、已发出或不能判定是否发出的输入、缺失可信创建记录、操作锁冲突继续拒绝；拒绝不停止其他进程、不释放其他 attempt 的路径、不删除脏工作区或失败证据。
-- [ ] 正常 dispatch/submit、T-253 原生身份绑定与 T-170 启动失败回收保持原有契约；覆盖后台重启前后的相关边界，或明确不可恢复情况及证据。
-- [ ] 新增检查在父版及 2–5 个独立变异上命中业务断言，候选通过；写明每个检查的依据、命令、退出码、版本、清理结果与未运行项。真实正式现场只读；必要的真实 CLI 探针在隔离后台运行。
-- [ ] 门禁独立审查通过；改到敏感回收/清理代码时完成两项 review skill 并取得用户阅读证据后的集成批准。
+- [x] 使用真实 A2AGates 的 dispatch→失败→reclaim 入口复现；先从独立契约列预期，已知父版在“可核验的未发送准备失败能回收”断言判红。错误必须发生在真实创建之后、初始身份落库之前；不能把只写数据库伪造状态当唯一证据。
+- [x] 候选中，确属原 attempt 的未发送准备失败能经门禁确认停止、归档与回收，再派同一任务；保留原错误、身份/版本/attempt 证据，输入及任务动作不重复执行。
+- [x] 不同 launch/thread/shell/attempt/session/fence/spec、工作中、已发出或不能判定是否发出的输入、缺失可信创建记录、操作锁冲突继续拒绝；拒绝不停止其他进程、不释放其他 attempt 的路径、不删除脏工作区或失败证据。
+- [x] 正常 dispatch/submit、T-253 原生身份绑定与 T-170 启动失败回收保持原有契约；覆盖后台重启前后的相关边界，或明确不可恢复情况及证据。
+- [x] 新增检查在父版及 2–5 个独立变异上命中业务断言，候选通过；写明每个检查的依据、命令、退出码、版本、清理结果与未运行项。真实正式现场只读；必要的真实 CLI 探针在隔离后台运行。
+- [x] 门禁独立审查通过；改到敏感回收/清理代码时完成两项 review skill 并取得用户阅读证据后的集成批准。
 
 ## 不做
 
 不修改 T-258 候选、panes.ts、面板实现、角色权限、凭据、schema/migration、公开接口、全局配置或验收文件。不重试来源未知的写操作，不扩大为普遍身份重绑定。不直接修正式状态；部署后才用门禁处理原 attempt。若最小正确修复超出此边界，先上报。
+
+## Resolution
+
+安装与正式恢复（2026-11-08）
+
+PASS。用户明确批准“批准合入、安装并继续（推荐）”。候选 2083f72e4f43d6bc84be2ef57b5fef49f65e1bcb 合入本地 main 的 1d71b2b99bddfb4ccf7b881a86bf2395b5340d59；workbench 与 acceptance 对候选差异为零。标准包已安装，新后台 PID 4671，旧后台 22061 正常结束。T-258 的 3bba04f2 与 T-259 的 260eb9eb 均经现有 reclaim 入口回收成功，任务回到 ready。正式库未手改，原 core 与普通主控终端保留。旧 app 保存在 /private/tmp/enchanted-rollback-t259-20261108/Enchanted.app。正式原始回执及版本见 evidence/2026-11-08-batch34/T-259/controller-install/。未知的初始 JSON 解析异常来源不列为已修复；本票完成的是已证实的准备失败回收缺口。
