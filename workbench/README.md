@@ -1357,6 +1357,41 @@ Vite 缓存、临时目录和 dist 都在 `os.tmpdir()/a2a-build-<槽名>` 中�
 默认后台目录为 `~/Library/Application Support/a2a-orchestrator`，默认 Electron 数据位于其
 `ui/` 子目录。验证时同时显式指定后台与 UI 的 `/tmp` 隔离目录。
 
+### 侧边面板与 Git 图（T-249）
+
+顶栏“面板”按钮开关右侧的面板位（可拖宽，双击分隔线复原）。面板在 `app/panels/PanelDock.tsx`
+的内部注册表里登记（`id`、标题、图标、组件），宿主只给它：跟随的目录、主题、经主进程按 argv
+执行的 git（`app/gitHost.ts`，不经 shell）、打开文件、发通知。这不是公开的 mod 接口，不加载第三方代码。
+
+- **跟随**：默认跟随最后聚焦的窗格——普通终端取 shell 现在的 cwd（`lsof`），受管窗格取它的
+  worktree；没有聚焦窗格时用项目主目录。“固定”后不再跟随，“取消固定”恢复。每 2 秒重读一次。
+- **Git 图**（`app/panels/GitGraphPanel.tsx`、`gitGraphModel.ts`，照 herdr-git-graph，MIT，
+  Copyright (c) 2026 Rabeeh T A，声明保留在源码里）：提交表、泳道、未提交行（虚线连到 HEAD）、
+  详情与 diff、右键菜单和双击标签检出、多仓库列表（目录不是仓库时）。读操作一律带
+  `--no-optional-locks -c core.fsmonitor=false -c diff.autoRefreshIndex=false`；写操作先弹确认框，
+  名字以 `-` 开头在界面和主进程各拒一次。只读入口只接受面板使用的命令形式，拒绝能改 HEAD 的
+  `symbolic-ref` 参数、输出文件选项及外部 diff/filter 程序；写操作失败直接报告，不自动重试。
+  详情的文件列表使用 NUL 分隔，单文件 diff 按字面路径读取，保留中文、制表符以及 `*`、`[`、`:(` 等文件名字符。
+  首次提交前以 Git 空树为基线显示已暂存、未暂存和未跟踪文件；有 HEAD 时以它为基线。
+  泳道只按提交排（与原 mod `lanes.js` 同规则），
+  未提交行另接在 HEAD 的列上，所以提交的列不随工作区脏不脏而变。
+- **受管 worktree 只读**：跟随的目录在门禁 state 的 `worktrees/` 下时，写操作不可用并说明原因，
+  主进程也拒绝。
+- **无界面入口**：`node workbench/app/panels/gitGraphCli.ts <仓库> [--scope all|current] [--remotes]`
+  输出与面板同一份模型算出的行（JSON）；`--action '<JSON>'` 用面板同一份命令代码执行写操作。
+  验收 `python3 acceptance/T-249/check_git_graph.py` 调它。
+- **端到端测试**：`tests/test_t249_git_graph_e2e.py --output 目录 [--mutant no-panel|no-details|no-diff|parents|order]`，
+  经真实 Electron 入口（独立 state 与 UI 数据目录，私有 hc core），夹具仓库由测试新建。
+  从可见提交行进入详情、点击文件后，将元数据、文件列表、行数与 diff 文本和独立 Git 输出对照；
+  覆盖根提交、普通提交、未提交的字面 pathspec 文件名，以及首次提交前的已暂存／未暂存／未跟踪文件。
+  沙箱里起不了 Electron，沙箱外用 `bash workbench/app/RUN-OUTSIDE-T249.sh` 跑绿态、五个变异和
+  Enchanted Test 打包。脚本只清理自己新建的临时目录，先留状态摘要；若测试进程清理未证实完成，
+  保留现场。变异必须分别命中面板存在、详情可见、diff 可见、父提交或排序断言，启动失败不算红态；
+  DOM 缺失通过正常查询确认，CDP 通信失败也不算红态。运行文本写入 `attempt-fence4/outside-<时间戳>/`。
+  这套详情窗口检查已加入编排，真实窗口红绿仍待主控运行。包的位置由脚本打印，
+  不替换正在运行的 Enchanted。补充宿主检查：`node --test workbench/tests/test_t249_git_host.mjs`；
+  清理与红态分类检查：`python3 workbench/tests/test_t249_outside_safety.py`。
+
 ## 库版收件箱客户端（当前只在夹具项目验证）
 
 `workbench/bin/inbox` 复用同一门禁 CLI 与后台，不打开数据库、不读写文件版收件箱。

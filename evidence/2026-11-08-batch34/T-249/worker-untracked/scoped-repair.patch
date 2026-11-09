@@ -1,0 +1,486 @@
+--- a/workbench/app/gitHost.ts
++++ b/workbench/app/gitHost.ts
+@@ -3,7 +3,7 @@
+ // action and the argv is built here (commandsFor), so a name starting with "-" never reaches git as an option. A
+ // directory under the gate's task worktrees (<state>/worktrees/) is read-only: the gate guards its Git metadata.
+ import { execFile } from 'node:child_process';
+-import { existsSync, realpathSync, statSync, watch, type FSWatcher } from 'node:fs';
++import { existsSync, lstatSync, realpathSync, statSync, watch, type FSWatcher } from 'node:fs';
+ import { isAbsolute, join, relative, sep } from 'node:path';
+ import { commandsFor, doneText, findArgs, gitError, LATEST_TAG, objectId, parseFound, parseRepoStatus, READ, REF_CHANGE, REPO_STATUS,
+   unsearched, type Action, type RepoStatus } from './panels/gitGraphModel.ts';
+@@ -46,6 +46,8 @@
+ };
+ function readAllowed(argv: string[]) {
+   const [command, ...args] = argv;
++  if (command === 'diff' && args[0] === '--no-index') return argv.length === 8
++    && argv.slice(0, 7).join('\0') === 'diff\0--no-index\0--no-color\0--no-ext-diff\0--no-textconv\0--\0/dev/null';
+   if (command === 'remote') return args.length === 0;
+   if (command === 'symbolic-ref') return args.join('\0') === '-q\0--short\0HEAD';
+   if (command === 'rev-parse') return args.join('\0') === '--verify\0-q\0HEAD';
+@@ -65,8 +67,23 @@
+   if (!Array.isArray(argv) || !argv.length || argv.some(value => typeof value !== 'string')) throw new Error('Invalid git argv');
+   if (!readAllowed(argv)) throw new Error('不允许的只读 git 命令或选项');
+   if (encoding !== 'utf8' && encoding !== 'base64') throw new Error('Invalid encoding');
++  const noIndex = argv[0] === 'diff' && argv[1] === '--no-index';
++  if (noIndex) {
++    // This form compares one ordinary repository file with /dev/null. No directories, stdin,
++    // pathspecs, metadata or symlink escapes; require the repository root used by the panel.
++    const path = argv[7];
++    if (!path.startsWith('./') || path.slice(2).split('/').some(part => !part || ['.', '..', '.git'].includes(part)))
++      throw new Error('未跟踪文件路径不合法');
++    const root = await exec('git', [...READ, 'rev-parse', '--show-toplevel'], cwd);
++    if (root.code !== 0 || realpathSync(root.stdout.trim()) !== cwd) throw new Error('未跟踪文件必须从仓库根目录读取');
++    const file = join(cwd, path), resolved = realpathSync(file);
++    if (!resolved.startsWith(cwd + sep) || relative(cwd, resolved).split(sep).includes('.git') || !lstatSync(file).isFile())
++      throw new Error('未跟踪文件必须是仓库内的普通文件');
++  }
+   const noPrograms = ['log', 'show', 'diff', 'diff-tree'].includes(argv[0]) ? ['--no-ext-diff', '--no-textconv'] : [];
+-  return exec('git', [...READ, argv[0], ...noPrograms, ...argv.slice(1)], cwd, encoding);
++  const result = await exec('git', [...READ, argv[0], ...noPrograms, ...argv.slice(1)], cwd, encoding);
++  // --no-index implies --exit-code: 1 with no diagnostic means a successfully read difference.
++  return noIndex && result.code === 1 && !result.stderr ? { ...result, code: 0 } : result;
+ }
+ 
+ export async function repoOf(dir: unknown, state: string) {
+--- a/workbench/app/panels/GitGraphPanel.tsx
++++ b/workbench/app/panels/GitGraphPanel.tsx
+@@ -2,7 +2,7 @@
+ // MIT License. Copyright (c) 2026 Rabeeh T A. The full notice is in gitGraphModel.ts.
+ // A commit table with lanes, the uncommitted row dashed to HEAD, commit details and diffs, the right-click menus with
+ // a confirmation before every repository change, and the Manygit list when the followed directory is not a repository.
+-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
++import { useCallback, useEffect, useLayoutEffect, useRef, useState, type Dispatch, type SetStateAction, type MouseEvent as ReactMouseEvent } from 'react';
+ import { bridge, type PanelHost, type RepoInfo } from './PanelDock';
+ import { DETAIL_FORMAT, DEPTH, diffArgs, diffRows, dialogFor, fileArgs, initialValues, joinFiles, labelsOf, LANE,
+   menuFor, PAD, PAGE, parseDetail, parseRepoStatus, readGraph, readStatus, REPO_STATUS, ROW, syncOf, UNCOMMITTED, validate,
+@@ -10,6 +10,7 @@
+ 
+ const columnDefaults = { date: 128, author: 120, hash: 76 };
+ type Columns = typeof columnDefaults;
++type FileDiff = { path: string; rows: DiffRow[] | null; text: string };
+ const columnsKey = 'enchanted.gitGraph.columns';
+ const readColumns = (): Columns => { try { return { ...columnDefaults, ...JSON.parse(localStorage.getItem(columnsKey) ?? '{}') }; } catch { return columnDefaults; } };
+ const dateText = (seconds: number | null) => seconds === null ? '' : new Date(seconds * 1000).toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+@@ -52,7 +53,7 @@
+   const [selected, setSelected] = useState<string | null>(null);
+   const [menu, setMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null);
+   const [dialog, setDialog] = useState<{ action: Action; values: Record<string, any>; error: string | null; busy: boolean } | null>(null);
+-  const [diff, setDiff] = useState<{ path: string; rows: DiffRow[] | null; text: string } | null>(null);
++  const [diff, setDiff] = useState<FileDiff | null>(null);
+   const [columns, setColumns] = useState<Columns>(readColumns);
+   const [panelWidth, setPanelWidth] = useState(600);
+   const rootRef = useRef<HTMLDivElement>(null);
+@@ -248,7 +249,7 @@
+ }
+ 
+ function CommitDetails({ host, top, commit, diff, setDiff, onSelect, onClose }: { host: PanelHost; top: string; commit: Commit;
+-    diff: { path: string; rows: DiffRow[] | null; text: string } | null; setDiff: (value: { path: string; rows: DiffRow[] | null; text: string } | null) => void;
++    diff: FileDiff | null; setDiff: Dispatch<SetStateAction<FileDiff | null>>;
+     onSelect: (hash: string) => void; onClose: () => void }) {
+   const [detail, setDetail] = useState<ReturnType<typeof parseDetail> | null>(null);
+   const [changes, setChanges] = useState<{ files: FileChange[]; base?: string } | null>(null);
+@@ -273,11 +274,15 @@
+     return () => { stopped = true; };
+   }, [commit.hash]);
+   const openDiff = async (path: string, status: string) => {
+-    if (status === '?') { setDiff({ path, rows: null, text: '未跟踪文件，还没有 diff。' }); return; }
+-    try {
+-      const text = check(await host.git.read(top, diffArgs(commit, path, changes?.base)));
+-      setDiff({ path, rows: diffRows(text), text });
+-    } catch (failure) { setDiff({ path, rows: null, text: String(failure) }); }
++    const loading = { path, rows: null, text: '正在读取 diff…' };
++    setDiff(loading);
++    try {
++      const text = check(await host.git.read(top, diffArgs(commit, path, changes?.base, status)));
++      const rows = diffRows(text);
++      // A close or a new selection replaces this loading object, so late reads cannot restore it.
++      setDiff(current => current === loading ? { path, rows,
++        text: status === '?' && !rows && !text.includes('Binary files ') ? '空文件，没有文本内容。' : text } : current);
++    } catch (failure) { setDiff(current => current === loading ? { path, rows: null, text: String(failure) } : current); }
+   };
+   return <section className="git-details" aria-label="提交详情" data-git-details={commit.hash}>
+     <header>
+--- a/workbench/app/panels/gitGraphModel.ts
++++ b/workbench/app/panels/gitGraphModel.ts
+@@ -464,8 +464,9 @@
+   return files;
+ }
+ 
+-export function diffArgs(commit: Commit, path: string, base?: string) {
++export function diffArgs(commit: Commit, path: string, base?: string, status?: string) {
+   const opts = ['--no-color', '--no-ext-diff', '--no-textconv'];
++  if (commit.uncommitted && status === '?') return ['diff', '--no-index', ...opts, '--', '/dev/null', './' + path];
+   const file = `:(top,literal)${path}`;
+   if (commit.uncommitted) {
+     if (!objectId(base)) throw new Error('Invalid diff base');
+--- a/workbench/tests/test_t249_git_graph_e2e.py
++++ b/workbench/tests/test_t249_git_graph_e2e.py
+@@ -15,6 +15,8 @@
+ 8. renderer 没有挂载侧边面板；必须在窗口和面板开关可用后命中“侧边面板存在”，启动失败不算红态。
+ 9. 点提交没有可见详情，或详情元数据、文件列表与 Git 不符；no-details 必须命中对应业务断言。
+ 10. 点文件没有可见 diff，或单文件 diff 混入其他文件；根提交、普通提交、未提交和无 HEAD 都从窗口操作。
++11. 未跟踪文本被占位说明替代；特殊文件名混入邻居内容，空文件/二进制伪装文本，切换文件保留旧内容。
++12. 列分隔条未接线或双击不复原；用 CDP Input 的真实鼠标输入核对可见列几何，不调用 React handler。
+ 
+ --mutant 用于判红：在源码副本里改坏模型或断开 renderer 的面板挂载，只构建这份副本的界面，其余不变。
+ """
+@@ -41,11 +43,17 @@
+     'no-panel': ('app/renderer.tsx', '{dockOpen && <PanelDock', '{false && <PanelDock'),
+     'no-details': ('app/panels/GitGraphPanel.tsx', '{selectedCommit && <CommitDetails', '{false && selectedCommit && <CommitDetails'),
+     'no-diff': ('app/panels/GitGraphPanel.tsx', 'onClick={() => void openDiff(file.path, file.status)}', 'onClick={() => {}}'),
++    'no-resize': ('app/panels/GitGraphPanel.tsx', 'const start = event.clientX, width = columns[column];', 'return; const start = event.clientX, width = columns[column];'),
++    'no-reset': ('app/panels/GitGraphPanel.tsx', 'onDoubleClick={() => setColumns(value => ({ ...value, [column]: columnDefaults[column] }))}', 'onDoubleClick={() => {}}'),
++    'stale-diff': ('app/panels/GitGraphPanel.tsx', 'setDiff(current => current === loading ? { path, rows,', 'setDiff(current => true ? { path, rows,'),
++    'no-untracked': (MODEL, "if (commit.uncommitted && status === '?')", "if (false && commit.uncommitted && status === '?')"),
+     # 父提交顺序颠倒：merge 的两个父提交互换。
+     'parents': (MODEL, "parents: parents ? parents.split(' ') : [],", "parents: parents ? parents.split(' ').reverse() : [],"),
+     # 排序改错：从旧到新。
+     'order': (MODEL, "  return commits;", "  return commits.reverse();"),
+ }
++BASELINE_C = '18c108fcaed1c4ecf51831f2272578a3b09427be'
++UNTRACKED_PATHS = ['untracked.txt', 'new/file*.txt', 'new/file[1].txt', 'new/:(glob)*.txt', 'new/-leading.txt', 'new/empty.txt', 'new/binary.bin']
+ T0 = 1700000000
+ 
+ 
+@@ -156,7 +164,13 @@
+     git(unborn, '--literal-pathspecs', 'add', '--', *staged)
+     (unborn / 'file[1].txt').write_text(f'UNBORN-{nonce}-mixed-working\nsecond-line\n', encoding='utf-8')
+     git(unborn, '--literal-pathspecs', 'add', '-N', '--', ':(glob)*.txt')
+-    (unborn / 'untracked.txt').write_text(f'UNTRACKED-{nonce}\n', encoding='utf-8')
++    for repo in (history, unborn):
++        (repo / 'new').mkdir()
++        for name in UNTRACKED_PATHS:
++            (repo / name).write_text(f'UNTRACKED-{repo.name}-{name}-{nonce}\n第二行\n', encoding='utf-8')
++        (repo / 'new/empty.txt').write_bytes(b'')
++        (repo / 'new/binary.bin').write_bytes(b'\x00\x01\xff\n')
++        (repo / 'new/file1.txt').write_text('OTHER-FILE-SENTINEL\n', encoding='utf-8')
+     return hashes
+ 
+ 
+@@ -210,13 +224,28 @@
+         electron.until('点击文件 ' + path, f'''(()=>{{const b=[...document.querySelectorAll('[data-git-file]')].find(b=>b.querySelector('.file-path')?.textContent==={json.dumps(path)});
+           if(!b||b.offsetParent===null)return false;b.scrollIntoView({{block:'nearest'}});b.click();return true}})()''')
+         shown = check_dom(electron, check, f'''(()=>{{const d=document.querySelector('[data-git-diff]');
+-          if(!d||d.offsetParent===null||d.dataset.gitDiff!=={json.dumps(path)})return null;
++          if(!d||d.offsetParent===null||d.dataset.gitDiff!=={json.dumps(path)}||d.querySelector('.panel-empty')?.textContent==='正在读取 diff…')return null;
+           return {{path:d.querySelector('.git-diff-head code')?.textContent,
+             lines:[...d.querySelectorAll('.diff-lines>div')].map(r=>r.lastElementChild.textContent),note:d.querySelector('.panel-empty')?.textContent}}}})()''',
+           '点击文件后单文件 diff 可见')
+         check(shown['path'] == path, case + ' diff 显示选中的文件名', shown)
+         if path in untracked:
+-            check(not shown['lines'] and '未跟踪' in (shown.get('note') or ''), case + ' 未跟踪文件给出明确说明', shown)
++            command = ['git', '-C', str(repo), 'diff', '--no-index', '--no-color', '--no-ext-diff', '--no-textconv', '--', '/dev/null', './' + path]
++            oracle = subprocess.run(command, text=True, capture_output=True)
++            assert oracle.returncode in (0, 1) and not oracle.stderr, (command, oracle.stderr)
++            raw = (repo / path).read_bytes()
++            lines = oracle.stdout.splitlines()
++            first_hunk = next((i for i, line in enumerate(lines) if line.startswith('@@')), None)
++            expected_lines = [] if first_hunk is None else lines[first_hunk:]
++            if raw and b'\x00' not in raw:
++                check(shown['lines'] == expected_lines and '+' + raw.decode('utf-8').splitlines()[0] in shown['lines'],
++                      case + ' 未跟踪文本 diff 与原始文件及独立 Git 一致：' + path,
++                      dict(ui=shown, git=expected_lines, file=raw.decode('utf-8'), command=command))
++            elif not raw:
++                check(not shown['lines'] and '空文件' in (shown.get('note') or ''), case + ' 空文件不伪装文本 diff', shown)
++            else:
++                check(not shown['lines'] and shown.get('note') == oracle.stdout and 'Binary files ' in oracle.stdout,
++                      case + ' 二进制显示 Git 说明而非文本 hunk', shown)
+         else:
+             patch = git(repo, '--literal-pathspecs', 'diff', '--no-color', '--no-ext-diff', '--no-textconv', '--no-renames', *comparison, '--', path)
+             lines = patch.splitlines()
+@@ -232,6 +261,36 @@
+     return dict(case=case, revision=revision, expected_paths=expected_paths, observed=observed, diffs=diffs)
+ 
+ 
++def check_deferred_selection(electron, check, repo):
++    """只挂起真实文件读取后的返回；通过可见控件改变选择，再释放原结果。"""
++    records = []
++    for next_selection in ('close', 'other-file'):
++        electron.evaluate("document.querySelector('[data-commit-hash=\"*\"]').click()")
++        electron.until('未跟踪文件可点击', '''(()=>{const b=[...document.querySelectorAll('[data-git-file]')].find(b=>b.dataset.gitFile==='untracked.txt');
++          if(!b||b.offsetParent===null)return false;b.click();return true})()''')
++        electron.until('真实 diff 结果已到达挂起点', "typeof window.__t249ReleaseDiff==='function'")
++        check(electron.evaluate("document.querySelector('[data-git-diff]')?.dataset.gitDiff") == 'untracked.txt', '挂起时显示当前文件的加载状态')
++        electron.evaluate("document.querySelector('.git-diff-head button').click()")
++        if next_selection == 'other-file':
++            electron.until('点击另一个文件', '''(()=>{const b=[...document.querySelectorAll('[data-git-file]')].find(b=>b.dataset.gitFile==='new/-leading.txt');
++              if(!b||b.offsetParent===null)return false;b.click();return true})()''')
++            electron.until('另一个文件真实内容已显示', "Boolean(document.querySelector('.diff-lines'))")
++        electron.evaluate("window.__t249ReleaseDiff(); delete window.__t249ReleaseDiff; true")
++        # Barrier: the released async continuation and React render finish before inspection.
++        electron.evaluate("new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))")
++        shown = electron.evaluate('''(()=>{const d=document.querySelector('[data-git-diff]');return d?
++          {path:d.dataset.gitDiff,lines:[...d.querySelectorAll('.diff-lines>div')].map(r=>r.lastElementChild.textContent)}:null})()''')
++        if next_selection == 'close':
++            check(shown is None, '关闭 diff 后迟到内容不能重开', shown)
++        else:
++            expected = (repo / 'new/-leading.txt').read_text(encoding='utf-8').splitlines()
++            check(shown and shown['path'] == 'new/-leading.txt' and all('+' + line in shown['lines'] for line in expected),
++                  '切换文件后迟到内容不能覆盖新选择', shown)
++        records.append(dict(next_selection=next_selection, observed=shown))
++        electron.evaluate("document.querySelector('[data-git-details] [aria-label=\"关闭详情\"]').click()")
++    return records
++
++
+ def refs_of(repo):
+     """{提交: {(kind, 短名)}}，附注标签按它指向的提交。"""
+     out = {}
+@@ -250,6 +309,58 @@
+     """门禁 worktree 的 Git 元数据：.git 下每个文件的路径与内容。"""
+     return {str(path.relative_to(git_dir)): path.read_bytes()
+             for path in Path(git_dir).rglob('*') if path.is_file()}
++
++
++def mouse_events(electron, events):
++    """CDP 的浏览器输入通道；不是 DOM dispatchEvent 或 React handler。"""
++    script = r'''
++const [port, events] = process.argv.slice(1);
++const page = (await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()).find(p => p.type === 'page');
++if (!page) throw new Error('no page');
++const ws = new WebSocket(page.webSocketDebuggerUrl);
++await new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = reject; });
++let id = 0;
++for (const params of JSON.parse(events)) {
++  await new Promise((resolve, reject) => {
++    const request = ++id, timer = setTimeout(() => reject(new Error('mouse input timeout')), 5000);
++    ws.onmessage = event => { const message = JSON.parse(event.data); if (message.id !== request) return;
++      clearTimeout(timer); message.error ? reject(new Error(JSON.stringify(message.error))) : resolve(); };
++    ws.send(JSON.stringify({id:request, method:'Input.dispatchMouseEvent', params}));
++  });
++  await new Promise(resolve => setTimeout(resolve, 60));
++}
++ws.close();
++'''
++    run = subprocess.run(['node', '--input-type=module', '-e', script, str(electron.port), json.dumps(events)],
++                         capture_output=True, text=True, timeout=30)
++    assert run.returncode == 0, run.stderr
++
++
++def check_column_width(electron, check):
++    geometry = '''(()=>{const s=document.querySelector('.git-head .column-resizer'),c=s?.parentElement;
++      const row=document.querySelector('.git-rows .git-date');if(!s||!c||!row||s.offsetParent===null)return null;
++      const b=s.getBoundingClientRect(),x=b.x+b.width/2,y=b.y+b.height/2;
++      return {x,y,header:c.getBoundingClientRect().width,row:row.getBoundingClientRect().width,
++        hit:document.elementFromPoint(x,y)?.closest('.column-resizer')===s}})()'''
++    before = check_dom(electron, check, geometry, '可见列分隔条有可测几何')
++    check(before['hit'], '鼠标坐标命中可见列分隔条', before)
++    x, y = before['x'], before['y']
++    events = [dict(type='mouseMoved', x=x, y=y), dict(type='mousePressed', x=x, y=y, button='left', buttons=1, clickCount=1)]
++    events += [dict(type='mouseMoved', x=x-delta, y=y, button='left', buttons=1) for delta in (16, 32, 48, 64)]
++    events += [dict(type='mouseReleased', x=x-64, y=y, button='left', buttons=0, clickCount=1)]
++    mouse_events(electron, events)
++    dragged = electron.evaluate(geometry)
++    check(dragged and abs(dragged['header'] - before['header'] - 64) < 2
++          and abs(dragged['row'] - before['row'] - 64) < 2,
++          '真实鼠标拖动改变可见日期列宽', dict(before=before, dragged=dragged, input=events))
++    x, y = dragged['x'], dragged['y']
++    double = [dict(type=kind, x=x, y=y, button='left', buttons=1 if kind == 'mousePressed' else 0, clickCount=count)
++              for count in (1, 2) for kind in ('mousePressed', 'mouseReleased')]
++    mouse_events(electron, double)
++    restored = electron.evaluate(geometry)
++    check(restored and abs(restored['header'] - before['header']) < 1 and abs(restored['row'] - before['row']) < 1,
++          '真实鼠标双击恢复可见日期列宽', dict(before=before, dragged=dragged, restored=restored, input=double))
++    return dict(before=before, dragged=dragged, restored=restored, input=events+double)
+ 
+ 
+ JS_ROWS = '''(()=>{const g=document.querySelector('[data-git-graph]');if(!g)return null;
+@@ -274,8 +385,12 @@
+     parser = argparse.ArgumentParser(description=__doc__)
+     parser.add_argument('--output', type=Path, required=True)
+     parser.add_argument('--mutant', choices=sorted(MUTANTS))
++    parser.add_argument('--baseline-c', action='store_true', help='仅 app 恢复旧 C，后台保持当前已集成代码；新检查必须业务判红')
++    parser.add_argument('--deferred-diff', action='store_true', help='测试调度：挂起真实读取的返回，在选择改变后释放，证明迟到结果不覆盖')
+     parser.add_argument('--shots', type=Path, help='截图目录（默认放在 --output 里；证据目录只留文本时指向本机临时目录）')
+     args = parser.parse_args()
++    assert not (args.baseline_c and (args.mutant or args.deferred_diff))
++    assert args.mutant != 'stale-diff' or args.deferred_diff
+     args.output.mkdir(parents=True, exist_ok=False)
+     shots = args.shots or args.output
+     shots.mkdir(parents=True, exist_ok=True)
+@@ -290,7 +405,7 @@
+         fallback = Path(os.path.expanduser('~/Documents/Code/hc-cache'))
+         if fallback.is_dir():
+             env['ENCHANTED_HC_CACHE_DIR'] = str(fallback)
+-    report = dict(status='INCOMPLETE', mutant=args.mutant, command=[sys.executable, *sys.argv], fixture=str(fixture), checks=[], commands=[])
++    report = dict(status='INCOMPLETE', mutant=args.mutant, baseline_c=BASELINE_C if args.baseline_c else None, deferred_diff=args.deferred_diff, versions=dict(node=subprocess.check_output(['node', '--version'], text=True).strip(), git=subprocess.check_output(['git', '--version'], text=True).strip()), command=[sys.executable, *sys.argv], fixture=str(fixture), checks=[], commands=[])
+     running = False
+     electron = None
+     launches = {}
+@@ -360,7 +475,17 @@
+             return next((line[1:] for line in found.splitlines() if line.startswith('n/')), None)
+         wait_for(lambda: shell_cwd() == real(beta), 'roam 终端的 shell 没有 cd 到 beta')
+ 
+-        source = ROOT if not args.mutant else source_tree(fixture, patches=[MUTANTS[args.mutant]])
++        patches = [MUTANTS[args.mutant]] if args.mutant else []
++        if args.deferred_diff:
++            patches.append(('app/panels/GitGraphPanel.tsx', '      const rows = diffRows(text);',
++                "      if (path === 'untracked.txt') await new Promise<void>(resolve => { (window as any).__t249ReleaseDiff = () => { resolve(); }; });\n      const rows = diffRows(text);"))
++        source = source_tree(fixture, patches=patches) if patches else ROOT
++        if args.baseline_c:
++            source = source_tree(fixture, copy=True)
++            for name in subprocess.check_output(['git', 'ls-tree', '-r', '--name-only', BASELINE_C, 'workbench/app'], cwd=ROOT, text=True).splitlines():
++                target = source / name
++                target.parent.mkdir(parents=True, exist_ok=True)
++                target.write_bytes(subprocess.check_output(['git', 'show', BASELINE_C + ':' + name], cwd=ROOT))
+         out = fixture / 'ui-output'
+         out.mkdir()
+         electron = Electron(SimpleNamespace(source=source, env=env, state=state, dir=fixture, out=out), 't249-' + uuid.uuid4().hex[:8])
+@@ -380,6 +505,7 @@
+         check(real(dock['repo']) == real(alpha), '没有聚焦窗格时面板跟随项目主目录', dock)
+         graph = electron.until('提交表', f'''(()=>{{const g={JS_ROWS};return g&&g.rows.length>1?g:null}})()''', 30)
+         electron.screenshot(shots / 'graph.png')
++        report['column_geometry'] = check_column_width(electron, check)
+         commits = [row for row in graph['rows'] if not row['uncommitted']]
+         expected = [line.split() for line in git(alpha, 'rev-list', '--date-order', '--parents', '--all').splitlines() if line]
+         report['observed_rows'] = [dict(hash=r['hash'], parents=r['parents'], lane=r['lane'], refs=r['refs']) for r in graph['rows']]
+@@ -487,17 +613,27 @@
+         time.sleep(2)
+         check(metadata_files(common_git) == metadata_before and ref_lines(managed) == refs_before, '门禁 worktree 的 Git 元数据不变')
+ 
++        if args.deferred_diff:
++            show('details')
++            electron.until('面板跟随详情夹具', f'''(()=>{{const g={JS_ROWS};return g&&g.repo==={json.dumps(real(details))}&&g.rows.length>0}})()''', 30)
++            report['deferred_selection'] = check_deferred_selection(electron, check, details)
++
+         # 5. 系统覆盖详情接线：3 类 diff × 3 种字面路径，另测没有 HEAD 的混合状态。
+         special_paths = ['file*.txt', 'file[1].txt', ':(glob)*.txt']
+-        for name, repo, cases in (
++        for name, repo, cases in (() if args.deferred_diff else (
+             ('details', details, [('根提交', detail_hashes['root']), ('普通提交', detail_hashes['normal']), ('未提交', None)]),
+             ('unborn', unborn, [('首次提交前', None)]),
+-        ):
++        )):
+             show(name)
+             electron.until('面板跟随 ' + name, f'''(()=>{{const g={JS_ROWS};return g&&g.repo==={json.dumps(real(repo))}&&g.rows.length>0}})()''', 30)
++            git_dirs = {Path(git(repo, 'rev-parse', '--path-format=absolute', option).strip()) for option in ('--git-dir', '--git-common-dir')}
++            before_read = {str(path): metadata_files(path) for path in git_dirs}
+             for case, revision in cases:
+-                paths = special_paths + (['untracked.txt'] if name == 'unborn' else [])
++                paths = special_paths + (UNTRACKED_PATHS if revision is None else [])
+                 report['detail_scenarios'].append(check_commit_details(electron, check, repo, revision, case, paths))
++            after_dirs = {Path(git(repo, 'rev-parse', '--path-format=absolute', option).strip()) for option in ('--git-dir', '--git-common-dir')}
++            check(after_dirs == git_dirs and {str(path): metadata_files(path) for path in after_dirs} == before_read,
++                  name + ' 详情读取前后真实 git-dir/common-dir 路径和字节不变')
+         report['status'] = 'PASS'
+     except Exception as error:
+         report.update(status='FAIL' if report['checks'] and not report['checks'][-1]['ok'] else report['status'],
+--- a/workbench/tests/test_t249_git_host.mjs
++++ b/workbench/tests/test_t249_git_host.mjs
+@@ -4,11 +4,12 @@
+ import { test } from 'node:test';
+ import assert from 'node:assert/strict';
+ import { execFileSync } from 'node:child_process';
+-import { mkdtempSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
++import { mkdtempSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, symlinkSync } from 'node:fs';
++import { randomUUID } from 'node:crypto';
+ import { join } from 'node:path';
+ import { tmpdir } from 'node:os';
+ import { gitRead, gitAction } from '../app/gitHost.ts';
+-import { readGraph, fileArgs, joinFiles, diffArgs } from '../app/panels/gitGraphModel.ts';
++import { readGraph, fileArgs, joinFiles, diffArgs, diffRows } from '../app/panels/gitGraphModel.ts';
+ 
+ Object.assign(process.env, { GIT_AUTHOR_NAME: 'T', GIT_AUTHOR_EMAIL: 't@example.invalid',
+   GIT_COMMITTER_NAME: 'T', GIT_COMMITTER_EMAIL: 't@example.invalid' });
+@@ -32,6 +33,101 @@
+   return Object.fromEntries(readdirSync(root, { recursive: true, withFileTypes: true }).filter(e => e.isFile())
+     .map(e => { const p = join(e.parentPath, e.name); return [p, readFileSync(p)]; }));
+ }
++
++function metadata(repo) {
++  const dirs = ['--absolute-git-dir', '--git-common-dir'].map(option =>
++    git(repo, 'rev-parse', '--path-format=absolute', option).trim());
++  return Object.fromEntries(dirs.map(dir => [dir, files(dir)]));
++}
++
++for (const hasHead of [false, true]) {
++  test(`untracked content diff reads literal files without Git writes (HEAD=${hasHead})`, async t => {
++    const fixtureRepo = fixture(t);
++    let { repo } = fixtureRepo;
++    if (hasHead) {
++      commit(repo);
++      const linked = join(fixtureRepo.root, 'linked');
++      git(repo, 'worktree', 'add', '-q', '--detach', linked, 'HEAD');
++      repo = linked; // Real separate git-dir and common-dir, not a guessed .git directory.
++    }
++    const names = ['untracked.txt', 'file*.txt', 'file[1].txt', ':(glob)*.txt', '-leading.txt', '-'];
++    for (const name of names) writeFileSync(join(repo, name), `SELECTED-${randomUUID()}\n第二行\n`);
++    writeFileSync(join(repo, 'other.txt'), 'OTHER-FILE-SENTINEL\n');
++    const before = metadata(repo);
++    const graph = await readGraph(a => gitRead(repo, a), { all: true, remotes: false, limit: 300 });
++    const c = graph.commits[0], args = await fileArgs(c, a => gitRead(repo, a));
++    for (const name of names) {
++      const result = await gitRead(repo, diffArgs(c, name, args.base, '?'));
++      assert.equal(result.code, 0, result.stderr);
++      const content = readFileSync(join(repo, name), 'utf8');
++      assert.ok(result.stdout.includes('+' + content.split('\n')[0]), `untracked content missing: HEAD=${hasHead} ${name}`);
++      assert.ok(!result.stdout.includes('OTHER-FILE-SENTINEL'));
++      const oracle = (() => {
++        try { return git(repo, 'diff', '--no-index', '--no-color', '--no-ext-diff', '--no-textconv', '--', '/dev/null', './' + name); }
++        catch (error) { assert.equal(error.status, 1); assert.equal(String(error.stderr), ''); return String(error.stdout); }
++      })();
++      assert.equal(result.stdout, oracle);
++    }
++    assert.deepEqual(metadata(repo), before, 'untracked reads changed real git-dir/common-dir paths or bytes');
++  });
++}
++
++test('untracked empty and binary files keep Git semantics', async t => {
++  const { repo } = fixture(t);
++  writeFileSync(join(repo, 'empty.txt'), '');
++  writeFileSync(join(repo, 'binary.bin'), Buffer.from([0, 1, 2, 255, 10]));
++  const before = metadata(repo);
++  const graph = await readGraph(a => gitRead(repo, a), { all: true, remotes: false, limit: 300 });
++  for (const name of ['empty.txt', 'binary.bin']) {
++    const result = await gitRead(repo, diffArgs(graph.commits[0], name, undefined, '?'));
++    assert.equal(result.code, 0, result.stderr);
++    assert.equal(diffRows(result.stdout), null, 'non-text file manufactured text hunks');
++    let expected;
++    try { expected = git(repo, 'diff', '--no-index', '--no-color', '--no-ext-diff', '--no-textconv', '--', '/dev/null', './' + name); }
++    catch (error) { assert.equal(error.status, 1); assert.equal(String(error.stderr), ''); expected = String(error.stdout); }
++    assert.equal(result.stdout, expected);
++    if (name === 'binary.bin') assert.match(result.stdout, /Binary files .* differ/);
++  }
++  assert.deepEqual(metadata(repo), before);
++});
++
++test('no-index boundary rejects every extra option and operand', async t => {
++  const { repo, root } = fixture(t); commit(repo);
++  writeFileSync(join(repo, 'new.txt'), 'NEW\n');
++  const before = metadata(repo), contents = files(root);
++  const base = ['diff', '--no-index', '--no-color', '--no-ext-diff', '--no-textconv'];
++  const attacks = [
++    ...['--output', '--out', '--o'].map(flag => [...base, `${flag}=${join(root, 'written')}`, '--', '/dev/null', './new.txt']),
++    [...base, '--output', join(root, 'written'), '--', '/dev/null', './new.txt'],
++    [...base, '--', '/dev/null', './new.txt', './a.txt'],
++    [...base, '--', './a.txt', './new.txt'],
++    ['diff', '--no-index', '--', '/dev/null', './new.txt'],
++    [...base, '--ext-diff', '--', '/dev/null', './new.txt'],
++    [...base, '--textconv', '--', '/dev/null', './new.txt'],
++  ];
++  for (const argv of attacks) await assert.rejects(gitRead(repo, argv), /不允许/, JSON.stringify(argv));
++  assert.deepEqual(metadata(repo), before);
++  assert.deepEqual(files(root), contents, 'rejected options wrote a file');
++});
++
++test('no-index boundary rejects directories and paths outside repository files', async t => {
++  const { repo, root } = fixture(t); commit(repo);
++  writeFileSync(join(root, 'outside.txt'), 'OUTSIDE\n');
++  writeFileSync(join(repo, 'new.txt'), 'NEW\n');
++  mkdirSync(join(repo, 'directory'));
++  symlinkSync(join(root, 'outside.txt'), join(repo, 'escaped.txt'));
++  symlinkSync(root, join(repo, 'escaped-dir'));
++  symlinkSync(join(repo, 'new.txt'), join(repo, 'inside-link'));
++  symlinkSync(join(repo, '.git'), join(repo, 'metadata-link'));
++  const before = metadata(repo);
++  const base = ['diff', '--no-index', '--no-color', '--no-ext-diff', '--no-textconv', '--', '/dev/null'];
++  for (const path of ['./escaped-dir/outside.txt', '-', 'new.txt', join(root, 'outside.txt'), './../../../outside.txt', './directory', './',
++    './escaped.txt', './escaped-dir/outside.txt', './inside-link', './.git/config', './metadata-link/config', './missing']) {
++    await assert.rejects(gitRead(repo, [...base, path]), undefined, `unsafe path accepted: ${path}`);
++  }
++  await assert.rejects(gitRead(root, [...base, './outside.txt']), /仓库根目录/);
++  assert.deepEqual(metadata(repo), before);
++});
+ 
+ for (const attack of ['symbolic-ref', 'log-output', 'show-output', 'cat-file-filters', 'hash-object-write', 'hash-object-other-file']) {
+   test(`read boundary rejects ${attack} and preserves Git metadata`, async t => {

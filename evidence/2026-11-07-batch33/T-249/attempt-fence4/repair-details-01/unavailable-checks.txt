@@ -1,0 +1,37 @@
+STATUS: INCOMPLETE
+扫描及收尾地图检查持续等待外部路径源文件；两次 Ctrl-C 后均退出 2。根因未知，不把中断当成扫描结果。辅助 sed 读取也等待，已 Ctrl-C 退出 130。没有重试其他脚本位置或更改权限。
+
+$ python3 /Users/luckye/.agents/skills/design-integrity-review/scripts/design_integrity.py --cwd . --base 1e1e5ef7bfb1faa8a0af8df064ac6834e2579a93 --format json
+Failed checking if argv[0] is an import path entry
+Traceback (most recent call last):
+  File "<frozen zipimport>", line 92, in __init__
+KeyError: '/Users/luckye/.agents/skills/design-integrity-review/scripts/design_integrity.py'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<frozen zipimport>", line 94, in __init__
+  File "<frozen zipimport>", line 354, in _read_directory
+KeyboardInterrupt
+/Applications/Xcode.app/Contents/Developer/usr/bin/python3: can't open file '/Users/luckye/.agents/skills/design-integrity-review/scripts/design_integrity.py': [Errno 4] Interrupted system call
+
+exit: 2 (interrupted)
+
+$ python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py status --root .
+Failed checking if argv[0] is an import path entry
+Traceback (most recent call last):
+  File "<frozen zipimport>", line 92, in __init__
+KeyError: '/Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<frozen zipimport>", line 94, in __init__
+  File "<frozen zipimport>", line 354, in _read_directory
+KeyboardInterrupt
+/Applications/Xcode.app/Contents/Developer/usr/bin/python3: can't open file '/Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py': [Errno 4] Interrupted system call
+
+exit: 2 (interrupted)
+
+辅助诊断：ps -axo pid,ppid,etime,command 经 rg 筛选，退出 1：zsh:1: operation not permitted: ps。
+按角色卡排队上报：651a7897-8dae-4bf9-86d4-1af32c0d1984；queued=true，delivered=false，不视为已经处理。

@@ -1,0 +1,17 @@
+FAIL [all] 提交顺序与 git rev-list --date-order --branches --tags --ignore-missing HEAD 一致
+FAIL [all] 每行父提交与 git rev-list --parents 一致
+ok   [all] 每行的引用与 git for-each-ref refs/heads refs/tags 一致
+ok   [all] 恰好 HEAD 那一行标为 head
+FAIL [all] 泳道与按原 mod 规则手推的一致：期望 {'s1': 0, 'm': 1, 'f2': 2, 'c3': 1, 'f1': 2, 'c2': 0, 'c1': 0}，实际 {'c1': 0, 'c2': 0, 'f1': 1, 'c3': 2, 'f2': 3, 'm': 4, 's1': 6}
+FAIL [current] 提交顺序与 git rev-list --date-order HEAD 一致
+FAIL [current] 每行父提交与 git rev-list --parents 一致
+ok   [current] 每行的引用与 git for-each-ref refs/heads refs/tags 一致
+ok   [current] 恰好 HEAD 那一行标为 head
+FAIL [current] 泳道与按原 mod 规则手推的一致：期望 {'m': 0, 'f2': 1, 'c3': 0, 'f1': 1, 'c2': 0, 'c1': 0}，实际 {'c1': 0, 'c2': 0, 'f1': 1, 'c3': 2, 'f2': 3, 'm': 4}
+ok   未提交行存在，文件数与 git status 一致（期望 2，实际 {'files': 2, 'staged': 0, 'lane': 4, 'segments': [[4, 0.5, 4, 1, 4, True]], 'head': 'df3c6e7c8c1194d218f6da833d9d9d80433736ed'}）
+FAIL merge 那一行有一条从自己的圆点（第 1 列）通向第二个父提交所在第 2 列的线段：[[0, 0, 0, 1], [1, 0, 1, 1], [2, 0, 2, 1], [3, 0, 3, 1], [4, 0.5, 4, 1], [4, 0.5, 5, 1], [4, 0, 4, 0.5]]
+ok   新建分支后多出且只多出 refs/heads/made-by-panel，指向 c3
+ok   删除分支后引用回到原样
+ok   名字以 - 开头的新建分支被拒（非零退出），引用不变
+ok   写操作没有动未提交的改动
+FAIL：7 项

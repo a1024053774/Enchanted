@@ -59,4 +59,18 @@ contextBridge.exposeInMainWorld('a2a', Object.freeze({
   beginComposition: (key: string) => ipcRenderer.invoke('a2a:composition-start', key),
   releaseQueue: (key: string, declaration: EmptyInputDeclaration) => ipcRenderer.invoke('a2a:release-queue', key, declaration),
   observeFocus: (key: string, rawSequence: string) => ipcRenderer.invoke('a2a:focus-observation', key, rawSequence),
+  // T-249: the side panels' host.
+  panelDirectory: (key: string | null) => ipcRenderer.invoke('a2a:panel-directory', key),
+  gitRepo: (dir: string) => ipcRenderer.invoke('a2a:git-repo', dir),
+  gitRead: (dir: string, argv: string[], encoding?: 'utf8' | 'base64') => ipcRenderer.invoke('a2a:git-read', dir, argv, encoding ?? 'utf8'),
+  gitAction: (dir: string, action: Record<string, unknown>, values: Record<string, unknown>) => ipcRenderer.invoke('a2a:git-action', dir, action, values),
+  gitScan: (root: string, depth: number, tags: boolean) => ipcRenderer.invoke('a2a:git-scan', root, depth, tags),
+  gitWatch: (dir: string) => ipcRenderer.invoke('a2a:git-watch', dir),
+  gitUnwatch: (id: string) => ipcRenderer.invoke('a2a:git-unwatch', id),
+  onGitChanged: (listener: (change: { id: string; refs: boolean }) => void) => {
+    const receive = (_event: unknown, change: { id: string; refs: boolean }) => listener(change);
+    ipcRenderer.on('a2a:git-changed', receive);
+    return () => { ipcRenderer.removeListener('a2a:git-changed', receive); };
+  },
+  openPath: (path: string) => ipcRenderer.invoke('a2a:open-path', path),
 }));
