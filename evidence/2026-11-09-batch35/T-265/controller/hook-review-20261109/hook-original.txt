@@ -1,0 +1,251 @@
+Stop checks found new items. Each is reported once and will not block again.
+
+design_integrity.py (a locator, not proof; a hit is not a defect):
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:192: exception-boundary: } catch { return null; }
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:1357: swallowed-exception: }
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:1811: exception-boundary: catch (error) {
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:358: exception-boundary: catch (closeError) { throw new AggregateError([error, closeError], `shell open failed (${String(error)}) and its terminal was not closed (${String(closeError)})`); }
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:398: exception-boundary: } catch (error) { pane.traceFailed = true; this.recordFailure(pane, "trace_write_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:412: exception-boundary: if (["idle", "done"].includes(turn.state)) void this.shellReady(pane).catch(error => this.recordFailure(pane, "inbox_resume_failed", error));
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:422: exception-boundary: catch (error) { this.recordFailure(pane, "shell_close_write_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:467: exception-boundary: catch (error) { this.recordFailure(pane, "shell_draft_write_failed", error); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:469: exception-boundary: catch (error) { this.recordFailure(pane, "shell_input_write_unknown", error); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:475: exception-boundary: catch (error) { this.recordFailure(pane, "shell_draft_write_unknown", error); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:2535: exception-boundary: } catch (error) {
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:583: exception-boundary: catch (error) { this.recordFailure(pane, "user_submission_bookkeeping_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:674: exception-boundary: catch (error) { return { front: "unknown", reason: "process_query_failed", error: String(error), process_query: (error as any).process_query ?? null }; }
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:737: exception-boundary: catch (error) { pane.traceFailed = true; this.recordFailure(pane, "controller_terminal_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:740: exception-boundary: catch (error) { this.recordFailure(pane, "controller_terminal_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:1266: exception-boundary: catch (error) { this.recordFailure(pane, "pane_exit_write_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:753: exception-boundary: catch (error) { if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw new Refusal("login_group_cleanup_failed"); }
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:757: exception-boundary: catch (error) { if ((error as NodeJS.ErrnoException).code === "ESRCH") break; throw new Refusal("login_group_cleanup_failed"); }
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:762: exception-boundary: })().catch(() => {
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:768: exception-boundary: } catch (error) { await login?.discard(); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:986: exception-boundary: catch (error) { this.recordFailure(pane, "restore_terminal_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:1015: exception-boundary: catch (stopError) { cleanup = String(stopError); pane.failed = "restore_cleanup_unconfirmed"; }
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:1244: exception-boundary: catch (error) { this.recordFailure(pane, "native_read_failed", error); return; }
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:1248: exception-boundary: catch (error) { this.recordFailure(pane, "terminal_protocol_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:1304: exception-boundary: })().catch(error => this.recordFailure(pane, "worker_trust_failed", error, { screen: pane.startupScreen }));
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:1328: exception-boundary: })().catch(error => this.recordFailure(pane, "codex_restricted_open_failed", error, { screen: pane.startupScreen }));
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:1340: exception-boundary: try { entry = JSON.parse(lines[index]!); } catch { continue; }
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:1356: exception-boundary: catch (error) { pane.traceFailed = true; this.recordFailure(pane, "trace_write_failed", error); return false; }
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:1368: exception-boundary: catch (recordError) {
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:1403: exception-boundary: })().catch(error => this.recordFailure(pane, "codex_startup_failed", error));
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:1412: exception-boundary: }).catch(error => this.recordFailure(pane, "terminal_protocol_failed", error));
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:1526: exception-boundary: .catch(error => this.recordFailure(pane, 'deferred_stop_failed', error));
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:1727: exception-boundary: if (pane.record.role === "shell") void this.drain(pane).catch(error => this.recordFailure(pane, "dispatch_failed", error));
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:2451: exception-boundary: void this.drain(pane).catch(error => this.recordFailure(pane, "dispatch_failed", error));
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:1874: exception-boundary: try { this.scan(pane); } catch (error) { this.recordFailure(pane, "native_read_failed", error); return; }
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:1987: exception-boundary: } catch (error) { this.recordFailure(pane, "pane_interrupt_unknown", error); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:2045: exception-boundary: catch(error){this.recordFailure(pane,"screen_key_write_unknown",error);throw error;}
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:2431: exception-boundary: void this.reportedTurnEnd!(pane, stop).catch(error => this.recordFailure(pane, "stop_transfer_failed", error))
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:2489: exception-boundary: })().catch(error => this.recordFailure(pane, "agy_trust_failed", error, { screen: pane.startupScreen }));
+- evidence/2026-11-09-batch35/T-265/controller/native-01-panes.ts:2630: exception-boundary: } catch (error) { this.recordFailure(pane, 'question_answer_write_unknown', error, { question: id }); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-01-test_t265_review_cli_e2e.py:108: exception-boundary: except json.JSONDecodeError:
+- evidence/2026-11-09-batch35/T-265/controller/native-01-test_t265_review_cli_e2e.py:109: swallowed-exception: pass  # A writer's unfinished last line is not a completed event.
+- evidence/2026-11-09-batch35/T-265/controller/native-01-test_t265_review_cli_e2e.py:130: exception-boundary: except OSError as error:
+- evidence/2026-11-09-batch35/T-265/controller/native-01-test_t265_review_cli_e2e.py:167: exception-boundary: except ProcessLookupError:
+- evidence/2026-11-09-batch35/T-265/controller/native-01-test_t265_review_cli_e2e.py:168: swallowed-exception: pass
+- evidence/2026-11-09-batch35/T-265/controller/native-01-test_t265_review_cli_e2e.py:283: broad-exception: except Exception as error:
+- evidence/2026-11-09-batch35/T-265/controller/native-01-test_t265_review_cli_e2e.py:283: exception-boundary: except Exception as error:
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:192: exception-boundary: } catch { return null; }
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:1357: swallowed-exception: }
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:1811: exception-boundary: catch (error) {
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:358: exception-boundary: catch (closeError) { throw new AggregateError([error, closeError], `shell open failed (${String(error)}) and its terminal was not closed (${String(closeError)})`); }
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:398: exception-boundary: } catch (error) { pane.traceFailed = true; this.recordFailure(pane, "trace_write_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:412: exception-boundary: if (["idle", "done"].includes(turn.state)) void this.shellReady(pane).catch(error => this.recordFailure(pane, "inbox_resume_failed", error));
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:422: exception-boundary: catch (error) { this.recordFailure(pane, "shell_close_write_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:467: exception-boundary: catch (error) { this.recordFailure(pane, "shell_draft_write_failed", error); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:469: exception-boundary: catch (error) { this.recordFailure(pane, "shell_input_write_unknown", error); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:475: exception-boundary: catch (error) { this.recordFailure(pane, "shell_draft_write_unknown", error); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:2535: exception-boundary: } catch (error) {
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:583: exception-boundary: catch (error) { this.recordFailure(pane, "user_submission_bookkeeping_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:674: exception-boundary: catch (error) { return { front: "unknown", reason: "process_query_failed", error: String(error), process_query: (error as any).process_query ?? null }; }
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:737: exception-boundary: catch (error) { pane.traceFailed = true; this.recordFailure(pane, "controller_terminal_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:740: exception-boundary: catch (error) { this.recordFailure(pane, "controller_terminal_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:1266: exception-boundary: catch (error) { this.recordFailure(pane, "pane_exit_write_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:753: exception-boundary: catch (error) { if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw new Refusal("login_group_cleanup_failed"); }
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:757: exception-boundary: catch (error) { if ((error as NodeJS.ErrnoException).code === "ESRCH") break; throw new Refusal("login_group_cleanup_failed"); }
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:762: exception-boundary: })().catch(() => {
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:768: exception-boundary: } catch (error) { await login?.discard(); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:986: exception-boundary: catch (error) { this.recordFailure(pane, "restore_terminal_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:1015: exception-boundary: catch (stopError) { cleanup = String(stopError); pane.failed = "restore_cleanup_unconfirmed"; }
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:1244: exception-boundary: catch (error) { this.recordFailure(pane, "native_read_failed", error); return; }
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:1248: exception-boundary: catch (error) { this.recordFailure(pane, "terminal_protocol_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:1304: exception-boundary: })().catch(error => this.recordFailure(pane, "worker_trust_failed", error, { screen: pane.startupScreen }));
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:1328: exception-boundary: })().catch(error => this.recordFailure(pane, "codex_restricted_open_failed", error, { screen: pane.startupScreen }));
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:1340: exception-boundary: try { entry = JSON.parse(lines[index]!); } catch { continue; }
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:1356: exception-boundary: catch (error) { pane.traceFailed = true; this.recordFailure(pane, "trace_write_failed", error); return false; }
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:1368: exception-boundary: catch (recordError) {
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:1403: exception-boundary: })().catch(error => this.recordFailure(pane, "codex_startup_failed", error));
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:1412: exception-boundary: }).catch(error => this.recordFailure(pane, "terminal_protocol_failed", error));
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:1526: exception-boundary: .catch(error => this.recordFailure(pane, 'deferred_stop_failed', error));
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:1727: exception-boundary: if (pane.record.role === "shell") void this.drain(pane).catch(error => this.recordFailure(pane, "dispatch_failed", error));
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:2451: exception-boundary: void this.drain(pane).catch(error => this.recordFailure(pane, "dispatch_failed", error));
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:1874: exception-boundary: try { this.scan(pane); } catch (error) { this.recordFailure(pane, "native_read_failed", error); return; }
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:1987: exception-boundary: } catch (error) { this.recordFailure(pane, "pane_interrupt_unknown", error); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:2045: exception-boundary: catch(error){this.recordFailure(pane,"screen_key_write_unknown",error);throw error;}
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:2431: exception-boundary: void this.reportedTurnEnd!(pane, stop).catch(error => this.recordFailure(pane, "stop_transfer_failed", error))
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:2489: exception-boundary: })().catch(error => this.recordFailure(pane, "agy_trust_failed", error, { screen: pane.startupScreen }));
+- evidence/2026-11-09-batch35/T-265/controller/native-02-panes.ts:2630: exception-boundary: } catch (error) { this.recordFailure(pane, 'question_answer_write_unknown', error, { question: id }); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-02-test_t265_review_cli_e2e.py:108: exception-boundary: except json.JSONDecodeError:
+- evidence/2026-11-09-batch35/T-265/controller/native-02-test_t265_review_cli_e2e.py:109: swallowed-exception: pass  # A writer's unfinished last line is not a completed event.
+- evidence/2026-11-09-batch35/T-265/controller/native-02-test_t265_review_cli_e2e.py:145: exception-boundary: except subprocess.TimeoutExpired:
+- evidence/2026-11-09-batch35/T-265/controller/native-02-test_t265_review_cli_e2e.py:262: exception-boundary: except OSError as error:
+- evidence/2026-11-09-batch35/T-265/controller/native-02-test_t265_review_cli_e2e.py:378: broad-exception: except BaseException as error:
+- evidence/2026-11-09-batch35/T-265/controller/native-02-test_t265_review_cli_e2e.py:378: exception-boundary: except BaseException as error:
+- evidence/2026-11-09-batch35/T-265/controller/native-02-test_t265_review_cli_e2e.py:400: broad-exception: except Exception as error:
+- evidence/2026-11-09-batch35/T-265/controller/native-02-test_t265_review_cli_e2e.py:400: exception-boundary: except Exception as error:
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:192: exception-boundary: } catch { return null; }
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:1357: swallowed-exception: }
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:1811: exception-boundary: catch (error) {
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:358: exception-boundary: catch (closeError) { throw new AggregateError([error, closeError], `shell open failed (${String(error)}) and its terminal was not closed (${String(closeError)})`); }
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:398: exception-boundary: } catch (error) { pane.traceFailed = true; this.recordFailure(pane, "trace_write_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:412: exception-boundary: if (["idle", "done"].includes(turn.state)) void this.shellReady(pane).catch(error => this.recordFailure(pane, "inbox_resume_failed", error));
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:422: exception-boundary: catch (error) { this.recordFailure(pane, "shell_close_write_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:467: exception-boundary: catch (error) { this.recordFailure(pane, "shell_draft_write_failed", error); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:469: exception-boundary: catch (error) { this.recordFailure(pane, "shell_input_write_unknown", error); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:475: exception-boundary: catch (error) { this.recordFailure(pane, "shell_draft_write_unknown", error); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:2535: exception-boundary: } catch (error) {
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:583: exception-boundary: catch (error) { this.recordFailure(pane, "user_submission_bookkeeping_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:674: exception-boundary: catch (error) { return { front: "unknown", reason: "process_query_failed", error: String(error), process_query: (error as any).process_query ?? null }; }
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:737: exception-boundary: catch (error) { pane.traceFailed = true; this.recordFailure(pane, "controller_terminal_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:740: exception-boundary: catch (error) { this.recordFailure(pane, "controller_terminal_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:1266: exception-boundary: catch (error) { this.recordFailure(pane, "pane_exit_write_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:753: exception-boundary: catch (error) { if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw new Refusal("login_group_cleanup_failed"); }
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:757: exception-boundary: catch (error) { if ((error as NodeJS.ErrnoException).code === "ESRCH") break; throw new Refusal("login_group_cleanup_failed"); }
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:762: exception-boundary: })().catch(() => {
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:768: exception-boundary: } catch (error) { await login?.discard(); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:986: exception-boundary: catch (error) { this.recordFailure(pane, "restore_terminal_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:1015: exception-boundary: catch (stopError) { cleanup = String(stopError); pane.failed = "restore_cleanup_unconfirmed"; }
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:1244: exception-boundary: catch (error) { this.recordFailure(pane, "native_read_failed", error); return; }
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:1248: exception-boundary: catch (error) { this.recordFailure(pane, "terminal_protocol_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:1304: exception-boundary: })().catch(error => this.recordFailure(pane, "worker_trust_failed", error, { screen: pane.startupScreen }));
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:1328: exception-boundary: })().catch(error => this.recordFailure(pane, "codex_restricted_open_failed", error, { screen: pane.startupScreen }));
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:1340: exception-boundary: try { entry = JSON.parse(lines[index]!); } catch { continue; }
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:1356: exception-boundary: catch (error) { pane.traceFailed = true; this.recordFailure(pane, "trace_write_failed", error); return false; }
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:1368: exception-boundary: catch (recordError) {
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:1403: exception-boundary: })().catch(error => this.recordFailure(pane, "codex_startup_failed", error));
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:1412: exception-boundary: }).catch(error => this.recordFailure(pane, "terminal_protocol_failed", error));
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:1526: exception-boundary: .catch(error => this.recordFailure(pane, 'deferred_stop_failed', error));
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:1727: exception-boundary: if (pane.record.role === "shell") void this.drain(pane).catch(error => this.recordFailure(pane, "dispatch_failed", error));
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:2451: exception-boundary: void this.drain(pane).catch(error => this.recordFailure(pane, "dispatch_failed", error));
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:1874: exception-boundary: try { this.scan(pane); } catch (error) { this.recordFailure(pane, "native_read_failed", error); return; }
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:1987: exception-boundary: } catch (error) { this.recordFailure(pane, "pane_interrupt_unknown", error); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:2045: exception-boundary: catch(error){this.recordFailure(pane,"screen_key_write_unknown",error);throw error;}
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:2431: exception-boundary: void this.reportedTurnEnd!(pane, stop).catch(error => this.recordFailure(pane, "stop_transfer_failed", error))
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:2489: exception-boundary: })().catch(error => this.recordFailure(pane, "agy_trust_failed", error, { screen: pane.startupScreen }));
+- evidence/2026-11-09-batch35/T-265/controller/native-03-panes.ts:2630: exception-boundary: } catch (error) { this.recordFailure(pane, 'question_answer_write_unknown', error, { question: id }); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-03-test_t265_review_cli_e2e.py:108: exception-boundary: except json.JSONDecodeError:
+- evidence/2026-11-09-batch35/T-265/controller/native-03-test_t265_review_cli_e2e.py:109: swallowed-exception: pass  # A writer's unfinished last line is not a completed event.
+- evidence/2026-11-09-batch35/T-265/controller/native-03-test_t265_review_cli_e2e.py:145: exception-boundary: except subprocess.TimeoutExpired:
+- evidence/2026-11-09-batch35/T-265/controller/native-03-test_t265_review_cli_e2e.py:297: exception-boundary: except OSError as error:
+- evidence/2026-11-09-batch35/T-265/controller/native-03-test_t265_review_cli_e2e.py:413: broad-exception: except BaseException as error:
+- evidence/2026-11-09-batch35/T-265/controller/native-03-test_t265_review_cli_e2e.py:413: exception-boundary: except BaseException as error:
+- evidence/2026-11-09-batch35/T-265/controller/native-03-test_t265_review_cli_e2e.py:435: broad-exception: except Exception as error:
+- evidence/2026-11-09-batch35/T-265/controller/native-03-test_t265_review_cli_e2e.py:435: exception-boundary: except Exception as error:
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:192: exception-boundary: } catch { return null; }
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:1357: swallowed-exception: }
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:1811: exception-boundary: catch (error) {
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:358: exception-boundary: catch (closeError) { throw new AggregateError([error, closeError], `shell open failed (${String(error)}) and its terminal was not closed (${String(closeError)})`); }
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:398: exception-boundary: } catch (error) { pane.traceFailed = true; this.recordFailure(pane, "trace_write_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:412: exception-boundary: if (["idle", "done"].includes(turn.state)) void this.shellReady(pane).catch(error => this.recordFailure(pane, "inbox_resume_failed", error));
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:422: exception-boundary: catch (error) { this.recordFailure(pane, "shell_close_write_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:467: exception-boundary: catch (error) { this.recordFailure(pane, "shell_draft_write_failed", error); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:469: exception-boundary: catch (error) { this.recordFailure(pane, "shell_input_write_unknown", error); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:475: exception-boundary: catch (error) { this.recordFailure(pane, "shell_draft_write_unknown", error); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:2535: exception-boundary: } catch (error) {
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:583: exception-boundary: catch (error) { this.recordFailure(pane, "user_submission_bookkeeping_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:674: exception-boundary: catch (error) { return { front: "unknown", reason: "process_query_failed", error: String(error), process_query: (error as any).process_query ?? null }; }
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:737: exception-boundary: catch (error) { pane.traceFailed = true; this.recordFailure(pane, "controller_terminal_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:740: exception-boundary: catch (error) { this.recordFailure(pane, "controller_terminal_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:1266: exception-boundary: catch (error) { this.recordFailure(pane, "pane_exit_write_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:753: exception-boundary: catch (error) { if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw new Refusal("login_group_cleanup_failed"); }
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:757: exception-boundary: catch (error) { if ((error as NodeJS.ErrnoException).code === "ESRCH") break; throw new Refusal("login_group_cleanup_failed"); }
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:762: exception-boundary: })().catch(() => {
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:768: exception-boundary: } catch (error) { await login?.discard(); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:986: exception-boundary: catch (error) { this.recordFailure(pane, "restore_terminal_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:1015: exception-boundary: catch (stopError) { cleanup = String(stopError); pane.failed = "restore_cleanup_unconfirmed"; }
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:1244: exception-boundary: catch (error) { this.recordFailure(pane, "native_read_failed", error); return; }
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:1248: exception-boundary: catch (error) { this.recordFailure(pane, "terminal_protocol_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:1304: exception-boundary: })().catch(error => this.recordFailure(pane, "worker_trust_failed", error, { screen: pane.startupScreen }));
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:1328: exception-boundary: })().catch(error => this.recordFailure(pane, "codex_restricted_open_failed", error, { screen: pane.startupScreen }));
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:1340: exception-boundary: try { entry = JSON.parse(lines[index]!); } catch { continue; }
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:1356: exception-boundary: catch (error) { pane.traceFailed = true; this.recordFailure(pane, "trace_write_failed", error); return false; }
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:1368: exception-boundary: catch (recordError) {
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:1403: exception-boundary: })().catch(error => this.recordFailure(pane, "codex_startup_failed", error));
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:1412: exception-boundary: }).catch(error => this.recordFailure(pane, "terminal_protocol_failed", error));
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:1526: exception-boundary: .catch(error => this.recordFailure(pane, 'deferred_stop_failed', error));
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:1727: exception-boundary: if (pane.record.role === "shell") void this.drain(pane).catch(error => this.recordFailure(pane, "dispatch_failed", error));
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:2451: exception-boundary: void this.drain(pane).catch(error => this.recordFailure(pane, "dispatch_failed", error));
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:1874: exception-boundary: try { this.scan(pane); } catch (error) { this.recordFailure(pane, "native_read_failed", error); return; }
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:1987: exception-boundary: } catch (error) { this.recordFailure(pane, "pane_interrupt_unknown", error); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:2045: exception-boundary: catch(error){this.recordFailure(pane,"screen_key_write_unknown",error);throw error;}
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:2431: exception-boundary: void this.reportedTurnEnd!(pane, stop).catch(error => this.recordFailure(pane, "stop_transfer_failed", error))
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:2489: exception-boundary: })().catch(error => this.recordFailure(pane, "agy_trust_failed", error, { screen: pane.startupScreen }));
+- evidence/2026-11-09-batch35/T-265/controller/native-04-panes.ts:2630: exception-boundary: } catch (error) { this.recordFailure(pane, 'question_answer_write_unknown', error, { question: id }); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-04-test_t265_review_cli_e2e.py:108: exception-boundary: except json.JSONDecodeError:
+- evidence/2026-11-09-batch35/T-265/controller/native-04-test_t265_review_cli_e2e.py:109: swallowed-exception: pass  # A writer's unfinished last line is not a completed event.
+- evidence/2026-11-09-batch35/T-265/controller/native-04-test_t265_review_cli_e2e.py:142: exception-boundary: except ProcessLookupError:
+- evidence/2026-11-09-batch35/T-265/controller/native-04-test_t265_review_cli_e2e.py:152: exception-boundary: except subprocess.TimeoutExpired:
+- evidence/2026-11-09-batch35/T-265/controller/native-04-test_t265_review_cli_e2e.py:304: exception-boundary: except OSError as error:
+- evidence/2026-11-09-batch35/T-265/controller/native-04-test_t265_review_cli_e2e.py:420: broad-exception: except BaseException as error:
+- evidence/2026-11-09-batch35/T-265/controller/native-04-test_t265_review_cli_e2e.py:420: exception-boundary: except BaseException as error:
+- evidence/2026-11-09-batch35/T-265/controller/native-04-test_t265_review_cli_e2e.py:442: broad-exception: except Exception as error:
+- evidence/2026-11-09-batch35/T-265/controller/native-04-test_t265_review_cli_e2e.py:442: exception-boundary: except Exception as error:
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:192: exception-boundary: } catch { return null; }
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:1357: swallowed-exception: }
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:1811: exception-boundary: catch (error) {
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:358: exception-boundary: catch (closeError) { throw new AggregateError([error, closeError], `shell open failed (${String(error)}) and its terminal was not closed (${String(closeError)})`); }
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:398: exception-boundary: } catch (error) { pane.traceFailed = true; this.recordFailure(pane, "trace_write_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:412: exception-boundary: if (["idle", "done"].includes(turn.state)) void this.shellReady(pane).catch(error => this.recordFailure(pane, "inbox_resume_failed", error));
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:422: exception-boundary: catch (error) { this.recordFailure(pane, "shell_close_write_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:467: exception-boundary: catch (error) { this.recordFailure(pane, "shell_draft_write_failed", error); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:469: exception-boundary: catch (error) { this.recordFailure(pane, "shell_input_write_unknown", error); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:475: exception-boundary: catch (error) { this.recordFailure(pane, "shell_draft_write_unknown", error); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:2535: exception-boundary: } catch (error) {
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:583: exception-boundary: catch (error) { this.recordFailure(pane, "user_submission_bookkeeping_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:674: exception-boundary: catch (error) { return { front: "unknown", reason: "process_query_failed", error: String(error), process_query: (error as any).process_query ?? null }; }
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:737: exception-boundary: catch (error) { pane.traceFailed = true; this.recordFailure(pane, "controller_terminal_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:740: exception-boundary: catch (error) { this.recordFailure(pane, "controller_terminal_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:1266: exception-boundary: catch (error) { this.recordFailure(pane, "pane_exit_write_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:753: exception-boundary: catch (error) { if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw new Refusal("login_group_cleanup_failed"); }
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:757: exception-boundary: catch (error) { if ((error as NodeJS.ErrnoException).code === "ESRCH") break; throw new Refusal("login_group_cleanup_failed"); }
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:762: exception-boundary: })().catch(() => {
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:768: exception-boundary: } catch (error) { await login?.discard(); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:986: exception-boundary: catch (error) { this.recordFailure(pane, "restore_terminal_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:1015: exception-boundary: catch (stopError) { cleanup = String(stopError); pane.failed = "restore_cleanup_unconfirmed"; }
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:1244: exception-boundary: catch (error) { this.recordFailure(pane, "native_read_failed", error); return; }
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:1248: exception-boundary: catch (error) { this.recordFailure(pane, "terminal_protocol_failed", error); }
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:1304: exception-boundary: })().catch(error => this.recordFailure(pane, "worker_trust_failed", error, { screen: pane.startupScreen }));
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:1328: exception-boundary: })().catch(error => this.recordFailure(pane, "codex_restricted_open_failed", error, { screen: pane.startupScreen }));
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:1340: exception-boundary: try { entry = JSON.parse(lines[index]!); } catch { continue; }
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:1356: exception-boundary: catch (error) { pane.traceFailed = true; this.recordFailure(pane, "trace_write_failed", error); return false; }
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:1368: exception-boundary: catch (recordError) {
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:1403: exception-boundary: })().catch(error => this.recordFailure(pane, "codex_startup_failed", error));
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:1412: exception-boundary: }).catch(error => this.recordFailure(pane, "terminal_protocol_failed", error));
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:1526: exception-boundary: .catch(error => this.recordFailure(pane, 'deferred_stop_failed', error));
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:1727: exception-boundary: if (pane.record.role === "shell") void this.drain(pane).catch(error => this.recordFailure(pane, "dispatch_failed", error));
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:2451: exception-boundary: void this.drain(pane).catch(error => this.recordFailure(pane, "dispatch_failed", error));
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:1874: exception-boundary: try { this.scan(pane); } catch (error) { this.recordFailure(pane, "native_read_failed", error); return; }
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:1987: exception-boundary: } catch (error) { this.recordFailure(pane, "pane_interrupt_unknown", error); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:2045: exception-boundary: catch(error){this.recordFailure(pane,"screen_key_write_unknown",error);throw error;}
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:2431: exception-boundary: void this.reportedTurnEnd!(pane, stop).catch(error => this.recordFailure(pane, "stop_transfer_failed", error))
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:2489: exception-boundary: })().catch(error => this.recordFailure(pane, "agy_trust_failed", error, { screen: pane.startupScreen }));
+- evidence/2026-11-09-batch35/T-265/controller/native-06-panes.ts:2630: exception-boundary: } catch (error) { this.recordFailure(pane, 'question_answer_write_unknown', error, { question: id }); throw error; }
+- evidence/2026-11-09-batch35/T-265/controller/native-06-test_t265_review_cli_e2e.py:108: exception-boundary: except json.JSONDecodeError:
+- evidence/2026-11-09-batch35/T-265/controller/native-06-test_t265_review_cli_e2e.py:109: swallowed-exception: pass  # A writer's unfinished last line is not a completed event.
+- evidence/2026-11-09-batch35/T-265/controller/native-06-test_t265_review_cli_e2e.py:142: exception-boundary: except ProcessLookupError:
+- evidence/2026-11-09-batch35/T-265/controller/native-06-test_t265_review_cli_e2e.py:152: exception-boundary: except subprocess.TimeoutExpired:
+- evidence/2026-11-09-batch35/T-265/controller/native-06-test_t265_review_cli_e2e.py:313: exception-boundary: except OSError as error:
+- evidence/2026-11-09-batch35/T-265/controller/native-06-test_t265_review_cli_e2e.py:429: broad-exception: except BaseException as error:
+- evidence/2026-11-09-batch35/T-265/controller/native-06-test_t265_review_cli_e2e.py:429: exception-boundary: except BaseException as error:
+- evidence/2026-11-09-batch35/T-265/controller/native-06-test_t265_review_cli_e2e.py:451: broad-exception: except Exception as error:
+- evidence/2026-11-09-batch35/T-265/controller/native-06-test_t265_review_cli_e2e.py:451: exception-boundary: except Exception as error:
+- evidence/2026-11-09-batch35/T-265/controller/native-candidate-05.py:13: broad-exception: except BaseException as error:
+- evidence/2026-11-09-batch35/T-265/controller/native-candidate-05.py:13: exception-boundary: except BaseException as error:
+- evidence/2026-11-09-batch35/T-265/controller/process-wait-probe-01.py:15: exception-boundary: except ProcessLookupError:group='ESRCH'
+- evidence/2026-11-09-batch35/T-265/controller/process-wait-probe-01.py:31: exception-boundary: except subprocess.TimeoutExpired:
+- evidence/2026-11-09-batch35/T-265/controller/process-wait-probe-02.py:15: exception-boundary: except ProcessLookupError:group='ESRCH'
+- evidence/2026-11-09-batch35/T-265/controller/process-wait-probe-02.py:31: exception-boundary: except subprocess.TimeoutExpired:
+For each, confirm a real caller or failure reaches it and that this layer owns the recovery (design-integrity-review gates). Keep legitimate handling; never delete it just to silence this check. State your conclusion in the reply.

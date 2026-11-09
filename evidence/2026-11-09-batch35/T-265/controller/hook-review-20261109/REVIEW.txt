@@ -1,0 +1,13 @@
+STATUS: PASS
+SUMMARY: 本次范围内无新增已确认结构缺陷。247 条定位全部核对：200 条来自五份相同 panes.ts 快照（40 个位置），47 条来自历史驱动和一次性探针。历史驱动的诊断丢失、退出竞态和 PTY 关闭顺序问题已修复，旧失败记录仍为 INCOMPLETE。
+TARGET: T-265 候选 a322c79e29e2a3f1102eeefa8411abd1db322951；父版 80a6304225cdd567737362dd045dabf97a625c56；本次 hook 指向的冻结快照与诊断材料。按仓库规则由主控自查，不是新增一轮独立审查。
+FINDINGS:
+- 无新增已确认缺陷。每个原始文件、行号、标签的调用方、可达失败、处理所有者、传播结果及证据，见 dispositions.json 的全部 247 项；重复标签也逐条映射，没有删除或改写任何命中文件。
+LIMITATIONS:
+- 五份 panes.ts 与交付版本逐字节相同；与父版比较，全部 catch 文本保持一致，生产 diff 只改变材料投递六行。40 个位置均沿真实事件/daemon/Stop 调用链核对，但没有为未修改的整个 Panes 模块重跑所有历史故障注入。1357 的 swallowed-exception 是右花括号，实际 catch 在1356，会记录失败。
+- JSON 解析边界只承认完整结构，不把无法解析的行或包装当答复/完成事实；这不证明任意损坏日志都被发现，也不声称每个静态可达异常本轮均已真实触发。
+- native-01 的 finally 曾在真实 EPERM 时丢失诊断并过早删夹具；native-03 的退出竞态、native-04 的 PTY 顺序也确实导致 INCOMPLETE。这些冻结快照保留作反事实，不能把其中所有旧处理笼统宣称正确。最终 native-06 驱动修正已由既有11项故障注入、反事实与完整原生运行证明；本次只回读，不重跑模型或冒称新的独立验收。
+- 当前驱动的 BaseException/Exception 位于拥有子进程、PTY和夹具的顶层运行器；它们保存主异常与清理失败、保持 INCOMPLETE/非零退出。ProcessLookupError 只有原 Popen.wait 的退出码才可证明回收；TimeoutExpired 不代表成功。候选05与两个wait探针仍保留原 INCOMPLETE，独立业务PASS与整轮清理结论分开。
+- 本报告只回答此次结构钩子，不补称两个主面板已完成。Git图新worker仍待原生会话建立，文稿授权状态的用户确认仍待到；没有替用户点击被工具禁止的系统通知中心。
+RULE:
+- 诊断和回收顺序由 test_driver_diagnostics.py 的 test_cleanup_error_preserves_primary_and_evidence、test_owned_exit_orderings_require_wait_evidence、test_owned_master_closes_once_after_diagnostics_before_reaping、test_main_keeps_failed_case_and_unconfirmed_fixture、test_failed_fixture_deletion_cannot_report_success 检查；沿用已保留的坏实现反事实，不新增绕过门禁的路径。
