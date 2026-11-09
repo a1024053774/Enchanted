@@ -1,0 +1,56 @@
+{
+  "task": "a2a+T-258-1",
+  "attempt": "7043f6b6-95a1-403d-a487-4587e2c02d62",
+  "candidate": "9d6883239d2757e8899d1894999837c1e0b61617",
+  "review": {
+    "review_id": "86165bed-b079-406f-a205-ae4e7144abbf",
+    "state": "needs_fix",
+    "session_id": "9ffab33f-faa3-4f91-a746-7ea8c50d87d3",
+    "thread_id": "eaa8bb47-fc7d-4e65-834c-b8fc2f55b98f",
+    "launch_id": "91743250-92c8-4414-ba40-e19ed4e9411b",
+    "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-258-1-a4-review-1",
+    "candidate_workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/86165bed-b079-406f-a205-ae4e7144abbf",
+    "result": {
+      "verdict": "需修复",
+      "findings": [
+        {
+          "location": {
+            "path": "workbench/tests/test_t258_codex_late_start.ts",
+            "line": 151
+          },
+          "failure_scenario": "[P2，完成条件覆盖缺口] 完成条件没有覆盖已绑定 runtime_identity.leader_pid 与 pane/live leader 不同的反例。只把 panes.ts:1927 的 (bound.leader_pid === null || bound.leader_pid === pane.leader) 替换为 true，原 117 案仍 117/117、exit 0；冻结 T-257 模块也 104/104、exit 0。定向探针令 worker 的 current_attempt.runtime_identity.leader_pid 或 reviewer 的 review.runtime_identity.leader_pid 为 4099，pane/live leader 保持 4101：原候选两案均拒绝 identity_conflict；同一变异两案都错误清除 failed、进入 busy，缺少拒绝的断言失败。因此该变异不是等价变异，现有完成条件会接受明显违反进程身份契约的实现。当前候选生产守卫本身正确，本项不是声称其已存在该漏洞。",
+          "suggestion": "由主控先处理本卡“仅逐字节恢复”的范围限制，允许对新增 T-258 测试做最小补充；给 worker 与 reviewer 增加非空已绑定 leader PID 失配反例，断言拒绝、启动失败及原 active 保留、不重发输入。保留 leader_pid=null 的合法晚观察正例。用相同删守卫变异证明新增检查会在业务断言上失败，候选通过；不需要改生产逻辑或冻结的 oracle_paths/acceptance/REVIEW.md。"
+        }
+      ],
+      "review_requirements": {
+        "completion_conditions_sufficiency": true,
+        "mutation_checks": {
+          "min": 2,
+          "max": 5,
+          "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/86165bed-b079-406f-a205-ae4e7144abbf",
+          "report_section": "完成条件与变异检查"
+        }
+      },
+      "report": {
+        "结论与范围": "STATUS: FAIL（完成条件强度）；verdict：需修复。SUMMARY: 1 项 P2 验收覆盖缺口，0 项已复现的当前候选生产缺陷。TARGET: C=9d6883239d2757e8899d1894999837c1e0b61617，base=172b2f17566f923b2e0be8f7d21fc0b189b83fa2，verification=617b4f51-4177-4dc0-809d-78d43c50d6b7，M=1b2dc59aaae096e5ae03ab07c0da4a39143803b9。RELEASE: NO_GO，先补齐已证实的进程身份反例覆盖。审查只在门禁一次性副本中变异，未修改候选/worker worktree、审查目录、Git 元数据或正式后台，未提交、集成、写请求文件或启动真实 CLI。",
+        "来源与路径核对": "已读 AGENTS.md、REVIEW.md、T-258 ticket、MAP/CONTEXT/intent，以及 49c7b9a9435f68aec38a862125b8f00220b9b3af 中 RESULTS-FINAL.md / SELF-CHECK-FINAL.md。通过主仓库 git show 只读逐字节比较：三个恢复文件均同时等于当前 C、指定来源 49c7b9a... 和历史已测 4c93144df22d486a2d9bf3e948b3e7084723ae6e。一次性副本内 65 个 workbench/src 与包配置文件均与 C 一致，C 到 M 的产品输入无差异。base 到 C 仅改变任务卡允许的三文件及 worker/a4 新证据；冻结 acceptance、REVIEW.md、.project-map 和两份 T-257 oracle 文件的 git diff exit 0。卡外改动：无。源码恢复与两个测试对应目标；a4 来源索引、逐案摘要、小运行器与中文报告是恢复交付证据，未见越界的新实现或旧证据重写。",
+        "独立契约与行为审查": "STATUS: FAIL（仅指验收不足）。预期来自冻结 T-258 Acceptance 和任务卡核心契约，新增测试不是 oracle。已沿 drain 的真实 120 秒期限、daemon 的 launch 身份检查、signal 的 envelope/原始派发认领、confirmLateCodexStart、Stop 转交链检查。可信原始 UPS 才能恢复唯一 native_session_unbound；scan 不清错；当前 attempt/fence/spec、review/worker/candidate/verification、独立 session/thread/launch 和进程身份应保持一致；异步观察后须复核；不可信 hook、其他失败、中断继续拒绝；输入与交付不能重复。baseline 117/117、exit 0。额外 worker/reviewer 已绑定 leader 失配探针对原候选 2/2 PASS，验证现有生产守卫确实拒绝；但现有完成条件漏检删除它的错误实现，见变异项 M5。编排、异步、身份、文件及副作用适用；检索/记忆和供应商模型理解 N/A。",
+        "完成条件与变异检查": "全部从 /Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/86165bed-b079-406f-a205-ae4e7144abbf 执行；先跑原候选，再逐个只改副本中的 workbench/src/panes.ts，每次 finally 恢复并核对原字节。实际批量执行命令：python3 review-artifacts/run_mutations.py。该脚本及每项 .patch、原始 .log、逐案 .json、*-result.json 已保留。五项均运行同一完成条件 /opt/homebrew/Cellar/node/26.5.0/bin/node --test workbench/tests/test_t258_codex_late_start.ts，环境 T258_SUMMARY 指向各自的新摘要文件，未改测试断言。\n1. M1 m1_no_recovery：把 await this.confirmLateCodexStart(pane, value); 改为 void 0;。命令：T258_SUMMARY=\"$PWD/review-artifacts/m1_no_recovery.json\" /opt/homebrew/Cellar/node/26.5.0/bin/node --test workbench/tests/test_t258_codex_late_start.ts。结果 exit 1，31 PASS/86 FAIL；正例在 verified late UPS recovers only the startup absence 断言失败，确实检出不恢复。\n2. M2 m2_no_recheck：删除 processInfo await 后的第二次 assertCurrent()。命令：T258_SUMMARY=\"$PWD/review-artifacts/m2_no_recheck.json\" /opt/homebrew/Cellar/node/26.5.0/bin/node --test workbench/tests/test_t258_codex_late_start.ts。结果 exit 1，114 PASS/3 FAIL；replaced-during-read、trace-failed-during-read、reviewer refuses changed-during-read 检出越过异步撤销/失败。\n3. M3 m3_wrong_candidate：删除 task.candidate_commit === review.candidate_commit 条件。命令：T258_SUMMARY=\"$PWD/review-artifacts/m3_wrong_candidate.json\" /opt/homebrew/Cellar/node/26.5.0/bin/node --test workbench/tests/test_t258_codex_late_start.ts。结果 exit 1，116 PASS/1 FAIL；reviewer refuses candidate 报 Missing expected rejection。\n4. M4 m4_ignore_trust：将恢复检查中的 currentTurnTrust(...) === \"verified\" 替换为 true。命令：T258_SUMMARY=\"$PWD/review-artifacts/m4_ignore_trust.json\" /opt/homebrew/Cellar/node/26.5.0/bin/node --test workbench/tests/test_t258_codex_late_start.ts。结果 exit 1，116 PASS/1 FAIL；untrusted-hook 在 missing or mismatched proof cannot recover 断言失败。\n5. M5 m5_replace_bound_leader：将 (bound.leader_pid === null || bound.leader_pid === pane.leader) 替换为 true。命令：T258_SUMMARY=\"$PWD/review-artifacts/m5_replace_bound_leader.json\" /opt/homebrew/Cellar/node/26.5.0/bin/node --test workbench/tests/test_t258_codex_late_start.ts。结果 exit 0，117/117 PASS，错误实现存活。再运行 /opt/homebrew/Cellar/node/26.5.0/bin/node workbench/tests/test_t257_codex_stop_continuation.ts \"$PWD\" \"$PWD/review-artifacts/t257-m5.json\"，冻结 oracle 模块仍 104/104、exit 0。\nM5 非等价性确认：在 review-artifacts/bound-leader-probe.ts 增加诊断场景，固定已绑定 leader=4099、pane/live leader=4101，分别测 worker 与 reviewer。命令为 T258_SOURCE_ROOT=\"$PWD\" T258_SUMMARY=\"$PWD/review-artifacts/sentinel-candidate.json\" /opt/homebrew/Cellar/node/26.5.0/bin/node --test '--test-name-pattern=review sentinel bound-leader mismatch' \"$PWD/review-artifacts/bound-leader-probe.ts\"；候选 exit 0、2/2 PASS。同一 M5 再执行相同命令，仅摘要改 sentinel-m5.json，exit 1、两案 FAIL，错误实现 failed=null/state=busy，报 Missing expected rejection: bound leader mismatch must refuse recovery。诊断探针没有替换或修改候选测试及冻结验收。结论：4/5 变异被既有条件拒绝，M5 没有；缺已绑定非空 leader 失配的 worker/reviewer 反例，完成条件不足。",
+        "真实入口与版本边界": "已只读核对主控 controller/RESULTS-NEWBASE.md、e2e-parent-newbase-01-summary.json、e2e-candidate-newbase-01-summary.json 及两份原始 JSON；摘要全部共享字段与逐项 details 一致。父版 source_head=172b2f...，生产期限自然经过 120.008 秒后晚启动，真实 task_complete 后仍保留失败，defect_reproduced=true，8 项业务断言失败；候选 source_head=9d688323...，期限 120.003 秒，晚启动恢复事件在原期限之后，8 项业务检查通过：工作中 worker_working、submit/issue 各一次、错误 session 拒绝一次、请求不重复执行、回执 Stop 复用结果、完成后 idle、完成 attempt 可回收。主控报告退出分别 1/0，原报告状态 FAIL/PASS，无 preconditions_unmet、diagnostic_errors 或 cleanup_errors，自有资源已清理且目录当前不存在。这些是本轮冻结候选的真实 worker 入口证据，未复用旧八项 PASS。reviewer 的真实 review_submit/reclaimReview 未由该 worker E2E 覆盖；这里仅有模块与定向身份探针证据。审查未启动额外真实 CLI。",
+        "结构审查": "design-integrity-review STATUS: PASS，未确认本候选范围内结构缺陷。失败产生与恢复均归 Panes 所有；signal 是真实调用者，原始 UPS 和进程证据决定恢复；先持久记录恢复，再清错；无输入重发、期限延长、新平行 API、依赖或兼容双路径。Deep modules：新增私有检查集中恢复前提，没有浅转发层；Ubiquitous language 保持 attempt、原生会话、派发记录；本次是既有实现恢复，无新增跨层 Tracer bullet。E2E 异常明确区分 FAIL/INCOMPLETE，诊断与清理由夹具拥有。运行了 design_integrity.py --cwd . --base 172b2f... --format json，但副本无 Git，返回 root=null，不能把空 findings 当作有效扫描证明；结论来自固定 diff 与真实调用链的人工检查。",
+        "回归、边界与清理": "原候选额外执行 /opt/homebrew/Cellar/node/26.5.0/bin/node workbench/tests/test_t257_codex_stop_continuation.ts \"$PWD\" \"$PWD/review-artifacts/t257-candidate.json\"：104/104 PASS、exit 0；执行 /opt/homebrew/Cellar/node/26.5.0/bin/node workbench/tests/test_t251_hook_cwd.ts \"$PWD\" \"$PWD/review-artifacts/native-origin-candidate.json\"：13/13 PASS、exit 0。没有运行无关全套。所有本次 SQLite/rollout 临时夹具先记录目录、文件数、字节数及清理状态再删除；目前无 t258-module-* 或 t257-module-* 遗留。变异 patch、命令、诊断测试及原始失败输出保留在一次性副本 review-artifacts/，不进集成；最终三个恢复文件及整个产品输入再次逐字节等于 C。project-map status 在无 Git 副本中 exit 1，6 个 Verified 字段因提交号不能按日期校验，属于副本环境限制，不能据此宣称地图 PASS；worker 已报告的 README/地图同步仍归主控，README:1476-1477 保留旧启动恢复限制描述，集成时需同步。",
+        "完成报告": "Works：当前候选 117 案、两案独立 leader 失配探针通过；已核对本轮真实 worker 入口红绿。No regression：T-257 104 案及 native-origin 13 案通过，冻结验收未改。Risk / undo：验收条件漏检删除已绑定 leader 守卫的错误实现，结论需修复；最小后续是明确允许补充新增测试并对同一变异复验，不需要改生产守卫。副本中的所有生产变异已还原，未影响原候选，无需产品回滚。整票不能据现有机械绿态判 PASS。"
+      },
+      "turn_id": "01a1bdde-4e21-7bd1-9a6a-2f483567ab36",
+      "received_at": "2026-11-09T01:19:15.554Z"
+    }
+  },
+  "verification": {
+    "verification_id": "617b4f51-4177-4dc0-809d-78d43c50d6b7",
+    "G": "f80d5cdbf0e1b62de864300eff7bb4497f8c4c70",
+    "C": "9d6883239d2757e8899d1894999837c1e0b61617",
+    "M": "1b2dc59aaae096e5ae03ab07c0da4a39143803b9",
+    "state": "passed"
+  },
+  "controller_action": "仅补新增测试的已绑定 PID 失配反例；生产和 E2E 不变；同 attempt repair 后限定复审一次。"
+}
