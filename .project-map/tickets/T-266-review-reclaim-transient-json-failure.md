@@ -28,6 +28,10 @@ ready_rev: 1
 
 ## 当前状态
 
+2026-11-09 13:40Z，INCOMPLETE：已通过实际 `Panes.processInfo` 定位并复现根因，修复正在受管 worker 中进行。无阻塞对照返回自有 sleep 的完整 libproc 快照；仅阻塞探针父事件循环 6500ms 时，原实现抛空输出 JSON 解析错误，诊断 exit_code=0、signal=null、killed=true、elapsed_ms=6515.71375。原始命令、结果和清理记录见 controller/actual-process-info-{0,6500}-01.json。两次只创建自有 state 与 sleep，未启动 hc core，子进程关闭和临时目录清理已确认。worker 沙箱在 HcRuntime 创建临时目录处的 EPERM 原样保留，不作为目标红态；外部证据已通过 answer_issue 送回原 attempt 334ba6bb-5876-414d-bd18-41b9196fe6e9。尚未交付或审查候选。
+
+以下为第一次故障后的历史恢复记录：
+
 INCOMPLETE：尚未定位解析来源或修改产品。原 worker 已完成修复检查点 c16489e2d435513a00bfa3b61ec2ae346549bfb0；重交因 task paused 被拒绝。主控在实际输入框清空、原生回合停止及 Git 干净后正常重启后台，旧进程已结束；T-249-2 的旧 attempt 经 abandon（升级）及 reclaim 成功，检查点由 Git 保留，card/spec 6 仅接回该证据进行一次限定复审。重启及门禁原始输出位于本票 controller 和 T-249/controller-package。恢复不证明本缺陷已修复；正式数据库未手改，原审查需修复结论及故障证据保留。
 
 ## 2026-11-09 第二次故障与最小可证伪探针
