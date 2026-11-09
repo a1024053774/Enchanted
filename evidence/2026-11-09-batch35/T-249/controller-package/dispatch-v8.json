@@ -1,0 +1,212 @@
+{
+  "command": [
+    "/Applications/Enchanted.app/Contents/MacOS/Enchanted",
+    "/Applications/Enchanted.app/Contents/Resources/app/src/gates/cli.ts",
+    "--state",
+    "/Users/luckye/Library/Application Support/a2a-orchestrator",
+    "dispatch",
+    "--task",
+    "a2a+T-249-1",
+    "--runtime-mode",
+    "workspace-write",
+    "--model",
+    "gpt-6-astra",
+    "--effort",
+    "xhigh",
+    "--fast",
+    "false",
+    "--overlap-reason",
+    "T-249 仅恢复冻结 Git 图候选的原文件；T-262 已交付并进入只读验收，无写入者。明确禁止改 RecordsPage.tsx、records.css 和 T-265 源码测试；主控负责串行集成。"
+  ],
+  "exit_code": 0,
+  "result": {
+    "ok": true,
+    "task": {
+      "task_id": "a2a+T-249-1",
+      "name": "T-249-1",
+      "title": "T-249-1",
+      "project_id": "a2a",
+      "repo": "/Users/luckye/Documents/Code/a2a",
+      "integration_ref": "refs/heads/main",
+      "card_snapshot_id": "0ca9dc21-5d6d-4898-ba7c-38c0ef5239f7",
+      "card_version": 8,
+      "card": {
+        "id": "T-249-1",
+        "source": {
+          "ticket": "/Users/luckye/Documents/Code/a2a/.project-map/tickets/T-249-git-graph-panel.md",
+          "ready_rev": 1
+        },
+        "goal": "T-249 恢复交付 v8。T-265 已经独立审查、门禁集成和正式安装，新后台版本 a91519dd2a44b1716d83575ad33f2daa93396fa5。用户已授权本轮故障修复、继续两个面板，以及经审查的本地合入和安装；不 push。你只负责本卡，不撤销其他人的修改；worker/reviewer 使用 gpt-6-astra xhigh 普通速度，最终独立窗口验收仍使用 gpt-6.1-terra。\n\n此次不重新实现 Git 图。原候选 C=d8f55c958d901d052e79eda1a04dbf0a8fbf5ed5 的三项机械条件已通过，真实窗口包含未跟踪文件与列宽的完整行为证据已保存在候选中。审查 3ce94b46 在任何模型回合开始前因 1318486 字符超过原生 CLI 上限被拒，随后按升级结束并正常回收 worker；这不是产品审查结论。T-265 修复材料投递后，恢复该候选，进入原定限定审查和 Terra 验收。\n\n先读 AGENTS.md、REVIEW.md、T-249 ticket、T-265 ticket，运行 project-map status。原 attempt f8b6b251 的 base B=3577086056eb33e4a0c3bd2d16bbc3b30862778c，来源为同目录 verify-v7.json 中 current_attempt.base_commit；独立核对 B 到 C 的改动清单。只恢复本卡允许的 Git 图产品、开发测试及原 worker 证据；采用保留当前 base 的三方应用。不得把整个 workbench 从 C 覆盖回来：当前 base 中的 T-265 后台修复、记录页和其他已集成变更必须保留。任何实际冲突先上报，不擅自择一。冻结 acceptance/** 和 REVIEW.md 不变。\n\n恢复后逐文件直接比较原 C 与本次产品/测试输入；对必须适配的 README 文本单独说明，不用哈希替代比较。写入本次 worker-untracked/recovery-v8 文本，保留原失败、人工介入和来源，绑定新 attempt/session/fence。原实现和测试若无冲突，不作新的产品修改。常规三项完成条件照卡运行；不要在原生沙箱重试 ps、启动 Electron 或扩大权限。需要外部运行时给出一次集中准确命令，主控按原分工执行。\n\n既有红绿来源：原 C 的 evidence/2026-11-08-batch34/T-249/worker-untracked/；主仓库同票 controller/untracked-window-01/ 包含候选、延迟返回和九个变异的业务结果；controller/untracked-reproduction/ 和 terra-v3-incomplete/ 保留旧占位说明的实际缺陷与 Terra 未完成部分。原 Test 包 d8f55 的标准构建在 evidence/2026-11-09-batch35/T-249/controller-package/；新候选若包含不同后台，必须由主控重新绑定或构建，不能冒称旧包对应新提交。\n\n审查范围继续遵守 T-240：仅核对未跟踪文件读取修复、只读边界、相关反例与列宽检测能力，以及恢复后版本和证据一致性；不再对整套旧功能展开整体盲审。审查员需要真实 Electron 运行时，在唯一候选副本构造 2–5 个小变异，给独立预期、补丁和命令，由主控外部执行并原样回传；审查员独立判断结果，不能把主控执行冒称审查员本人执行。既有原窗口全场景、冻结机械条件和最终 Terra 验收保持。\n\n整理中文 RESULTS，检查路径、字节、尾注和干净工作区，commit 后用本次身份显式 submit 一次；queued 不等于受理。不自行 verify、集成、回收、安装。整票直到限定审查和新 Terra 完成都仍为 INCOMPLETE。\n\n本次协调说明：当前主控是桌面对话；旧主控已暂停。T-262 的独立补证审查正在接回，原生 CLI 同时最多三个，留一个审查/探针名额。不要自行开额外会话。只恢复 B→C 原有 Git 图路径，不改 RecordsPage.tsx、records.css 或 T-265 的代码/测试；README 必须保留新 T-265 材料文件段落，再加入原 Git 图说明。正常、无冲突的三方恢复属于既定授权。若稀疏检出阻止暂存本卡证据，使用 git add --sparse，不更改稀疏配置；提交后不可见的已跟踪证据用 git show 只读核对，不凭目录不可见误判丢失。\n",
+        "non_goals": [
+          "不做 T-250 的改动面板（下一张卡）",
+          "不做公开的 mod 接口、第三方 mod 加载、清单文件与沙箱",
+          "不做远程机器和原 mod 的自动更新检查",
+          "不改门禁 workbench/src/gates/ 与 acceptance/",
+          "不加新依赖；确实需要时先用 issue 上报理由",
+          "不替换或启动 /Applications/Enchanted.app，不碰正在运行的 Enchanted 后台与 hc core",
+          "不 push"
+        ],
+        "paths": {
+          "allow": [
+            "workbench/app/",
+            "workbench/tests/",
+            "workbench/README.md",
+            "evidence/2026-11-07-batch33/T-249/",
+            "evidence/2026-11-08-batch34/T-249/worker-untracked/"
+          ],
+          "deny": [
+            "workbench/src/gates/",
+            "acceptance/",
+            "workbench/package.json",
+            "workbench/package-lock.json"
+          ]
+        },
+        "oracle_paths": [
+          "acceptance/T-249/check_git_graph.py"
+        ],
+        "completion_conditions": [
+          {
+            "argv": [
+              "/usr/bin/python3",
+              "acceptance/T-249/check_git_graph.py"
+            ]
+          },
+          {
+            "argv": [
+              "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+              "--test",
+              "workbench/tests/test_t249_git_host.mjs"
+            ]
+          },
+          {
+            "argv": [
+              "/usr/bin/python3",
+              "workbench/tests/test_t249_outside_safety.py"
+            ]
+          }
+        ],
+        "red_commands": [],
+        "task_type": "前端界面",
+        "repair_target": null,
+        "complexity": "L",
+        "executor": {
+          "cli": "Codex",
+          "model": "gpt-6-astra",
+          "effort": "xhigh"
+        },
+        "base_commit": null,
+        "writer": null
+      },
+      "base_commit": "c89b8ca4739f2a4106feeda8665f4e1aa8cec688",
+      "state": "claimed",
+      "spec_rev": 8,
+      "fence": 7,
+      "current_attempt": {
+        "task_id": "a2a+T-249-1",
+        "attempt_id": "99910bd1-9df9-47d2-a152-aed152447704",
+        "session_id": "ab254d39-375c-4171-b082-934ac60046b8",
+        "fence": 7,
+        "spec_rev": 8,
+        "thread_id": "cc5eee76-3ee8-499e-b280-71e2a601063e",
+        "runtime_mode": "workspace-write",
+        "turn_id": null,
+        "runtime_identity": {
+          "launch": "8747dead-988b-4a2a-9dbc-e6657b210345",
+          "thread": "cc5eee76-3ee8-499e-b280-71e2a601063e",
+          "shell_pid": 62036,
+          "leader_pid": 62038,
+          "native_session": null
+        },
+        "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a7",
+        "base_commit": "eb1ab25797ddddbd28769c7bc618aa45afd2cc8f",
+        "card_snapshot_id": "b0df950e-a183-4bc7-a51b-bafea591390c",
+        "reclaimed": false,
+        "owner": "a2a+T-249-1",
+        "state": "claimed",
+        "extra_directories": [],
+        "git_metadata": {
+          "head": "ref: refs/heads/a2a/T-249-1-a7",
+          "config": "100644:cb407e1750934a253cff551ed2493eaf1f6f5689edfd6d7ff1fe702a03daf39d",
+          "worktree_config": "100644:97997ba84fd1c44263deb6f412fc3bef4b05e0103d00c5a97a97ca928299aa13",
+          "hooks": {
+            "applypatch-msg.sample": "100755:0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7",
+            "commit-msg.sample": "100755:1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437",
+            "fsmonitor-watchman.sample": "100755:e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0",
+            "post-update.sample": "100755:81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5",
+            "pre-applypatch.sample": "100755:e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475",
+            "pre-commit.sample": "100755:57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b",
+            "pre-merge-commit.sample": "100755:d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53",
+            "pre-push.sample": "100755:ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a",
+            "pre-rebase.sample": "100755:4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3",
+            "pre-receive.sample": "100755:a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989",
+            "prepare-commit-msg.sample": "100755:e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619",
+            "push-to-checkout.sample": "100755:a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f",
+            "sendemail-validate.sample": "100755:44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92",
+            "update.sample": "100755:8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+          }
+        }
+      },
+      "candidate_commit": null,
+      "verification": null,
+      "integration_intent": null,
+      "quality": {
+        "source_commit": "c89b8ca4739f2a4106feeda8665f4e1aa8cec688",
+        "path": ".a2a/quality.json",
+        "raw": null,
+        "rule_checks": []
+      },
+      "repair": null,
+      "review": null
+    },
+    "attempt": {
+      "task_id": "a2a+T-249-1",
+      "attempt_id": "99910bd1-9df9-47d2-a152-aed152447704",
+      "session_id": "ab254d39-375c-4171-b082-934ac60046b8",
+      "fence": 7,
+      "spec_rev": 8,
+      "thread_id": "cc5eee76-3ee8-499e-b280-71e2a601063e",
+      "runtime_mode": "workspace-write",
+      "turn_id": null,
+      "runtime_identity": {
+        "launch": "8747dead-988b-4a2a-9dbc-e6657b210345",
+        "thread": "cc5eee76-3ee8-499e-b280-71e2a601063e",
+        "shell_pid": 62036,
+        "leader_pid": 62038,
+        "native_session": null
+      },
+      "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a7",
+      "base_commit": "eb1ab25797ddddbd28769c7bc618aa45afd2cc8f",
+      "card_snapshot_id": "b0df950e-a183-4bc7-a51b-bafea591390c",
+      "reclaimed": false,
+      "owner": "a2a+T-249-1",
+      "state": "claimed",
+      "extra_directories": [],
+      "git_metadata": {
+        "head": "ref: refs/heads/a2a/T-249-1-a7",
+        "config": "100644:cb407e1750934a253cff551ed2493eaf1f6f5689edfd6d7ff1fe702a03daf39d",
+        "worktree_config": "100644:97997ba84fd1c44263deb6f412fc3bef4b05e0103d00c5a97a97ca928299aa13",
+        "hooks": {
+          "applypatch-msg.sample": "100755:0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7",
+          "commit-msg.sample": "100755:1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437",
+          "fsmonitor-watchman.sample": "100755:e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0",
+          "post-update.sample": "100755:81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5",
+          "pre-applypatch.sample": "100755:e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475",
+          "pre-commit.sample": "100755:57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b",
+          "pre-merge-commit.sample": "100755:d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53",
+          "pre-push.sample": "100755:ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a",
+          "pre-rebase.sample": "100755:4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3",
+          "pre-receive.sample": "100755:a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989",
+          "prepare-commit-msg.sample": "100755:e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619",
+          "push-to-checkout.sample": "100755:a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f",
+          "sendemail-validate.sample": "100755:44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92",
+          "update.sample": "100755:8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+        }
+      }
+    },
+    "user_input_observer": {
+      "state": "healthy",
+      "updated_at": "2026-11-09T06:33:36.414Z"
+    }
+  },
+  "stderr": ""
+}
