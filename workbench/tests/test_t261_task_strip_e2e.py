@@ -1,8 +1,11 @@
-"""T-261：顶部任务条最新在前、较早的收进下拉框。真实 Electron、后台与门禁；零模型调用。
+"""T-261、T-271：顶部任务条最新在前；全部任务在条首的下拉框里，条上只留当前任务和最近 3 个。真实 Electron、后台与门禁；零模型调用。
+
+T-271（用户 2026-11-09：“现在很多票在上面,只能通过滑动不好,应该有个折叠的比较好,然后最新的票展示在最新前面”）：
+任务条不能横向滚动，窄了也要看得到下拉框。
 
 期望来自本测试自己的创建顺序（任务 id 故意与创建顺序不同），不读产品排序代码。
-失败方式：按 id 而不是创建顺序排；较早任务没有收起或丢失；从下拉框选旧任务不切换；
-选中的旧任务在任务条上认不出；刷新后顺序变了。
+失败方式：按 id 而不是创建顺序排；下拉框漏任务或顺序不对；从下拉框选旧任务不切换；
+选中的旧任务在任务条上认不出；刷新后顺序变了；条变窄后要横向滚动或下拉框被挤出。
 --mutant by-id：任务条改回按 id 排序。
 """
 import argparse
@@ -15,7 +18,7 @@ from scripted_claude import Electron, Fixture, ROOT
 
 # Created in this order; ids are not in creation order.
 TASKS = ['T-07', 'T-12', 'T-01', 'T-30', 'T-05', 'T-22', 'T-09', 'T-15', 'T-03', 'T-27', 'T-11', 'T-02']
-RECENT = 5
+RECENT = 3
 
 
 def main():
@@ -49,21 +52,26 @@ def main():
         electron.until('项目出现', '''(()=>{const r=document.querySelector('[data-project-id="demo"]');if(!r)return false;r.click();return true})()''')
         strip = '''(()=>{const n=document.querySelector('.task-strip');if(!n)return null;return {
           chips:[...n.querySelectorAll('[data-task-option]')].map(b=>({id:b.dataset.taskOption,current:b.getAttribute('aria-current')==='page'})),
-          older:[...n.querySelectorAll('[data-task-older-option]')].map(o=>o.value)}})()'''
-        seen = electron.until('任务条', f'(()=>{{const s={strip};return s&&s.chips.length+s.older.length==={len(TASKS)}?s:null}})()', 30)
+          all:[...n.querySelectorAll('[data-task-all-option]')].map(o=>o.value)}})()'''
+        seen = electron.until('任务条', f'(()=>{{const s={strip};return s&&s.all.length==={len(TASKS)}?s:null}})()', 30)
         report['initial'] = seen
         check('newest_first_visible', [c['id'] for c in seen['chips']] == newest[:RECENT], dict(ui=seen['chips'], want=newest[:RECENT]))
-        check('older_folded_in_order', seen['older'] == newest[RECENT:], dict(ui=seen['older'], want=newest[RECENT:]))
+        check('all_tasks_in_dropdown_newest_first', seen['all'] == newest, dict(ui=seen['all'], want=newest))
         oldest = newest[-1]
-        ev(f'''(()=>{{const s=document.querySelector('[data-task-older]');const set=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set;
+        ev(f'''(()=>{{const s=document.querySelector('[data-task-all]');const set=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set;
           set.call(s,{json.dumps(oldest)});s.dispatchEvent(new Event('change',{{bubbles:true}}));return true}})()''')
         picked = electron.until('选中最旧的任务', f'''(()=>{{const s={strip};return s&&s.chips.some(c=>c.id==={json.dumps(oldest)}&&c.current)?s:null}})()''', 30)
-        check('old_task_selected_and_shown', [c['id'] for c in picked['chips']] == newest[:RECENT] + [oldest] and picked['older'] == newest[RECENT:], picked)
+        check('old_task_selected_and_shown', [c['id'] for c in picked['chips']] == [oldest] + newest[:RECENT] and picked['all'] == newest, picked)
+        narrow = ev('''(()=>{const n=document.querySelector('.task-strip');n.style.width='360px';n.style.flex='none';
+          const s=n.getBoundingClientRect(),d=n.querySelector('[data-task-all]').getBoundingClientRect(),c=n.querySelector('.task-chips');
+          const r={stripScroll:n.scrollWidth-n.clientWidth,chipsScroll:c.scrollLeft,selectInside:d.left>=s.left&&d.right<=s.right&&d.width>0,
+            current:!!n.querySelector('[data-task-option][aria-current="page"]')};n.style.width='';n.style.flex='';return r})()''')
+        check('narrow_strip_no_scroll_dropdown_visible', narrow['stripScroll'] <= 0 and narrow['chipsScroll'] == 0 and narrow['selectInside'] and narrow['current'], narrow)
         electron.screenshot(args.summary.parent / (args.summary.stem + '-strip.png'))
         ev('location.reload()')
         electron.until('刷新后项目', '''(()=>{const r=document.querySelector('[data-project-id="demo"]');if(!r)return false;r.click();return true})()''')
-        again = electron.until('刷新后任务条', f'(()=>{{const s={strip};return s&&s.chips.length+s.older.length>={len(TASKS)}?s:null}})()', 30)
-        check('order_after_reload', [c['id'] for c in again['chips']][:RECENT] == newest[:RECENT] and again['older'] == newest[RECENT:], again)
+        again = electron.until('刷新后任务条', f'(()=>{{const s={strip};return s&&s.all.length==={len(TASKS)}?s:null}})()', 30)
+        check('order_after_reload', [c['id'] for c in again['chips']][-RECENT:] == newest[:RECENT] and again['all'] == newest, again)
         report['status'] = 'PASS'
     except Exception as error:
         report['error'] = str(error)

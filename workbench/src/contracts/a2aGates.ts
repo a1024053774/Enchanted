@@ -400,9 +400,10 @@ export interface A2AIssueRecord {
 
 export interface A2AIssueView {
   issue: A2AIssueRecord;
-  state: "待判断" | "等你决定" | "主控已答" | "已答复" | "已送达" | "已转交" | "已关闭" | "稍后" | "可能已随修订失效";
+  state: "待判断" | "等你决定" | "主控已答" | "已答复" | "已送达" | "已转交" | "已关闭" | "稍后" | "可能已随修订失效" | "可能已随任务结束失效";
   answer?: A2AIssueRecord;
-  /** The open issue's attempt was revoked by a revise; only the user confirms closing it (T-171). */
+  /** The open issue's attempt was revoked by a revise (T-171), or its task has ended (integrated, abandoned or upgraded; T-270); only the
+   *  user confirms closing it. reason is "spec revised" or "task ended". */
   superseded_by_revision?: { attempt: string; reason: string };
   disposition?: A2AIssueRecord;
 }

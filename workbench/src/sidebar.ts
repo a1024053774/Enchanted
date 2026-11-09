@@ -159,11 +159,11 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
   const activeAt = new Map(store.db.prepare('SELECT launch, MAX(time) AS time FROM orchestration_events WHERE launch IS NOT NULL GROUP BY launch').all()
     .map((row: any) => [String(row.launch), String(row.time)]));
   // T-107 #3: a session whose issue report nobody has answered yet waits for its controller's answer. The same test the
-  // gate applies before it takes an answer (open, no answer); a task whose issues cannot be read leaves its sessions unknown.
+  // gate applies before it takes an answer (open, no answer, not superseded: T-270); a task whose issues cannot be read leaves its sessions unknown.
   const unanswered = new Map<string, Set<string> | null>();
   for (const task of new Set(launches.map(record => record.task).filter((task): task is string => typeof task === 'string'))) {
     const result = await gates.call({ command: 'issues', task });
-    unanswered.set(task, result.ok ? new Set((result.issues ?? []).filter((view: any) => view.state !== '已关闭' && !view.answer)
+    unanswered.set(task, result.ok ? new Set((result.issues ?? []).filter((view: any) => view.state !== '已关闭' && !view.answer && !view.superseded_by_revision)
       .map((view: any) => String(view.issue.thread_id))) : null);
   }
   // T-177: the gate's current attempt of each task. A session of another attempt is history; the current attempt's

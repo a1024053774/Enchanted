@@ -378,8 +378,10 @@ export class A2AGates {
   listTasks(project: string) {
     id(project);
     // T-261: created is the row's insertion order (the upsert keeps the rowid), so the newest task can go first.
+    // T-272: goal is the task card's goal, the task's summary where the title is only its number.
     return this.db.prepare(`SELECT id AS task_id, json_extract(data,'$.project_id') AS project_id,
-      COALESCE(json_extract(data,'$.title'),id) AS title, json_extract(data,'$.state') AS state, rowid AS created
+      COALESCE(json_extract(data,'$.title'),id) AS title, json_extract(data,'$.state') AS state, rowid AS created,
+      json_extract(data,'$.card.goal') AS goal
       FROM tasks WHERE json_extract(data,'$.project_id')=? ORDER BY id`).all(project);
   }
   private member(task: A2ATask, thread: string, role: A2AAttachment["role"], endedAt?: string) {
@@ -664,6 +666,8 @@ export class A2AGates {
       .map((row) => JSON.parse(String(row.data)) as A2AIssueRecord)
       .filter((record) => thread === undefined || record.thread_id === thread);
     const revised = new Map<string, string>();
+    const taskRow = this.db.prepare("SELECT data FROM tasks WHERE id=?").get(task);
+    const ended = taskRow ? ["accepted", "abandoned", "upgraded"].includes((JSON.parse(String(taskRow.data)) as A2ATask).state) : false;
     const issues: A2AIssueView[] = records
       .filter((record) => record.kind === "issue")
       .map((issue) => {
@@ -705,9 +709,14 @@ export class A2AGates {
           }
           if (revised.get(issue.attempt_id)) superseded = { attempt: issue.attempt_id, reason: revised.get(issue.attempt_id)! };
         }
+        // T-270: once the task has ended (integrated, abandoned or upgraded), an issue still open on it, the gate's own
+        // findings included, describes a run that is over. It leaves the waiting count like a revised one and stays open
+        // until the user confirms.
+        if (!superseded && ended && ["等你决定", "待判断", "稍后", "已转交"].includes(state))
+          superseded = { attempt: issue.attempt_id ?? "", reason: "task ended" };
         return {
           issue,
-          state: superseded ? "可能已随修订失效" : state,
+          state: superseded ? superseded.reason === "task ended" ? "可能已随任务结束失效" : "可能已随修订失效" : state,
           ...(answer ? { answer } : {}),
           ...(disposition ? { disposition } : {}),
           ...(superseded ? { superseded_by_revision: superseded } : {}),

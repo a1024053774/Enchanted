@@ -46,6 +46,35 @@
 .reflect-score dt { color: var(--muted); }
 .reflect-score dd { margin: 0; font: inherit; }
 .reflect-loose { margin-top: 10px; }
+/* T-273: task groups on the Reflect and metrics pages. */
+.reflect-group, .metric-group { border-bottom: 1px solid var(--line); }
+.reflect-group > summary, .metric-group > summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 8px 0; cursor: pointer;
+  font-size: 13px; color: var(--muted); list-style-position: inside; }
+.reflect-group > summary strong, .metric-group > summary strong { color: var(--ink); font-weight: 600; }
+.reflect-group > summary::-webkit-details-marker, .metric-group > summary::-webkit-details-marker { display: none; }
+.reflect-group > summary::before, .metric-group > summary::before { content: '▸'; color: var(--faint); width: 10px; transition: transform .12s ease; }
+.reflect-group[open] > summary::before, .metric-group[open] > summary::before { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { .reflect-group > summary::before, .metric-group > summary::before { transition: none; } }
+.metric-notes summary { cursor: pointer; color: var(--muted); font-size: 12px; width: max-content; }
+.metric-notes summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.reflect-group > summary:focus-visible, .metric-group > summary:focus-visible, .reflect-reasons summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.reflect-group .reflect-branch { padding-left: 18px; }
+.reflect-group .reflect-node:last-child { border-bottom: 0; }
+.reflect-reasons { flex-basis: 100%; font-size: 12.5px; }
+.reflect-reasons summary { cursor: pointer; color: var(--muted); width: max-content; }
+.reflect-reasons p { margin: 4px 0; display: flex; gap: 8px; line-height: 1.6; overflow-wrap: anywhere; }
+.reflect-reasons p span { flex: 0 0 auto; color: var(--muted); }
+.metric-tiles { max-width: 1000px; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.metric-tiles > div { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.metric-tiles dt { color: var(--muted); font-size: 12px; }
+.metric-tiles dd { margin: 0; font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.metric-tiles span { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.metric-jump { display: flex; gap: 4px; flex-wrap: wrap; position: sticky; top: -20px; z-index: 1; background: var(--sheet); padding: 6px 0; max-width: 1000px; }
+.metric-group .record-table { margin-bottom: 8px; }
+.record-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.metric-bars { list-style: none; margin: 0; padding: 0; max-width: 520px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.metric-bars li { display: grid; grid-template-columns: 9em 1fr 3em; align-items: center; gap: 10px; }
+.metric-bar { height: 8px; border-radius: 4px; background: var(--needs); min-width: 4px; }
 .retrospective-page { margin-top: 18px; }
 
 /* T-179: gate receipts, summary first, full JSON on demand. */

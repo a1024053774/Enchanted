@@ -21,6 +21,12 @@ export type GateReceipt = { key: string; task: string; attempt: string | null; l
 // Inputs name their launch when known; receipts name the same launch. A missing
 // launch is a thread identity, never a guess based on a role label or task name.
 const projectScope = ':project:';
+// T-272: a task's one-line summary, from its card goal; nothing when the gate has no goal for it.
+export const taskBrief = (goal: string | null | undefined, max = 36) => {
+  const line = (goal ?? '').split('\n').map(text => text.trim()).find(Boolean) ?? '';
+  const first = line.split(/(?<=[。；;])/)[0].replace(/[。；;]$/, '');
+  return first.length > max ? first.slice(0, max - 1) + '…' : first;
+};
 const sessionKey = (record: UserInputRecord) => record.launch ? 'launch:' + record.launch : 'thread:' + record.thread;
 const compareText = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0;
 type Entry = { id: string; created_at: string; task: string | null; session: string; role: string | null;
@@ -35,7 +41,17 @@ export function RecordsPage({ project }: { project: string | null }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false), [revision, setRevision] = useState(0);
   const [task, setTask] = useState(''), [session, setSession] = useState('');
-  useEffect(() => { setTask(''); setSession(''); }, [project]);
+  const [briefs, setBriefs] = useState<Map<string, string>>(new Map());
+  useEffect(() => { setTask(''); setSession(''); setBriefs(new Map()); }, [project]);
+  useEffect(() => {
+    if (!project) return;
+    let active = true;
+    // Only labels: a failed read leaves the bare task numbers, which the filter still works with.
+    void window.a2a.tasks(project).then((items: Array<{ task_id: string; goal?: string | null }>) => {
+      if (active) setBriefs(new Map(items.map(item => [item.task_id, taskBrief(item.goal)])));
+    }, () => {});
+    return () => { active = false; };
+  }, [project, revision]);
   useEffect(() => {
     if (!project) return;
     let active = true;
@@ -111,7 +127,8 @@ export function RecordsPage({ project }: { project: string | null }) {
     {!project ? <p className="records-empty">先在左侧选一个项目。</p> : <>
       <div className="record-filter" aria-label="记录筛选">
         <label>任务 <select aria-label="任务" value={task} disabled={!ready} onChange={event => { setTask(event.target.value); setSession(''); }}>
-          <option value="">全部任务</option>{tasks.map(value => <option key={value} value={value}>{short(value === projectScope ? null : value)}</option>)}</select></label>
+          <option value="">全部任务</option>{tasks.map(value => <option key={value} value={value} data-task-brief={briefs.get(value) ?? ''}>
+            {short(value === projectScope ? null : value) + (briefs.get(value) ? '　' + briefs.get(value) : '')}</option>)}</select></label>
         <label>会话 <select aria-label="会话" value={session} disabled={!ready} onChange={event => setSession(event.target.value)}>
           <option value="">全部会话</option>{[...groups].sort(([a], [b]) => compareText(a, b)).map(([group, items]) =>
             <optgroup key={group} label={group}>{items.sort((a, b) => Date.parse(b.latest) - Date.parse(a.latest) || compareText(a.id, b.id)).map(item =>
