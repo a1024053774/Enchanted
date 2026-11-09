@@ -32,6 +32,7 @@
 
 ## Decisions so far
 
+- [T-263](tickets/T-263-codex-initialization-stall.md)：新包文稿弹窗阻塞了两个原生 CLI；用户点击允许后原 attempt 单次输入恢复，日志未命中不能排除权限等待。
 - [T-001 Goal and destination](tickets/T-001-goal-and-destination.md): accepted `intent.md`; the research draft remains initial input; reducing reliance on remembered collaboration procedure is the core goal
 - [T-002 First experiment contract](tickets/T-002-first-experiment-contract.md): Codex/Herdr experiment targets stale or unverified result acceptance and must reject invalid state with evidence
 - [T-003 Roles and evidence](tickets/T-003-roles-and-evidence.md): Astra Max controller, 6.1 xhigh Fast workers, high-reasoning read-only monitor, append-only run evidence, and exploratory claims only

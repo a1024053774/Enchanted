@@ -2,9 +2,9 @@
 id: T-263
 title: 新 Codex 会话停在线程初始化，任务留在待执行队列
 type: research
-status: open
+status: closed
 blocked_by: []
-claimed_by: desktop-executor
+claimed_by:
 supersedes:
 ready: yes
 ready_by: executor
@@ -29,6 +29,10 @@ ready_rev: 1
 
 明确能区分上述原因的直接证据；如果只是等待系统弹窗，记录点击前后同一 attempt、原输入与原生启动的对应关系。如果是可复现产品缺陷，写出真实入口最短复现、独立预期和最小修复范围，再建立受管修复任务。不以重复重启和重新派发替代根因核对。
 
-## 当前状态
+## Resolution
 
-INCOMPLETE。两条输入均只送过一次，没有补 Enter 或改正式数据库。T-262 旧工作和检查点仍完整保留；T-249 产品候选已通过原独立审查，但最终 Terra 窗口验收还没开始。两主面板及 T-260／T-261／T-262 的目标继续保留。
+PASS（本次启动阻塞诊断）。用户在本轮明确答复“又出现了，已点允许”。随后原两个 attempt 均观察到原生 session、原生 turn 和 `native_session_late_start_confirmed`，状态恢复 busy，failed=null、start_missing=false。每个 launch 均只有一次 paste_intent、一次 turn_submit_intent、一次 turn_start_signal，未重发任务或改变原身份。证据见 [permission-recovery-01.json](../../evidence/2026-11-08-batch34/T-263/controller/permission-recovery-01.json)。
+
+Works：用户确认文稿弹窗及点击后，同一受管执行者开始工作；T-258 按可信身份恢复旧启动失败标记。这次不需要新的产品代码修复。
+No regression：原始输入只发一次，两个 task/attempt/session 归属保持，未重启后台或清空门禁状态。
+Risk / undo：TCC 日志缺少 DocumentsFolder 记录不能排除可见弹窗。后续新包首次派发若出现原生启动等待，应及时核对窗口、进程阻塞与用户可见的隐私提示；工具禁止操作系统通知中心时明确请求手动点击，不反复派发或扩大磁盘权限。此结论只针对本次观察，不把全部慢启动归因为权限。
