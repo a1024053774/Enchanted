@@ -1473,11 +1473,13 @@ attempt（T-253，用户选 B）。和 run 的观察一样，读窗格在任务�
 attempt 保持未绑定；它之后再收尾时什么都不写。
 这条记录本身写不进去时，后台在 stderr 报 `event_write_failed`，并把用户输入记录标为失败，与窗格事件写失败的处理相同。此前只有 run 的观察、被受理的 submit 与审查提交会补，经 dispatch 派出、没交付过的 Codex worker 回收不了。
 
-当前版本仍有启动恢复限制：首次提交超过启动期限后才出现原生身份时，
-`native_session_unbound` 不会自动解除，可能阻塞交付与回收（T-258）。
-另一个停点是窗格已创建、初始运行身份尚未保存时 dispatch 失败：attempt 留在 preparing，
-现有 reclaim 会拒绝 `identity_conflict`（T-259）。两票均未完成独立审查与集成；
-遇到这些状态须保留现场，经主控处理，不能重发任务或手工补写身份。
+首次派发超过 120 秒后才出现原生身份时，单独发现身份不会清除 `native_session_unbound`。
+T-258 在原始派发的 UserPromptSubmit 到达时核对根 rollout、当前回合、原始输入、task/attempt/session/fence
+及 shell/领导进程身份；异步读取前后都要匹配。reviewer 还须匹配当前审查、候选和验收记录。
+只有这些事实成立且唯一失败是 `native_session_unbound`，才先记录恢复事件、再恢复原回合；不重发输入、
+不延长期限、不清除其他失败。没有可信原始派发、身份被替换、旧 attempt 或审查失效仍拒绝；真正工作中仍不能回收。
+窗格已创建、初始身份读取失败而停在 `preparing` 的场景，按上文 T-259 的停止及未发送条件经门禁回收。
+两种恢复都保留原失败证据，不手工补写身份或修改正式数据库。
 
 run/reclaim 核对该身份，回执回合改变不会覆盖已提交的 turn_id。submit 仍要求当前活动
 caller/turn 和受管 session/fence/spec/attempt 一致。换领导者、换原生会话或缺已绑定事实
