@@ -11,3 +11,5 @@
 
 2026-11-09T14:26:34.618074+00:00 T-266 INCOMPLETE：eb5a8968a 已交付；门禁干净副本缺 effect，红态/候选初始化失败。原 attempt 已回收，v2 已派发并绑定 native session 01a1c0b1-88fb-79b0-b354-2144383cdaad，修测试依赖供给。
 2026-11-09T14:26:34.618201+00:00 T-250 BLOCKED：正常重启后进程已停止，native_session=null 的身份冲突仍拒绝回收；已开 T-267，未改门禁或正式数据。后台正常恢复 PID 80941。
+
+2026-11-09T14:42:21.466549+00:00 T-266 BLOCKED：a2 干净副本四组外部证据 PASS，但原生14:36:31回合结束后后台 active.nativeTurn=null、start_missing=true，主控结果 #174 仍排队；CU切换停滞，未盲发Enter/Stop。尚未提交或独立审查。需恢复可核对的输入/回合状态。
