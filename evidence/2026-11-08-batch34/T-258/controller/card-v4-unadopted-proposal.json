@@ -1,0 +1,64 @@
+{
+  "id": "T-258-1",
+  "source": {
+    "ticket": "/Users/luckye/Documents/Code/a2a/.project-map/tickets/T-258-codex-late-session-startup-failure-sticky.md",
+    "ready_rev": 1
+  },
+  "goal": "在已完成 T259 恢复的基线上接回 T258 候选并完成正式交付。用户本轮对“先正常重启并修复 T-258 这类启动恢复问题，再继续两个面板”明确回答“修启动阻塞后继续（推荐）”；原话和原验收在 source.ticket。本轮要求 worker/reviewer 为 gpt-6-astra xhigh、service_tier default、fast=false，不启动 Claude，不 push。你是本卡唯一写入者，但不是代码库唯一参与者，不撤销他人改动。\n旧 a3 因 JSON 解析异常在 preparing 阶段失败、任务从未发送；T259已合入 1d71b2b99 并安装，原 attempt 3bba04f2 已经门禁回收。本卡是新的 attempt，禁止复用旧请求、尾注或 repair。旧 issue f82fdfe2 对应早已撤销的 a1，不再对该会话提交。T258 独立审查此前没有形成有效结论，不能拿模块通过代替审查。\n先读 AGENTS.md、REVIEW.md、source.ticket、旧候选49c7b9a9435f68aec38a862125b8f00220b9b3af的 worker/RESULTS-FINAL.md 与 SELF-CHECK-FINAL.md。用 project-map、evidence-first-testing、design-integrity-review、behavioral-acceptance-review、document-writing。说明小目标、非目标、直接调用者、验收和关键未知；复用已知结论但按当前版本核对。\n只从49c7b9a9435f68aec38a862125b8f00220b9b3af恢复 workbench/src/panes.ts、workbench/tests/test_t258_codex_late_start.ts、workbench/tests/test_t258_codex_late_start_e2e.py 三个文件。生产与测试应与已测4c93144df22d486a2d9bf3e948b3e7084723ae6e逐文件相同；若发现新基线panes已有别人的改动，先issue，不能整文件覆盖丢改动。主控已核对 fa8d554c 到172b2f175的产品变化只有 gates/core.ts（T259），不能覆盖或删除它。questions.ts无需修改。\n修复边界保持：worker/reviewer原始派发的可信UPS、根session/turn、当前attempt/fence/spec及真实进程一致；reviewer另核对当前review、原worker、verification/candidate/card和自己的独立身份目录。进程观察await前后再核对，记录恢复事件再恢复busy并保留活动提交；不改120秒deadline、不扫描即清错、不重发输入、不清其他失败或不可信hook。原7df的reviewer修订已包含于49c7；不要恢复旧的worker-only版本。\nTracer bullet 验证：当前产品基线多了T259 core，不能再声称整个source_tree与旧红绿运行相同。先在当前基线验证117项模块测试确实判红、恢复后117项通过，T257的104项回归通过。证据用精简文本摘要列实际命令、退出码、版本、每案名称/错误码及清理；大段重复转储保留在当前会话临时输出或旧提交，不复制3MB历史日志进新候选。旧模块/变异证据可用 git show 49c7:<path>逐项引用，不冒充本次新运行。\n当前组合的真实CLI父版/候选由主控在沙箱外跑。完成代码恢复和模块核对后先创建checkpoint commit，再经issue给主控：完整SHA、base_commit、驱动路径及精确--revision/--dependencies/--summary命令。使用已验证的合法MCP initialize等待机制；SIGSTOP方法为NO_GO，不再重跑。工作中的回收拒绝、完成后回收、submit/issue各一次、错session、回执去重8项业务检查保留。你不得自行启动额外CLI；主控总会话上限3，探针一次一个且独立审查期间不跑。issue发出后结束回合，等主控真实结果再整理最终证据和submit，不把checkpoint当最终交付。\n主控依赖 /Users/luckye/Documents/Code/a2a/workbench/node_modules，固定hc缓存 /private/tmp/t258-hc-cache-s8lk5bzy 已就绪；门禁工作树父目录 node_modules 链接归主控所有，不能删改。不要安装新依赖、改权限/全局配置或正式状态。外层工具cwd始终自己的worktree；读取旧证据用git show或绝对路径只读。旧真实红绿汇总可从 main Git历史7d7dd612c:evidence/2026-11-08-batch34/T-258/controller/e2e-mcp-results-01.json读取，明确是旧版本证据。真实reviewer CLI仍未单独验证，模块证据不外推。\n最终交付后主控gate verify新开干净astra xhigh审查；要求独立核对恢复身份边界并做2–5个有区分力的变异（本票此前没有完成的审查，不复用旧审核结论）。主控负责README/地图、正式打包安装和集成；敏感变更的用户证据批准仍按本轮显式要求保留。中文结论PASS/INCOMPLETE加Works/No regression/Risk undo。不得修改冻结acceptance/**、REVIEW.md或ticket，不接管T249/T250/T260等任务。完成后用本attempt新身份显式submit最终SHA一次，queued不等于门禁受理。",
+  "non_goals": [
+    "不实现T249/T250、不修T255/T256",
+    "不修改正式后台/安装包、用户hc或全局配置",
+    "不改变冻结验收或角色权限",
+    "不通过延长期限、自动重发输入或一概清空失败绕过缺陷",
+    "不增加依赖、公开接口、schema或migration，不push"
+  ],
+  "paths": {
+    "allow": [
+      "workbench/src/panes.ts",
+      "workbench/tests/test_t258_codex_late_start.ts",
+      "workbench/tests/test_t258_codex_late_start_e2e.py",
+      "evidence/2026-11-08-batch34/T-258/worker/"
+    ],
+    "deny": [
+      "acceptance/",
+      "REVIEW.md",
+      ".project-map/",
+      "workbench/app/",
+      "workbench/src/gates/",
+      "workbench/src/credentials.ts",
+      "workbench/src/desktopCredentials.ts"
+    ]
+  },
+  "oracle_paths": [
+    ".project-map/tickets/T-258-codex-late-session-startup-failure-sticky.md",
+    "workbench/tests/test_t257_codex_stop_continuation.ts",
+    "workbench/tests/test_t257_codex_stop_continuation_e2e.py"
+  ],
+  "completion_conditions": [
+    {
+      "argv": [
+        "node",
+        "--test",
+        "workbench/tests/test_t258_codex_late_start.ts"
+      ]
+    },
+    {
+      "argv": [
+        "node",
+        "--test",
+        "workbench/tests/test_t257_codex_stop_continuation.ts"
+      ]
+    }
+  ],
+  "red_commands": [],
+  "task_type": "后端逻辑",
+  "repair_target": null,
+  "complexity": "L",
+  "executor": {
+    "cli": "Codex",
+    "model": "gpt-6-astra",
+    "effort": "xhigh"
+  },
+  "base_commit": null,
+  "writer": null
+}

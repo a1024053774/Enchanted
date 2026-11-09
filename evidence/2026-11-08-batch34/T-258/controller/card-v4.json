@@ -4,7 +4,7 @@
     "ticket": "/Users/luckye/Documents/Code/a2a/.project-map/tickets/T-258-codex-late-session-startup-failure-sticky.md",
     "ready_rev": 1
   },
-  "goal": "在已完成 T259 恢复的基线上接回 T258 候选并完成正式交付。用户本轮对“先正常重启并修复 T-258 这类启动恢复问题，再继续两个面板”明确回答“修启动阻塞后继续（推荐）”；原话和原验收在 source.ticket。本轮要求 worker/reviewer 为 gpt-6-astra xhigh、service_tier default、fast=false，不启动 Claude，不 push。你是本卡唯一写入者，但不是代码库唯一参与者，不撤销他人改动。\n旧 a3 因 JSON 解析异常在 preparing 阶段失败、任务从未发送；T259已合入 1d71b2b99 并安装，原 attempt 3bba04f2 已经门禁回收。本卡是新的 attempt，禁止复用旧请求、尾注或 repair。旧 issue f82fdfe2 对应早已撤销的 a1，不再对该会话提交。T258 独立审查此前没有形成有效结论，不能拿模块通过代替审查。\n先读 AGENTS.md、REVIEW.md、source.ticket、旧候选49c7b9a9435f68aec38a862125b8f00220b9b3af的 worker/RESULTS-FINAL.md 与 SELF-CHECK-FINAL.md。用 project-map、evidence-first-testing、design-integrity-review、behavioral-acceptance-review、document-writing。说明小目标、非目标、直接调用者、验收和关键未知；复用已知结论但按当前版本核对。\n只从49c7b9a9435f68aec38a862125b8f00220b9b3af恢复 workbench/src/panes.ts、workbench/tests/test_t258_codex_late_start.ts、workbench/tests/test_t258_codex_late_start_e2e.py 三个文件。生产与测试应与已测4c93144df22d486a2d9bf3e948b3e7084723ae6e逐文件相同；若发现新基线panes已有别人的改动，先issue，不能整文件覆盖丢改动。主控已核对 fa8d554c 到172b2f175的产品变化只有 gates/core.ts（T259），不能覆盖或删除它。questions.ts无需修改。\n修复边界保持：worker/reviewer原始派发的可信UPS、根session/turn、当前attempt/fence/spec及真实进程一致；reviewer另核对当前review、原worker、verification/candidate/card和自己的独立身份目录。进程观察await前后再核对，记录恢复事件再恢复busy并保留活动提交；不改120秒deadline、不扫描即清错、不重发输入、不清其他失败或不可信hook。原7df的reviewer修订已包含于49c7；不要恢复旧的worker-only版本。\nTracer bullet 验证：当前产品基线多了T259 core，不能再声称整个source_tree与旧红绿运行相同。先在当前基线验证117项模块测试确实判红、恢复后117项通过，T257的104项回归通过。证据用精简文本摘要列实际命令、退出码、版本、每案名称/错误码及清理；大段重复转储保留在当前会话临时输出或旧提交，不复制3MB历史日志进新候选。旧模块/变异证据可用 git show 49c7:<path>逐项引用，不冒充本次新运行。\n当前组合的真实CLI父版/候选由主控在沙箱外跑。完成代码恢复和模块核对后先创建checkpoint commit，再经issue给主控：完整SHA、base_commit、驱动路径及精确--revision/--dependencies/--summary命令。使用已验证的合法MCP initialize等待机制；SIGSTOP方法为NO_GO，不再重跑。工作中的回收拒绝、完成后回收、submit/issue各一次、错session、回执去重8项业务检查保留。你不得自行启动额外CLI；主控总会话上限3，探针一次一个且独立审查期间不跑。issue发出后结束回合，等主控真实结果再整理最终证据和submit，不把checkpoint当最终交付。\n主控依赖 /Users/luckye/Documents/Code/a2a/workbench/node_modules，固定hc缓存 /private/tmp/t258-hc-cache-s8lk5bzy 已就绪；门禁工作树父目录 node_modules 链接归主控所有，不能删改。不要安装新依赖、改权限/全局配置或正式状态。外层工具cwd始终自己的worktree；读取旧证据用git show或绝对路径只读。旧真实红绿汇总可从 main Git历史7d7dd612c:evidence/2026-11-08-batch34/T-258/controller/e2e-mcp-results-01.json读取，明确是旧版本证据。真实reviewer CLI仍未单独验证，模块证据不外推。\n最终交付后主控gate verify新开干净astra xhigh审查；要求独立核对恢复身份边界并做2–5个有区分力的变异（本票此前没有完成的审查，不复用旧审核结论）。主控负责README/地图、正式打包安装和集成；敏感变更的用户证据批准仍按本轮显式要求保留。中文结论PASS/INCOMPLETE加Works/No regression/Risk undo。不得修改冻结acceptance/**、REVIEW.md或ticket，不接管T249/T250/T260等任务。完成后用本attempt新身份显式submit最终SHA一次，queued不等于门禁受理。",
+  "goal": "T-258 恢复交付（T-259 安装后新基线）。只恢复已测修复与精简证据，不做新实现。用户当前原话：“批准合入、安装并继续（推荐）”；随后：“以后再遇到这种合入我同意,不用等我,然后我截图中提到的几个问题也要开票修复”。安装与授权证据在主仓库 evidence/2026-11-08-batch34/T-259/controller-install/；旧 T-258 准备 attempt 3bba04f2 已经唯一 reclaim 入口成功回收，后台现为已审查 T-259 2083f72，新 main 已包含该修复。你是受管 worker，仍只负责 T-258。你不是代码库唯一参与者，不能撤销他人的改动。worker/reviewer 沿用 Codex gpt-6-astra xhigh 普通速度，不启动 Claude，不 push。\n\n先读 AGENTS.md、REVIEW.md、source.ticket 和旧候选 49c7b9a9435f68aec38a862125b8f00220b9b3af 中 RESULTS-FINAL.md / SELF-CHECK-FINAL.md。按 project-map、evidence-first-testing、document-writing 和两项 review skill 的适用要求自查；正式独立审查由主控安排。旧报告、日志、工作树与引用不删除或改写；冻结 acceptance/**、REVIEW.md、任务卡及 .project-map 不修改。\n\n只从 49c7b9a9435f68aec38a862125b8f00220b9b3af 读取并恢复三个文件：workbench/src/panes.ts、workbench/tests/test_t258_codex_late_start.ts、workbench/tests/test_t258_codex_late_start_e2e.py。逐文件核对它们与已测 4c93144df22d486a2d9bf3e948b3e7084723ae6e 一致；与当前基线冲突或出现实际新缺陷时先 issue，不自行加兼容逻辑。不 cherry-pick 整个旧提交、旧身份尾注或兆字节证据。questions.ts 本次没有已知修改需要。\n\n核心契约：仅合法原始 UPS、可信 root rollout/current turn、当前 attempt/fence/spec 及进程身份一致时恢复唯一 native_session_unbound；reviewer 另核对当前 review、原 worker、candidate/verification 及独立会话身份。异步观察前后都核对；不能扫描即清错、重发输入、延长期限或弱化不可信 hook。此三个文件是既有修复，此卡不扩大为 T-249/250/260/261/262。\n\n重要版本边界：新基线的 core.ts 含 T-259，所以整个产品输入与旧 4c93144df 不再等价。旧真实 CLI 八项通过只能作为历史来源，不能冒用为当前集成验收。主控会在你的最终冻结候选上重新运行真实 Codex CLI 的父版红态与候选绿态（本地 Responses 驱动），你不要启动额外真实 CLI 或改主控探针/正式后台。你负责在新基线跑 117 项模块及同模块父版/不安全恢复反例，T-257 与 native-origin 定向回归；主控与独立审查负责新冻结候选最终入口验证。门禁会重跑 completion condition。\n\n证据只存精简中文 RESULTS、原始来源索引和必要小脚本/输入；每个测试留命令、代码版本、每案名称及成败、退出码、失败业务断言和清理状态，不重复 dump 整个 pane/数据库。旧证据可 git show 49c7b9a...:<路径> 只读；主控旧真实入口汇总在 /Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-258/controller/e2e-mcp-results-01.json。旧 SIGSTOP 探针仍 INCOMPLETE/NO_GO，不算红态。依赖通过 worktree 父目录已有 node_modules 只读解析，不安装或改写依赖/global config；自己创建的夹具先留状态再清理。\n\n所有 exec 外层 cwd 仅为自己的受管 worktree；git show 可以读取旧提交，其他路径只读。产品与测试只写本卡 allow 路径。完成最小恢复、模块证据和来源报告后提交并显式 submit 当前完整 SHA 一次，queued 不等于受理；报告清楚主控真实入口、独立审查尚未完成，不自称整票 PASS。不运行 verify/integrate/自动 run。主控将在提交冻结后补实际入口并继续审查与集成。",
   "non_goals": [
     "不实现T249/T250、不修T255/T256",
     "不修改正式后台/安装包、用户hc或全局配置",
@@ -37,16 +37,9 @@
   "completion_conditions": [
     {
       "argv": [
-        "node",
+        "/opt/homebrew/Cellar/node/26.5.0/bin/node",
         "--test",
         "workbench/tests/test_t258_codex_late_start.ts"
-      ]
-    },
-    {
-      "argv": [
-        "node",
-        "--test",
-        "workbench/tests/test_t257_codex_stop_continuation.ts"
       ]
     }
   ],
