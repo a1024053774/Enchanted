@@ -1035,7 +1035,7 @@ export async function serve(
           // T-252: Codex, agy and opencode Stops name their turn by turn_id; a Claude Stop by prompt_id.
           reason: refusal, turn_id: stop.prompt_id ?? stop.turn_id ?? null,
           requests: receipts.map(receipt => ({ request_id: receipt.request_id, command: relayCommand(receipt.key), title: relayTitle(receipt.key) })),
-          unverified: store.read().filter(event => event.launch === pane.record.id && event.type === "native_question_unverified" &&
+          unverified: store.launchEvents(pane.record.id).filter(event => event.type === "native_question_unverified" &&
             event.data.submission === pane.active?.id).slice(0, 3).map(event => ({ time: event.time, reason: event.data.reason,
               hook_event_name: event.data.hook_event_name })) });
         if (matched && receipts.length && ["worker", "controller"].includes(pane.record.role)) await panes.dispatch(pane, feedbackText(receipts, pane.record.role), "gate");

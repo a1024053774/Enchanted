@@ -1468,7 +1468,8 @@ worker 窗格只作历史查询并显示“未恢复”，不重建 PTY、令牌
 `--state /tmp/...`，不创建默认路径，不接触正式 `a2a-workbench` 目录。
 新增 launch_records、dispatch_records、orchestration_events、relay_requests、relay_results
 都在 state.sqlite3，触发器禁止
-UPDATE/DELETE。按 T-075 rev 3，原门禁状态表保留为由事件推出的当前视图，历史以事件为准；
+UPDATE/DELETE。orchestration_events 另有 `(launch, type)` 与 `(type)` 两个索引；旧状态文件在下次打开时补建，
+不改动已有的行；查一个会话的事件用 `launchEvents(launch)`，不读全表再过滤（T-269）。按 T-075 rev 3，原门禁状态表保留为由事件推出的当前视图，历史以事件为准；
 membership.sqlite3 和锁库保留。`stateConsistency.ts` 提供只读事件重建与逐表比较；
 不补事件、改表或修存储。对静止的夹具库运行，报告一致、不一致或无法从现有事件重建：
 

@@ -1,0 +1,167 @@
+{
+  "status": "FAIL",
+  "argv": [
+    "/Applications/Enchanted.app/Contents/MacOS/Enchanted",
+    "/Users/luckye/Documents/Code/a2a/workbench/tests/test_t269_event_indexes.mjs",
+    "../evidence/2026-11-09-batch35/T-269/red-parent-02.json"
+  ],
+  "checks": [
+    {
+      "name": "old file opened: rows unchanged, triggers kept",
+      "ok": true
+    },
+    {
+      "name": "old file opened: indexes on (launch, type) and on (type)",
+      "ok": false,
+      "error": "no (launch, type) index: {}"
+    },
+    {
+      "name": "launch read returns exactly that launch, in seq order, data parsed",
+      "ok": false,
+      "error": "store.launchEvents is not a function"
+    },
+    {
+      "name": "real lookups were recorded",
+      "ok": true
+    },
+    {
+      "name": "no walk over the whole table: SELECT seq,time,type,data FROM orchestration_events WHERE launch=? AND type IN (?) ORDER B",
+      "ok": false,
+      "error": "SELECT seq,time,type,data FROM orchestration_events WHERE launch=? AND type IN (?) ORDER BY seq DESC LIMIT 1\nSCAN orchestration_events\n+ actual - expected\n\n+ [\n+   'SCAN orchestration_events'\n+ ]\n- []\n"
+    },
+    {
+      "name": "no walk over the whole table: SELECT seq,time,type,data FROM orchestration_events WHERE launch=? AND type IN (?,?) ORDER",
+      "ok": false,
+      "error": "SELECT seq,time,type,data FROM orchestration_events WHERE launch=? AND type IN (?,?) ORDER BY seq DESC LIMIT 1\nSCAN orchestration_events\n+ actual - expected\n\n+ [\n+   'SCAN orchestration_events'\n+ ]\n- []\n"
+    },
+    {
+      "name": "no walk over the whole table: SELECT time,type,launch,data FROM orchestration_events WHERE type IN ('role_requested','ro",
+      "ok": false,
+      "error": "SELECT time,type,launch,data FROM orchestration_events WHERE type IN ('role_requested','role_request_decided','role_request_confirmed','role_request_ended') ORDER BY seq\nSCAN orchestration_events\n+ actual - expected\n\n+ [\n+   'SCAN orchestration_events'\n+ ]\n- []\n"
+    },
+    {
+      "name": "no walk over the whole table: SELECT DISTINCT json_extract(data,'$.file') AS file FROM orchestration_events WHERE launch",
+      "ok": false,
+      "error": "SELECT DISTINCT json_extract(data,'$.file') AS file FROM orchestration_events WHERE launch=? AND type='native_record'\nSCAN orchestration_events\nUSE TEMP B-TREE FOR DISTINCT\n+ actual - expected\n\n+ [\n+   'SCAN orchestration_events'\n+ ]\n- []\n"
+    },
+    {
+      "name": "no walk over the whole table: SELECT data FROM orchestration_events WHERE launch=? AND type='hook_received' ORDER BY seq",
+      "ok": false,
+      "error": "SELECT data FROM orchestration_events WHERE launch=? AND type='hook_received' ORDER BY seq DESC LIMIT 20\nSCAN orchestration_events\n+ actual - expected\n\n+ [\n+   'SCAN orchestration_events'\n+ ]\n- []\n"
+    },
+    {
+      "name": "no walk over the whole table: SELECT time, type, launch, data FROM orchestration_events WHERE type IN ('role_requested',",
+      "ok": false,
+      "error": "SELECT time, type, launch, data FROM orchestration_events WHERE type IN ('role_requested','role_request_decided') ORDER BY seq\nSCAN orchestration_events\n+ actual - expected\n\n+ [\n+   'SCAN orchestration_events'\n+ ]\n- []\n"
+    },
+    {
+      "name": "no walk over the whole table: SELECT time, launch, data FROM orchestration_events WHERE type='retrospective_started' ORD",
+      "ok": false,
+      "error": "SELECT time, launch, data FROM orchestration_events WHERE type='retrospective_started' ORDER BY seq\nSCAN orchestration_events\n+ actual - expected\n\n+ [\n+   'SCAN orchestration_events'\n+ ]\n- []\n"
+    },
+    {
+      "name": "no walk over the whole table: SELECT type,launch,task,data FROM orchestration_events WHERE type IN ('pane_layout_opened'",
+      "ok": false,
+      "error": "SELECT type,launch,task,data FROM orchestration_events WHERE type IN ('pane_layout_opened','pane_layout_closed','pane_native_session') ORDER BY seq\nSCAN orchestration_events\n+ actual - expected\n\n+ [\n+   'SCAN orchestration_events'\n+ ]\n- []\n"
+    },
+    {
+      "name": "no walk over the whole table: SELECT 1 FROM orchestration_events e LEFT JOIN launch_records l ON l.id=e.launch WHERE e.t",
+      "ok": false,
+      "error": "SELECT 1 FROM orchestration_events e LEFT JOIN launch_records l ON l.id=e.launch WHERE e.type IN ('pane_layout_opened','pane_layout_closed') AND e.task=? LIMIT 1\nSCAN e\n+ actual - expected\n\n+ [\n+   'SCAN e'\n+ ]\n- []\n"
+    },
+    {
+      "name": "no walk over the whole table: SELECT data FROM orchestration_events WHERE type='execution_settings_saved' AND json_extra",
+      "ok": false,
+      "error": "SELECT data FROM orchestration_events WHERE type='execution_settings_saved' AND json_extract(data,'$.role')=? ORDER BY seq DESC LIMIT 1\nSCAN orchestration_events\n+ actual - expected\n\n+ [\n+   'SCAN orchestration_events'\n+ ]\n- []\n"
+    },
+    {
+      "name": "no walk over the whole table: SELECT data FROM orchestration_events WHERE type='work_branch_prefix_saved' ORDER BY seq D",
+      "ok": false,
+      "error": "SELECT data FROM orchestration_events WHERE type='work_branch_prefix_saved' ORDER BY seq DESC LIMIT 1\nSCAN orchestration_events\n+ actual - expected\n\n+ [\n+   'SCAN orchestration_events'\n+ ]\n- []\n"
+    },
+    {
+      "name": "no caller reads every event to pick one launch",
+      "ok": false,
+      "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n+ [\n+   'daemon.ts:1038',\n+   'panes.ts:1898',\n+   'panes.ts:2002',\n+   'panes.ts:2258',\n+   'panes.ts:2344',\n+   'panes.ts:2353',\n+   'panes.ts:2384',\n+   'panes.ts:2516',\n+   'panes.ts:2526',\n+   'panes.ts:2551',\n+   'panes.ts:2581',\n+   'panes.ts:2586',\n+   'panes.ts:2606'\n+ ]\n- []\n"
+    },
+    {
+      "name": "second open keeps the same indexes",
+      "ok": true
+    },
+    {
+      "name": "new file gets the same indexes",
+      "ok": true
+    }
+  ],
+  "scope": "Real OrchestrationStore, RoleRequests and TrajectoryArchive on a fixture state file; query plans, launch read results and a source scan of workbench/src; no timing claim",
+  "indexes": {},
+  "plans": [
+    {
+      "sql": "SELECT seq,time,type,data FROM orchestration_events WHERE launch=? AND type IN (?) ORDER BY seq DESC LIMIT 1",
+      "plan": [
+        "SCAN orchestration_events"
+      ]
+    },
+    {
+      "sql": "SELECT seq,time,type,data FROM orchestration_events WHERE launch=? AND type IN (?,?) ORDER BY seq DESC LIMIT 1",
+      "plan": [
+        "SCAN orchestration_events"
+      ]
+    },
+    {
+      "sql": "SELECT time,type,launch,data FROM orchestration_events WHERE type IN ('role_requested','role_request_decided','role_request_confirmed','role_request_ended') ORDER BY seq",
+      "plan": [
+        "SCAN orchestration_events"
+      ]
+    },
+    {
+      "sql": "SELECT DISTINCT json_extract(data,'$.file') AS file FROM orchestration_events WHERE launch=? AND type='native_record'",
+      "plan": [
+        "SCAN orchestration_events",
+        "USE TEMP B-TREE FOR DISTINCT"
+      ]
+    },
+    {
+      "sql": "SELECT data FROM orchestration_events WHERE launch=? AND type='hook_received' ORDER BY seq DESC LIMIT 20",
+      "plan": [
+        "SCAN orchestration_events"
+      ]
+    },
+    {
+      "sql": "SELECT time, type, launch, data FROM orchestration_events WHERE type IN ('role_requested','role_request_decided') ORDER BY seq",
+      "plan": [
+        "SCAN orchestration_events"
+      ]
+    },
+    {
+      "sql": "SELECT time, launch, data FROM orchestration_events WHERE type='retrospective_started' ORDER BY seq",
+      "plan": [
+        "SCAN orchestration_events"
+      ]
+    },
+    {
+      "sql": "SELECT type,launch,task,data FROM orchestration_events WHERE type IN ('pane_layout_opened','pane_layout_closed','pane_native_session') ORDER BY seq",
+      "plan": [
+        "SCAN orchestration_events"
+      ]
+    },
+    {
+      "sql": "SELECT 1 FROM orchestration_events e LEFT JOIN launch_records l ON l.id=e.launch WHERE e.type IN ('pane_layout_opened','pane_layout_closed') AND e.task=? LIMIT 1",
+      "plan": [
+        "SCAN e"
+      ]
+    },
+    {
+      "sql": "SELECT data FROM orchestration_events WHERE type='execution_settings_saved' AND json_extract(data,'$.role')=? ORDER BY seq DESC LIMIT 1",
+      "plan": [
+        "SCAN orchestration_events"
+      ]
+    },
+    {
+      "sql": "SELECT data FROM orchestration_events WHERE type='work_branch_prefix_saved' ORDER BY seq DESC LIMIT 1",
+      "plan": [
+        "SCAN orchestration_events"
+      ]
+    }
+  ]
+}

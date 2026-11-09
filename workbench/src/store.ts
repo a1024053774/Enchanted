@@ -36,7 +36,12 @@ export class OrchestrationStore {
     this.db.exec(`PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;
       CREATE TABLE IF NOT EXISTS launch_records (id TEXT PRIMARY KEY, task TEXT, attempt TEXT, data TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS dispatch_records (seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT UNIQUE NOT NULL, launch TEXT NOT NULL, data TEXT NOT NULL);
-      CREATE TABLE IF NOT EXISTS orchestration_events (seq INTEGER PRIMARY KEY AUTOINCREMENT, time TEXT NOT NULL, type TEXT NOT NULL, launch TEXT, task TEXT, attempt TEXT, data TEXT NOT NULL);`);
+      CREATE TABLE IF NOT EXISTS orchestration_events (seq INTEGER PRIMARY KEY AUTOINCREMENT, time TEXT NOT NULL, type TEXT NOT NULL, launch TEXT, task TEXT, attempt TEXT, data TEXT NOT NULL);
+      -- T-269: lookups go by launch and type, or by type alone; without these each one read the whole table
+      -- (208k rows, 170 MB of data by 2026-11-09) and the daemon's event loop stayed busy. An older state file gets
+      -- them on its next open; rows and the append-only triggers are untouched.
+      CREATE INDEX IF NOT EXISTS orchestration_events_launch_type ON orchestration_events(launch, type);
+      CREATE INDEX IF NOT EXISTS orchestration_events_type ON orchestration_events(type);`);
     const oldAttempt = this.db.prepare("PRAGMA table_info(launch_records)").all().find(row => row.name === "attempt");
     const oldTask = this.db.prepare("PRAGMA table_info(launch_records)").all().find(row => row.name === "task");
     if (oldAttempt?.notnull || oldTask?.notnull) {
@@ -161,6 +166,12 @@ export class OrchestrationStore {
   }
   read(task?: string) {
     const rows = this.db.prepare(`SELECT * FROM orchestration_events${task ? " WHERE task=?" : ""} ORDER BY seq`).all(...(task ? [task] : []));
+    return rows.map(({ data, ...row }) => ({ ...row, data: JSON.parse(String(data)) }));
+  }
+  // T-269: one launch's events in order, read through the (launch, type) index. Hooks and the per-second pane
+  // snapshot used read().filter(launch), which parsed the whole table each time (1.4 s at 210k rows).
+  launchEvents(launch: string) {
+    const rows = this.db.prepare("SELECT * FROM orchestration_events WHERE launch=? ORDER BY seq").all(launch);
     return rows.map(({ data, ...row }) => ({ ...row, data: JSON.parse(String(data)) }));
   }
   close() { this.db.close(); }

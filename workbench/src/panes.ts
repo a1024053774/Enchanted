@@ -1895,7 +1895,7 @@ export class Panes implements GateRuntime {
         failure?.data.context?.submission === active.id && failure.data.context.workspace === pane.attempt.workspace &&
         pane.failed === `native_session_unbound: ${failure.data.error}`, "late_start_unverified");
       check(pane.native === value.session_id && pane.turn === value.turn_id && active.nativeTurn === value.turn_id &&
-        currentTurnTrust(pane, this.store.read().filter(e => e.launch === pane.record.id)) === "verified", "late_start_unverified");
+        currentTurnTrust(pane, this.store.launchEvents(pane.record.id)) === "verified", "late_start_unverified");
       const pasted = this.store.lastEvent(pane.record.id, ["paste_intent"]);
       const dispatch = this.store.dispatchRecord(active.dispatch);
       const claimed = this.store.lastEvent(pane.record.id, ["dispatch_prompt_claimed"]);
@@ -1999,7 +1999,7 @@ export class Panes implements GateRuntime {
     const keys:Record<string,string>={ArrowUp:"\x1b[A",ArrowDown:"\x1b[B",Enter:"\r"};
     check((purpose==="onboarding-theme" && ["ArrowUp","ArrowDown","Enter"].includes(key)) || (purpose==="workspace-trust" && ["ArrowDown","Enter"].includes(key)) || (purpose==="onboarding-notice" && key==="Enter"),"invalid_screen_key");
     check(typeof screen_id==="string" && screen_id.length>0 && screen_id.length<=128 && typeof authorization_ref==="string" && authorization_ref.trim() && typeof selected_label==="string" && selected_label.trim(),"invalid_screen_approval");
-    const history=()=>this.store.read().filter(e=>e.launch===pane.record.id && e.type==="controller_screen_key_intent");
+    const history=()=>this.store.launchEvents(pane.record.id).filter(e => e.type==="controller_screen_key_intent");
     const assertUnused=()=>{
       const past=history();
       check(!past.some(e=>e.data.screen_id===screen_id || e.data.screen_base64===screen_base64),"screen_key_already_used");
@@ -2255,7 +2255,7 @@ export class Panes implements GateRuntime {
           // Input typed while the current turn is still working or in its Stop
           // batch: the CLI queues it under the running prompt id (T-157, T-166).
           if (pane.active && value.prompt_id === pane.claudePromptId && typeof value.prompt === 'string') {
-            const history = this.store.read().filter(event => event.launch === launch);
+            const history = this.store.launchEvents(launch);
             const previous = history.findLast(event => ['turn_start_signal', 'claude_prompt_queued'].includes(event.type));
             const enter = history.findLast(event => event.type === 'terminal_input_write_intent' && event.seq > (previous?.seq ?? 0) &&
               event.data.encoding === 'utf8' && typeof event.data.data === 'string' &&
@@ -2341,7 +2341,7 @@ export class Panes implements GateRuntime {
       const matched = Boolean(!pane.failed && !pane.stopInProgress && active?.nativeTurn && value.turn_id === active.nativeTurn && Date.parse(received_at) >= Date.parse(active.at));
       // The Stop handler transfers explicit files while the submitted turn still
       // owns its gate caller identity. A Stop alone never performs a gate command.
-      const trust = active ? currentTurnTrust(pane, this.store.read().filter(e => e.launch === launch)) : 'verified';
+      const trust = active ? currentTurnTrust(pane, this.store.launchEvents(launch)) : 'verified';
       // T-252, as T-251 for Claude: the matched Stop of a worker turn judged untrusted still ends that turn. Its requests
       // are refused, never run, and the daemon tells the executor; otherwise the pane stays in its turn and cannot be reclaimed.
       const refusal = matched && trust === 'unknown' && pane.record.role === 'worker' ? 'current_turn_untrusted' : undefined;
@@ -2350,7 +2350,7 @@ export class Panes implements GateRuntime {
       try {
         if (transfer) await transfer(pane, value, matched, refusal);
         if (!matched) { this.store.event("stop_not_matched", value, pane.record); return; }
-        check(refusal || currentTurnTrust(pane, this.store.read().filter(e => e.launch === launch)) === 'verified', 'current_turn_untrusted');
+        check(refusal || currentTurnTrust(pane, this.store.launchEvents(launch)) === 'verified', 'current_turn_untrusted');
         const protocolFailure = pane.record.role === "reviewer" && pane.failed === "invalid_review_result";
         if (protocolFailure && (pane.active !== active || pane.active?.nativeTurn !== value.turn_id || pane.turn !== value.turn_id || pane.native !== value.session_id)) {
           pane.state = "unknown";
@@ -2381,7 +2381,7 @@ export class Panes implements GateRuntime {
     const active = pane.active;
     const matched = Boolean(!pane.failed && !pane.stopInProgress && active?.nativeTurn && value.turn_id === active.nativeTurn &&
       Date.parse(received_at) >= Date.parse(active.at));
-    const trust = active ? currentTurnTrust(pane, this.store.read().filter(e => e.launch === pane.record.id)) : "verified";
+    const trust = active ? currentTurnTrust(pane, this.store.launchEvents(pane.record.id)) : "verified";
     // T-252: as for a Codex Stop. Any hook that reaches an agy or opencode launch is unverified (it has no hooks of its own).
     const refusal = matched && trust === "unknown" && pane.record.role === "worker" ? "current_turn_untrusted" : undefined;
     check(trust === "verified" || refusal, "current_turn_untrusted");
@@ -2513,7 +2513,7 @@ export class Panes implements GateRuntime {
       }
       this.store.event('stop_not_matched', value, pane.record); return;
     }
-    const trust = currentTurnTrust(pane, this.store.read().filter(e => e.launch === pane.record.id));
+    const trust = currentTurnTrust(pane, this.store.launchEvents(pane.record.id));
     // T-251: a worker turn judged untrusted (a hook of unverified origin) has still ended; this Stop is the session's own,
     // matched by prompt id. Its requests are refused, never run, and the turn ends like any other: otherwise the gate sees
     // a worker in its turn forever, cannot reclaim it, and nobody hears of the lost delivery. The daemon tells the executor.
@@ -2523,7 +2523,7 @@ export class Panes implements GateRuntime {
     pane.stopInProgress = true;
     try {
       if (transfer) await transfer(pane, value, true, refusal);
-      check(refusal || currentTurnTrust(pane, this.store.read().filter(e => e.launch === pane.record.id)) === 'verified', 'current_turn_untrusted');
+      check(refusal || currentTurnTrust(pane, this.store.launchEvents(pane.record.id)) === 'verified', 'current_turn_untrusted');
       if (pane.active !== active || pane.claudePromptId !== value.prompt_id) {
         this.store.event('stop_not_matched', { ...value, stage: 'after_transfer' }, pane.record); return;
       }
@@ -2548,7 +2548,7 @@ export class Panes implements GateRuntime {
       value.type === 'queue-operation' && value.operation === 'remove' && value.reason === 'absorbed_mid_turn' &&
       value.sessionId === pane.native && typeof value.commandUuid === 'string' && value.commandUuid.length > 0 &&
       Number.isFinite(Date.parse(value.timestamp)));
-    const used = new Set(this.store.read().filter(event => event.launch === pane.record.id && event.type === 'claude_prompt_absorbed')
+    const used = new Set(this.store.launchEvents(pane.record.id).filter(event => event.type === 'claude_prompt_absorbed')
       .map(event => event.data.command_uuid));
     pane.claudeQueuedPrompts = pane.claudeQueuedPrompts.filter(queued => {
       const removal = removals.find(value => !used.has(value.commandUuid) && value.content === queued.prompt &&
@@ -2578,12 +2578,12 @@ export class Panes implements GateRuntime {
     return Boolean(pane && pane.record.role === "shell" && !pane.stopped && !pane.closing && !pane.archived);
   }
   questions(launch: string) {
-    return projectQuestions(this.store.read().filter(event => event.launch === launch));
+    return projectQuestions(this.store.launchEvents(launch));
   }
   async answerQuestion(launch: string, id: string, answers: string[],
     record: (text: string, question: string) => Promise<void>, assertCurrent: () => Promise<void>) {
     const pane = this.byLaunch(launch);
-    const trusted = () => currentTurnTrust(pane, this.store.read().filter(e => e.launch === launch)) === 'verified';
+    const trusted = () => currentTurnTrust(pane, this.store.launchEvents(launch)) === 'verified';
     check(trusted(), 'current_turn_untrusted');
     const question = this.questions(launch).find(q => q.id === id);
     check(question && question.status === 'waiting', 'question_not_pending');
@@ -2603,7 +2603,7 @@ export class Panes implements GateRuntime {
       let keysWritten = 0;
       const checkpoint = async () => {
         await assertCurrent();
-        const events = this.store.read().filter(event => event.launch === launch);
+        const events = this.store.launchEvents(launch);
         const current = projectQuestions(events).find(q => q.id === id);
         check(currentTurnTrust({ native: question.session_id, active: { id: question.submission } }, events) === 'verified' &&
           !pane.failed && !pane.stopped && !pane.archived && !pane.interrupted && pane.native === question.session_id &&
