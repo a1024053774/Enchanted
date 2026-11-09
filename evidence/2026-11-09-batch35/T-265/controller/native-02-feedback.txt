@@ -1,0 +1,9 @@
+native-02 已完成，INCOMPLETE，不是产品业务红态。诊断和清理这次正确：自有 CLI PID/PGID 97536，正常 SIGTERM、wait 回收，exit=-15，cleanup.complete=true；隔离 CODEX_HOME 已删除。最终脚本和产品在本轮运行期间均未改动。结果为主仓库 evidence/2026-11-09-batch35/T-265/controller/native-cli-02.json、native-cli-02-exit.json，以及 native-cli-02-artifacts/ 内完整终端、process、原生事件。原始结果保持不动。
+
+准确停点：父版 CLI 的 Folder access 界面已完整显示且选中“› 1. Open restricted”，驱动立即发送 1+CR 后四分钟一直停在那里。sent=false、native_started=false、rejected=false，候选 case 尚未开始。没有系统“文稿”弹窗或权限拒绝证据。opened_restricted=true 目前仅说明驱动排入按键，不能写成已成功打开。
+
+请只修本卡新驱动的 onboarding，沿用产品既有事实：workbench/src/panes.ts openCodexRestricted 约1302行先去ANSI/空白，确认最后显示的是“›1.Openrestricted”，等终端输出安静800ms（上限5秒），只发一次 CR，然后等 native ready packet 才投递任务。已读仓库 workbench/tests/t141_probe_codex_start.py 也使用这个时序，而本探针跳过安静期且多发了数字1。不要改产品 onboarding、启动权限、信任级别、业务断言或等待期限，不把“Trust and continue”当等价动作，也不要重试Enter碰运气。记录选择已观察、按键实际写出、native ready、任务实际投递几个阶段，以观察事实命名。
+
+保留 native-01、native-02 为启动/驱动 INCOMPLETE。修正后给一条 native-cli-03.json 的准确命令，主控核对后继续同样的真实父版/候选验证；不要用源码匹配替代真实证明。新代码只做上述已存在逻辑的最小复用，保持已经通过的诊断/清理检查，不再扩大测试框架。README stale 仍由主控集成处理。
+
+本轮失败夹具 /private/tmp/t265-cli-9i6crfet 的自有进程已回收，关键文本在 artifacts；主控会记录文件/字节并清理剩余自有缓存。你不要操作正式应用、其他会话或该夹具，不在沙箱里运行原生 CLI。集中完成本次修正后交接即可。

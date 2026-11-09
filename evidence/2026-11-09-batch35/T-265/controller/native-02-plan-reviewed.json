@@ -1,0 +1,40 @@
+{
+  "time": "2026-11-09T05:39:30.234089+00:00",
+  "status": "approved_by_controller",
+  "plan": {
+    "argv": [
+      "/Users/luckye/.local/bin/codex",
+      "--no-daemon",
+      "--no-alt-screen",
+      "-C",
+      "<fixture>/candidate",
+      "-a",
+      "never",
+      "--sandbox",
+      "workspace-write",
+      "-m",
+      "gpt-6-astra",
+      "-c",
+      "model_reasoning_effort=\"xhigh\"",
+      "-c",
+      "service_tier=\"default\"",
+      "-c",
+      "check_for_update_on_startup=false",
+      "-c",
+      "notice.hide_rate_limit_model_nudge=true",
+      "-c",
+      "sandbox_workspace_write.network_access=true",
+      "-c",
+      "sandbox_workspace_write.writable_roots=[]",
+      "-c",
+      "sandbox_workspace_write.exclude_slash_tmp=true",
+      "-c",
+      "sandbox_workspace_write.exclude_tmpdir_env_var=true"
+    ],
+    "hooks": [],
+    "scope": "T-265：主控外部运行的真实交互 Codex 材料投递探针。\n\n真实 createReview/dispatch 生成输入，PTY 执行原生 Codex；不启动 Claude/额外 agent、\n后台、hc 或 Electron，不操作正式实例。进程创建边界替换为夹具，原生 argv 在这里\n显式给出；无 hook、无 MCP，不把该探针冒充 Stop/review_submit 门禁的端到端验收。\n父版须在原生输入上限拒绝且没有开始回合；候选须开始回合，由 CLI 的沙箱工具执行\n材料中的命令，完整读取 UTF-8 字节，读出头/中/尾随机标记，同时证明材料不能写。\n默认依次运行父版与候选，一轮各一次；没有自动重试。--describe 不启动 CLI。\n",
+    "cleanup": "persist terminal/native events first; poll/reap Popen child; signal only its verified PGID; preserve failed fixture"
+  },
+  "scope": "原参数、原断言；诊断先落盘，自有 Popen 身份核对后清理；两个受管 CLI idle，串行一个额外探针",
+  "hooks": []
+}
