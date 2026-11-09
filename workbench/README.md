@@ -558,6 +558,11 @@ worker/reviewer 的 argv 显式传 service_tier，启动记录保存实际选择
 出厂普通速度传 `-c service_tier="default"`，覆盖用户 home 里的全局 priority 设置，但不改写它。
 记录仅表示请求设置，不代表供应商实际执行tier；其他沙箱、hook及身份检查不变。
 
+审查材料按 launch 保存到既有请求目录的 `review-materials.md`（T-265）。角色指令、任务卡、完整 diff、
+机械验收、先前问题与提交方式均原样保留；终端只接收要求完整读取该文件的短入口，长短材料走同一路径。
+文件以 UTF-8、0600、拒绝覆盖方式写入，写入成功后才投递；写失败保留现场并沿原审查失败路径上报。
+此调整不改变候选副本、可写目录、Stop 或 `review_submit` 门禁；材料读取失败时审查员停止并报告。
+
 审查员经 MCP 工具 `review_submit` 交结论，只交 `verdict`、`findings`、`report` 三项（T-203）；身份字段、`review_requirements`
 等由门禁为这次审查写进请求目录的 `review-template.json`，工具从模板补齐。工具用门禁同一套核对当场检查，不合格时说明是哪一项、
 怎么改，审查员可在本回合内改了再交；合格的写进请求目录的 `review-result.json`，回合内再交一次覆盖上一次。审查员回合结束时，

@@ -1,0 +1,11 @@
+--- candidate/workbench/src/panes.ts
++++ mutant/workbench/src/panes.ts
+@@ -1074,7 +1074,7 @@
+       this.store.event("review_checkout_read_only", { workspace: review.workspace }, pane.record);
+     }
+     // agy's interactive sessions do not give the model MCP tools (T-194 facts): the same tool as a command.
+-    if (pane.record.cli === "agy") {
++    if (false) {
+       const server = reviewMcpServer(pane.record.request_dir);
+       prompt += `\n\n本会话没有 review_submit 工具，改用命令：把 verdict、findings、report 三项写成一个 JSON 对象文件（放在候选副本以外的临时位置），然后运行\nELECTRON_RUN_AS_NODE=1 ${shellCommand([server.command, server.args[0], "submit", pane.record.request_dir])} <文件路径>\n命令当场核对，不合格会说明哪一项要改；以最后一次成功提交为准。`;
+     }

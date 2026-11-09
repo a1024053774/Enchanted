@@ -1,0 +1,11 @@
+--- candidate/workbench/src/panes.ts
++++ mutant/workbench/src/panes.ts
+@@ -1082,7 +1082,7 @@
+     // the native CLI receives a short entry regardless of diff/verification size.
+     const materials = join(pane.record.request_dir, "review-materials.md");
+     writeFileSync(materials, `${pane.record.role_text}\n\n${prompt}`, { encoding: "utf8", flag: "wx", mode: 0o600 });
+-    await this.dispatch(pane, `审查材料已保存到本次会话的文件：${materials}\n请先完整读取该 UTF-8 文件（可分段读取），再按其中的角色指令、任务卡、候选改动、机械验收与提交方式开展审查。候选副本和提交门禁保持原要求；读取失败时停止审查并报告，不提交结论。`);
++    await this.dispatch(pane, `${pane.record.role_text}\n\n${prompt}`);
+   }
+   // A read-only monitor a controller attaches to a task (T-124): it belongs to no attempt, opens the
+   // task's repository read-only, runs on the CLI the controller chose with the monitor role settings,

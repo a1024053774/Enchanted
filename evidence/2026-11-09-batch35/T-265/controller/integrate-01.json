@@ -1,0 +1,487 @@
+{
+  "command": [
+    "/Applications/Enchanted.app/Contents/MacOS/Enchanted",
+    "/Applications/Enchanted.app/Contents/Resources/app/src/gates/cli.ts",
+    "--state",
+    "/Users/luckye/Library/Application Support/a2a-orchestrator",
+    "integrate",
+    "--task",
+    "a2a+T-265-1",
+    "--attempt",
+    "45faed18-54a4-4312-99d9-6547f6c20782",
+    "--score-file",
+    "/Users/luckye/Documents/Code/a2a/evidence/2026-11-09-batch35/T-265/controller/score-01.json"
+  ],
+  "exit_code": 0,
+  "result": {
+    "ok": true,
+    "task": {
+      "task_id": "a2a+T-265-1",
+      "name": "T-265-1",
+      "title": "T-265-1 大候选审查材料入口",
+      "project_id": "a2a",
+      "repo": "/Users/luckye/Documents/Code/a2a",
+      "integration_ref": "refs/heads/main",
+      "card_snapshot_id": "f51c68a6-6a87-4a48-9c21-38265d2ebc1c",
+      "card_version": 1,
+      "card": {
+        "id": "T-265-1",
+        "source": {
+          "ticket": "/Users/luckye/Documents/Code/a2a/.project-map/tickets/T-265-review-input-too-large.md",
+          "ready_rev": 1
+        },
+        "goal": "只负责 T-265；你不是唯一参与者，不撤销其他任务改动。使用 Codex gpt-6-astra xhigh 普通速度，不启动 Claude 或额外 agent，不 push。先读 AGENTS.md、REVIEW.md、/Users/luckye/Documents/Code/a2a/.project-map/tickets/T-265-review-input-too-large.md，运行 project-map status，按 evidence-first-testing 保留父版红态后最小修改。用户已授权修复故障并继续，审查后合入安装无需再问。\n\n真实 review 3ce94b46 在 Codex 0.167.0 中报 Message exceeds the maximum length of 1048576 characters (1318486 provided)。证据在主仓库 evidence/2026-11-09-batch35/T-265/controller/native-rejection.txt、reproduction.json。T-249/T-262 候选冻结；T-264 不在本次范围。\n\n写入所有权：panes.ts 的 createReview 材料投递、本票新测试与 worker 证据；reviewResult.ts 仅确有需要时改材料相关小函数。先读 GateCore.requestReview → PaneManager.createReview → dispatch，以及 request_dir 的生成、沙箱与归档所有者。目前 createReview 追加 agy 专属提交命令后整体投递 role_text+prompt。优先在已有 request_dir 存最终完整材料，每 launch 独立、UTF-8、拒绝覆盖；原生消息改为简短入口，要求审查员先读取文件。保留角色指令、身份、原完整材料及 agy 提交方式。不要仅移走 diff 却继续内联巨大的 verification。所有大小用一条路径；不截断、不做大小阈值 fallback，不改 CLI 限额、权限、MCP 或门禁，不删证据。确认审查员可只读材料，不能新增 writable directory。\n\n小目标是“短入口、完整材料、原有审查门禁”的 Tracer bullet；Deep modules 使用现有所有者；Ubiquitous language 用审查材料、候选副本。先列失败方式：长短、Unicode、两个 review 隔离、文件已存在或写失败不投递、内容不截断、角色和 agy 命令保持、原只读与提交协议不变。新增 workbench/tests/test_t265_review_materials.mjs，默认 node --test 经真实 createReview 边界验证，期望来自输入；父版必须在超长消息断言失败。2-5 个小变异命中对应业务断言，不只用源码正则证明。不改冻结 acceptance/**、REVIEW.md 或任务卡 oracle，不加依赖。\n\n真实 Codex 验证由主控外部执行。准备一条准确、可复现的隔离命令，证明旧版拒绝及候选真实 CLI 开始并读到完整长材料；必须原生交互 CLI，不是 headless。只操作自有测试后台、仓库、hc。CODEX_HOME 按仓库规则在 /private/tmp 隔离、只复制 auth.json，不改全局配置；具体 hook 与 argv 执行前交主控核对。不要在 worker 沙箱重试已知被拒的 ps 或扩大权限。涉及 CLI/Electron 时集中一次 issue 给精确命令、结果路径和清理方法，由主控运行；不要反复发状态请求消耗回合。自有缓存/夹具结束后清理，失败文本保留。\n\n收到真实证明后补中文 RESULTS、命令版本、红绿与变异、自查 design-integrity-review（如触发）和 behavioral-acceptance-review、限制与清理，写入 evidence/2026-11-09-batch35/T-265/worker/。提交本次身份尾注并显式 submit 一次；queued 不等于受理。不自行 verify/integrate/reclaim，主控负责独立审查、标准打包安装和接回面板。",
+        "non_goals": [
+          "不改 T-264 状态恢复和其他产品页面",
+          "不修改 CLI 权限、全局配置、schema、公开接口或新增依赖",
+          "不改冻结验收、任务卡和 .project-map",
+          "不操作正式后台、现有 Test、用户 hc，不 push"
+        ],
+        "paths": {
+          "allow": [
+            "workbench/src/panes.ts",
+            "workbench/src/reviewResult.ts",
+            "workbench/tests/test_t265_review_materials.mjs",
+            "workbench/tests/test_t265_review_cli_e2e.py",
+            "evidence/2026-11-09-batch35/T-265/worker/"
+          ],
+          "deny": [
+            "acceptance/",
+            "REVIEW.md",
+            ".project-map/",
+            "workbench/src/gates/",
+            "workbench/app/",
+            "workbench/package.json",
+            "workbench/package-lock.json"
+          ]
+        },
+        "oracle_paths": [
+          ".project-map/tickets/T-265-review-input-too-large.md"
+        ],
+        "completion_conditions": [
+          {
+            "argv": [
+              "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+              "--test",
+              "workbench/tests/test_t265_review_materials.mjs"
+            ]
+          }
+        ],
+        "red_commands": [],
+        "task_type": "缺陷修复",
+        "repair_target": "GateCore.requestReview 生成的完整审查材料被 PaneManager.createReview 整体内联到原生 CLI，T-249 真实输入 1318486 字符超过 1048576 限制，审查未开始。",
+        "complexity": "M",
+        "executor": {
+          "cli": "Codex",
+          "model": "gpt-6-astra",
+          "effort": "xhigh"
+        },
+        "base_commit": null,
+        "writer": null
+      },
+      "base_commit": "80a6304225cdd567737362dd045dabf97a625c56",
+      "state": "accepted",
+      "spec_rev": 1,
+      "fence": 1,
+      "current_attempt": {
+        "task_id": "a2a+T-265-1",
+        "attempt_id": "45faed18-54a4-4312-99d9-6547f6c20782",
+        "session_id": "f08a986a-0c4b-4ebd-b437-4bd747bb128e",
+        "fence": 1,
+        "spec_rev": 1,
+        "thread_id": "2faaff4e-fa7d-4459-bc0d-e659e85d4593",
+        "runtime_mode": "workspace-write",
+        "turn_id": "01a1bef3-f8aa-7c10-ad92-7de5678ca58c",
+        "runtime_identity": {
+          "launch": "32044a19-d846-43c9-906f-28672b602365",
+          "thread": "2faaff4e-fa7d-4459-bc0d-e659e85d4593",
+          "shell_pid": 72642,
+          "leader_pid": 72644,
+          "native_session": "01a1bebb-0d22-7d51-96c2-733bcfd085d6"
+        },
+        "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-265-1-a1",
+        "base_commit": "80a6304225cdd567737362dd045dabf97a625c56",
+        "card_snapshot_id": "f305312a-6e37-4aca-ba66-9b54b989964f",
+        "reclaimed": false,
+        "owner": "a2a+T-265-1",
+        "state": "accepted",
+        "extra_directories": [],
+        "git_metadata": {
+          "head": "ref: refs/heads/a2a/T-265-1-a1",
+          "config": "100644:cb407e1750934a253cff551ed2493eaf1f6f5689edfd6d7ff1fe702a03daf39d",
+          "worktree_config": "100644:97997ba84fd1c44263deb6f412fc3bef4b05e0103d00c5a97a97ca928299aa13",
+          "hooks": {
+            "applypatch-msg.sample": "100755:0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7",
+            "commit-msg.sample": "100755:1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437",
+            "fsmonitor-watchman.sample": "100755:e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0",
+            "post-update.sample": "100755:81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5",
+            "pre-applypatch.sample": "100755:e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475",
+            "pre-commit.sample": "100755:57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b",
+            "pre-merge-commit.sample": "100755:d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53",
+            "pre-push.sample": "100755:ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a",
+            "pre-rebase.sample": "100755:4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3",
+            "pre-receive.sample": "100755:a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989",
+            "prepare-commit-msg.sample": "100755:e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619",
+            "push-to-checkout.sample": "100755:a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f",
+            "sendemail-validate.sample": "100755:44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92",
+            "update.sample": "100755:8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+          }
+        },
+        "delivery": {
+          "commit": "a322c79e29e2a3f1102eeefa8411abd1db322951",
+          "turn_id": "01a1bef3-f8aa-7c10-ad92-7de5678ca58c",
+          "launch_id": "32044a19-d846-43c9-906f-28672b602365",
+          "cli": "codex-cli 0.167.0",
+          "model": "gpt-6-astra",
+          "effort": "xhigh",
+          "number": 1,
+          "submitted_at": "2026-11-09T06:25:00.825Z"
+        }
+      },
+      "candidate_commit": "a322c79e29e2a3f1102eeefa8411abd1db322951",
+      "verification": {
+        "verification_id": "5e4782d4-3d92-461a-9a94-580dd0b945df",
+        "ordinal": 1,
+        "attempt": {
+          "task_id": "a2a+T-265-1",
+          "attempt_id": "45faed18-54a4-4312-99d9-6547f6c20782",
+          "session_id": "f08a986a-0c4b-4ebd-b437-4bd747bb128e",
+          "fence": 1,
+          "spec_rev": 1,
+          "thread_id": "2faaff4e-fa7d-4459-bc0d-e659e85d4593",
+          "runtime_mode": "workspace-write",
+          "turn_id": "01a1bef3-f8aa-7c10-ad92-7de5678ca58c",
+          "runtime_identity": {
+            "launch": "32044a19-d846-43c9-906f-28672b602365",
+            "thread": "2faaff4e-fa7d-4459-bc0d-e659e85d4593",
+            "shell_pid": 72642,
+            "leader_pid": 72644,
+            "native_session": "01a1bebb-0d22-7d51-96c2-733bcfd085d6"
+          },
+          "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-265-1-a1",
+          "base_commit": "80a6304225cdd567737362dd045dabf97a625c56",
+          "card_snapshot_id": "f305312a-6e37-4aca-ba66-9b54b989964f",
+          "reclaimed": false,
+          "owner": "a2a+T-265-1",
+          "state": "submitted",
+          "extra_directories": [],
+          "git_metadata": {
+            "head": "ref: refs/heads/a2a/T-265-1-a1",
+            "config": "100644:cb407e1750934a253cff551ed2493eaf1f6f5689edfd6d7ff1fe702a03daf39d",
+            "worktree_config": "100644:97997ba84fd1c44263deb6f412fc3bef4b05e0103d00c5a97a97ca928299aa13",
+            "hooks": {
+              "applypatch-msg.sample": "100755:0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7",
+              "commit-msg.sample": "100755:1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437",
+              "fsmonitor-watchman.sample": "100755:e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0",
+              "post-update.sample": "100755:81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5",
+              "pre-applypatch.sample": "100755:e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475",
+              "pre-commit.sample": "100755:57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b",
+              "pre-merge-commit.sample": "100755:d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53",
+              "pre-push.sample": "100755:ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a",
+              "pre-rebase.sample": "100755:4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3",
+              "pre-receive.sample": "100755:a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989",
+              "prepare-commit-msg.sample": "100755:e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619",
+              "push-to-checkout.sample": "100755:a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f",
+              "sendemail-validate.sample": "100755:44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92",
+              "update.sample": "100755:8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+            }
+          },
+          "delivery": {
+            "commit": "a322c79e29e2a3f1102eeefa8411abd1db322951",
+            "turn_id": "01a1bef3-f8aa-7c10-ad92-7de5678ca58c",
+            "launch_id": "32044a19-d846-43c9-906f-28672b602365",
+            "cli": "codex-cli 0.167.0",
+            "model": "gpt-6-astra",
+            "effort": "xhigh",
+            "number": 1,
+            "submitted_at": "2026-11-09T06:25:00.825Z"
+          }
+        },
+        "spec_rev": 1,
+        "G": "6bbb7c69cd36c8a9fd4257d14c0fb7a85bd41fd4",
+        "C": "a322c79e29e2a3f1102eeefa8411abd1db322951",
+        "M": "a91519dd2a44b1716d83575ad33f2daa93396fa5",
+        "card_snapshot_id": "f305312a-6e37-4aca-ba66-9b54b989964f",
+        "card_version": 1,
+        "commands": [
+          {
+            "argv": [
+              "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+              "--test",
+              "workbench/tests/test_t265_review_materials.mjs"
+            ],
+            "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-265-1-a1-verify-1"
+          }
+        ],
+        "results": [
+          {
+            "argv": [
+              "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+              "--test",
+              "workbench/tests/test_t265_review_materials.mjs"
+            ],
+            "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-265-1-a1-verify-1",
+            "stdout": "✔ long diff AND verification stay complete while native entry stays short (9.666416ms)\n✔ short Unicode materials follow the same file path and two launches stay isolated (3.655209ms)\n✔ an existing material is never overwritten or dispatched (1.794541ms)\n✔ a partial material write failure preserves failure evidence and dispatches nothing (1.617875ms)\n✔ agy keeps its command and read-only checkout; result identity and validation stay intact (2.090625ms)\nℹ tests 5\nℹ suites 0\nℹ pass 5\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 264.223708\n",
+            "stderr": "",
+            "exit": 0,
+            "returncode": 0
+          }
+        ],
+        "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-265-1-a1-verify-1",
+        "state": "passed",
+        "command_intent": {
+          "argv": [
+            "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+            "--test",
+            "workbench/tests/test_t265_review_materials.mjs"
+          ],
+          "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-265-1-a1-verify-1"
+        },
+        "quality": {
+          "snapshot": {
+            "source_commit": "80a6304225cdd567737362dd045dabf97a625c56",
+            "path": ".a2a/quality.json",
+            "raw": null,
+            "rule_checks": []
+          },
+          "red": [],
+          "rules": []
+        },
+        "out_of_card": [],
+        "result": {
+          "argv": [
+            "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+            "--test",
+            "workbench/tests/test_t265_review_materials.mjs"
+          ],
+          "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-265-1-a1-verify-1",
+          "stdout": "✔ long diff AND verification stay complete while native entry stays short (9.666416ms)\n✔ short Unicode materials follow the same file path and two launches stay isolated (3.655209ms)\n✔ an existing material is never overwritten or dispatched (1.794541ms)\n✔ a partial material write failure preserves failure evidence and dispatches nothing (1.617875ms)\n✔ agy keeps its command and read-only checkout; result identity and validation stay intact (2.090625ms)\nℹ tests 5\nℹ suites 0\nℹ pass 5\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 264.223708\n",
+          "stderr": "",
+          "exit": 0,
+          "returncode": 0
+        },
+        "ended": "2026-11-09T06:25:35.114Z",
+        "retained_ref": "refs/a2a/verifications/a2a+T-265-1/a1/v1",
+        "cleanup": "removed"
+      },
+      "integration_intent": {
+        "G": "6bbb7c69cd36c8a9fd4257d14c0fb7a85bd41fd4",
+        "C": "a322c79e29e2a3f1102eeefa8411abd1db322951",
+        "M": "a91519dd2a44b1716d83575ad33f2daa93396fa5",
+        "verification_id": "5e4782d4-3d92-461a-9a94-580dd0b945df",
+        "attempt": {
+          "task_id": "a2a+T-265-1",
+          "attempt_id": "45faed18-54a4-4312-99d9-6547f6c20782",
+          "session_id": "f08a986a-0c4b-4ebd-b437-4bd747bb128e",
+          "fence": 1,
+          "spec_rev": 1,
+          "thread_id": "2faaff4e-fa7d-4459-bc0d-e659e85d4593",
+          "runtime_mode": "workspace-write",
+          "turn_id": "01a1bef3-f8aa-7c10-ad92-7de5678ca58c",
+          "runtime_identity": {
+            "launch": "32044a19-d846-43c9-906f-28672b602365",
+            "thread": "2faaff4e-fa7d-4459-bc0d-e659e85d4593",
+            "shell_pid": 72642,
+            "leader_pid": 72644,
+            "native_session": "01a1bebb-0d22-7d51-96c2-733bcfd085d6"
+          },
+          "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-265-1-a1",
+          "base_commit": "80a6304225cdd567737362dd045dabf97a625c56",
+          "card_snapshot_id": "f305312a-6e37-4aca-ba66-9b54b989964f",
+          "reclaimed": false,
+          "owner": "a2a+T-265-1",
+          "state": "submitted",
+          "extra_directories": [],
+          "git_metadata": {
+            "head": "ref: refs/heads/a2a/T-265-1-a1",
+            "config": "100644:cb407e1750934a253cff551ed2493eaf1f6f5689edfd6d7ff1fe702a03daf39d",
+            "worktree_config": "100644:97997ba84fd1c44263deb6f412fc3bef4b05e0103d00c5a97a97ca928299aa13",
+            "hooks": {
+              "applypatch-msg.sample": "100755:0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7",
+              "commit-msg.sample": "100755:1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437",
+              "fsmonitor-watchman.sample": "100755:e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0",
+              "post-update.sample": "100755:81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5",
+              "pre-applypatch.sample": "100755:e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475",
+              "pre-commit.sample": "100755:57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b",
+              "pre-merge-commit.sample": "100755:d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53",
+              "pre-push.sample": "100755:ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a",
+              "pre-rebase.sample": "100755:4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3",
+              "pre-receive.sample": "100755:a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989",
+              "prepare-commit-msg.sample": "100755:e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619",
+              "push-to-checkout.sample": "100755:a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f",
+              "sendemail-validate.sample": "100755:44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92",
+              "update.sample": "100755:8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+            }
+          },
+          "delivery": {
+            "commit": "a322c79e29e2a3f1102eeefa8411abd1db322951",
+            "turn_id": "01a1bef3-f8aa-7c10-ad92-7de5678ca58c",
+            "launch_id": "32044a19-d846-43c9-906f-28672b602365",
+            "cli": "codex-cli 0.167.0",
+            "model": "gpt-6-astra",
+            "effort": "xhigh",
+            "number": 1,
+            "submitted_at": "2026-11-09T06:25:00.825Z"
+          }
+        },
+        "spec_rev": 1,
+        "card_snapshot_id": "f305312a-6e37-4aca-ba66-9b54b989964f",
+        "integration_ref": "refs/heads/main",
+        "worktree": "/Users/luckye/Documents/Code/a2a",
+        "intent_id": "9126524c-cfe5-415f-a022-85373592e168",
+        "state": "completed",
+        "score": {
+          "score_id": "score-de91c23e-7b4b-46d5-a221-bb42e760085e",
+          "data": {
+            "result": "通过",
+            "boundary_discipline": 3,
+            "boundary_reason": "单一 createReview 修改，真实红绿与最终候选绑定、独立审查和五个独立变异均通过；不改正式数据库或权限",
+            "engineering_taste": 3,
+            "engineering_reason": "所有大小使用同一完整文件投递路径，沿用 request_dir 和原门禁，无截断、fallback 或新增接口",
+            "notes": "包内 Electron 五项检查通过；本地合入安装已获用户持续授权。T-249 大候选接回仍待安装后完成，不宣称整票已关闭。"
+          }
+        },
+        "command_intent": {
+          "argv": [
+            "git",
+            "-C",
+            "/Users/luckye/Documents/Code/a2a",
+            "update-ref",
+            "--stdin"
+          ],
+          "cwd": "/Users/luckye/Documents/Code/a2a"
+        },
+        "result": {
+          "argv": [
+            "git",
+            "-C",
+            "/Users/luckye/Documents/Code/a2a",
+            "update-ref",
+            "--stdin"
+          ],
+          "cwd": "/Users/luckye/Documents/Code/a2a",
+          "stdout": "start: ok\nprepare: ok\ncommit: ok\n",
+          "stderr": "",
+          "exit": 0,
+          "returncode": 0
+        }
+      },
+      "quality": {
+        "source_commit": "80a6304225cdd567737362dd045dabf97a625c56",
+        "path": ".a2a/quality.json",
+        "raw": null,
+        "rule_checks": []
+      },
+      "repair": null,
+      "review": {
+        "review_id": "58c4718e-ef14-4130-b2a2-4c9f5c05625c",
+        "ordinal": 1,
+        "task_id": "a2a+T-265-1",
+        "attempt": {
+          "task_id": "a2a+T-265-1",
+          "attempt_id": "45faed18-54a4-4312-99d9-6547f6c20782",
+          "session_id": "f08a986a-0c4b-4ebd-b437-4bd747bb128e",
+          "fence": 1,
+          "spec_rev": 1,
+          "thread_id": "2faaff4e-fa7d-4459-bc0d-e659e85d4593",
+          "runtime_mode": "workspace-write",
+          "turn_id": "01a1bef3-f8aa-7c10-ad92-7de5678ca58c",
+          "runtime_identity": {
+            "launch": "32044a19-d846-43c9-906f-28672b602365",
+            "thread": "2faaff4e-fa7d-4459-bc0d-e659e85d4593",
+            "shell_pid": 72642,
+            "leader_pid": 72644,
+            "native_session": "01a1bebb-0d22-7d51-96c2-733bcfd085d6"
+          },
+          "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-265-1-a1",
+          "base_commit": "80a6304225cdd567737362dd045dabf97a625c56",
+          "card_snapshot_id": "f305312a-6e37-4aca-ba66-9b54b989964f",
+          "reclaimed": false,
+          "owner": "a2a+T-265-1",
+          "state": "submitted",
+          "extra_directories": [],
+          "git_metadata": {
+            "head": "ref: refs/heads/a2a/T-265-1-a1",
+            "config": "100644:cb407e1750934a253cff551ed2493eaf1f6f5689edfd6d7ff1fe702a03daf39d",
+            "worktree_config": "100644:97997ba84fd1c44263deb6f412fc3bef4b05e0103d00c5a97a97ca928299aa13",
+            "hooks": {
+              "applypatch-msg.sample": "100755:0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7",
+              "commit-msg.sample": "100755:1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437",
+              "fsmonitor-watchman.sample": "100755:e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0",
+              "post-update.sample": "100755:81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5",
+              "pre-applypatch.sample": "100755:e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475",
+              "pre-commit.sample": "100755:57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b",
+              "pre-merge-commit.sample": "100755:d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53",
+              "pre-push.sample": "100755:ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a",
+              "pre-rebase.sample": "100755:4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3",
+              "pre-receive.sample": "100755:a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989",
+              "prepare-commit-msg.sample": "100755:e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619",
+              "push-to-checkout.sample": "100755:a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f",
+              "sendemail-validate.sample": "100755:44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92",
+              "update.sample": "100755:8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+            }
+          },
+          "delivery": {
+            "commit": "a322c79e29e2a3f1102eeefa8411abd1db322951",
+            "turn_id": "01a1bef3-f8aa-7c10-ad92-7de5678ca58c",
+            "launch_id": "32044a19-d846-43c9-906f-28672b602365",
+            "cli": "codex-cli 0.167.0",
+            "model": "gpt-6-astra",
+            "effort": "xhigh",
+            "number": 1,
+            "submitted_at": "2026-11-09T06:25:00.825Z"
+          }
+        },
+        "candidate_commit": "a322c79e29e2a3f1102eeefa8411abd1db322951",
+        "spec_rev": 1,
+        "card_snapshot_id": "f305312a-6e37-4aca-ba66-9b54b989964f",
+        "verification_id": "5e4782d4-3d92-461a-9a94-580dd0b945df",
+        "thread_id": "86fd3e30-9908-4a2d-8a9b-94ff6b30c0ea",
+        "session_id": "3b2c67d5-699e-47af-bac1-5d8bd7508de1",
+        "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-265-1-a1-review-1",
+        "candidate_workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/58c4718e-ef14-4130-b2a2-4c9f5c05625c",
+        "shared_refs": "refs/a2a/attempts/a2a+T-138/a1=288010578817122d1277e6c7b7300b0a75e2dd8f\nrefs/a2a/attempts/a2a+T-249-1/a1=ed080306faea900d7c5b26f732b2f05e0c68059a\nrefs/a2a/attempts/a2a+T-249-1/a2=0c3da7adedf5a2c0a61af32cf3d1bb2bb39b6083\nrefs/a2a/attempts/a2a+T-249-1/a3=9f96a9121ba6ed8d77a514a0a78c9341ceaacb86\nrefs/a2a/attempts/a2a+T-249-1/a4=1243bc15f979976967cfd2d5cdd3a2acce6df635\nrefs/a2a/attempts/a2a+T-249-1/a5=18c108fcaed1c4ecf51831f2272578a3b09427be\nrefs/a2a/attempts/a2a+T-249-1/a6=d8f55c958d901d052e79eda1a04dbf0a8fbf5ed5\nrefs/a2a/attempts/a2a+T-249-2/a1=2be3972665b8b7631b187842b24b166228bcffd4\nrefs/a2a/attempts/a2a+T-249-2/a3=83cd1cc8f5873975f80b9438525044e299ea07dd\nrefs/a2a/attempts/a2a+T-257-1/a1=e9e9f2db8ce6f2c50b453a868c8bcaa026e9fa8b\nrefs/a2a/attempts/a2a+T-257-1/a2=5484315a5e318bce557dcc32e429f5d251453e84\nrefs/a2a/attempts/a2a+T-257-1/a3=045e815ff390a0e2e50b7788966e2a5bf655fbdb\nrefs/a2a/attempts/a2a+T-258-1/a1=7df553913fb2e8f2b9f0f096aa9c9b59d63f8135\nrefs/a2a/attempts/a2a+T-258-1/a2=49c7b9a9435f68aec38a862125b8f00220b9b3af\nrefs/a2a/attempts/a2a+T-258-1/a3=fa8d554c87210c15a7944542b2e9cfff3362ee8d\nrefs/a2a/attempts/a2a+T-258-1/a4=66e88ffe2251ea045a398c9003fef1795c8a2af8\nrefs/a2a/attempts/a2a+T-259-1/a1=4593099691924542d29f508185e16d48d97beb42\nrefs/a2a/attempts/a2a+T-262-1/a2=6e92ec6f0d0b59423f5f1bcb85cc39174da70bf5\nrefs/a2a/verifications/a2a+T-138/a1/v1=288010578817122d1277e6c7b7300b0a75e2dd8f\nrefs/a2a/verifications/a2a+T-249-1/a2/v1=0c3da7adedf5a2c0a61af32cf3d1bb2bb39b6083\nrefs/a2a/verifications/a2a+T-249-1/a4/v1=7442bcf6ae34889a448688fa819372293a15f1ec\nrefs/a2a/verifications/a2a+T-249-1/a4/v2=c7c92f417dd276abfd247b84f179997604f4c341\nrefs/a2a/verifications/a2a+T-249-1/a5/v1=8e83a42ded7b30280ea6c72e9eb94f126bb817a9\nrefs/a2a/verifications/a2a+T-249-1/a6/v1=8a17982c09771a00e0deb9ce58160a790e99af68\nrefs/a2a/verifications/a2a+T-257-1/a2/v1=0709fa140e75b77186e35426cc6867200ce63941\nrefs/a2a/verifications/a2a+T-257-1/a3/v1=bf4b855619283711aff0a2f9ff2047e689e21fcb\nrefs/a2a/verifications/a2a+T-258-1/a2/v1=92c2b74a172209e44d621acd6aee63c1830649f1\nrefs/a2a/verifications/a2a+T-258-1/a4/v1=1b2dc59aaae096e5ae03ab07c0da4a39143803b9\nrefs/a2a/verifications/a2a+T-258-1/a4/v2=b5fed20893d499aae47a0a87bb2718c5d893819a\nrefs/a2a/verifications/a2a+T-262-1/a2/v1=a0284fbba8ec62a2c287af4657e75e99d9493c3e\nrefs/a2a/verifications/a2a+T-265-1/a1/v1=a91519dd2a44b1716d83575ad33f2daa93396fa5\nrefs/codex/turn-diffs/captures/1791448214612/dd7e3451-95b5-4287-bc1a-a0035af6d0cc/base=5509a9ce1863f764581d6ec938d695f54ccc7cff\nrefs/codex/turn-diffs/checkpoints/680479a337eb38eb9f460ac4b65d6215/42314125fd8f0765d07b65011743977c/1791462232392/7186c0e4-76de-4691-8b7a-c87d7155b191=9a21ea62f8907172855c653c8afb7295cacf7ff6\nrefs/codex/turn-diffs/checkpoints/d7df903b84511b9f3c2037a011f035f5/e716d1054eda21da81b1cd48be1060da/1791454088864/cfa63362-f71d-4b9b-92ee-a500cd434b89=75438bba5887d495425ce4c36dee901da5f1472d\nrefs/heads/a2a/T-138-a1=288010578817122d1277e6c7b7300b0a75e2dd8f\nrefs/heads/a2a/T-249-1-a1=ed080306faea900d7c5b26f732b2f05e0c68059a\nrefs/heads/a2a/T-249-1-a2=0c3da7adedf5a2c0a61af32cf3d1bb2bb39b6083\nrefs/heads/a2a/T-249-1-a3=9f96a9121ba6ed8d77a514a0a78c9341ceaacb86\nrefs/heads/a2a/T-249-1-a4=1243bc15f979976967cfd2d5cdd3a2acce6df635\nrefs/heads/a2a/T-249-1-a5=18c108fcaed1c4ecf51831f2272578a3b09427be\nrefs/heads/a2a/T-249-1-a6=d8f55c958d901d052e79eda1a04dbf0a8fbf5ed5\nrefs/heads/a2a/T-249-2-a1=2be3972665b8b7631b187842b24b166228bcffd4\nrefs/heads/a2a/T-249-2-a2=793a043ee67b8cc6e17abe0d3d319f0b1c36282b\nrefs/heads/a2a/T-249-2-a3=83cd1cc8f5873975f80b9438525044e299ea07dd\nrefs/heads/a2a/T-257-1-a1=e9e9f2db8ce6f2c50b453a868c8bcaa026e9fa8b\nrefs/heads/a2a/T-257-1-a2=5484315a5e318bce557dcc32e429f5d251453e84\nrefs/heads/a2a/T-258-1-a1=7df553913fb2e8f2b9f0f096aa9c9b59d63f8135\nrefs/heads/a2a/T-258-1-a2=49c7b9a9435f68aec38a862125b8f00220b9b3af\nrefs/heads/a2a/T-258-1-a3=fa8d554c87210c15a7944542b2e9cfff3362ee8d\nrefs/heads/a2a/T-259-1-a1=4593099691924542d29f508185e16d48d97beb42\nrefs/heads/a2a/T-262-1-a1=f80d5cdbf0e1b62de864300eff7bb4497f8c4c70\nrefs/heads/a2a/T-262-1-a2=6e92ec6f0d0b59423f5f1bcb85cc39174da70bf5\nrefs/heads/a2a/T-262-1-a3=e18e5207de94fd6ea56be9868de45c18c1f2991f\nrefs/heads/a2a/T-265-1-a1=a322c79e29e2a3f1102eeefa8411abd1db322951\nrefs/heads/claude/dreamy-ptolemy-d0f2f0=1bb19fa21d1dbddf15589f39f9f7a5e87fd1331b\nrefs/heads/codex/t259-preparing-reclaim=2083f72e4f43d6bc84be2ef57b5fef49f65e1bcb\nrefs/heads/enchanted/git-panels=3026ffc38bb6c0d90a0f5f2adc3e9bca5d8a72ba\nrefs/heads/exec/t138=13ea4014fa3109339b3b766c576b1eb38a297a40\nrefs/heads/exec/t139-t143=242324f71aee09dd4e1417fa0d8c39ce6aaa29ab\nrefs/heads/exec/t140=0cf390b00058c29139d0f291accc99eb9451b3dd\nrefs/heads/exec/t141=86aeeed273eccda48cc867df763ca35a7d195e6d\nrefs/heads/exec/t142=d6027ae04f95a48de2d8014a4d93affac230d123\nrefs/heads/exec/t144=e86258d997ce69691821884825e2653c466ef19f\nrefs/heads/exec/t145=d56776b80762e3b5876135924091fa5b8767749d\nrefs/heads/exec/t145-a2=ac7fe971e23b750b0b2a25196e4530c0b2114494\nrefs/heads/exec/t146=dee654f7754470ff13491b1a708066bfa85c5b60\nrefs/heads/exec/t146-a2=1f008f5282b1602b12dd7e91c80d8355aa487fbb\nrefs/heads/exec/t146-a3=4b1f401ce237f48d5471cd5758f0229bef5c5ee7\nrefs/heads/exec/t146-a4=a542169b15ddba2521e0188bbb79084b651e61f4\nrefs/heads/exec/t147=3c4c3576d42b43bae332e49b943e206723c688eb\nrefs/heads/exec/t148=59dddee87090d5de3e620b2a5ae9478684c36f3e\nrefs/heads/exec/t149=d87d2511ffc03638b407ae598a61dd79da424a5a\nrefs/heads/exec/t150=7a6c04c96a1184b8352d8c75ee0ae03fb8b02a3a\nrefs/heads/exec/t151=e170d0cc7a6e2f6c7c4bd5f1f1df669700754a73\nrefs/heads/exec/t152=d39c2f2d002f371bc63cdbece9b28ae78faed0db\nrefs/heads/exec/t153=b52b335fbe4b33ff4726d4b6662dbe309d96599b\nrefs/heads/exec/t154=024f758475066ffb398f3c7cfe60f89f374d7dc1\nrefs/heads/exec/t155=ad25f54f0c8d9e7d736efc34a32dafff07aa4c7b\nrefs/heads/exec/t156=6975642f330aa374939339ba1432b109e9190223\nrefs/heads/exec/t156b=96729d336f3dbacd6f47b6f11cef458bd395a8b7\nrefs/heads/exec/t157=30072c46ad0798c2dad7db9924f5ef91eadfdcf4\nrefs/heads/exec/t158=19d9360916f3f002c5b42a34cc4ab5b208b84e38\nrefs/heads/exec/t159=1858eee7be758c8c40657a47f54265d0d9aac126\nrefs/heads/exec/t160=3165a4b120c9f202a2efc73c6ece03391fe9cf9d\nrefs/heads/exec/t161=58254d15cde4fbbbe3bfdffee8f73f5965a482fe\nrefs/heads/exec/t162=3ecc21d62e54bb45f0b0a1764d69ab88cc7a2662\nrefs/heads/exec/t163=094931687d2b48b3faab55f60f8d1af5e6dd6340\nrefs/heads/exec/t164=32db2647dab7a1a024e9fe86a100a0f390acd252\nrefs/heads/exec/t164d=46316a709953318bda661c9bc40c2c06acb9ec29\nrefs/heads/exec/t164e=1802ca1754133e8df3af51af22f57ad1a3963421\nrefs/heads/exec/t165=8a8cc3974a0eec1179e7923cd6a726aa886a82d2\nrefs/heads/fix/t251-untrusted-turn=b4fb9781539bef7d7759630598c9dc224454b3a3\nrefs/heads/keep/T-249-1-a1=ed080306faea900d7c5b26f732b2f05e0c68059a\nrefs/heads/keep/T-249-1-a2=0c3da7adedf5a2c0a61af32cf3d1bb2bb39b6083\nrefs/heads/keep/T-257-1-a1=e9e9f2db8ce6f2c50b453a868c8bcaa026e9fa8b\nrefs/heads/keep/T-257-1-a2=5484315a5e318bce557dcc32e429f5d251453e84\nrefs/heads/main=6bbb7c69cd36c8a9fd4257d14c0fb7a85bd41fd4\nrefs/heads/t216-issues-controller-first=137ea70dd4be53f0d6aafa0f15b7baff35fff466\nrefs/remotes/origin/main=fbb842fe81090e93e523c6abf31b103baeac45cd\nrefs/synara/checkpoints/OTk3MDQxODktZjQ1Zi00NDBlLWEyZGItNzk0MWQ2YjRiMmM3/message-start/MWFhNjY5YmEtMzQ2ZC00Y2EyLThkMTQtMGI2MTg4MGZiOGIz=469dc8bc8713dee3f52ef65888f28115dcc6f068\nrefs/synara/checkpoints/OTk3MDQxODktZjQ1Zi00NDBlLWEyZGItNzk0MWQ2YjRiMmM3/turn-start/MDFhMTFlZTgtNGM1Ni03N2QxLWI4OTItMWJiNGI4ZmQ3ZTA2=469dc8bc8713dee3f52ef65888f28115dcc6f068\nrefs/synara/checkpoints/OTk3MDQxODktZjQ1Zi00NDBlLWEyZGItNzk0MWQ2YjRiMmM3/turn/0=469dc8bc8713dee3f52ef65888f28115dcc6f068\nrefs/synara/checkpoints/OTk3MDQxODktZjQ1Zi00NDBlLWEyZGItNzk0MWQ2YjRiMmM3/turn/1=f89fe517f34f9c88f88f41a55d85e7955d201f15\nrefs/tags/v0.1.0=6dcfacf5889422f1c63a03bd9aab2168100af0fb\nrefs/tags/v0.1.1=2754c6bf8dfd90ed3c30f3f4532c2c2de6b94816\nrefs/tags/v0.1.2=dff00ec9ca4feadaffba689774455bdef1ba3cea\nrefs/tags/v0.1.3=f7b176e887f5eaaac319f4107a589e506d5e60e7",
+        "requested_at": "2026-11-09T06:25:36.048Z",
+        "launch_id": "775dc952-ddfb-4ebf-bb0c-5aac92e4cb7d",
+        "runtime_identity": {
+          "launch": "775dc952-ddfb-4ebf-bb0c-5aac92e4cb7d",
+          "thread": "86fd3e30-9908-4a2d-8a9b-94ff6b30c0ea",
+          "shell_pid": 45944,
+          "leader_pid": 45946,
+          "native_session": "01a1befb-fe7f-7562-882f-b1d4f4841346"
+        },
+        "state": "passed",
+        "result": {
+          "verdict": "可合并",
+          "findings": [],
+          "review_requirements": {
+            "completion_conditions_sufficiency": true,
+            "mutation_checks": {
+              "min": 2,
+              "max": 5,
+              "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/58c4718e-ef14-4130-b2a2-4c9f5c05625c",
+              "report_section": "完成条件与变异检查"
+            }
+          },
+          "report": {
+            "审查结论": "PASS。候选 a322c79e29e2a3f1102eeefa8411abd1db322951 满足 T-265-1 本次交付的材料投递要求，未发现范围内缺陷。审查基线为 80a6304225cdd567737362dd045dabf97a625c56。本结论允许候选进入后续集成；标准打包安装、T-249 大候选接回仍由主控完成，不将这些后续事项记为已通过。",
+            "范围与候选绑定": "已读取 AGENTS.md、REVIEW.md、oracle_paths 指定的 .project-map/tickets/T-265-review-input-too-large.md，并追踪 GateCore.requestReview → Panes.createReview → dispatch、createPane 的 request_dir/启动参数及 archiveThread。只读 Git 核对候选共改动 79 个允许范围内文件：panes.ts、两个新测试及 76 个 worker 证据文件；卡外改动为零，acceptance/**、REVIEW.md、.project-map/** 未改。一次性副本中的三个代码/测试文件逐字节等于候选提交，oracle 与 REVIEW.md 等于父版。76 个证据文件未包含在本副本中，其交付内容来自提示中的完整 diff 及候选提交的只读查询。",
+            "实现与边界": "生产改动位于 workbench/src/panes.ts:1081–1085，沿用原材料投递所有者，没有新增 API、依赖、阈值分支、fallback 或重试。agy 命令追加完成后，role_text、分隔符及最终 prompt 一起按 UTF-8 写入 request_dir/review-materials.md；wx 拒绝覆盖，0600 限制文件访问。同步写入成功才 dispatch，失败沿既有 reviewLifecycleFailed 路径传播。createPane 原本为每次 launch 创建独立 request_dir，并记录 review/session/attempt 身份；本次没有改变其写根、沙箱、Stop 或 review_submit 协议。Codex/Claude 的审查启动写根仍排除 request_dir；agy/opencode 的既有边界是角色只读要求及审查 checkout 的文件权限，不将其声称为新增的 OS 沙箱。材料沿用 request_dir 的既有临时生命周期；archiveThread 不负责归档或删除该目录。",
+            "完成条件与变异检查": "完成条件充分性：PASS，足以拒绝本次材料投递合同的明显错误实现。oracle_paths 是冻结的任务要求；新测试的期望来自外部输入字符串、随机标记与明确失败契约，未从生产输出推导答案。测试执行真实 createReview、dispatch 和文件系统；createPane 与 drain 使用替身，因此原生 CLI/沙箱能力另由下节真实证据支持。\n\n运行位置：/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/58c4718e-ef14-4130-b2a2-4c9f5c05625c。所有测试夹具通过 A2A_REQUEST_DIR=\"$PWD/.t265-review-checks/fixtures\" 限定在该副本。实际完成条件统一为 /opt/homebrew/Cellar/node/26.5.0/bin/node --test workbench/tests/test_t265_review_materials.mjs。基线退出 0，5/5 通过，证据 .t265-review-checks/baseline.json。\n\n以下五个变异由审查员独立在副本的 workbench/src/panes.ts 中逐个构造，没有使用候选的 T265_MUTANT 分支，也没有改测试。每次运行上述同一完成条件，保存 patch/stdout/stderr/退出码后恢复原字节：\n1. inline：把短入口 dispatch 改回 role_text + prompt 全文。命令 python3 -B .t265-review-checks/mutation_checks.py --mutant inline；内部完成条件退出 1，3 个业务断言失败，其中长消息实际为 1620225 字符，被“native review entry must be short”拒绝，短材料也被“不应内联角色”断言拒绝。证据 inline.patch、inline.json。\n2. cut：写材料前追加 slice(0,1024)，截断后部 diff/verification。命令 python3 -B .t265-review-checks/mutation_checks.py --mutant cut；内部完成条件退出 1，在“all input bytes preserved”字节比较断言失败。证据 cut.patch、cut.json。\n3. overwrite：材料写入 flag 从 wx 改成 w。命令 python3 -B .t265-review-checks/mutation_checks.py --mutant overwrite；内部完成条件退出 1，在既有材料应触发 EEXIST 的 assert.rejects 失败，明确拒绝覆盖实现。证据 overwrite.patch、overwrite.json。\n4. dispatch-first：交换材料 writeFileSync 与 dispatch 的执行顺序。命令 python3 -B .t265-review-checks/mutation_checks.py --mutant dispatch-first；内部完成条件退出 1，EEXIST 和半写 ENOSPC 两个场景都观察到已发送 1 条入口，分别被“existing evidence failure must not dispatch”和“write failure must not dispatch”的 1 !== 0 断言拒绝。证据 dispatch-first.patch、dispatch-first.json。\n5. omit-agy：将追加 agy 提交命令的条件改为 false。命令 python3 -B .t265-review-checks/mutation_checks.py --mutant omit-agy；内部完成条件退出 1，agy 材料前缀/追加命令保留契约断言失败。证据 omit-agy.patch、omit-agy.json。\n\n上述 patch/JSON 均在 .t265-review-checks/ 下。辅助变异脚本成功退出表示完成留证与恢复，判定坏实现的退出码是记录中的内部 Node exit=1。五个失败均来自业务断言，没有依赖导入失败或语法错误。最后按同一完成条件复验退出 0、5/5 通过，见 restored.json；源码逐字节恢复且等于候选提交，fixtures 目录为空。冻结验收和 oracle 未变。",
+            "真实原生边界证据": "已只读核对主仓库 evidence/2026-11-09-batch35/T-265/controller/native-cli-06.json、native-cli-06-exit.json、native-cli-06-artifacts/parent-terminal.txt、parent-native-events.json、candidate-native-events.json 及 native-06 两个源码快照。当前 panes.ts 和 test_t265_review_cli_e2e.py 均逐字节等于该轮冻结快照；无需以父版 HEAD 冒充候选绑定。\n\nCodex 0.167.0 的父版原始终端明确报 Message exceeds the maximum length of 1048576 characters (1665447 provided)，原生事件为空。候选入口 177 字符，有 task_started/task_complete；原生工具完整读取 2150753 字节、1665453 字符、55000 条 diff、50000 条 verification，头中尾随机标记与生成输入相符。第一次 cat 输出截断不作为完整性证明；后续 FULL_READ/END_OF_FULL_READ 工具输出逐组覆盖全部 105013 行，随后原 probe.py 的实际工具调用返回一致计数、materials_writable=false、write_error=1、exit_code=0。原始 xcrun 缓存 EPERM 诊断保留。两例均关闭自有 PTY master，并由同一 Popen.wait 确认退出；整轮退出 0，夹具删除记录存在，本次只读检查也确认 /private/tmp/t265-cli-54wyafyz 已不存在。\n\n复现命令由主控执行的记录为：/usr/bin/python3 -B '/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-265-1-a1/workbench/tests/test_t265_review_cli_e2e.py' --codex /Users/luckye/.local/bin/codex --node /opt/homebrew/Cellar/node/26.5.0/bin/node --summary /Users/luckye/Documents/Code/a2a/evidence/2026-11-09-batch35/T-265/controller/native-cli-06.json。本审查未重启模型、后台、hc 或 Electron。",
+            "结构与证据审查": "小目标“短入口、完整审查材料、原有门禁”的 Tracer bullet 已有从真实 createReview 到原生交互 CLI 的证据。Deep modules 沿用既有投递与进程清理所有者，Ubiquitous language 沿用审查材料、候选副本。新增原生测试驱动的异常处理用于保留主异常、诊断和未确认退出的夹具；EPERM 不转成功，ESRCH 仍要求原 Popen.wait 取得退出码，清理/诊断失败使整轮 INCOMPLETE。没有发现用备用权限或第二条执行路径掩盖失败。候选内既有 11 项驱动检查及父版反事实是补充证据，未把实现者自查当作本次独立结论。",
+            "未运行与环境限制": "附加命令 A2A_REQUEST_DIR=\"$PWD/.t265-review-checks/fixtures\" python3 -B evidence/2026-11-09-batch35/T-265/worker/test_driver_diagnostics.py -v 退出 2，原因是一次性副本没有该证据目录中的脚本（Errno 2），所以本审查不声称重跑了这 11 项检查；已从候选提交只读核对其既有结果。一次尝试比较全部 79 个副本文件也因首个缺失证据文件 EXIT-RACE-04.md 退出 1；随后按实际存在的三个代码/测试文件核对，均匹配，缺失项如实记录于 .t265-review-checks/snapshot-check.json。\n\nproject-map status 退出 1：副本不含 Git 元数据，六份 living doc 的 Verified 提交号被按无 Git 的日期规则拒绝；这不是候选修改地图造成的失败，未修改地图或元数据，结果保存在 project-map-status.json。没有运行全仓测试、完整工作台 Stop/review_submit 生命周期或标准打包安装；这些留在主控集成点。真实外部 CLI 证据覆盖 Codex，其他三家由本地 createReview 分支检查覆盖；完整读取证明不等于模型理解任意规模 diff 的能力证明。",
+            "完成报告": "PASS。\nWorks：候选基线及恢复后的完成条件均 5/5，通过的行为断言涵盖长短材料、UTF-8 原字节、双审查隔离、拒绝覆盖、失败不投递、身份与 agy 命令；五个独立坏实现全部被拒绝，真实 Codex 长材料读取与只读边界证据绑定当前候选。\nNo regression：材料测试中的四 CLI 分支、原 checkout 只读处理及结果模板/协议检查通过；生产 diff 没有修改启动参数、Stop 或门禁。全仓与打包检查未运行，不作其通过声明。\nRisk / undo：主控仍需完成标准集成、打包安装、README/地图更新及 T-249 接回；撤销 panes.ts 的这 6 行 diff 可回退投递方式，但会恢复超长内联故障。本次只在一次性副本变异且已恢复，没有修改候选 Git worktree、worker worktree、请求文件、权限设置或外部状态，没有提交、集成或启动额外 agent。"
+          },
+          "turn_id": "01a1befc-0072-7240-9b5a-499a7c15b8a1",
+          "received_at": "2026-11-09T06:31:58.744Z"
+        }
+      }
+    },
+    "user_input_observer": {
+      "state": "healthy",
+      "updated_at": "2026-11-09T05:11:52.206Z"
+    }
+  },
+  "stderr": ""
+}
