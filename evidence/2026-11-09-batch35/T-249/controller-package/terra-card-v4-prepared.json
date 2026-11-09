@@ -1,0 +1,49 @@
+{
+  "id": "T-249-2",
+  "source": {
+    "ticket": "/Users/luckye/Documents/Code/a2a/.project-map/tickets/T-249-git-graph-panel.md",
+    "ready_rev": 1
+  },
+  "goal": "你负责 T-249 最终独立验收，不实现产品。用户原话：“最后让codex用 6.1 terra用 computer use以及常规测试来验收。”用 gpt-6.1-terra xhigh、普通速度，不开 Claude 或其他 agent。你不是唯一参与者，不撤销别人改动；只写卡内证据和本次额外夹具目录。\n\n本次为修复未跟踪文件内容后的新候选最终验收；旧 Terra v3 的 INCOMPLETE 与失败现场保留，不能沿用为本次通过。你不是实现者，不修产品，也不重新盲审全部旧代码。\n\n版本：父任务 a2a+T-249-1 当前候选 C=63304e0fcb3510d9cf4b1cbea5c3064fbb8286dd；门禁合并候选 M=92163e7d850df1d093a607144c6dfd7d256f53e1。只读产品源 checkout=/private/tmp/a2a-t249-v9-package-20261109（固定为 M，包含完整 workbench 与 acceptance）；实际 Test 包 revision=92163e7d850df1d093a607144c6dfd7d256f53e1，路径=/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-build-t249-v9-reviewed-20261109-01/Enchanted Test.app。必须核对包内 package.json 的 revision；常规测试的 ABS 指此固定 checkout，不把当前自己的旧源码当作候选。\n\n唯一允许操作的窗口是上述 Enchanted Test。主控按 --state /private/tmp/t249-terra-20261108-04/state --user-data /private/tmp/t249-terra-20261108-04/ui 启动；真实受管只读路径因此是 /private/tmp/t249-terra-20261108-04/state/worktrees/terra/readonly。不要连接默认 Test 旧数据目录；不用旧 -01/-02/-03 包或夹具。正式 Enchanted 和用户 hc 不操作，不替换 /Applications，不重启任何后台。主控提供正式 GUI/后台/core/holder 的 pid 与启动时间前后核对。\n\n新夹具=/private/tmp/t249-terra-20261108-04；repos/alpha 有根、普通、merge、tag、未提交与未跟踪；beta、many 和 unborn 同前，但 unborn 另有空 empty.txt、含 NUL 的 binary.bin、字面星号 file*.txt。期望必须从原始文件和独立 Git 读取，不取产品函数。oracle-before.json 来源在目录中，先核对当前状态；未跟踪内容必须在界面看到，不能再接受占位文字。\n\n所有 exec_command 的外层 workdir 只用你自己的 gate worktree 或额外 -04 目录；只读产品脚本用绝对路径。不得把 cwd 设为父 worktree、主仓库、App、数据目录或其他任务目录。写入仅卡内证据和 -04 夹具；临时文件与截图在 -04/tmp，截图需要实际保存再在报告引用。\n\n按冻结 ticket 逐项完成：\n1. 用独立 git rev-list --date-order --parents --all、for-each-ref、status 核对图形提交顺序、父子、标签、未提交行。从可见行打开根/普通/merge/未提交详情，点击文件看 diff；merge 核对两个父哈希，特殊文件名不得混入另一文件；unborn 的暂存、未暂存、未跟踪内容分别核对。新增空文件与二进制提示明确，字面星号文件不混入相邻文件；普通 alpha 的 untracked.txt 也要核对。\n2. 从界面创建 terra-created 分支并删除；Git 读回只发生预期 refs 变化。以 - 开头名称被拒，取消确认不写仓库。所有写操作仅在本次普通夹具，不 push/pull，不接远程。\n3. 在 Test 窗口创建两个普通 shell，分别进入 alpha/beta，真正切换焦点核对目录跟随；固定后切焦点不变，取消固定后恢复。不能用同一终端 cd 代替两个焦点。many 列表与独立目录/Git 一致。仅普通 shell，不启动模型 CLI。\n4. 跟随真实 readonly，写菜单禁用并说明原因。在 UI 操作之前解析它的真实 git-dir/common-dir，保存逐文件字节及 refs；之后逐文件直接比较路径、字节和 refs。不能只看工作目录或比较哈希，不能改门禁状态模拟只读。\n5. 详情→diff 连续两次 Esc 分别关闭 diff、详情；切换/重复选提交不留旧内容；确认框 Esc 不泄漏到终端，保留实际可见输入缓冲证据。先从截图确认真实分隔条坐标，再左右拖动和双击复原，记录前后宽度。至多两次定位尝试；若确有可复现问题，记录最短复现和独立预期并 issue，不修产品，不无限扩审。\n6. 常规测试从固定父产品调用：python3 ABS/acceptance/T-249/check_git_graph.py、node --test ABS/workbench/tests/test_t249_git_host.mjs、python3 ABS/workbench/tests/test_t249_outside_safety.py。先读参数说明，外层 cwd 仍为你的目录。主控在本次 M 上新跑真实窗口 200 项和迟到响应 49 项通过，见 /Users/luckye/Documents/Code/a2a/evidence/2026-11-09-batch35/T-249/controller-window-v9/summary.json。旧 C/九个针对性破坏在同字节的14个产品与测试文件上达到预期，见旧 controller/untracked-window-01/summary.json；本次只做字节绑定，不冒称重新执行全部变异。新用例已通过真实 Input.dispatchMouseEvent 观察列宽拖动和双击复原，no-resize/no-reset 均判红。这是自动 E2E，不是你的 CU；你仍按截图真实拖动，至多两次失败后如实保留工具边界，不无限重试。新宿主常规测试含 27 场景；不要声称运行旧 22 场景。\n7. 完成后只关闭自己创建的 Test 终端和 Test 窗口，保留本次夹具供主控按所有权清理。正式进程前后由主控补证；你遇到 ps 拒绝时记录来源限制并继续其他已授权验收，不换命令绕过。\n\n工具操作用 CUA，遵循其初始化、观察和 completion_summary。用户已经授权本任务必要的 Enchanted/Test 文稿提示；若工具拒绝 UserNotificationCenter，不换系统自动化绕过，立即 issue 主控协调；不要空等或把其他进度全部停止。没有弹窗或证据时，不把慢启动直接断言成权限问题。\n\n交付 evidence/2026-11-08-batch34/T-249/terra/：中文 RESULTS.md，实际 CU 动作/观察、独立 Git 小型原始输入、常规输出和精确命令、包版本、来源边界。写可重放 check_observations.py，只核对本次 UI 值与独立 Git 事实（提交哈希、父哈希、文件和 diff 内容），不以报告关键词或源码字符串决定通过。保存必要小型输入到证据目录，不依赖会清理的 /private/tmp、Test state 或父 worktree；至少两个明显错误观察副本必须判红，正确观察判绿。语义和 CU 真实性仍由独立审查，不宣称脚本能证明全文。\n\n报告 PASS/FAIL/INCOMPLETE/BLOCKED，未覆盖不能上调。git add --sparse、commit 后显式 submit 一次；queued 不等于已接收，保持原 task/attempt 身份，不 integrate。模型选择、启动 argv 和原生身份由门禁记录。主控等待交付及 idle 后安排审查，最多三条原生 Codex 同时运行。\n",
+  "non_goals": [
+    "不改产品源码、任务票或治理规则",
+    "不修改冻结验收",
+    "不操作正式 Enchanted 或用户 hc core",
+    "不修改 /Applications、全局配置，不 push",
+    "不接管 T-250，不启动其他 agent"
+  ],
+  "paths": {
+    "allow": [
+      "evidence/2026-11-08-batch34/T-249/terra/"
+    ],
+    "deny": [
+      "workbench/",
+      "acceptance/",
+      ".project-map/",
+      "REVIEW.md"
+    ]
+  },
+  "oracle_paths": [
+    "acceptance/T-249/check_git_graph.py",
+    "evidence/2026-11-08-batch34/T-249/controller/prepare-terra-fixture.py"
+  ],
+  "completion_conditions": [
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "evidence/2026-11-08-batch34/T-249/terra/check_observations.py"
+      ]
+    }
+  ],
+  "red_commands": [],
+  "task_type": "测试",
+  "repair_target": null,
+  "complexity": "M",
+  "executor": {
+    "cli": "Codex",
+    "model": "gpt-6.1-terra",
+    "effort": "xhigh"
+  },
+  "base_commit": null,
+  "writer": null
+}

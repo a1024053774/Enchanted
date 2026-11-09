@@ -1,0 +1,33 @@
+[
+  {
+    "id": "M1-untracked-disabled",
+    "path": "workbench/app/panels/gitGraphModel.ts",
+    "before": "if (commit.uncommitted && status === '?')",
+    "after": "if (false && commit.uncommitted && status === '?')",
+    "expectation": "未跟踪文本必须显示原始文件内容；禁用读取必须命中内容业务断言。",
+    "window_failure": "未提交 未跟踪文本 diff 与原始文件及独立 Git 一致：untracked.txt"
+  },
+  {
+    "id": "M2-path-containment-disabled",
+    "path": "workbench/app/gitHost.ts",
+    "before": "if (!resolved.startsWith(cwd + sep) || relative(cwd, resolved).split(sep).includes('.git') || !lstatSync(file).isFile())",
+    "after": "if (false && (!resolved.startsWith(cwd + sep) || relative(cwd, resolved).split(sep).includes('.git') || !lstatSync(file).isFile()))",
+    "expectation": "no-index 必须拒绝经符号链接逃到仓库外的文件；禁用边界必须被宿主测试拒绝。"
+  },
+  {
+    "id": "M3-zero-drag",
+    "path": "workbench/app/panels/GitGraphPanel.tsx",
+    "before": "width - (moved.clientX - start)",
+    "after": "width - 0 * (moved.clientX - start)",
+    "expectation": "64 px 鼠标拖动必须改变表头与数据行列宽；零位移实现必须被拒绝。",
+    "window_failure": "真实鼠标拖动改变可见日期列宽"
+  },
+  {
+    "id": "M4-wrong-reset",
+    "path": "workbench/app/panels/GitGraphPanel.tsx",
+    "before": "[column]: columnDefaults[column] }))}",
+    "after": "[column]: columnDefaults[column] + 32 }))}",
+    "expectation": "双击必须恢复拖动前宽度；多留 32 px 必须被拒绝。",
+    "window_failure": "真实鼠标双击恢复可见日期列宽"
+  }
+]

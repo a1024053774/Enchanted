@@ -1,0 +1,11 @@
+--- a/workbench/app/panels/GitGraphPanel.tsx
++++ b/workbench/app/panels/GitGraphPanel.tsx
+@@ -158,7 +158,7 @@
+   const graphWidth = PAD * 2 + LANE * (graph?.width ?? 1);
+   const template = `${graphWidth}px minmax(120px, 1fr) ${columns.date}px${showAuthor ? ` ${columns.author}px` : ''}${showHash ? ` ${columns.hash}px` : ''}`;
+   const resizer = (column: keyof Columns) => <span className="column-resizer" role="separator" aria-label="拖动调整列宽，双击复原"
+-    onDoubleClick={() => setColumns(value => ({ ...value, [column]: columnDefaults[column] }))}
++    onDoubleClick={() => setColumns(value => ({ ...value, [column]: columnDefaults[column] + 32 }))}
+     onPointerDown={event => {
+       const start = event.clientX, width = columns[column];
+       const move = (moved: PointerEvent) => setColumns(value => ({ ...value, [column]: Math.max(48, Math.min(400, width - (moved.clientX - start))) }));

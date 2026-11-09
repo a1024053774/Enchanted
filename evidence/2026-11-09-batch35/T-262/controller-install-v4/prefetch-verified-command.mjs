@@ -1,0 +1,11 @@
+import { downloadArtifact } from '/private/tmp/a2a-t262-v4-package-20261109/workbench/node_modules/@electron/get/dist/index.js';
+import { getArtifactFileName } from '/private/tmp/a2a-t262-v4-package-20261109/workbench/node_modules/@electron/get/dist/artifact-utils.js';
+const cacheRoot='/private/tmp/t262-electron-prefetch-20261109/cache';
+const nonce=Date.now();
+import fs from 'node:fs';
+const lines=fs.readFileSync('/Users/luckye/Documents/Code/a2a/evidence/2026-11-09-batch35/T-262/controller-install-v4/download-head-zip-query-01.txt','utf8').split('\n');
+const direct=lines.find(x=>x.toLowerCase().startsWith('location: ')).slice(10).trim();
+if(new URL(direct).hostname!=='release-assets.githubusercontent.com')throw new Error('unexpected official asset host');
+const sums=Object.fromEntries(fs.readFileSync('/Users/luckye/Documents/Code/a2a/evidence/2026-11-09-batch35/T-262/controller-install-v4/SHASUMS256-official.txt','utf8').trim().split('\n').map(line=>{const m=line.match(/^([a-f0-9]{64})\s+\*?(.+)$/);if(!m)throw new Error('malformed official checksum');return [m[2],m[1]];}));
+const result=await downloadArtifact({version:'43.4.1',artifactName:'electron',platform:'darwin',arch:'arm64',cacheRoot,checksums:sums,tempDirectory:'/private/tmp/t262-electron-prefetch-20261109',mirrorOptions:{resolveAssetURL:async details=>details.artifactName==='electron'?direct:'https://github.com/electron/electron/releases/download/'+details.version+'/'+getArtifactFileName(details)}});
+console.log(JSON.stringify({file:result,verifiedBy:'@electron/get default checksum validation',officialOrigin:'https://github.com/electron/electron/releases/download/v43.4.1/'}));

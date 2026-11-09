@@ -1,0 +1,564 @@
+{
+  "command": [
+    "/Applications/Enchanted.app/Contents/MacOS/Enchanted",
+    "/Applications/Enchanted.app/Contents/Resources/app/src/gates/cli.ts",
+    "--state",
+    "/Users/luckye/Library/Application Support/a2a-orchestrator",
+    "verify",
+    "--task",
+    "a2a+T-249-1",
+    "--attempt",
+    "ccae173b-72ec-46dd-ba4c-21c1d090e14e"
+  ],
+  "exit_code": 0,
+  "result": {
+    "ok": true,
+    "task": {
+      "task_id": "a2a+T-249-1",
+      "name": "T-249-1",
+      "title": "T-249-1",
+      "project_id": "a2a",
+      "repo": "/Users/luckye/Documents/Code/a2a",
+      "integration_ref": "refs/heads/main",
+      "card_snapshot_id": "e6283a32-d944-4cf7-b53f-2d9929ce5cec",
+      "card_version": 9,
+      "card": {
+        "id": "T-249-1",
+        "source": {
+          "ticket": "/Users/luckye/Documents/Code/a2a/.project-map/tickets/T-249-git-graph-panel.md",
+          "ready_rev": 1
+        },
+        "goal": "恢复交付 v9：前 attempt 99910bd1 在文稿权限获准后被 UserPromptSubmit 记账超时阻断，没有执行代码、没有交付；主控已正常重启原应用并经门禁升级和回收。原 B→C 恢复目标、完成条件和审查范围全部沿用。仍从下文 d8f55c9 恢复 Git 图，不恢复整个 workbench。证据目录改用 worker-untracked/recovery-v9。\n\nT-249 恢复交付 v8。T-265 已经独立审查、门禁集成和正式安装，新后台版本 a91519dd2a44b1716d83575ad33f2daa93396fa5。用户已授权本轮故障修复、继续两个面板，以及经审查的本地合入和安装；不 push。你只负责本卡，不撤销其他人的修改；worker/reviewer 使用 gpt-6-astra xhigh 普通速度，最终独立窗口验收仍使用 gpt-6.1-terra。\n\n此次不重新实现 Git 图。原候选 C=d8f55c958d901d052e79eda1a04dbf0a8fbf5ed5 的三项机械条件已通过，真实窗口包含未跟踪文件与列宽的完整行为证据已保存在候选中。审查 3ce94b46 在任何模型回合开始前因 1318486 字符超过原生 CLI 上限被拒，随后按升级结束并正常回收 worker；这不是产品审查结论。T-265 修复材料投递后，恢复该候选，进入原定限定审查和 Terra 验收。\n\n先读 AGENTS.md、REVIEW.md、T-249 ticket、T-265 ticket，运行 project-map status。原 attempt f8b6b251 的 base B=3577086056eb33e4a0c3bd2d16bbc3b30862778c，来源为同目录 verify-v7.json 中 current_attempt.base_commit；独立核对 B 到 C 的改动清单。只恢复本卡允许的 Git 图产品、开发测试及原 worker 证据；采用保留当前 base 的三方应用。不得把整个 workbench 从 C 覆盖回来：当前 base 中的 T-265 后台修复、记录页和其他已集成变更必须保留。任何实际冲突先上报，不擅自择一。冻结 acceptance/** 和 REVIEW.md 不变。\n\n恢复后逐文件直接比较原 C 与本次产品/测试输入；对必须适配的 README 文本单独说明，不用哈希替代比较。写入本次 worker-untracked/recovery-v8 文本，保留原失败、人工介入和来源，绑定新 attempt/session/fence。原实现和测试若无冲突，不作新的产品修改。常规三项完成条件照卡运行；不要在原生沙箱重试 ps、启动 Electron 或扩大权限。需要外部运行时给出一次集中准确命令，主控按原分工执行。\n\n既有红绿来源：原 C 的 evidence/2026-11-08-batch34/T-249/worker-untracked/；主仓库同票 controller/untracked-window-01/ 包含候选、延迟返回和九个变异的业务结果；controller/untracked-reproduction/ 和 terra-v3-incomplete/ 保留旧占位说明的实际缺陷与 Terra 未完成部分。原 Test 包 d8f55 的标准构建在 evidence/2026-11-09-batch35/T-249/controller-package/；新候选若包含不同后台，必须由主控重新绑定或构建，不能冒称旧包对应新提交。\n\n审查范围继续遵守 T-240：仅核对未跟踪文件读取修复、只读边界、相关反例与列宽检测能力，以及恢复后版本和证据一致性；不再对整套旧功能展开整体盲审。审查员需要真实 Electron 运行时，在唯一候选副本构造 2–5 个小变异，给独立预期、补丁和命令，由主控外部执行并原样回传；审查员独立判断结果，不能把主控执行冒称审查员本人执行。既有原窗口全场景、冻结机械条件和最终 Terra 验收保持。\n\n整理中文 RESULTS，检查路径、字节、尾注和干净工作区，commit 后用本次身份显式 submit 一次；queued 不等于受理。不自行 verify、集成、回收、安装。整票直到限定审查和新 Terra 完成都仍为 INCOMPLETE。\n\n本次协调说明：当前主控是桌面对话；旧主控已暂停。T-262 的独立补证审查正在接回，原生 CLI 同时最多三个，留一个审查/探针名额。不要自行开额外会话。只恢复 B→C 原有 Git 图路径，不改 RecordsPage.tsx、records.css 或 T-265 的代码/测试；README 必须保留新 T-265 材料文件段落，再加入原 Git 图说明。正常、无冲突的三方恢复属于既定授权。若稀疏检出阻止暂存本卡证据，使用 git add --sparse，不更改稀疏配置；提交后不可见的已跟踪证据用 git show 只读核对，不凭目录不可见误判丢失。\n",
+        "non_goals": [
+          "不做 T-250 的改动面板（下一张卡）",
+          "不做公开的 mod 接口、第三方 mod 加载、清单文件与沙箱",
+          "不做远程机器和原 mod 的自动更新检查",
+          "不改门禁 workbench/src/gates/ 与 acceptance/",
+          "不加新依赖；确实需要时先用 issue 上报理由",
+          "不替换或启动 /Applications/Enchanted.app，不碰正在运行的 Enchanted 后台与 hc core",
+          "不 push"
+        ],
+        "paths": {
+          "allow": [
+            "workbench/app/",
+            "workbench/tests/",
+            "workbench/README.md",
+            "evidence/2026-11-07-batch33/T-249/",
+            "evidence/2026-11-08-batch34/T-249/worker-untracked/"
+          ],
+          "deny": [
+            "workbench/src/gates/",
+            "acceptance/",
+            "workbench/package.json",
+            "workbench/package-lock.json"
+          ]
+        },
+        "oracle_paths": [
+          "acceptance/T-249/check_git_graph.py"
+        ],
+        "completion_conditions": [
+          {
+            "argv": [
+              "/usr/bin/python3",
+              "acceptance/T-249/check_git_graph.py"
+            ]
+          },
+          {
+            "argv": [
+              "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+              "--test",
+              "workbench/tests/test_t249_git_host.mjs"
+            ]
+          },
+          {
+            "argv": [
+              "/usr/bin/python3",
+              "workbench/tests/test_t249_outside_safety.py"
+            ]
+          }
+        ],
+        "red_commands": [],
+        "task_type": "前端界面",
+        "repair_target": null,
+        "complexity": "L",
+        "executor": {
+          "cli": "Codex",
+          "model": "gpt-6-astra",
+          "effort": "xhigh"
+        },
+        "base_commit": null,
+        "writer": null
+      },
+      "base_commit": "c89b8ca4739f2a4106feeda8665f4e1aa8cec688",
+      "state": "reviewing",
+      "spec_rev": 9,
+      "fence": 8,
+      "current_attempt": {
+        "task_id": "a2a+T-249-1",
+        "attempt_id": "ccae173b-72ec-46dd-ba4c-21c1d090e14e",
+        "session_id": "e9e12125-59e6-454a-8951-c6716bd29d10",
+        "fence": 8,
+        "spec_rev": 9,
+        "thread_id": "045710e3-754f-43ef-8cb8-1b24b9b45c58",
+        "runtime_mode": "workspace-write",
+        "turn_id": "01a1bf28-188b-7c42-a18c-6069c86cf2f0",
+        "runtime_identity": {
+          "launch": "c68290fa-7a7f-4c49-a307-014fc92807cb",
+          "thread": "045710e3-754f-43ef-8cb8-1b24b9b45c58",
+          "shell_pid": 1645,
+          "leader_pid": 1649,
+          "native_session": "01a1bf28-1483-7811-8596-db4758ecc2a6"
+        },
+        "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a8",
+        "base_commit": "62faa87b9424e48a4739920b53920d111a057486",
+        "card_snapshot_id": "8e237208-5729-4c59-aef0-2a78c2f84003",
+        "reclaimed": false,
+        "owner": "a2a+T-249-1",
+        "state": "submitted",
+        "extra_directories": [],
+        "git_metadata": {
+          "head": "ref: refs/heads/a2a/T-249-1-a8",
+          "config": "100644:cb407e1750934a253cff551ed2493eaf1f6f5689edfd6d7ff1fe702a03daf39d",
+          "worktree_config": "100644:97997ba84fd1c44263deb6f412fc3bef4b05e0103d00c5a97a97ca928299aa13",
+          "hooks": {
+            "applypatch-msg.sample": "100755:0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7",
+            "commit-msg.sample": "100755:1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437",
+            "fsmonitor-watchman.sample": "100755:e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0",
+            "post-update.sample": "100755:81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5",
+            "pre-applypatch.sample": "100755:e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475",
+            "pre-commit.sample": "100755:57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b",
+            "pre-merge-commit.sample": "100755:d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53",
+            "pre-push.sample": "100755:ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a",
+            "pre-rebase.sample": "100755:4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3",
+            "pre-receive.sample": "100755:a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989",
+            "prepare-commit-msg.sample": "100755:e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619",
+            "push-to-checkout.sample": "100755:a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f",
+            "sendemail-validate.sample": "100755:44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92",
+            "update.sample": "100755:8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+          }
+        },
+        "delivery": {
+          "commit": "63304e0fcb3510d9cf4b1cbea5c3064fbb8286dd",
+          "turn_id": "01a1bf28-188b-7c42-a18c-6069c86cf2f0",
+          "launch_id": "c68290fa-7a7f-4c49-a307-014fc92807cb",
+          "cli": "codex-cli 0.167.0",
+          "model": "gpt-6-astra",
+          "effort": "xhigh",
+          "number": 1,
+          "submitted_at": "2026-11-09T07:26:47.753Z"
+        }
+      },
+      "candidate_commit": "63304e0fcb3510d9cf4b1cbea5c3064fbb8286dd",
+      "verification": {
+        "verification_id": "f93042b1-c5f4-44c1-ac29-2ae42e38e599",
+        "ordinal": 1,
+        "attempt": {
+          "task_id": "a2a+T-249-1",
+          "attempt_id": "ccae173b-72ec-46dd-ba4c-21c1d090e14e",
+          "session_id": "e9e12125-59e6-454a-8951-c6716bd29d10",
+          "fence": 8,
+          "spec_rev": 9,
+          "thread_id": "045710e3-754f-43ef-8cb8-1b24b9b45c58",
+          "runtime_mode": "workspace-write",
+          "turn_id": "01a1bf28-188b-7c42-a18c-6069c86cf2f0",
+          "runtime_identity": {
+            "launch": "c68290fa-7a7f-4c49-a307-014fc92807cb",
+            "thread": "045710e3-754f-43ef-8cb8-1b24b9b45c58",
+            "shell_pid": 1645,
+            "leader_pid": 1649,
+            "native_session": "01a1bf28-1483-7811-8596-db4758ecc2a6"
+          },
+          "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a8",
+          "base_commit": "62faa87b9424e48a4739920b53920d111a057486",
+          "card_snapshot_id": "8e237208-5729-4c59-aef0-2a78c2f84003",
+          "reclaimed": false,
+          "owner": "a2a+T-249-1",
+          "state": "submitted",
+          "extra_directories": [],
+          "git_metadata": {
+            "head": "ref: refs/heads/a2a/T-249-1-a8",
+            "config": "100644:cb407e1750934a253cff551ed2493eaf1f6f5689edfd6d7ff1fe702a03daf39d",
+            "worktree_config": "100644:97997ba84fd1c44263deb6f412fc3bef4b05e0103d00c5a97a97ca928299aa13",
+            "hooks": {
+              "applypatch-msg.sample": "100755:0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7",
+              "commit-msg.sample": "100755:1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437",
+              "fsmonitor-watchman.sample": "100755:e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0",
+              "post-update.sample": "100755:81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5",
+              "pre-applypatch.sample": "100755:e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475",
+              "pre-commit.sample": "100755:57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b",
+              "pre-merge-commit.sample": "100755:d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53",
+              "pre-push.sample": "100755:ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a",
+              "pre-rebase.sample": "100755:4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3",
+              "pre-receive.sample": "100755:a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989",
+              "prepare-commit-msg.sample": "100755:e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619",
+              "push-to-checkout.sample": "100755:a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f",
+              "sendemail-validate.sample": "100755:44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92",
+              "update.sample": "100755:8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+            }
+          },
+          "delivery": {
+            "commit": "63304e0fcb3510d9cf4b1cbea5c3064fbb8286dd",
+            "turn_id": "01a1bf28-188b-7c42-a18c-6069c86cf2f0",
+            "launch_id": "c68290fa-7a7f-4c49-a307-014fc92807cb",
+            "cli": "codex-cli 0.167.0",
+            "model": "gpt-6-astra",
+            "effort": "xhigh",
+            "number": 1,
+            "submitted_at": "2026-11-09T07:26:47.753Z"
+          }
+        },
+        "spec_rev": 9,
+        "G": "4820383d865907436682d39c068bc0f92ea151b1",
+        "C": "63304e0fcb3510d9cf4b1cbea5c3064fbb8286dd",
+        "M": "92163e7d850df1d093a607144c6dfd7d256f53e1",
+        "card_snapshot_id": "8e237208-5729-4c59-aef0-2a78c2f84003",
+        "card_version": 9,
+        "commands": [
+          {
+            "argv": [
+              "/usr/bin/python3",
+              "acceptance/T-249/check_git_graph.py"
+            ],
+            "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a8-verify-1"
+          },
+          {
+            "argv": [
+              "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+              "--test",
+              "workbench/tests/test_t249_git_host.mjs"
+            ],
+            "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a8-verify-1"
+          },
+          {
+            "argv": [
+              "/usr/bin/python3",
+              "workbench/tests/test_t249_outside_safety.py"
+            ],
+            "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a8-verify-1"
+          }
+        ],
+        "results": [
+          {
+            "argv": [
+              "/usr/bin/python3",
+              "acceptance/T-249/check_git_graph.py"
+            ],
+            "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a8-verify-1",
+            "stdout": "ok   [all] 提交顺序与 git rev-list --date-order --branches --tags --ignore-missing HEAD 一致\nok   [all] 每行父提交与 git rev-list --parents 一致\nok   [all] 每行的引用与 git for-each-ref refs/heads refs/tags 一致\nok   [all] 恰好 HEAD 那一行标为 head\nok   [all] 泳道与按原 mod 规则手推的一致：期望 {'s1': 0, 'm': 1, 'f2': 2, 'c3': 1, 'f1': 2, 'c2': 0, 'c1': 0}，实际 {'s1': 0, 'm': 1, 'f2': 2, 'c3': 1, 'f1': 2, 'c2': 0, 'c1': 0}\nok   [current] 提交顺序与 git rev-list --date-order HEAD 一致\nok   [current] 每行父提交与 git rev-list --parents 一致\nok   [current] 每行的引用与 git for-each-ref refs/heads refs/tags 一致\nok   [current] 恰好 HEAD 那一行标为 head\nok   [current] 泳道与按原 mod 规则手推的一致：期望 {'m': 0, 'f2': 1, 'c3': 0, 'f1': 1, 'c2': 0, 'c1': 0}，实际 {'m': 0, 'f2': 1, 'c3': 0, 'f1': 1, 'c2': 0, 'c1': 0}\nok   未提交行存在，文件数与 git status 一致（期望 2，实际 {'files': 2, 'staged': 0, 'lane': 1, 'segments': [[1, 0.5, 1, 1, 1, True]], 'head': '829698aa40e896d0344cbf3f96690e85dc53fb46'}）\nok   merge 那一行有一条从自己的圆点（第 1 列）通向第二个父提交所在第 2 列的线段：[[0, 0, 0, 1], [1, 0.5, 1, 1], [1, 0.5, 2, 1], [1, 0, 1, 0.5]]\nok   新建分支后多出且只多出 refs/heads/made-by-panel，指向 c3\nok   删除分支后引用回到原样\nok   名字以 - 开头的新建分支被拒（非零退出），引用不变\nok   写操作没有动未提交的改动\nPASS\n",
+            "stderr": "",
+            "exit": 0,
+            "returncode": 0
+          },
+          {
+            "argv": [
+              "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+              "--test",
+              "workbench/tests/test_t249_git_host.mjs"
+            ],
+            "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a8-verify-1",
+            "stdout": "✔ untracked content diff reads literal files without Git writes (HEAD=false) (125.671416ms)\n✔ untracked content diff reads literal files without Git writes (HEAD=true) (173.430709ms)\n✔ untracked empty and binary files keep Git semantics (66.529125ms)\n✔ no-index boundary rejects every extra option and operand (61.626917ms)\n✔ no-index boundary rejects directories and paths outside repository files (88.571875ms)\n✔ read boundary rejects symbolic-ref and preserves Git metadata (43.859375ms)\n✔ read boundary rejects log-output and preserves Git metadata (44.803958ms)\n✔ read boundary rejects show-output and preserves Git metadata (43.817208ms)\n✔ read boundary rejects cat-file-filters and preserves Git metadata (43.09175ms)\n✔ read boundary rejects hash-object-write and preserves Git metadata (43.623958ms)\n✔ read boundary rejects hash-object-other-file and preserves Git metadata (40.035334ms)\n✔ unborn single-file diff works before the first commit (45.43ms)\n✔ managed write action is rejected without metadata changes (41.365667ms)\n✔ uncommitted row stays in HEAD lane even beneath another branch (85.208875ms)\n✔ Chinese and tab-containing file names survive details and diff (132.525791ms)\n✔ current branch of an unborn repository is an empty graph (20.251042ms)\n✔ literal single-file diff: root file*.txt (54.786458ms)\n✔ literal single-file diff: root file[1].txt (55.758333ms)\n✔ literal single-file diff: root :(glob)*.txt (57.028667ms)\n✔ literal single-file diff: normal file*.txt (77.7795ms)\n✔ literal single-file diff: normal file[1].txt (76.56775ms)\n✔ literal single-file diff: normal :(glob)*.txt (75.612459ms)\n✔ literal single-file diff: uncommitted file*.txt (55.157167ms)\n✔ literal single-file diff: uncommitted file[1].txt (54.917792ms)\n✔ literal single-file diff: uncommitted :(glob)*.txt (55.313417ms)\n✔ uncommitted details include staged, unstaged and untracked files (HEAD=false) (102.239417ms)\n✔ uncommitted details include staged, unstaged and untracked files (HEAD=true) (124.0105ms)\nℹ tests 27\nℹ suites 0\nℹ pass 27\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 1971.440166\n",
+            "stderr": "",
+            "exit": 0,
+            "returncode": 0
+          },
+          {
+            "argv": [
+              "/usr/bin/python3",
+              "workbench/tests/test_t249_outside_safety.py"
+            ],
+            "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a8-verify-1",
+            "stdout": "",
+            "stderr": "......\n----------------------------------------------------------------------\nRan 6 tests in 0.325s\n\nOK\n",
+            "exit": 0,
+            "returncode": 0
+          }
+        ],
+        "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a8-verify-1",
+        "state": "passed",
+        "command_intent": {
+          "argv": [
+            "/usr/bin/python3",
+            "workbench/tests/test_t249_outside_safety.py"
+          ],
+          "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a8-verify-1"
+        },
+        "quality": {
+          "snapshot": {
+            "source_commit": "c89b8ca4739f2a4106feeda8665f4e1aa8cec688",
+            "path": ".a2a/quality.json",
+            "raw": null,
+            "rule_checks": []
+          },
+          "red": [],
+          "rules": []
+        },
+        "out_of_card": [],
+        "result": {
+          "argv": [
+            "/usr/bin/python3",
+            "workbench/tests/test_t249_outside_safety.py"
+          ],
+          "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a8-verify-1",
+          "stdout": "",
+          "stderr": "......\n----------------------------------------------------------------------\nRan 6 tests in 0.325s\n\nOK\n",
+          "exit": 0,
+          "returncode": 0
+        },
+        "ended": "2026-11-09T07:38:24.747Z",
+        "retained_ref": "refs/a2a/verifications/a2a+T-249-1/a8/v1",
+        "cleanup": "removed"
+      },
+      "integration_intent": null,
+      "quality": {
+        "source_commit": "c89b8ca4739f2a4106feeda8665f4e1aa8cec688",
+        "path": ".a2a/quality.json",
+        "raw": null,
+        "rule_checks": []
+      },
+      "repair": null,
+      "review": {
+        "review_id": "f8f9674e-bf70-40b4-852e-d2958d4e92eb",
+        "ordinal": 1,
+        "task_id": "a2a+T-249-1",
+        "attempt": {
+          "task_id": "a2a+T-249-1",
+          "attempt_id": "ccae173b-72ec-46dd-ba4c-21c1d090e14e",
+          "session_id": "e9e12125-59e6-454a-8951-c6716bd29d10",
+          "fence": 8,
+          "spec_rev": 9,
+          "thread_id": "045710e3-754f-43ef-8cb8-1b24b9b45c58",
+          "runtime_mode": "workspace-write",
+          "turn_id": "01a1bf28-188b-7c42-a18c-6069c86cf2f0",
+          "runtime_identity": {
+            "launch": "c68290fa-7a7f-4c49-a307-014fc92807cb",
+            "thread": "045710e3-754f-43ef-8cb8-1b24b9b45c58",
+            "shell_pid": 1645,
+            "leader_pid": 1649,
+            "native_session": "01a1bf28-1483-7811-8596-db4758ecc2a6"
+          },
+          "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a8",
+          "base_commit": "62faa87b9424e48a4739920b53920d111a057486",
+          "card_snapshot_id": "8e237208-5729-4c59-aef0-2a78c2f84003",
+          "reclaimed": false,
+          "owner": "a2a+T-249-1",
+          "state": "submitted",
+          "extra_directories": [],
+          "git_metadata": {
+            "head": "ref: refs/heads/a2a/T-249-1-a8",
+            "config": "100644:cb407e1750934a253cff551ed2493eaf1f6f5689edfd6d7ff1fe702a03daf39d",
+            "worktree_config": "100644:97997ba84fd1c44263deb6f412fc3bef4b05e0103d00c5a97a97ca928299aa13",
+            "hooks": {
+              "applypatch-msg.sample": "100755:0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7",
+              "commit-msg.sample": "100755:1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437",
+              "fsmonitor-watchman.sample": "100755:e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0",
+              "post-update.sample": "100755:81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5",
+              "pre-applypatch.sample": "100755:e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475",
+              "pre-commit.sample": "100755:57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b",
+              "pre-merge-commit.sample": "100755:d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53",
+              "pre-push.sample": "100755:ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a",
+              "pre-rebase.sample": "100755:4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3",
+              "pre-receive.sample": "100755:a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989",
+              "prepare-commit-msg.sample": "100755:e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619",
+              "push-to-checkout.sample": "100755:a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f",
+              "sendemail-validate.sample": "100755:44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92",
+              "update.sample": "100755:8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+            }
+          },
+          "delivery": {
+            "commit": "63304e0fcb3510d9cf4b1cbea5c3064fbb8286dd",
+            "turn_id": "01a1bf28-188b-7c42-a18c-6069c86cf2f0",
+            "launch_id": "c68290fa-7a7f-4c49-a307-014fc92807cb",
+            "cli": "codex-cli 0.167.0",
+            "model": "gpt-6-astra",
+            "effort": "xhigh",
+            "number": 1,
+            "submitted_at": "2026-11-09T07:26:47.753Z"
+          }
+        },
+        "candidate_commit": "63304e0fcb3510d9cf4b1cbea5c3064fbb8286dd",
+        "spec_rev": 9,
+        "card_snapshot_id": "8e237208-5729-4c59-aef0-2a78c2f84003",
+        "verification_id": "f93042b1-c5f4-44c1-ac29-2ae42e38e599",
+        "thread_id": "a3951cb6-006d-4c3a-a25c-7746b0004460",
+        "session_id": "48d990ba-a8af-45bf-b938-70e132476caa",
+        "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a8-review-1",
+        "candidate_workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/f8f9674e-bf70-40b4-852e-d2958d4e92eb",
+        "shared_refs": "refs/a2a/attempts/a2a+T-138/a1=288010578817122d1277e6c7b7300b0a75e2dd8f\nrefs/a2a/attempts/a2a+T-249-1/a1=ed080306faea900d7c5b26f732b2f05e0c68059a\nrefs/a2a/attempts/a2a+T-249-1/a2=0c3da7adedf5a2c0a61af32cf3d1bb2bb39b6083\nrefs/a2a/attempts/a2a+T-249-1/a3=9f96a9121ba6ed8d77a514a0a78c9341ceaacb86\nrefs/a2a/attempts/a2a+T-249-1/a4=1243bc15f979976967cfd2d5cdd3a2acce6df635\nrefs/a2a/attempts/a2a+T-249-1/a5=18c108fcaed1c4ecf51831f2272578a3b09427be\nrefs/a2a/attempts/a2a+T-249-1/a6=d8f55c958d901d052e79eda1a04dbf0a8fbf5ed5\nrefs/a2a/attempts/a2a+T-249-1/a7=eb1ab25797ddddbd28769c7bc618aa45afd2cc8f\nrefs/a2a/attempts/a2a+T-249-2/a1=2be3972665b8b7631b187842b24b166228bcffd4\nrefs/a2a/attempts/a2a+T-249-2/a3=83cd1cc8f5873975f80b9438525044e299ea07dd\nrefs/a2a/attempts/a2a+T-257-1/a1=e9e9f2db8ce6f2c50b453a868c8bcaa026e9fa8b\nrefs/a2a/attempts/a2a+T-257-1/a2=5484315a5e318bce557dcc32e429f5d251453e84\nrefs/a2a/attempts/a2a+T-257-1/a3=045e815ff390a0e2e50b7788966e2a5bf655fbdb\nrefs/a2a/attempts/a2a+T-258-1/a1=7df553913fb2e8f2b9f0f096aa9c9b59d63f8135\nrefs/a2a/attempts/a2a+T-258-1/a2=49c7b9a9435f68aec38a862125b8f00220b9b3af\nrefs/a2a/attempts/a2a+T-258-1/a3=fa8d554c87210c15a7944542b2e9cfff3362ee8d\nrefs/a2a/attempts/a2a+T-258-1/a4=66e88ffe2251ea045a398c9003fef1795c8a2af8\nrefs/a2a/attempts/a2a+T-259-1/a1=4593099691924542d29f508185e16d48d97beb42\nrefs/a2a/attempts/a2a+T-262-1/a2=6e92ec6f0d0b59423f5f1bcb85cc39174da70bf5\nrefs/a2a/attempts/a2a+T-262-1/a3=e18e5207de94fd6ea56be9868de45c18c1f2991f\nrefs/a2a/attempts/a2a+T-262-1/a4=6e1fde0a28a13b7cfd2d2f7b42d6363ffda2fa67\nrefs/a2a/attempts/a2a+T-265-1/a1=a322c79e29e2a3f1102eeefa8411abd1db322951\nrefs/a2a/verifications/a2a+T-138/a1/v1=288010578817122d1277e6c7b7300b0a75e2dd8f\nrefs/a2a/verifications/a2a+T-249-1/a2/v1=0c3da7adedf5a2c0a61af32cf3d1bb2bb39b6083\nrefs/a2a/verifications/a2a+T-249-1/a4/v1=7442bcf6ae34889a448688fa819372293a15f1ec\nrefs/a2a/verifications/a2a+T-249-1/a4/v2=c7c92f417dd276abfd247b84f179997604f4c341\nrefs/a2a/verifications/a2a+T-249-1/a5/v1=8e83a42ded7b30280ea6c72e9eb94f126bb817a9\nrefs/a2a/verifications/a2a+T-249-1/a6/v1=8a17982c09771a00e0deb9ce58160a790e99af68\nrefs/a2a/verifications/a2a+T-249-1/a8/v1=92163e7d850df1d093a607144c6dfd7d256f53e1\nrefs/a2a/verifications/a2a+T-257-1/a2/v1=0709fa140e75b77186e35426cc6867200ce63941\nrefs/a2a/verifications/a2a+T-257-1/a3/v1=bf4b855619283711aff0a2f9ff2047e689e21fcb\nrefs/a2a/verifications/a2a+T-258-1/a2/v1=92c2b74a172209e44d621acd6aee63c1830649f1\nrefs/a2a/verifications/a2a+T-258-1/a4/v1=1b2dc59aaae096e5ae03ab07c0da4a39143803b9\nrefs/a2a/verifications/a2a+T-258-1/a4/v2=b5fed20893d499aae47a0a87bb2718c5d893819a\nrefs/a2a/verifications/a2a+T-262-1/a2/v1=a0284fbba8ec62a2c287af4657e75e99d9493c3e\nrefs/a2a/verifications/a2a+T-262-1/a3/v1=ee83c26c09df5c97cbb8cb130836001e27748418\nrefs/a2a/verifications/a2a+T-262-1/a4/v1=5ba4e68e9038e7bf4c01c2d1028b2917807c144b\nrefs/a2a/verifications/a2a+T-265-1/a1/v1=a91519dd2a44b1716d83575ad33f2daa93396fa5\nrefs/codex/turn-diffs/captures/1791448214612/dd7e3451-95b5-4287-bc1a-a0035af6d0cc/base=5509a9ce1863f764581d6ec938d695f54ccc7cff\nrefs/codex/turn-diffs/checkpoints/680479a337eb38eb9f460ac4b65d6215/42314125fd8f0765d07b65011743977c/1791462232392/7186c0e4-76de-4691-8b7a-c87d7155b191=9a21ea62f8907172855c653c8afb7295cacf7ff6\nrefs/codex/turn-diffs/checkpoints/d7df903b84511b9f3c2037a011f035f5/e716d1054eda21da81b1cd48be1060da/1791454088864/cfa63362-f71d-4b9b-92ee-a500cd434b89=75438bba5887d495425ce4c36dee901da5f1472d\nrefs/heads/a2a/T-138-a1=288010578817122d1277e6c7b7300b0a75e2dd8f\nrefs/heads/a2a/T-249-1-a1=ed080306faea900d7c5b26f732b2f05e0c68059a\nrefs/heads/a2a/T-249-1-a2=0c3da7adedf5a2c0a61af32cf3d1bb2bb39b6083\nrefs/heads/a2a/T-249-1-a3=9f96a9121ba6ed8d77a514a0a78c9341ceaacb86\nrefs/heads/a2a/T-249-1-a4=1243bc15f979976967cfd2d5cdd3a2acce6df635\nrefs/heads/a2a/T-249-1-a5=18c108fcaed1c4ecf51831f2272578a3b09427be\nrefs/heads/a2a/T-249-1-a6=d8f55c958d901d052e79eda1a04dbf0a8fbf5ed5\nrefs/heads/a2a/T-249-1-a7=eb1ab25797ddddbd28769c7bc618aa45afd2cc8f\nrefs/heads/a2a/T-249-1-a8=63304e0fcb3510d9cf4b1cbea5c3064fbb8286dd\nrefs/heads/a2a/T-249-2-a1=2be3972665b8b7631b187842b24b166228bcffd4\nrefs/heads/a2a/T-249-2-a2=793a043ee67b8cc6e17abe0d3d319f0b1c36282b\nrefs/heads/a2a/T-249-2-a3=83cd1cc8f5873975f80b9438525044e299ea07dd\nrefs/heads/a2a/T-257-1-a1=e9e9f2db8ce6f2c50b453a868c8bcaa026e9fa8b\nrefs/heads/a2a/T-257-1-a2=5484315a5e318bce557dcc32e429f5d251453e84\nrefs/heads/a2a/T-258-1-a1=7df553913fb2e8f2b9f0f096aa9c9b59d63f8135\nrefs/heads/a2a/T-258-1-a2=49c7b9a9435f68aec38a862125b8f00220b9b3af\nrefs/heads/a2a/T-258-1-a3=fa8d554c87210c15a7944542b2e9cfff3362ee8d\nrefs/heads/a2a/T-259-1-a1=4593099691924542d29f508185e16d48d97beb42\nrefs/heads/a2a/T-260-1-a1=4820383d865907436682d39c068bc0f92ea151b1\nrefs/heads/a2a/T-262-1-a1=f80d5cdbf0e1b62de864300eff7bb4497f8c4c70\nrefs/heads/a2a/T-262-1-a2=6e92ec6f0d0b59423f5f1bcb85cc39174da70bf5\nrefs/heads/a2a/T-262-1-a3=e18e5207de94fd6ea56be9868de45c18c1f2991f\nrefs/heads/claude/dreamy-ptolemy-d0f2f0=1bb19fa21d1dbddf15589f39f9f7a5e87fd1331b\nrefs/heads/codex/t259-preparing-reclaim=2083f72e4f43d6bc84be2ef57b5fef49f65e1bcb\nrefs/heads/enchanted/git-panels=3026ffc38bb6c0d90a0f5f2adc3e9bca5d8a72ba\nrefs/heads/exec/t138=13ea4014fa3109339b3b766c576b1eb38a297a40\nrefs/heads/exec/t139-t143=242324f71aee09dd4e1417fa0d8c39ce6aaa29ab\nrefs/heads/exec/t140=0cf390b00058c29139d0f291accc99eb9451b3dd\nrefs/heads/exec/t141=86aeeed273eccda48cc867df763ca35a7d195e6d\nrefs/heads/exec/t142=d6027ae04f95a48de2d8014a4d93affac230d123\nrefs/heads/exec/t144=e86258d997ce69691821884825e2653c466ef19f\nrefs/heads/exec/t145=d56776b80762e3b5876135924091fa5b8767749d\nrefs/heads/exec/t145-a2=ac7fe971e23b750b0b2a25196e4530c0b2114494\nrefs/heads/exec/t146=dee654f7754470ff13491b1a708066bfa85c5b60\nrefs/heads/exec/t146-a2=1f008f5282b1602b12dd7e91c80d8355aa487fbb\nrefs/heads/exec/t146-a3=4b1f401ce237f48d5471cd5758f0229bef5c5ee7\nrefs/heads/exec/t146-a4=a542169b15ddba2521e0188bbb79084b651e61f4\nrefs/heads/exec/t147=3c4c3576d42b43bae332e49b943e206723c688eb\nrefs/heads/exec/t148=59dddee87090d5de3e620b2a5ae9478684c36f3e\nrefs/heads/exec/t149=d87d2511ffc03638b407ae598a61dd79da424a5a\nrefs/heads/exec/t150=7a6c04c96a1184b8352d8c75ee0ae03fb8b02a3a\nrefs/heads/exec/t151=e170d0cc7a6e2f6c7c4bd5f1f1df669700754a73\nrefs/heads/exec/t152=d39c2f2d002f371bc63cdbece9b28ae78faed0db\nrefs/heads/exec/t153=b52b335fbe4b33ff4726d4b6662dbe309d96599b\nrefs/heads/exec/t154=024f758475066ffb398f3c7cfe60f89f374d7dc1\nrefs/heads/exec/t155=ad25f54f0c8d9e7d736efc34a32dafff07aa4c7b\nrefs/heads/exec/t156=6975642f330aa374939339ba1432b109e9190223\nrefs/heads/exec/t156b=96729d336f3dbacd6f47b6f11cef458bd395a8b7\nrefs/heads/exec/t157=30072c46ad0798c2dad7db9924f5ef91eadfdcf4\nrefs/heads/exec/t158=19d9360916f3f002c5b42a34cc4ab5b208b84e38\nrefs/heads/exec/t159=1858eee7be758c8c40657a47f54265d0d9aac126\nrefs/heads/exec/t160=3165a4b120c9f202a2efc73c6ece03391fe9cf9d\nrefs/heads/exec/t161=58254d15cde4fbbbe3bfdffee8f73f5965a482fe\nrefs/heads/exec/t162=3ecc21d62e54bb45f0b0a1764d69ab88cc7a2662\nrefs/heads/exec/t163=094931687d2b48b3faab55f60f8d1af5e6dd6340\nrefs/heads/exec/t164=32db2647dab7a1a024e9fe86a100a0f390acd252\nrefs/heads/exec/t164d=46316a709953318bda661c9bc40c2c06acb9ec29\nrefs/heads/exec/t164e=1802ca1754133e8df3af51af22f57ad1a3963421\nrefs/heads/exec/t165=8a8cc3974a0eec1179e7923cd6a726aa886a82d2\nrefs/heads/fix/t251-untrusted-turn=b4fb9781539bef7d7759630598c9dc224454b3a3\nrefs/heads/keep/T-249-1-a1=ed080306faea900d7c5b26f732b2f05e0c68059a\nrefs/heads/keep/T-249-1-a2=0c3da7adedf5a2c0a61af32cf3d1bb2bb39b6083\nrefs/heads/keep/T-257-1-a1=e9e9f2db8ce6f2c50b453a868c8bcaa026e9fa8b\nrefs/heads/keep/T-257-1-a2=5484315a5e318bce557dcc32e429f5d251453e84\nrefs/heads/main=4820383d865907436682d39c068bc0f92ea151b1\nrefs/heads/t216-issues-controller-first=137ea70dd4be53f0d6aafa0f15b7baff35fff466\nrefs/remotes/origin/main=fbb842fe81090e93e523c6abf31b103baeac45cd\nrefs/synara/checkpoints/OTk3MDQxODktZjQ1Zi00NDBlLWEyZGItNzk0MWQ2YjRiMmM3/message-start/MWFhNjY5YmEtMzQ2ZC00Y2EyLThkMTQtMGI2MTg4MGZiOGIz=469dc8bc8713dee3f52ef65888f28115dcc6f068\nrefs/synara/checkpoints/OTk3MDQxODktZjQ1Zi00NDBlLWEyZGItNzk0MWQ2YjRiMmM3/turn-start/MDFhMTFlZTgtNGM1Ni03N2QxLWI4OTItMWJiNGI4ZmQ3ZTA2=469dc8bc8713dee3f52ef65888f28115dcc6f068\nrefs/synara/checkpoints/OTk3MDQxODktZjQ1Zi00NDBlLWEyZGItNzk0MWQ2YjRiMmM3/turn/0=469dc8bc8713dee3f52ef65888f28115dcc6f068\nrefs/synara/checkpoints/OTk3MDQxODktZjQ1Zi00NDBlLWEyZGItNzk0MWQ2YjRiMmM3/turn/1=f89fe517f34f9c88f88f41a55d85e7955d201f15\nrefs/tags/v0.1.0=6dcfacf5889422f1c63a03bd9aab2168100af0fb\nrefs/tags/v0.1.1=2754c6bf8dfd90ed3c30f3f4532c2c2de6b94816\nrefs/tags/v0.1.2=dff00ec9ca4feadaffba689774455bdef1ba3cea\nrefs/tags/v0.1.3=f7b176e887f5eaaac319f4107a589e506d5e60e7",
+        "requested_at": "2026-11-09T07:38:25.235Z",
+        "launch_id": "37ca9c15-3060-40b5-a2d3-190aadeb25d2",
+        "runtime_identity": {
+          "launch": "37ca9c15-3060-40b5-a2d3-190aadeb25d2",
+          "thread": "a3951cb6-006d-4c3a-a25c-7746b0004460",
+          "shell_pid": 40790,
+          "leader_pid": 40792,
+          "native_session": null
+        },
+        "state": "running"
+      }
+    },
+    "verification": {
+      "verification_id": "f93042b1-c5f4-44c1-ac29-2ae42e38e599",
+      "ordinal": 1,
+      "attempt": {
+        "task_id": "a2a+T-249-1",
+        "attempt_id": "ccae173b-72ec-46dd-ba4c-21c1d090e14e",
+        "session_id": "e9e12125-59e6-454a-8951-c6716bd29d10",
+        "fence": 8,
+        "spec_rev": 9,
+        "thread_id": "045710e3-754f-43ef-8cb8-1b24b9b45c58",
+        "runtime_mode": "workspace-write",
+        "turn_id": "01a1bf28-188b-7c42-a18c-6069c86cf2f0",
+        "runtime_identity": {
+          "launch": "c68290fa-7a7f-4c49-a307-014fc92807cb",
+          "thread": "045710e3-754f-43ef-8cb8-1b24b9b45c58",
+          "shell_pid": 1645,
+          "leader_pid": 1649,
+          "native_session": "01a1bf28-1483-7811-8596-db4758ecc2a6"
+        },
+        "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a8",
+        "base_commit": "62faa87b9424e48a4739920b53920d111a057486",
+        "card_snapshot_id": "8e237208-5729-4c59-aef0-2a78c2f84003",
+        "reclaimed": false,
+        "owner": "a2a+T-249-1",
+        "state": "submitted",
+        "extra_directories": [],
+        "git_metadata": {
+          "head": "ref: refs/heads/a2a/T-249-1-a8",
+          "config": "100644:cb407e1750934a253cff551ed2493eaf1f6f5689edfd6d7ff1fe702a03daf39d",
+          "worktree_config": "100644:97997ba84fd1c44263deb6f412fc3bef4b05e0103d00c5a97a97ca928299aa13",
+          "hooks": {
+            "applypatch-msg.sample": "100755:0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7",
+            "commit-msg.sample": "100755:1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437",
+            "fsmonitor-watchman.sample": "100755:e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0",
+            "post-update.sample": "100755:81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5",
+            "pre-applypatch.sample": "100755:e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475",
+            "pre-commit.sample": "100755:57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b",
+            "pre-merge-commit.sample": "100755:d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53",
+            "pre-push.sample": "100755:ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a",
+            "pre-rebase.sample": "100755:4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3",
+            "pre-receive.sample": "100755:a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989",
+            "prepare-commit-msg.sample": "100755:e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619",
+            "push-to-checkout.sample": "100755:a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f",
+            "sendemail-validate.sample": "100755:44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92",
+            "update.sample": "100755:8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+          }
+        },
+        "delivery": {
+          "commit": "63304e0fcb3510d9cf4b1cbea5c3064fbb8286dd",
+          "turn_id": "01a1bf28-188b-7c42-a18c-6069c86cf2f0",
+          "launch_id": "c68290fa-7a7f-4c49-a307-014fc92807cb",
+          "cli": "codex-cli 0.167.0",
+          "model": "gpt-6-astra",
+          "effort": "xhigh",
+          "number": 1,
+          "submitted_at": "2026-11-09T07:26:47.753Z"
+        }
+      },
+      "spec_rev": 9,
+      "G": "4820383d865907436682d39c068bc0f92ea151b1",
+      "C": "63304e0fcb3510d9cf4b1cbea5c3064fbb8286dd",
+      "M": "92163e7d850df1d093a607144c6dfd7d256f53e1",
+      "card_snapshot_id": "8e237208-5729-4c59-aef0-2a78c2f84003",
+      "card_version": 9,
+      "commands": [
+        {
+          "argv": [
+            "/usr/bin/python3",
+            "acceptance/T-249/check_git_graph.py"
+          ],
+          "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a8-verify-1"
+        },
+        {
+          "argv": [
+            "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+            "--test",
+            "workbench/tests/test_t249_git_host.mjs"
+          ],
+          "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a8-verify-1"
+        },
+        {
+          "argv": [
+            "/usr/bin/python3",
+            "workbench/tests/test_t249_outside_safety.py"
+          ],
+          "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a8-verify-1"
+        }
+      ],
+      "results": [
+        {
+          "argv": [
+            "/usr/bin/python3",
+            "acceptance/T-249/check_git_graph.py"
+          ],
+          "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a8-verify-1",
+          "stdout": "ok   [all] 提交顺序与 git rev-list --date-order --branches --tags --ignore-missing HEAD 一致\nok   [all] 每行父提交与 git rev-list --parents 一致\nok   [all] 每行的引用与 git for-each-ref refs/heads refs/tags 一致\nok   [all] 恰好 HEAD 那一行标为 head\nok   [all] 泳道与按原 mod 规则手推的一致：期望 {'s1': 0, 'm': 1, 'f2': 2, 'c3': 1, 'f1': 2, 'c2': 0, 'c1': 0}，实际 {'s1': 0, 'm': 1, 'f2': 2, 'c3': 1, 'f1': 2, 'c2': 0, 'c1': 0}\nok   [current] 提交顺序与 git rev-list --date-order HEAD 一致\nok   [current] 每行父提交与 git rev-list --parents 一致\nok   [current] 每行的引用与 git for-each-ref refs/heads refs/tags 一致\nok   [current] 恰好 HEAD 那一行标为 head\nok   [current] 泳道与按原 mod 规则手推的一致：期望 {'m': 0, 'f2': 1, 'c3': 0, 'f1': 1, 'c2': 0, 'c1': 0}，实际 {'m': 0, 'f2': 1, 'c3': 0, 'f1': 1, 'c2': 0, 'c1': 0}\nok   未提交行存在，文件数与 git status 一致（期望 2，实际 {'files': 2, 'staged': 0, 'lane': 1, 'segments': [[1, 0.5, 1, 1, 1, True]], 'head': '829698aa40e896d0344cbf3f96690e85dc53fb46'}）\nok   merge 那一行有一条从自己的圆点（第 1 列）通向第二个父提交所在第 2 列的线段：[[0, 0, 0, 1], [1, 0.5, 1, 1], [1, 0.5, 2, 1], [1, 0, 1, 0.5]]\nok   新建分支后多出且只多出 refs/heads/made-by-panel，指向 c3\nok   删除分支后引用回到原样\nok   名字以 - 开头的新建分支被拒（非零退出），引用不变\nok   写操作没有动未提交的改动\nPASS\n",
+          "stderr": "",
+          "exit": 0,
+          "returncode": 0
+        },
+        {
+          "argv": [
+            "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+            "--test",
+            "workbench/tests/test_t249_git_host.mjs"
+          ],
+          "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a8-verify-1",
+          "stdout": "✔ untracked content diff reads literal files without Git writes (HEAD=false) (125.671416ms)\n✔ untracked content diff reads literal files without Git writes (HEAD=true) (173.430709ms)\n✔ untracked empty and binary files keep Git semantics (66.529125ms)\n✔ no-index boundary rejects every extra option and operand (61.626917ms)\n✔ no-index boundary rejects directories and paths outside repository files (88.571875ms)\n✔ read boundary rejects symbolic-ref and preserves Git metadata (43.859375ms)\n✔ read boundary rejects log-output and preserves Git metadata (44.803958ms)\n✔ read boundary rejects show-output and preserves Git metadata (43.817208ms)\n✔ read boundary rejects cat-file-filters and preserves Git metadata (43.09175ms)\n✔ read boundary rejects hash-object-write and preserves Git metadata (43.623958ms)\n✔ read boundary rejects hash-object-other-file and preserves Git metadata (40.035334ms)\n✔ unborn single-file diff works before the first commit (45.43ms)\n✔ managed write action is rejected without metadata changes (41.365667ms)\n✔ uncommitted row stays in HEAD lane even beneath another branch (85.208875ms)\n✔ Chinese and tab-containing file names survive details and diff (132.525791ms)\n✔ current branch of an unborn repository is an empty graph (20.251042ms)\n✔ literal single-file diff: root file*.txt (54.786458ms)\n✔ literal single-file diff: root file[1].txt (55.758333ms)\n✔ literal single-file diff: root :(glob)*.txt (57.028667ms)\n✔ literal single-file diff: normal file*.txt (77.7795ms)\n✔ literal single-file diff: normal file[1].txt (76.56775ms)\n✔ literal single-file diff: normal :(glob)*.txt (75.612459ms)\n✔ literal single-file diff: uncommitted file*.txt (55.157167ms)\n✔ literal single-file diff: uncommitted file[1].txt (54.917792ms)\n✔ literal single-file diff: uncommitted :(glob)*.txt (55.313417ms)\n✔ uncommitted details include staged, unstaged and untracked files (HEAD=false) (102.239417ms)\n✔ uncommitted details include staged, unstaged and untracked files (HEAD=true) (124.0105ms)\nℹ tests 27\nℹ suites 0\nℹ pass 27\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 1971.440166\n",
+          "stderr": "",
+          "exit": 0,
+          "returncode": 0
+        },
+        {
+          "argv": [
+            "/usr/bin/python3",
+            "workbench/tests/test_t249_outside_safety.py"
+          ],
+          "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a8-verify-1",
+          "stdout": "",
+          "stderr": "......\n----------------------------------------------------------------------\nRan 6 tests in 0.325s\n\nOK\n",
+          "exit": 0,
+          "returncode": 0
+        }
+      ],
+      "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a8-verify-1",
+      "state": "passed",
+      "command_intent": {
+        "argv": [
+          "/usr/bin/python3",
+          "workbench/tests/test_t249_outside_safety.py"
+        ],
+        "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a8-verify-1"
+      },
+      "quality": {
+        "snapshot": {
+          "source_commit": "c89b8ca4739f2a4106feeda8665f4e1aa8cec688",
+          "path": ".a2a/quality.json",
+          "raw": null,
+          "rule_checks": []
+        },
+        "red": [],
+        "rules": []
+      },
+      "out_of_card": [],
+      "result": {
+        "argv": [
+          "/usr/bin/python3",
+          "workbench/tests/test_t249_outside_safety.py"
+        ],
+        "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-1-a8-verify-1",
+        "stdout": "",
+        "stderr": "......\n----------------------------------------------------------------------\nRan 6 tests in 0.325s\n\nOK\n",
+        "exit": 0,
+        "returncode": 0
+      },
+      "ended": "2026-11-09T07:38:24.747Z",
+      "retained_ref": "refs/a2a/verifications/a2a+T-249-1/a8/v1",
+      "cleanup": "removed"
+    },
+    "user_input_observer": {
+      "state": "healthy",
+      "updated_at": "2026-11-09T07:12:24.397Z"
+    }
+  },
+  "stderr": ""
+}

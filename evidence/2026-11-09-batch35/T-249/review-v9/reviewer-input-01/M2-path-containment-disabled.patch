@@ -1,0 +1,11 @@
+--- a/workbench/app/gitHost.ts
++++ b/workbench/app/gitHost.ts
+@@ -77,7 +77,7 @@
+     const root = await exec('git', [...READ, 'rev-parse', '--show-toplevel'], cwd);
+     if (root.code !== 0 || realpathSync(root.stdout.trim()) !== cwd) throw new Error('未跟踪文件必须从仓库根目录读取');
+     const file = join(cwd, path), resolved = realpathSync(file);
+-    if (!resolved.startsWith(cwd + sep) || relative(cwd, resolved).split(sep).includes('.git') || !lstatSync(file).isFile())
++    if (false && (!resolved.startsWith(cwd + sep) || relative(cwd, resolved).split(sep).includes('.git') || !lstatSync(file).isFile()))
+       throw new Error('未跟踪文件必须是仓库内的普通文件');
+   }
+   const noPrograms = ['log', 'show', 'diff', 'diff-tree'].includes(argv[0]) ? ['--no-ext-diff', '--no-textconv'] : [];
