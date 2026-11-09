@@ -1,0 +1,80 @@
+.records-page { flex: 1; min-height: 0; overflow: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; }
+.records-intro { max-width: 720px; }
+.records-intro h2 { font-size: 20px; margin: 0 0 8px; }
+.records-intro p, .records-empty { color: var(--muted); line-height: 1.7; margin: 6px 0; }
+.record-card { max-width: 760px; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; background: var(--sheet); }
+.record-card[data-issue-state="等你决定"] { border-color: var(--needs); }
+.record-heading { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.record-heading strong { font-weight: 600; overflow-wrap: anywhere; }
+.record-state { font-size: 12px; color: var(--ink); background: var(--control); border-radius: 10px; padding: 1px 8px; }
+.record-state[data-tone="needs"] { color: var(--needs-ink); background: var(--needs-bg); }
+.record-state[data-tone="quiet"] { color: var(--muted); }
+.record-badge { font-size: 12px; color: var(--danger); border: 1px solid currentColor; border-radius: 10px; padding: 0 7px; }
+.record-meta { color: var(--muted); font-size: 12px; margin: 6px 0; }
+.record-body { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; margin: 8px 0; }
+.review-original { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; max-height: 320px; overflow: auto; }
+.record-reply { display: flex; gap: 8px; color: var(--muted); margin: 6px 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.record-reply span { flex: 0 0 auto; color: var(--ink); font-weight: 500; }
+.record-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.record-actions label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.record-actions textarea, .record-actions input { font: inherit; color: var(--ink); background: var(--field); border: 1px solid var(--control-border); border-radius: 8px; padding: 6px 8px; }
+.record-actions textarea:focus-visible, .record-actions input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.record-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+.record-table { width: 100%; max-width: 1000px; border-collapse: collapse; font-size: 13px; }
+.record-table th { text-align: left; font-weight: 500; color: var(--muted); border-bottom: 1px solid var(--line); padding: 6px 8px; }
+.record-table td { border-bottom: 1px solid var(--line); padding: 6px 8px; vertical-align: top; overflow-wrap: anywhere; }
+.record-table td.record-text { white-space: pre-wrap; max-width: 420px; }
+.record-table tr[data-intervention] td:first-child { box-shadow: inset 3px 0 0 var(--needs); }
+.record-filter { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.record-filter label { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--muted); }
+.record-filter select, .record-filter input { font: inherit; color: var(--ink); background: var(--field); border: 1px solid var(--control-border); border-radius: 8px; padding: 3px 6px; }
+.record-filter select:focus-visible, .record-filter input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.record-intervention { color: var(--needs-ink); margin-left: 6px; }
+.metric-section { max-width: 1000px; display: flex; flex-direction: column; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.metric-section h3 { font-size: 15px; margin: 4px 0; }
+.metric-section h4 { font-size: 13px; font-weight: 500; color: var(--muted); margin: 4px 0 0; }
+.metric-figure { font-size: 24px; font-weight: 600; margin: 0; display: flex; align-items: baseline; gap: 8px; }
+.metric-none { color: var(--muted); font-size: 13px; }
+@media (max-width: 900px) { .records-page { padding: 16px 12px; } }
+
+/* T-137: the Reflect page's session tree. */
+.reflect-branch { list-style: none; margin: 0; padding: 0; }
+.reflect-node { padding: 6px 0; border-bottom: 1px solid var(--line); }
+.reflect-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.reflect-score { display: flex; justify-content: flex-start; flex-wrap: wrap; gap: 2px 16px; margin: 4px 0 0; font-size: 12.5px; }
+.reflect-score div { display: flex; gap: 4px; }
+.reflect-score dt { color: var(--muted); }
+.reflect-score dd { margin: 0; font: inherit; }
+.reflect-loose { margin-top: 10px; }
+.retrospective-page { margin-top: 18px; }
+
+/* T-179: gate receipts, summary first, full JSON on demand. */
+.receipts { max-width: 1000px; margin-top: 16px; }
+.receipts h3 { font-size: 16px; margin: 0 0 4px; }
+.receipt { border-bottom: 1px solid var(--line); padding: 8px 0; }
+.receipt-summary { white-space: pre-wrap; line-height: 1.6; font-size: 13px; }
+.receipt[data-receipt-ok="false"] .receipt-summary { color: var(--warn); }
+.receipt details summary { cursor: pointer; color: var(--muted); font-size: 12px; margin-top: 4px; }
+.receipt-full { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; max-height: 360px; overflow: auto; background: var(--field); border-radius: 8px; padding: 8px; }
+
+/* T-262: both record streams share a filter bar and compact, expandable rows.
+   Scope these rules to the records page: the issue/metrics pages use this sheet too. */
+.user-input-page { min-width: 0; }
+.user-input-page .record-filter { max-width: 1000px; align-items: end; }
+.user-input-page .record-filter label { flex: 1 1 220px; min-width: 0; flex-direction: column; align-items: stretch; gap: 4px; }
+.user-input-page .record-filter select { width: 100%; min-width: 0; min-height: 32px; padding: 4px 8px; }
+.user-input-page .record-filter button { min-height: 32px; }
+.user-input-page .records-count { margin: 0; font-variant-numeric: tabular-nums; }
+.user-input-page .records-section { flex: 0 0 auto; width: 100%; max-width: 1000px; min-width: 0; margin: 8px 0 0; border-top: 1px solid var(--line); padding-top: 12px; }
+.user-input-page .records-section h3 { font-size: 16px; margin: 0 0 4px; }
+.user-input-page .input-record, .user-input-page .receipt { padding: 12px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.user-input-page .input-record[data-intervention] { border-left: 3px solid var(--needs); padding-left: 12px; }
+.user-input-page .record-meta, .user-input-page .receipt-summary { overflow-wrap: anywhere; }
+.user-input-page .record-kind { font-size: 12px; color: var(--muted); line-height: 1.7; }
+.user-input-page .record-preview { font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0; }
+.user-input-page summary { cursor: pointer; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.user-input-page summary:focus-visible, .user-input-page button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.user-input-page .record-original { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 320px; overflow: auto; background: var(--field); border-radius: 8px; padding: 8px; font-size: 12px; }
+.user-input-page .record-trace { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; font-size: 12px; color: var(--muted); }
+.user-input-page .record-trace dd { margin: 0; overflow-wrap: anywhere; }
+.user-input-page .records-help p { font-size: 13px; }

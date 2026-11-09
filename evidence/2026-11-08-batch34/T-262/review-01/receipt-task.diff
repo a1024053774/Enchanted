@@ -1,0 +1,11 @@
+--- candidate/RecordsPage.tsx
++++ receipt-task/RecordsPage.tsx
+@@ -70,7 +70,7 @@
+   ].sort(newestFirst);
+   const tasks = [...new Set(entries.map(entry => entry.task ?? projectScope))].sort((a, b) =>
+     a === projectScope ? -1 : b === projectScope ? 1 : compareText(a, b));
+-  const inTask = (entry: Entry) => !task || (entry.task ?? projectScope) === task;
++  const inTask = (entry: Entry) => Boolean(entry.receipt) || !task || (entry.task ?? projectScope) === task;
+   const sessions = new Map<string, Session>();
+   for (const entry of entries) {
+     const current = sessions.get(entry.session);
