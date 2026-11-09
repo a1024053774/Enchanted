@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, nativeTheme, clipboard } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, nativeTheme, clipboard, shell } from 'electron';
 import { mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
@@ -9,6 +9,7 @@ import { readOperatorCredential } from '../src/credentials.ts';
 import { randomUUID } from 'node:crypto';
 import { NotificationCenter, type NotificationPreference } from './notificationCenter.ts';
 import type { EmptyInputDeclaration } from '../src/panes.ts';
+import { gitAction, gitRead, managedWorktree, processCwd, repoOf, scanRepos, unwatchRepo, watchRepo } from './gitHost.ts';
 
 type Options = { state: string; task?: string; project?: string; launch?: string | string[]; userData: string; inspect?: boolean };
 type PaneBinding = {
@@ -29,6 +30,7 @@ const windows = new Map<number, WindowBinding>();
 let handlersRegistered = false;
 let appUserData: string | undefined;
 const notificationCenters = new Map<string, NotificationCenter>();
+const panelWatches = new Map<number, Set<string>>();
 function notificationCenter(context: WindowBinding) {
   const key = JSON.stringify([context.options.state, context.options.userData]);
   let center = notificationCenters.get(key);
@@ -405,6 +407,56 @@ function registerHandlers() {
     windowTarget(event);
     if (typeof text !== 'string') throw new Error('Invalid text');
     clipboard.writeText(text);
+  });
+  // T-249: the side panels' host. The directory a panel follows: the focused pane's working directory (a terminal's
+  // shell cwd, a managed pane's worktree), or the project's main directory with no pane focused.
+  ipcMain.handle('a2a:panel-directory', async (event, key: unknown) => {
+    const context = windowTarget(event);
+    const state = context.options.state;
+    const pane = typeof key === 'string' ? context.panes.get(key) : undefined;
+    if (pane?.launch) {
+      const scope = pane.project !== undefined ? { project: pane.project } : { task: pane.task };
+      const result = await request(state, { command: 'workbench_snapshot', ...scope, launch: pane.launch });
+      if (!result.ok) throw new Error(result.error);
+      const running = result.pane?.lifecycle === 'running' && Number.isSafeInteger(result.pane?.shell_pid);
+      const attempt = result.task?.current_attempt;
+      // A terminal's shell cwd; a managed pane (or a shell whose cwd lsof cannot read) its launch directory.
+      const shellCwd = running && result.launch?.role === 'shell' ? await processCwd(result.pane.shell_pid).catch(error => {
+        console.error('Panel directory: shell cwd unreadable, using the launch directory:', String(error)); return null; }) : null;
+      const dir = shellCwd ?? result.launch?.worktree ??
+        (attempt && attempt.attempt_id === result.launch?.attempt ? attempt.workspace : null);
+      if (dir) return { dir, source: 'pane', pane: key, role: result.launch?.role ?? null, managed: managedWorktree(dir, state) };
+    }
+    const dir = context.task?.repo ?? context.project?.repo ?? null;
+    return { dir, source: 'project', pane: null, role: null, managed: dir ? managedWorktree(dir, state) : false };
+  });
+  ipcMain.handle('a2a:git-repo', async (event, dir: unknown) => repoOf(dir, windowTarget(event).options.state));
+  ipcMain.handle('a2a:git-read', async (event, dir: unknown, argv: unknown, encoding: unknown) => { windowTarget(event); return gitRead(dir, argv, encoding ?? 'utf8'); });
+  ipcMain.handle('a2a:git-action', async (event, dir: unknown, action: any, values: any) => gitAction(dir, windowTarget(event).options.state, action, values));
+  ipcMain.handle('a2a:git-scan', async (event, root: unknown, depth: unknown, tags: unknown) => {
+    windowTarget(event);
+    return scanRepos(root, Number(depth), homedir(), tags === true);
+  });
+  ipcMain.handle('a2a:git-watch', async (event, dir: unknown) => {
+    const context = windowTarget(event);
+    const repo = await repoOf(dir, context.options.state);
+    if (!repo.top) throw new Error('不是 Git 仓库');
+    const sender = event.sender;
+    const id = watchRepo(repo as any, change => { if (!sender.isDestroyed()) sender.send('a2a:git-changed', change); });
+    const owned = panelWatches.get(sender.id) ?? new Set<string>();
+    owned.add(id); panelWatches.set(sender.id, owned);
+    return id;
+  });
+  ipcMain.handle('a2a:git-unwatch', (event, id: unknown) => {
+    windowTarget(event);
+    if (typeof id !== 'string' || !panelWatches.get(event.sender.id)?.has(id)) return;
+    panelWatches.get(event.sender.id)!.delete(id); unwatchRepo(id);
+  });
+  ipcMain.handle('a2a:open-path', async (event, path: unknown) => {
+    windowTarget(event);
+    if (typeof path !== 'string' || !isAbsolute(path)) throw new Error('Invalid path');
+    const failure = await shell.openPath(path);
+    if (failure) throw new Error(failure);
   });
   ipcMain.handle('a2a:archive-usage', async event => {
     const context = windowTarget(event);
@@ -873,7 +925,7 @@ export async function run(options: Options) {
       window.destroy();
     })();
   });
-  window.on('closed', () => { windows.delete(senderId); updateDockBadge(); });
+  window.on('closed', () => { windows.delete(senderId); for (const id of panelWatches.get(senderId) ?? []) unwatchRepo(id); panelWatches.delete(senderId); updateDockBadge(); });
   // A renderer killed from outside (e.g. SIGTERM to its process group) leaves an
   // empty window; the panes live in the daemon, so a reload reattaches them.
   // One reload per crash; a renderer that dies again within 10s of a reload is left

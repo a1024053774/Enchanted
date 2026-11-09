@@ -1,0 +1,42 @@
+$ ['/opt/homebrew/Cellar/node/26.5.0/bin/node', '--test', '--test-name-pattern=untracked empty and binary', 'workbench/tests/test_t249_git_host.mjs']
+✖ untracked empty and binary files keep Git semantics (72.760292ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 168.633042
+
+✖ failing tests:
+
+test at workbench/tests/test_t249_git_host.mjs:75:1
+✖ untracked empty and binary files keep Git semantics (72.760292ms)
+  AssertionError [ERR_ASSERTION]: non-text file manufactured text hunks
+  + actual - expected
+  
+  + [
+  +   {
+  +     kind: '@',
+  +     text: '@@ -0,0 +1 @@'
+  +   },
+  +   {
+  +     kind: '+',
+  +     number: 1,
+  +     text: '\x00\x01\x02�'
+  +   }
+  + ]
+  - null
+  
+      at TestContext.<anonymous> (file:///private/tmp/a2a-requests-3IGepO/t249-local-_zmi_k7x/force-text/workbench/tests/test_t249_git_host.mjs:84:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { kind: '@', text: '@@ -0,0 +1 @@' }, { kind: '+', number: 1, text: '\x00\x01\x02�' } ],
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

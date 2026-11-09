@@ -1,0 +1,43 @@
+{
+  "task": "a2a+T-249-1",
+  "attempt": "b33751df-0d57-4223-834d-4d467b199e22",
+  "candidate": "1243bc15f979976967cfd2d5cdd3a2acce6df635",
+  "review_id": "170295e4-b8ce-4804-8954-925c1fca8bba",
+  "state": "needs_fix",
+  "result": {
+    "verdict": "需修复",
+    "findings": [
+      {
+        "location": {
+          "path": "workbench/tests/test_t249_git_graph_e2e.py",
+          "line": 163
+        },
+        "failure_scenario": "[P2，验收证据未完成] 上轮“没有点击详情／diff 的窗口观察点”已在代码中补入，但还不能确认对应的已知坏实现会被真实入口拒绝。本次在唯一可写的一次性副本中分别断开 CommitDetails 挂载、把文件 openDiff 点击处理器改为空操作，三条完成条件对两个变异均 exit=0（冻结验收 PASS、宿主 22/22、脚本安全 6/6）。随后实际运行新增 E2E 的 --mutant no-details，命令在 user_core_snapshot 调用 /bin/ps 时被沙箱拒绝，尚未启动 Electron，不能算“点击提交后详情可见”的业务红态。候选提供的证据也明确没有运行新增窗口正例和反例。因此本轮已确认机械条件仍不足以独立拒绝这两个明显错误实现，新增窗口条件的实际检测能力仍为 INCOMPLETE。这不是认定原候选真的断开了详情，也不是新的产品缺陷。",
+        "suggestion": "保留本次测试代码修复及冻结 oracle，不要为了机械全绿增加源码字符串断言或再扩实现范围。由主控在任务已安排的沙箱外环境，对本候选运行 RUN-OUTSIDE-T249.sh，保存真实窗口正例 PASS，以及 no-details 命中“点击提交后详情可见”、no-diff 命中“点击文件后单文件 diff 可见”的红态；同时保留其他三项指定变异、清理及用户 core 不变的证据。补齐这些业务结果后即可关闭本条证据缺口，无需再做一轮泛化源码审查。若流程将“可合并”设为取得这些必需证据的前置条件，应由主控协调验证顺序；不能将尚未运行的窗口结果填写为 PASS，也不应要求 worker 绕过沙箱。"
+      }
+    ],
+    "review_requirements": {
+      "completion_conditions_sufficiency": true,
+      "mutation_checks": {
+        "min": 2,
+        "max": 5,
+        "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/170295e4-b8ce-4804-8954-925c1fca8bba",
+        "report_section": "完成条件与变异检查"
+      }
+    },
+    "report": {
+      "结论与范围": "结论：需修复。STATUS: INCOMPLETE；机械验收充分性反例已复现，真实窗口证据被环境阻塞。目标为门禁提供的候选 1243bc15f979976967cfd2d5cdd3a2acce6df635，基线 b7cce248c5ed85dd9342ade10886287365273863，verification 514be669-c083-4ede-b3ac-052ddd879e98。按上轮问题限定复查详情／diff 用户路径、对应变异和必跑编排，兼查共享 Git 模型边界。未另开审查 agent，未进行实现、提交或集成。不能把本结论解释为整票验收通过或允许发布。",
+      "上轮问题的修复核对": "源码层面的缺口已补入：check_commit_details 从可见提交行点击，检查可见详情，再从文件按钮进入 diff；元数据、文件列表、增删行数及 hunk 内容来自独立 Git 命令。专用夹具有随机 nonce，覆盖根提交、普通提交、未提交三种 diff 和 *、[、:( 字面文件名，以及无 HEAD 时 staged、mixed、intent-to-add、untracked。no-details 与 no-diff 在 MUTANTS 登记，RUN-OUTSIDE 的五项循环必跑，映射到不同的指定业务断言；check_dom 不捕获 CDP 异常来伪造缺失红态。新增代码没有再以生产源码字符串仍存在作为用户路径通过的证明。这些是静态核对，不是窗口实跑证据；未重复将“测试没有观察点”作为新缺陷。",
+      "完成条件与变异检查": "全部操作位于 /Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/170295e4-b8ce-4804-8954-925c1fca8bba；所有测试使用 TMPDIR、TMP、TEMP 指向该副本的 .review-t249/tmp，PYTHONDONTWRITEBYTECODE=1，PATH 前置 /opt/homebrew/Cellar/node/26.5.0/bin。命令 A=/usr/bin/python3 acceptance/T-249/check_git_graph.py；B=/opt/homebrew/Cellar/node/26.5.0/bin/node --test workbench/tests/test_t249_git_host.mjs；C=/usr/bin/python3 workbench/tests/test_t249_outside_safety.py。\n未变异基线：A exit=0、B exit=0（22/22）、C exit=0（6/6）。\n1. no-details：只将 GitGraphPanel.tsx 的 {selectedCommit && <CommitDetails 改为 {false && selectedCommit && <CommitDetails。运行 A、B、C，全部 exit=0，变异存活。记录 .review-t249/no-details-{acceptance,host,outside-safety}.txt。\n2. no-diff：只将 GitGraphPanel.tsx 的 onClick={() => void openDiff(file.path, file.status)} 改为 onClick={() => {}}。运行 A、B、C，全部 exit=0，变异存活。记录 .review-t249/no-diff-{acceptance,host,outside-safety}.txt。\n3. literal-pathspec：将 gitGraphModel.ts 中 const file = `:(top,literal)${path}`; 改为 const file = path;。运行 B，exit=1，13 项通过、9 项失败，三种 diff × 三种特殊文件名均出现选中文件混入其他文件内容的断言失败。变异被业务检查拒绝，见 .review-t249/literal-pathspec-host.txt。\n4. parents：将 gitGraphModel.ts 的 parents.split(' ') 改为 parents.split(' ').reverse()。运行 A，exit=1，all/current 的父提交与泳道共 4 项失败。变异被业务检查拒绝，见 .review-t249/parents-acceptance.txt。\n5. wrong-assertion：将 RUN-OUTSIDE-T249.sh 中 e2e-red-no-diff 的期望失败名称从“点击文件后单文件 diff 可见”错配为“点击提交后详情可见”。运行 C，exit=1，test_disconnected_ui_requires_its_specific_business_assertion 的 no-diff 子场景失败。此项证明分类检查能拒绝错误映射，不证明窗口行为，见 .review-t249/wrong-assertion-outside-safety.txt。\n针对第 1 项，另实际运行 /usr/bin/python3 workbench/tests/test_t249_git_graph_e2e.py --output \"$PWD/.review-t249/e2e-no-details\" --mutant no-details（同一 TMPDIR 环境）：exit=1，PermissionError: [Errno 1] Operation not permitted: '/bin/ps'。失败发生在 main:321 的 user_core_snapshot，未到 Electron 或指定业务断言；不计为变异被杀，见 .review-t249/e2e-no-details.txt。没有换路径、替代命令或提升权限重试，也没有在同一阻塞下重复 no-diff 窗口运行。\n结论：5 项少量变异中 3 项被相应检查拒绝，2 项在机械条件下存活；新增窗口测试仍缺实际正反例证据，不能满足“确认每个会失败”的本轮审查要求。所有变异逐项恢复原始字节，patch 和输出分别保留，汇总见 .review-t249/mutation-summary.json。",
+      "结构与前端审查": "已按 design-integrity-review、behavioral-acceptance-review、evidence-first-testing 及 frontend-production 工程镜头核对。调用链仍为 Workbench → PanelDock → preload/main → gitHost 的 execFile，CLI 与界面共用模型和命令；详情的三种单文件路径仍采用 literal pathspec，无 HEAD 时的基线仍由只读 hash-object 得出。Deep modules：新增详情测试没有引入平行生产模型；独立 Git oracle 与 UI 观察职责分明。Ubiquitous language：no-details、no-diff 在变异、指定断言和编排中一致。Tracer bullet：新增点击提交→详情→文件→diff 的跨层路径已写入，但未获得真实运行结果。敏感脚本的本轮扩展为指定断言映射、五项必跑列表与证据目录；未见借此扩大清理目录所有权。未确认新的产品结构缺陷。真实视觉、焦点、Esc、拖宽、watch 时序和打包后行为仍未验证。",
+      "工具与证据限制": "一次性副本不含 .git。git status/rev-parse 返回 not a git repository；因此候选身份取自门禁快照，未声称在副本重新读取了提交身份。design_integrity.py --cwd . --base b7cce248c5ed85dd9342ade10886287365273863 --format json 返回 root:null；其空 findings 不是有效扫描通过。project-map status 在无 Git 模式下报告 6 个 Verified 日期格式问题，这属于副本缺少 Git 上下文，不能据此认定候选治理文件坏了。副本无 node_modules，未安装或复制新依赖，未运行构建或全仓测试。两份 Python 开发测试 AST 解析通过，bash -n RUN-OUTSIDE-T249.sh exit=0。冻结 acceptance/** 与根 REVIEW.md 未修改。证据报告保留静态、机械、窗口三层边界。",
+      "卡外改动与现场": "门禁报告卡外改动为空；本轮未发现需要另行批准的卡外候选文件。测试、编排、README 以及 repair-details-01 证据都对应上轮指定修复，没有扩大到 T-250 或运行时缺陷。审查期间仅在指定一次性副本临时变异和保存 .review-t249 文本结果；候选 worktree、门禁审查目录、worker worktree 和额外目录均未写入。临时测试根清理前保存了 1 个文件、13 字节及环境失败状态；清理完成，见 .review-t249/cleanup.json。E2E 在启动 daemon/Electron 之前失败，未启动后台或 hc core。旧失败证据保持原样，未写请求文件，未提交或操作共享引用。",
+      "后续验收与状态": "按任务卡已安排的两层流程，主控需要在有权运行的沙箱外环境取得本候选真实窗口正例及 no-panel、no-details、no-diff、parents、order 五项指定红态，并完成新 Enchanted Test、terra Computer Use、正式 Enchanted PID/启动时间及用户 core 不变核对。敏感脚本仍须用户阅读完整证据后批准。当前阻塞是缺实际业务证据，不要求再扩产品实现；避免把本报告退回为又一轮无边界加测试或盲审。RELEASE: INCOMPLETE。",
+      "Works": "独立复跑三条机械条件通过；源码核对确认上轮要求的详情／diff 窗口观察与两项变异已加入。当前仅证明实现接线的静态形态、Git 模型行为及编排分类，未证明窗口路径通过。",
+      "No regression": "冻结验收 PASS、宿主 22/22、脚本安全 6/6；Python AST 与 Shell 语法检查通过。未运行全仓、构建、真实窗口或打包回归。",
+      "Risk / undo": "no-details 与 no-diff 的实际窗口判红能力尚未验证，不能依据机械全绿集成。全部审查变异已按原始字节恢复，不会进入候选或集成；复现文本留在唯一可写副本。最小下一步是主控补齐既定窗口业务证据，而非修改冻结验收或绕过权限。"
+    },
+    "turn_id": "01a1bb9e-7882-7d51-9c11-5fd43f0491bb",
+    "received_at": "2026-11-08T14:50:52.612Z"
+  }
+}

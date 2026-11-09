@@ -36,6 +36,8 @@ import { gateStateNames } from '../src/gateReceipts.ts';
 import { TaskRecord } from './TaskRecord.tsx';
 import { ReflectPage } from './ReflectPage';
 import type { NativeQuestion } from '../src/questions.ts';
+import { PanelDock, initialDockOpen, saveDockOpen } from './panels/PanelDock';
+import { terminalPalettes } from './terminalPalettes';
 
 type Snapshot = {
   questions?: NativeQuestion[];
@@ -96,14 +98,6 @@ function since(iso: string | null | undefined, now: number) {
   return Math.floor(seconds / 86400) + ' 天';
 }
 const tilde = (path: string | null | undefined, home: string | null) => !path ? '' : home && (path === home || path.startsWith(home + '/')) ? '~' + path.slice(home.length) : path;
-const terminalPalettes = {
-  light: { background: '#ffffff', foreground: '#1f2328', cursor: '#1f2328', selectionBackground: '#0969da33',
-    black: '#24292f', red: '#cf222e', green: '#116329', yellow: '#7d4e00', blue: '#0969da', magenta: '#8250df', cyan: '#1b7c83', white: '#6e7781',
-    brightBlack: '#57606a', brightRed: '#a40e26', brightGreen: '#1a7f37', brightYellow: '#633c01', brightBlue: '#218bff', brightMagenta: '#a475f9', brightCyan: '#3192aa', brightWhite: '#8c959f' },
-  dark: { background: '#1c1c1f', foreground: '#e6e6ea', cursor: '#e6e6ea', selectionBackground: '#3b82f655',
-    black: '#484f58', red: '#ff7b72', green: '#3fb950', yellow: '#d29922', blue: '#58a6ff', magenta: '#bc8cff', cyan: '#39c5cf', white: '#b1bac4',
-    brightBlack: '#6e7681', brightRed: '#ffa198', brightGreen: '#56d364', brightYellow: '#e3b341', brightBlue: '#79c0ff', brightMagenta: '#d2a8ff', brightCyan: '#56d4dd', brightWhite: '#f0f6fc' },
-};
 const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
 type Layout = string | { direction: 'right' | 'down'; first: Layout; second: Layout };
@@ -724,6 +718,14 @@ function Workbench() {
   const [focusRequest, setFocusRequest] = useState({ key: '', version: 0 });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarHidden, setSidebarHidden] = useState(false);
+  // T-249: the side panel slot, and the pane it follows (the last one the keyboard or pointer went into).
+  const [dockOpen, setDockOpen] = useState(initialDockOpen);
+  useEffect(() => saveDockOpen(dockOpen), [dockOpen]);
+  const [focusedPane, setFocusedPane] = useState<string | null>(null);
+  const notePaneFocus = (event: { target: EventTarget }) => {
+    const key = (event.target as HTMLElement).closest?.('section.pane')?.getAttribute('data-pane-key');
+    if (key) setFocusedPane(key);
+  };
   const [theme, setTheme] = useState<Theme>(readTheme);
   const [removeAsk, setRemoveAsk] = useState<(RemoveRefusal & { project: string }) | null>(null);
   const [projectMenu, setProjectMenu] = useState<{ project: ProjectItem; x: number; y: number; opener: HTMLElement } | null>(null);
@@ -1126,6 +1128,7 @@ function Workbench() {
           <button data-reflect-tab aria-current={page === 'reflect' ? 'page' : undefined} onClick={() => setPage('reflect')}>Reflect</button>
         </nav>
         <span className={'connection ' + (error || catalogError ? 'warning' : '')} role="status">{status}</span>
+        <button className="text-button header-panel-toggle" data-panel-toggle aria-pressed={dockOpen} title="侧边面板" onClick={() => setDockOpen(value => !value)}>面板</button>
         <button className="primary-button" disabled={busy} title="新建终端（⌘T）" onClick={() => void newTerminal()}>新建终端</button>
       </header>
       {page === 'flow' && <FlowPage key={selectedProject ?? ''} project={selectedProject} nameOf={projectName} />}
@@ -1181,7 +1184,7 @@ function Workbench() {
       </div>}
       {navigationError && <div className="connection-error" role="alert">{navigationError}</div>}
       {terminalError && <div className="connection-error" role="alert">{terminalError}</div>}
-      <div className="pane-grid pane-layout" aria-label="终端窗格">
+      <div className="pane-grid pane-layout" aria-label="终端窗格" onFocusCapture={notePaneFocus} onPointerDownCapture={notePaneFocus}>
         {!navigating && !task && viewProject && !paneKeys.length && <div className="project-task-grid" aria-label="项目任务分屏">
           {project?.tasks.map(item => <button key={item.task_id} className="project-task-tile" data-task-tile={item.task_id}
             disabled={busy} onClick={() => selectTask(item.task_id)}>
@@ -1226,6 +1229,7 @@ function Workbench() {
       </section>}
       </div>
     </main>
+    {dockOpen && <PanelDock focusedPane={focusedPane && paneKeys.includes(focusedPane) ? focusedPane : null} home={home ?? window.a2a.home} onClose={() => setDockOpen(false)} />}
     <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} theme={theme} onTheme={setTheme} screenReader={screenReader} onScreenReader={setScreenReader} terminalFont={terminalFont} onTerminalFont={setTerminalFont} gaps={gaps}
       notifications={notifications} dockBadges={dockBadges} onNotification={(enabled, preference) => {
         void window.a2a.notificationSetting(enabled, preference).then(value => {

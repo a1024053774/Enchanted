@@ -1,0 +1,1584 @@
+# a2a 门禁、编排后台与工作台
+
+项目终端由编排后台的私有 hc core 托管；worker、审查员、监视器和主控预设的受管窗格仍走 node-pty（T-212）。
+项目终端里的程序访问 `~/Documents` 等受 macOS 隐私保护的目录时，若尚未获得授权，macOS 可能请求授权；等待回答期间，终端里的程序可能停在打开文件上，表现为 Claude Code 没有输出、Codex 输入一直排队、agy 一直 working。遇到这种现象先检查有没有系统授权框（T-236、T-238 中，用户回答授权框后恢复）。重新构建的 ad-hoc 包可能需要重新授权。
+hc 的固定版本、来源和校验值只定义在 `src/hcDistribution.mjs`。开发启动、测试和打包共用取用逻辑：
+缓存 tarball 每次核验 SHA-256；存在但损坏就报错，不下载替换；没有缓存才下载并核验。开发默认读取仓库相邻的
+`hc-cache/`，可用 `ENCHANTED_HC_CACHE_DIR` 指定缓存目录。开发态每个固定值装在数据目录的 `hc/herdr-core-<版本>-<SHA 前 8 位>/`：
+先解包到同目录下的临时目录，再一次改名发布，之后不再写入；已存在就直接用。重新解包会换 inode，仍在运行的 core 之后起的 holder
+构建号就对不上（T-244）。早先的 `hc/bin` 不删，可能还有 core 在用。应用包内含 hc 与 Apache-2.0 许可、第三方声明，并核对二进制签名。
+
+每个后台数据目录保存自己的 `HC_SESSION` 与 `HC_SOCKET` 身份。socket 位于随机私有临时目录，
+与用户 default core 无关；核对长度时包含 holder 后缀。hc 的状态和配置通过 XDG 变量放在后台私有 `hc/` 目录，
+启动 core 前去掉编排、Git、agent 会话与继承的 `HC_*` 标记；终端启动时还原用户原有 XDG 值，未设置的则删除。
+终端里不带私有 core 的地址：启动时去掉 hc 给终端设的 `HC_SOCKET`、`HC_SESSION`、`HC_TERMINAL_ID`、`HC_TERMINAL_SOCKET`（T-230）。终端之间发字、查看只经 a2a 命令，后台留记录；在终端里敲 `hc` 用的是用户自己的 hc 设置，看不到 Enchanted 的终端。core 被杀后，终端里的 hc 调用因此碰不到私有 socket，私有 core 由 holder 或后台按受控环境拉回。
+后台启动时只接受打开着本会话私有 `hc/state/herdr-core/<session>/core.lock` 的 core（把锁路径交给 `lsof` 按文件身份核对，不比对它输出的路径文本），且它不在后台的进程组里：
+core 死后 holder 约 3 秒按原受控环境重拉的 core 被接受，原终端接回、屏幕记 inexact；同 session、同 socket 但状态在默认 XDG
+目录的 core 被拒，后台不启动，记 `hc_start_failed` 事件与原因（T-228）。运行中的后台断开后不自动重连。
+项目终端经 framed attach 收发数据、归还输出 credit 和调整尺寸，pid 来自 hc 记录。attach 的完整重绘前追加 reset，
+避免重放 trace 时重复历史。项目终端窗格打开或布局稳定 150 毫秒后，后台先发送 RESIZE，再重新 attach，取得该尺寸下的完整重绘，
+返回 reset 所在的 trace 偏移；界面等尺寸请求完成后从该偏移回放，避免把大屏重绘写进小窗格而覆盖末行。
+连续布局变化只保留最新尺寸，同时最多一个尺寸请求在途；后台在重绘边界清零 UTF-8/OSC 解析状态。
+重绘 reset 和 DATA 的 trace 写入失败按窗格记录；初次 attach 或 resize 拒绝返回成功/偏移，
+不把 trace IO 异常抛进共享 hc 连接。初次打开项目终端时就写失败，算没建成：后台当场关掉刚起的 hc 终端并记 `shell_closed`，再把原错误返回给调用者（T-227）。
+窗格的任何 trace（`pty.raw`、`native.jsonl`）写失败后，这个窗格记为失败，之后不再写它的 trace；
+后续输出照常读（OSC 7501、原生日志扫描），失败窗格的写入（含终端协议应答）一律拒绝。
+窗格失败是终局：第一个失败原因保留，同一种失败每个窗格只记一次，事件库写不进也只告警一次。RPC 回调若意外抛错，当前调用也会先 reject，避免写入队列悬挂。
+受管窗格仍即时改尺寸，不隐藏等待 hc 重绘。所有显示仍经同一个追加式 trace 和按偏移读取的接口。
+trace 是原样字节，后台在输出停在半个 UTF-8 字符时被重启、接回终端，记录里会留下“半个字符 + 重绘的 ESC c”；程序也可能直接打印无效字节。界面窗格按终端的做法把这些字节显示为替换字符 U+FFFD 并继续读取，不报解码错误、不停读（T-239，`tests/test_t239_pane_invalid_utf8_e2e.py`）。
+`tests/test_t212_shell_hc_e2e.py --electron-screen --mismatched-screen` 核对大尺寸 hc 重绘接入小窗格后，
+实际 xterm buffer 与 hc 保留的编号中文历史逐行一致，防止尺寸错配再次覆盖末行。
+同一测试的 `--electron-screen --resize-burst` 场景核对连续 24 次布局变化仅产生少量完整重绘，最终尺寸和输出完整。
+
+后台重启只断开项目终端的 viewer，接回原 hc 终端与原 pid；终端专用 socket 地址保持不变，`a2a` 身份继续有效。
+后台自有的终端凭据文件只保存 token 哈希，文件为 0600、目录为 0700。hc 自己会在私有 registry 中保存终端环境，
+其中含明文 token；这是同一用户可读的运行数据，**整个 hc 私有运行目录永久排除在证据复制之外**。
+测试用 `tests/hc_evidence.py` 核对证据中没有 hc 状态文件、没有已知 token 明文，并只读比较用户 core 的目录及 pid/启动时间。
+显式关闭终端调用 `terminal.kill`，再核对子进程；macOS 上已知的系统二进制逃逸不被当作清理成功。
+core 崩溃后的屏幕可能为 `inexact`、历史可能丢失，不能将其报告为完整，界面在这类窗格的标题栏显示“历史不完整”（T-230）；后台重启与 core 崩溃是两个不同场景。
+运行中连接丢失而窗格带 `failed` 时，普通终端和主控的侧栏状态均为 unknown；终端进程仍在，主控身份不因此结束。
+
+项目行的右键菜单提供“编辑项目”：主目录保持不变，可以通过目录选择器添加或移除额外目录。
+保存设置会追加 `project_settings_saved` 事件；旧设置记录保留。项目的额外目录只决定主控 `terminal_open` 能开普通终端的目录，
+不再自动给 worker（T-193）。worker 能写哪些项目外目录由主控按任务决定：`dispatch` 或 `run` 带 `extra_directories`
+（绝对路径、须存在，按真实路径去重；任务仓库与工作台数据目录内的路径返回 `extra_directory_guarded`），记在 attempt 上，
+该 attempt 的 worker 与 reviewer 获得写权限（Claude 的 `--add-dir`、文件工具权限与 shell 沙箱 `allowWrite`；Codex 的 `--add-dir`），
+启动记录的 `extra_directories` 与 argv 写明；没指定就没有。monitor 不获得额外目录。run 恢复和合并冲突后的自动替换沿用原 attempt 获批的目录；普通改卡后的新派发仍须重新指定。
+额外目录里的改动不进门禁的审查与集成，也不提供 worktree 隔离；worker 交付说明须列出改过的额外目录。
+reviewer 仍按角色卡做只读审查。
+
+主区的“流程”页只读展示所有项目的任务：一张票一条横向泳道，按“认领与实现 → 交付 →
+机械检查 → 独立审查 → 集成”排列。当前阶段来自当前 attempt 的门禁事件，阶段无法确认时
+显示“阶段未知”；打回线累计该票的 `delivery_rejected` 事件，机械检查或审查的附属结果不重复计数。
+启动记录与已核实的父 launch、任务、当前 attempt 对应后，worker 放在实现阶段，审查员放在
+独立审查阶段，监视器放在泳道上方；已结束的会话保留并标“已结束”。关系或角色无法对应的
+会话放“未归属”，逐项列出原因，不读窗格文字推断。执行主控按已核实的派发父关系，进入其当前
+worker 所在的任务泳道；不同任务分别展示。胶囊标题使用角色与任务名，启动记录号只放在悬停提示，
+并沿用侧栏的结构化状态。每条泳道逐行展示项目主目录与当前设置的额外目录。
+选了项目时（T-178），本项目的泳道与未归属会话在前；其他项目的泳道与未归属会话放进默认收起的“其他项目的任务 N 张”，展开可见。泳道标题与任务名相同时只写任务名。
+每组超过四个会话可展开，已集成的票默认折叠；窄窗中横向滚动查看阶段。
+`flow_snapshot` 和 Electron 的 `a2a:flow` 只读取，不采集原生日志、不写表或 trace。
+T-111 的真实 Electron 沙箱外复验 RUN-OUTSIDE-03 与独立审查复验 REVIEW-OUTSIDE-02
+均已通过，覆盖并行票、阶段与角色、跨 attempt 打回计数、折叠展开、窄窗和空状态；
+流程与侧栏只读检查通过，计数、缺 attempt 和写库变异均被拒绝。结果与验证范围见
+[T-111 Resolution](../.project-map/tickets/T-111-workbench-flow-view-page.md#resolution)。
+
+T-096 恢复已合入 main；57c3bfb63 的七场原生恢复回归曾通过。第三轮审查随后发现正常登录记录缺认证字段会绕过拒绝，现已改为假 API 合同白名单；新候选七场原生回归仍须重跑。Electron 创建或显式关闭窗格时，把 launch 与位置追加到
+现有 SQLite 事件流；退出应用只断开视图，保留打开集。窗格的分屏树与名字也写入同一事件流。未传 `--launch` 时读取该任务
+保存的窗格集，并沿用位置。只有从未保存过布局才选择当前窗格；明确关闭最后一格后，
+保存集为空，重开仍显示空视图。后台只自动恢复假 API 的主控窗格：按原启动记录构造完整续接 argv，
+Claude 仅把 `--session-id` 换为 `--resume`；其余参数与隔离假 API 环境取原记录。
+恢复在 session 核对之后、PTY 启动之前建立规范 executable_path，并记下当前安装的 CLI 版本（不与原版本比较，T-118）；旧历史记录不变，只给运行时副本补齐。已有规范身份与当前目标不同则拒绝，不改变 argv 或硬设 leader。
+已知限制：正常登录的主控记录不自动续接。recover 在任何 CLI 命令前检查现存正常登录标记，不只依赖 authentication；任一正常登录标记存在即保留为“未恢复”，返回 `normal_login_restore_requires_protected_start`。请经正常登录入口重新启动；不执行版本命令、不启动 PTY、不读 auth。
+仅当 P1 角色版本、公开假 token、规范 loopback base URL、隔离目录及既有假 API shell 启动形式与完整原 argv 的逐字对应同时匹配，且没有正常登录标记时才进入原恢复核对。正常登录以 exec 开头的启动形式也属于拒绝标记；shell 字段缺失或不属于既有假 API 形式的记录归为无法识别。合法旧记录可省略 authentication；无法正面识别的记录返回 `restore_record_unrecognized`，不猜测配置或执行 CLI。状态接口保留明确错误及正常登录的中文重启提示，现有界面显示“未恢复”与错误码。完整重建 R/F/D/C 生命周期另票处理，见 [请求 20](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-20.md)。
+缺 argv、原生会话文件不存在时保留该窗格并显示“未恢复”，其余窗格继续恢复。
+恢复不发送提示词或放行旧队列。按 T-096 的 2026-10-18 裁定 B，worker 窗格保留并显示
+“未恢复”，不启动 CLI、不重绑定、不改变 attempt；后续由执行主控按中断恢复流程处理。
+真实 Electron／daemon／CLI 验证入口与已知限制见
+[运行说明](../evidence/2026-10-16-batch16/T-096/RUN-RESTART.md)。
+
+T-078-2 P1 已接入 `controller_start --task ID --manifest /绝对路径/manifest.json`。
+T-078 的假 API profile 使用隔离 HOME／CLAUDE_CONFIG_DIR、公开假 Bearer token 和 loopback Messages API。
+T-093 另加正常登录 profile，配置与事实核对见下节；真实模型回合仍须用户在合入后另说开工。
+根提交预算须在 manifest 预声明为 1～6 根，尚不宣称可用于日常主控。假 API 启动需逐次批准；单角色
+收件箱候选及当前绿态审批流程见 [SLICE-1-GREEN-3](../evidence/2026-10-11-batch13/T-078/SLICE-1-GREEN-3.md)。
+隔离 settings.json 仅设置 `theme: dark`，移除 IS_DEMO，并设置文档化的
+`CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1`，禁用标题侧模型请求和终端状态报告。
+假服务用文档化的 `ANTHROPIC_AUTH_TOKEN`，
+移除 `ANTHROPIC_API_KEY`，只由假 API 验证 Bearer 头，不设置 apiKeyHelper 或内部批准状态。
+启动、每屏明确按键、continue、cleanup 分别审批。按键经后台 operator 凭据认证，
+保存目录与屏幕原字节，执行主控操作不记为用户亲手输入；不自动补 Enter。
+主题数字键无已核对依据，不配置。`selected_label` 是按键的目标项：
+ArrowUp 到 Auto、ArrowDown 到 Dark mode，再单独批准 Enter 确认 Dark；
+启动时直接 Enter 默认项被拒，同一屏 ID／原字节不能再次操作。
+workspace-trust 用单独批准的 ArrowDown 到 `Yes, I trust this folder`，读回后另批 Enter；
+前一条必须是同一窗格的该次导航，确认快照须延续导航原文。默认 Enter 和 Digit1 均拒绝，
+整个 launch 只允许一次信任确认；不保留数字键路径。
+用途只适用隔离假服务实例：onboarding-theme／onboarding-notice／workspace-trust。
+onboarding-notice 只允许 Enter：从已登记的主题确认快照之后取输出，剥离终端控制序列，
+与 08c 的固定 Security notes 文字逐字比较；原字节也必须等于本屏批准快照。
+文字不同、额外提示或重复确认均拒绝。其他权限、认证、遥测或共享选择仍停下。
+原生 debug 与 hooks 的原始 stdin、stdout、stderr、退出码和耗时落进该实例目录。
+HookTrace 核对启动的 preset/launch，只接受 `<root>/roles/<preset>/hooks`；
+不接受旧的 `<root>/hooks` 布局。
+单回合及 09A-3R2 两回合 Esc／空框放行、拼接阻断已有绑定版本的实际证据；
+当前 controller 转交候选仍须新实例验证，不能复用这些旧结论作验收。
+遇到 API key 批准或目录信任提示，保存终端原文并停下，不输入或选默认。
+cleanup 绑定 CLI 的 PID、启动时间和命令，确认退出前不报告 PASS 或删除隔离根。
+角色卡经固定 CLI 帮助列出的 `--append-system-prompt` 传完整文本；启动记录仍保留来源路径。
+controller 的 role card 只从绑定 preset 的 `roles/<preset>/role.md` 读取；root/role.md 会被拒绝，
+不保留旧路径兼容分支。两个 preset 共用 broker/state/repo，HOME、config、tmp、shell、requests、
+hooks、user-data 和 debug 按 preset 隔离。Claude 信号回合预算支持 manifest 声明的 1～6 根，
+超出 6 根在 launch 构造处拒绝，Stop/prompt 绑定仍按实际 prompt_id 核对。
+P1 API 在启动时绑定 loopback 的端口 0，由操作系统分配端口并先记录实际 manifest；
+主控运行入口拒绝未分配的端口 0。旧实例材料已过期。
+launch 仅记录进程启动，首屏另经 screen 阶段读回，不把即时输出当作稳定首屏。
+Bearer 已取得标题侧请求；08b 的 Enter 因目标项字段误判被拒，已用实际批准文件复现并修复；
+08d 已在真实 CLI 确认主题与固定 Security notes，停在默认 No 的信任屏后清理；
+08e 已确认信任，并取得一回合主请求、实际 UPS/Stop exit 0 和 busy→idle（变基前可行性）。
+09A 用两条 nonce：实际 hook 的 prompt_id 绑定回合，Esc 写出后释放 active、保留队列，
+用户在窗口放行后才提交第二条；旧 Stop 不结束新回合。nullable 主控窗口按任务版本与
+实际 CLI 身份核对，worker 仍核对 attempt。09A-3R2 两场景的实际假服务／CLI／UI
+结果及归档见 [RESULTS](../evidence/2026-10-11-batch13/T-078/RESULTS.md)，不外推到新候选。
+09B/09C 的实际双主控收件箱与 stop/ack、120 秒无 ack 只中断仍未启用／未完成，范围保留。
+旧 T-078-1 的通过结果不替它背书。
+
+用 Node 26.5 及其原生 TypeScript 类型剥离直接运行，无 Bun、打包或编译步骤：
+
+```sh
+node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status --task 任务编号
+```
+
+先对同一隔离目录调用 `daemon_start`，结束时调用 `daemon_stop`。客户端只通过
+`control.sock` 访问常驻后台，不再直接打开门禁库。后台未启动时命令明确失败，不自动拉起或重试。
+`daemon_start` 使用 detached 子进程和独立日志。
+普通请求的传输期限为 120 秒；`run` 的有效显式等待参数另加 120 秒收尾余量，
+避免长任务被短客户端期限截断。传输超时仍报告结果未知，不重放请求。
+`daemon_stop` 显式进入关闭流程，返回 `stopping: true` 是受理确认；以 PID/端点消失确认退出。
+关闭时拒收新请求，自动 run 在等待及门禁边界停止推进；已开始的门禁操作与回执写入先收尾，
+随后停止自建窗格、保存退出事件、关闭数据库。停止不替代 reclaim，也不把失败或未知结果改成通过。
+
+项目视图在同一屏中为每个任务显示一格；点击任务后显示该任务保存的 agent 窗格布局。
+点击侧栏的单个 agent 只显示它自己，查看不会覆盖任务的分屏树与名称。项目普通终端（包括经角色申请成为主控的终端）
+从侧栏单独打开；任务内分屏创建的普通终端可与该任务的 agent 并排，只有明确加入该任务布局的终端随任务恢复，
+不自动加入其他项目终端，也不将普通终端登记为任务 agent。未归属终端仍在独立终端区。任务与 agent 视图共享仍在当前选择中的输入凭据，
+已结束或历史 attempt 的 agent 只读。
+在单 agent 视图中重命名或关闭，只修改该会话的名称或布局叶子，保留其余会话的分屏方向与名称。
+项目终端的布局保存只包含普通终端，项目查询中同属该项目的任务 agent 不进入终端布局。
+项目终端里的 Claude Code（经插件）和 Codex（经包装脚本的 `-c hooks.SessionStart`）在会话开始时都经 SessionStart 钩子（`a2a session-context`，输出 `hookSpecificOutput.additionalContext`）收到同一份开局说明（文字只在 `terminal/orientation/AGENTS.md` 一处；opencode 把这个文件作为 instructions 读入，agy 经包装脚本的 `--add-dir` 把这个目录加进工作区、读其中的 AGENTS.md，T-187）：`a2a` 在 PATH 上、`a2a help`、用户要它当主控就直接 `a2a request`、当主控前先读使用说明（Claude 是 a2a skill，其他 CLI 看 `a2a help`）；只在有终端身份时输出（T-181、T-185）。用户自己用 `-c hooks.SessionStart=…` 传的开局钩子优先，替换 Enchanted 的这一项；用户 hooks.json 里的开局钩子照常一起运行。新钩子第一次在用户自己的 Codex 里启动时，Codex 会弹一次钩子信任框，由用户本人确认，a2a 不写 Codex 配置。
+侧栏接口把普通终端放在 `terminals`；`agents` 包含 agent 会话和终端最近一次确认生效的主控角色。终端已结束时保留主控条目；交回角色而终端仍运行时恢复为普通终端。普通终端的状态取前台的 agent，不取 shell（T-191）：前台没有已登记的 CLI 时为空闲；
+agy、opencode 取它们报给终端的 OSC 7501；Claude Code、Codex 取 Enchanted 钩子报的回合（T-242：没有获批角色时只存在内存里、不记录，只在报告它的进程仍是前台时显示；第一次提交前显示未知）。前台 CLI 在提交一行后读出，
+有 CLI 在前台时每 5 秒复查。每行在角色名前显示所属 CLI 的图标（Claude Code、Codex、agy、opencode；来源与许可见
+`app/brand/cli/NOTICE.md`），受管会话的 CLI 名取启动记录里的 `cli`。
+T-177：已结束的会话和被新 attempt 取代的会话折进每个任务下的“历史 N 个”，默认收起；子会话仍在用时父会话不折。“清理”只拿掉已结束的会话（追加 `sidebar_hidden` 事件，仅操作员；记录与门禁事件不删，运行中的会话拒绝 `session_not_ended`）。已集成任务仍空闲的当前 worker 显示“回收”，经门禁 `reclaim`。没有指定启动目标时，窗口打开最近活跃、未结束的会话。
+终端设 `minimumContrastRatio: 4.5`：按深色背景配色的 CLI（如 Claude Code 问答框正文用的 256 色纯白）在浅色配色下会被自动调深，不改 CLI 的配置（T-181）。
+终端用 xterm 的 WebGL 渲染器（`@xterm/addon-webgl`）逐格绘制，制表符、色块与 powerline 分隔符由渲染器自绘，不依赖字体；
+宽度按 Unicode 11（`@xterm/addon-unicode11`），与 CLI 计算中文宽度的规则一致（T-175，L02）。GPU 上下文丢失时按插件文档卸载，
+该窗格回到 xterm 的 DOM 渲染器，此时中文对齐与分隔符可能回到 L02 的样子，没有界面提示。
+设置里的“终端字体”是逗号分隔的回退列表，默认 `"SF Mono", Menlo, "PingFang SC", monospace`；回车或离开输入框即作用于本窗口所有终端并重算列数，存于本窗口，重启保留。
+测试不要从 DOM 的 `.xterm-rows` 读终端文字（WebGL 画在 canvas 上，那里是空的）：读 PTY 记录 `traces/<launch>/pty.raw`、后台事件或截图像素。
+屏幕阅读器支持默认关闭，可在设置的“终端辅助功能”中开启，作用于本窗口。
+切换时每窗口最多保留四个未显示终端的 xterm 与输出偏移，隐藏期间暂停读取，重新选择时追平输出再显示；本次显示完成且窗格可写时才将输入焦点交给终端。只读查看不请求输入焦点。可写窗格把 PTY 调到窗格大小；只读查看不改 PTY 尺寸，按 PTY 自身的行列显示，窗格较小时可滚动，打开时停在最新的行（T-168）。
+经角色申请确认的主控终端，窗格头同时显示“普通终端”与确认的主控角色；隐藏侧栏或重命名后仍保留，交回角色后恢复为普通终端。
+隐藏 key 不可发送输入；超出上限释放凭据与 renderer，后续仍可从后台完整回放。关闭窗口会撤销当前及保留窗格的全部凭据。
+
+## 项目终端里的 a2a 与角色申请
+
+普通终端以 Enchanted 的 `ZDOTDIR` 引导启动 zsh（`workbench/terminal/zdotdir/`）：依次加载用户自己的
+`.zshenv`、`.zprofile`、`.zshrc`、`.zlogin`，然后把 `workbench/terminal/bin` 放到 PATH 最前面，最后把
+`ZDOTDIR` 恢复成用户环境或用户 `.zshenv` 设定的值（都没有设定时不设）。macOS `/etc/zshrc` 按 `ZDOTDIR` 推出的 `HISTFILE` 改回用户自己的目录。
+不改用户的任何文件，不写 `~/.claude`、`~/.codex`，也不往项目仓库写文件。终端环境里去掉打包版后台的
+`ELECTRON_RUN_AS_NODE`。
+
+`terminal/bin` 里有五个命令：
+
+- `a2a`：本终端的编排命令。`a2a help` 列出用法；`a2a whoami` 报项目与身份；`a2a request executor|ideation`
+  申请成为执行主控或构思主控，并等用户在界面批准或拒绝（最多 10 分钟）。`role_request` 必须带 `wait_seconds`（1～600），
+  申请只在调用方于这次连接上等待时存在：连接一关闭（被中断、被杀，含 SIGKILL），后台立即撤回仍待批准的申请；
+  等待到期或后台停止时同样撤回。用户点批准只是“授予”（granted），没有权限；`a2a request` 收到授予后立即发
+  `role_request_confirm`，确认后才生效（approved）。授予后连接关闭、或 15 秒内没有确认，这次授予作废（后台定时写
+  `role_request_ended`，界面提示“批准没有生效”，带批准时间，这个终端再次申请或 5 分钟后不再显示；授予等待确认时显示“已批准，等待确认”）。残余窗口：确认生效后、`a2a request` 打印结果前进程被杀，角色仍有效而
+  agent 没看到输出；确认表示“这个终端认了”，同一终端里的其他进程也能代发。没有回执的协议无法消除这一段，`a2a whoami`
+  随时可查实际身份。结束原因记为
+  `asker_gone`、`request_wait_timeout`、`daemon_stopping` 或 `not_confirmed`；`a2a release` 放弃身份；`a2a call '<JSON>'` 以已批准的身份调用门禁命令。
+  已批准的主控可用 `a2a call terminal_open --cwd '<绝对目录>'`（或 JSON 命令 `terminal_open` 加 `cwd`）开本项目的普通终端。
+  目录须在项目主目录或额外目录内，按真实路径核对；回执的 `launch.id` 对应侧栏项目层的普通终端，点它进入，不归入任务。
+- MCP 入口（T-194）：同一组主控命令也以 MCP 工具提供（`src/terminalMcp.ts`，`a2a mcp <CLI>` 起 stdio 服务器），参数有结构；
+  每个工具是以这个终端身份发出的一次后台请求，门禁照常判断，两条入口的门禁记录相同。`request_role` 走与 `a2a request` 相同的
+  申请与确认。Claude Code 经插件的 `mcpServers` 挂上（会话号取 `CLAUDE_CODE_SESSION_ID`），Codex 经包装脚本的
+  `-c mcp_servers.enchanted.*` 挂上（只传 `env_vars` 列出的变量；工具不弹批准框，超时 660 秒；会话号取调用 `_meta` 的
+  `threadId`），opencode 经包装脚本的 `OPENCODE_CONFIG_CONTENT`。agy 不挂：它交互模式下拿不到工作区 MCP 工具，继续用
+  `a2a` 命令。调用被 CLI 取消或后台断开时返回 `outcome_unknown`，不重放；CLI 关闭服务器输入（MCP stdio 的正常关闭）时在途调用一并中止，
+  待批的角色申请随之撤回，之后的批准不生效；CLI 不再读服务器输出时同样结束会话。会话结束后服务器不再写回包，正常退出。事实见 `findings/2026-10-27-mcp-per-session.zh-CN.md`。
+  执行主控说明要求派发前逐项对照用户要求与任务卡（含顺序和等待条件），用原始数据及正确、错误样本实际检查验收命令；
+  单独编写验收脚本也须自检：判据对应明确要求，先独立确定样本预期，含无额外明细的最小正例与关键词相同但含义相反的反例。
+  自检先从原始数据构造没有开头说明、只有必需内容的最小正确正文并确认通过，再保持数据不变、只否定整体断言并确认拒绝；不能自加确认语、明细或字词白名单，修检查器后须重跑全部正例。
+  语义反例须核对全文断言，区分业务动作与正文有效性；有限禁词表以未参与规则编写的改述复验，并如实说明覆盖限制。
+  区分暂时未完成、明确拒绝、结果未知，没有新事实时报告具体停点。判断由主控与独立审查负责，门禁只核对机械事实。
+- `claude`、`codex`：同名包装。在 PATH 里跳过自己找到用户真正的 CLI，原样转发参数，只多加一个按会话生效的参数：
+  Claude 加 `--plugin-dir`（`terminal/plugin/enchanted-a2a`，含 a2a skill），Codex 加 `-c developer_instructions=…`
+  指向 `a2a help`（用户用 `-c developer_instructions=…` 传了，或自己的 Codex 配置文件里设了这一项时不加）。挂法的实测依据见 T-120。
+- `agy`、`opencode`（T-187）：同样跳过自己找到用户的 CLI、原样转发参数，并在环境里设 `A2A_SHIM=<名字>` 标明经过了包装脚本。
+  `agy` 另设 `AGY_CLI_OSC7501=on`（用户自己设了就用用户的），让 agy 把自己的回合状态用 OSC 7501 报给终端；agy 没有按会话的
+  指令参数，交互启动时包装脚本用 `--add-dir` 加入开局说明所在目录，agy 读其中的 AGENTS.md（带子命令时原样转发）。`opencode` 用 `OPENCODE_CONFIG_CONTENT` 把开局说明文件（`terminal/orientation/AGENTS.md`）作为本会话的
+  instructions 传入，并加 `--standalone`：只有私有服务读本会话的环境，连到共享后台服务时这份配置不生效；带子命令、用户自己传
+  `--server`/`--standalone` 或自己设了 `OPENCODE_CONFIG_CONTENT` 时原样转发、不加。实测依据见 `evidence/2026-10-25-batch26/T-187/facts.md`。
+- 支持哪些 CLI、怎样判断经过了包装脚本、回合状态从哪里来、怎样认出 `a2a request` 是哪个 CLI 发的，集中在 `src/terminalClis.ts`；
+  新增 CLI 在这里登记并加包装脚本。
+
+终端身份是终端本身：后台为每个普通终端生成令牌，只放在该终端的环境（`A2A_TERMINAL`、`A2A_TERMINAL_TOKEN`）
+和后台内存里，不写进启动记录。终端经后台另开的专用 socket 连接（T-126，环境变量 `A2A_TERMINAL_SOCKET`）：
+它在系统临时目录下随机命名的 0700 目录里，路径不含后台数据目录；终端环境里没有 `A2A_STATE`，也没有数据目录或
+操作员凭据的路径。专用 socket 只接受终端身份，在核对身份之前就拒绝其他身份（`terminal_socket_terminal_only`），
+所以持有操作员凭据或窗口令牌也不能经它调用；每次拒绝记为 `request_rejected`，带 `socket: "terminal"`。
+原 `control.sock` 不变，界面与门禁 CLI 照旧使用。后台停止时删除专用 socket 与它的目录；启动在监听或写 PID 时失败，
+也先删掉这个目录再报错（数据目录里没有记录指向它，以后的启动清不掉）。角色申请是只追加的事件（`role_requested`、`role_request_decided`、
+`role_request_confirmed`、`role_request_ended`），状态由事件和终端是否存活推出。界面在终端区上方逐条
+列出待批准的申请并编号，申请的窗格加框并显示同号标签（“申请 1 · 执行主控”）；同一角色有多个申请时提示批准一个、
+确认生效后其余自动拒绝；不在当前视图的终端显示其工作目录与打开时间。批准或拒绝走管理凭据的 `role_request_decide`。规则：
+
+- 只有项目终端能申请；一个终端同时只有一个角色；同一项目的同一角色同时只给一个终端。授予之前已在等待的同项目同角色
+  申请在授予期间保持待批准（再批准返回 `role_taken`），授予期间新来的同角色申请当场返回 `role_taken`；授予确认生效时它们记为拒绝（原因 `role_given_to_other`），各自的
+  `a2a request` 随即返回；授予没确认而作废时它们仍可批准。界面在申请列表变化后一秒内不接受批准或拒绝；授予等待确认时，同角色其他申请的“批准”按钮禁用。
+- 待批准、已授予未确认、被拒绝、已结束的申请没有任何权限；主控命令返回 `approved_role_required`。
+- 已批准的终端以该角色为门禁调用者（`address` 为 `ideation` 或 `executor`），沿用门禁的全部检查，只能调用
+  按命令名在这一层确定目标项目（T-193）：身份绑终端，不绑启动目录，目标可以是工作台里已打开的任一项目。命令带 `project` 时以它为准；
+  否则完整任务 id（T-123，见下文“任务 id”）里的项目为准；只写任务名时在本项目里解析。目标项目没打开时返回
+  `project_not_opened`，`details` 带目标项目、已打开的项目和下一步。`create` 与 `inbox_ready` 须带 `project`，
+  `create` 的 `repo` 须为该项目打开的目录。`answer_issue(s)`、`attach`、`run` 也是任务命令（T-124，见下文）。收件箱的其他命令与 stop 还没有项目字段、也不看 task 字段，
+  终端角色调用它们一律返回 `role_command_not_scoped`；主控之间的收件箱通信留给后续票，届时先给条目加上项目。
+- 后台重启后接回原 hc 终端，lifecycle 仍为 running，已生效的主控身份保持；只有终端关闭或接不回原 hc 终端时才结束。终端已结束时，侧栏保留最近一次确认生效的主控角色并标“已结束”；历史展示不授予命令权限。
+- 侧栏把已批准的终端显示为对应主控（“项目终端”）。批准执行主控时，申请卡片上可以选它的上级构思主控（本项目里在跑的构思主控，
+  默认第一个，也可选“不归属”），选择随 `role_request_decide` 的 `parent_launch` 存进批准事件，侧栏据此把执行主控挂在构思主控下（T-107）。
+- 记录与状态（T-133 方案 A、T-107）：`claude` 包装加载的插件带钩子（`hooks/hooks.json`），在提交、回合结束、空闲 60 秒通知、
+  AskUserQuestion 前后调用 `a2a hook`，把事件交给后台。`a2a hook` 不往标准输出写任何东西、总是退出 0，不改变回合。
+  后台只在这个终端持有已批准角色、且事件的会话 id 与角色申请里的一致时才处理（`terminal_hook` 不记请求事件，所以没批准的终端的提示词不进库）：
+  提交的整句记为用户输入（来源“主控终端提交”），对 AskUserQuestion 的答复记为答复；主控状态取最后一次回合事件——提交后“运行中”、
+  提问时“等待用户回答”、回合结束后“空闲”，从确认生效到第一个事件之间算“运行中”（确认发生在申请的那个回合里）。
+  a2a 不往项目终端注入文字，所以这里记下的都是用户自己提交的。
+  Claude Code 主控被 Esc 中断时没有 Stop 事件，要到空闲 60 秒的通知才显示“空闲”。
+- Codex 主控（T-133 方案 A，用户 2026-10-22 定）：`codex` 包装用 `-c` 传入三个钩子：提交（UserPromptSubmit）、回合结束（Stop）、
+  提问前（PreToolUse，只匹配 `request_user_input_async`）。三个钩子都调用 `a2a hook`。
+  Codex 第一次见到这些钩子时会让用户审查，用户选“Trust all and continue”后，Codex 自己把信任（`hooks.state."/<session-flags>/config.toml:…"`）
+  写进用户的 `~/.codex/config.toml`。a2a 不写这个文件，也不用 `--dangerously-bypass-hook-trust`。
+  钩子命令经终端环境变量指向 `a2a`，定义在各终端之间不变，所以信任一次后一直有效；改了钩子定义才需要重新信任。
+  用户自己 `hooks.json` 里的钩子照常运行，各自按来源记信任。
+  Codex 的提问工具立刻返回 `accepted`，用户的答复之后作为一次提交到达（`<send_user_message_question_reply>` 包着的 JSON）。
+  所以 Codex 主控从提问到收到答复都是“等待用户回答”；答复记为答复，形如“问题：答复”。
+  Codex 的提交没有自己的 id（答复与原提问共用 `turn_id`），每次钩子调用记一条。
+  已知边界：
+  - 用户信任之前，Codex 主控状态是“未知”，也不记录；
+  - Plan 模式下的同步提问（`request_user_input`）不显示等待，答复也不记；
+  - 被 Esc 中断后 Codex 不发 Stop，一直显示“运行中”，直到下一次提交。
+
+  事实依据见[探针记录](../evidence/2026-10-22-batch20/T-133-T-107/codex-hook-probe/RESULTS.md)。
+
+执行主控派 worker 的步骤写在 a2a skill 与 `a2a help`：`card_template` → `card_save` → `create` → `dispatch`
+（`runtimeMode` 为 `workspace-write`，带 `model`、`effort`）→ `status` → `submitted` 后 `verify` → `verified` 后带
+`score_file` 的 `integrate`。刚打开、还没有任务的项目，`inbox_ready` 按已打开项目找到仓库（T-122）。
+
+终端主控还能做三件事（T-124）：
+
+- 回答 worker 用 `issue` 上报的问题（`answer_issue`、`answer_issues`）。门禁按调用者记录：终端主控的回答记为
+  该主控的回答（`from` 为角色，refs 带 `controller-launch:`、`role-request:`，事件 `controller_answer`），不进
+  `user_inputs`，不算人工介入；worker 看到的是 ⟦主控 #n⟧ 与“主控答复”。界面（管理凭据）的回答仍是用户输入，
+  worker 看到 ⟦用户 #n⟧ 与“用户答复”。
+- 问题上报（T-216）立即经同一收件箱投给实际派发上报会话的执行主控，包括 blocking；主控在 A 项目终端派发 B 项目任务时，问题仍交给 A 的实际派发者，不借用 B 的另一位执行主控。来源由后台保存的 `parent_launch` 绑定到问题的 `controller_launch`，不接受上报者指定收件主控。投递带编号、原文、上报者、阻塞标记与处置命令，来源为 `inbox`，不进用户输入记录。项目终端主控按已批准角色绑定的终端、项目和当前前台 CLI 选择，不按原生会话号筛选。四家 CLI 统一由后台调用该终端所在私有 hc 的 `terminal.send`，一律不带 `force`；状态取按序读到的 OSC 7501，idle 带 `if:"idle"`，done 不带 `if`（hc 0.1.15 尚不支持 done 条件）。working、blocked、error、未上报或有用户草稿时保持排队，后续可接收事件再送。后台重接按持久记录恢复未尝试或被 hc 拒绝的队列，保留顺序和草稿预留；送入意图没有确认结果时持久记为未知并显示，不自动重发。草稿写入无法核对时也不猜输入框已空。hc 在同次送入中拒绝 blocked，idle 的状态竞争返回 `status_mismatch`，不输入、保留原队列。成功送入用 `caller`、`wait:true` 的关联结果确认；确认不了显示“投递确认未知”，记录派发号、目标终端和 hc 返回，不重发。Claude Code、Codex 的每条原生提交钩子都记录完整用户提示词，一次提交一条，不记输入过程的按键；提交全文等于一条已写下送入意图、还没被认领的收件箱派发（正文以唯一的 `⟦主控 #序号⟧` 开头并带收件箱条目编号）时，认领为系统投递，只认领一次。后台在写下意图之后、真正发出之前退出时，这条其实没送出，之后用户逐字提交同一全文也会被认领为系统投递，这是接受的代价。历史与补全不依赖 attach 字符匹配。attach 只跟踪草稿，原生钩子还用于用户提问记录、额度和原生会话链接。未知之后，终端新报告的 working→idle/done 回合完成才释放后续队列；该事实持久化，后台重启后仍有效，未知原条仍显示未知、不重发。没有在线执行主控时保存 `pending / role_session_missing` 收据，角色就绪后恢复投递。
+  主控用 `answer_issue` 回答，问题显示“主控已答”；用 `disposition` 的 `close` 关闭，须附 `reason`、`basis`；用 `needs-user` 附 `reason` 交给用户。权限、范围、验收条件、安全、不可逆操作由主控判断，只交给用户，不回答、不关闭，门禁不按关键词分类。blocking 不再立即算“等你决定”；主控未处理满 15 分钟时照旧交给用户。
+- `run` 自动走完派发、验收、审查。审查通过后仍等主控带分 `integrate`；发起它的主控身份已结束（release、终端关闭）
+  或额度用完时，run 写 `run_initiator_ended`，自己经门禁集成，评分记为 `{"result":"未评分","reason":"主控身份已结束"}`
+  或 `"主控额度用完"`。交付有卡外改动而主控没有判断（T-198）时，自动集成同样返回 `out_of_card_unjudged`，run 暂停
+  （`outcome: paused`），任务停在 `verified`、worker 不回收，等主控重新取得角色后判断、集成。身份结束后这个终端的 `dispatch`、`run`、`attach` 返回 `approved_role_required` 并记入
+  `request_rejected`；已派出的 worker、run 与 monitor 继续。
+- 后台重启（T-124 用户裁定 4）：启动时 outcome 为 running、或因后台停止而 paused 的 run 接着跑，截止时间不变，
+  每次续跑记入 run 的 `resumed`。原 attempt 的 worker 随后台结束、任务停在 claimed、reviewing 或 paused 的，先经门禁
+  `reclaim` 再按 run 保存的派发参数重新派发（T-096 裁定 B）；已通过审查的直接继续验收与集成；派发还没绑定 attempt 的不续跑。
+  这取代 supervised-run 规格第 6 条在后台重启时的规定。重启打断的 worker、reviewer 窗格在确认原 shell 与 CLI 进程已退出
+  （最多等 10 秒）后登记为已停止（`pane_gone_confirmed`），这样的窗格没有终端，`pane_status` 的 `size` 为 `null`，界面只读显示原输出（T-199）；monitor 按原启动记录恢复（`pane_restored`），之后可正常回收。
+- `attach`（`role` 只能是 `monitor`）在任务下起一个只读观察会话：CLI 取 `cli`（默认 Codex），模型与强度取
+  monitor 的执行设置或调用参数；Codex 以 `--sandbox read-only` 运行，Claude Code 没有可写目录、没有 Edit 规则；
+  工作目录是数据目录下它自己的空目录 `monitors/<thread>`（项目目录写在提示里）。启动记录写全 argv，`parent_launch`
+  为发起的终端，侧栏挂在该主控下。角色卡 `workbench/roles/monitor.md`。
+
+主控额度：`a2a request` 从 CLI 自己的环境带上会话 id 与 home（Claude Code：`CLAUDE_CODE_SESSION_ID`、
+`CLAUDE_CONFIG_DIR` 或 `~/.claude`；Codex：`CODEX_THREAD_ID`、`CODEX_HOME` 或 `~/.codex`）。后台每 5 秒只读这一个
+会话日志里批准之后的记录：Claude Code 的 API 错误记录 `quotaLimits.status` 为 `rejected`，或 Codex 回合以
+`usage_limit_exceeded` 结束，即记 `controller_quota_exhausted`，侧栏快照的 `controller_quota` 列出它，工作台右上角
+显示“主控额度用完 · 已派出的工作继续 · 约 HH:MM 恢复”；之后有正常回复即记 `controller_quota_restored`，通知消失。
+恢复时间：Claude Code 取 `quotaLimits.resetsAt`；Codex 取之前最近一条 `token_count` 的 `rate_limits`（`limit_id` 为
+`codex`）里已用满、最晚重置的窗口。空行跳过；不是 JSON 的行记一次 `controller_quota_unreadable`，后面的行照读。
+通知开关与“等待用户回答”共用。
+
+worker 只经 `issue` 提问（T-124 用户裁定 1）：Claude Code 受管会话（worker、reviewer、monitor）启动参数带
+`--disallowedTools AskUserQuestion`，模型拿不到这个工具；Codex 默认模式下 request_user_input 不可用。非主控窗格
+仍出现的原生提问记 `native_question_ignored`，不登记为等主控回答。
+
+进程快照（`src/processSnapshot.py`）：根进程以外的进程在读取中身份或父进程变化，换新读取器重取整棵树，最多 3 次
+（T-124 用户裁定 2），输出带 `attempts`；根进程变化与其他错误仍立即失败，错误带 `pid` 与变化前后的值。
+
+验证：`python3 workbench/tests/test_t122_claude_worker_e2e.py --summary 新路径.json`（真实后台、终端主控、门禁与
+安装的 Claude Code，模型为本地脚本化接口；`--revision`、`--mutant trust-unanswered|no-initial-release|user-settings-loaded|submit-provider-codex|requested-model-as-fact|card-model-ignored|git-deny-missing|codex-provider-only|no-terminal-parent|inbox-tasks-only|reviewer-codex-only|reviewer-shell-writable`
+为已知坏实现）。`python3 workbench/tests/test_t124_controller_e2e.py --summary 新路径.json`（同样的真实入口：
+主控回答问题、`run` 在 release 并关闭终端后未评分集成、`attach` monitor、额度通知；`--end quota`、
+`--monitor-cli codex`、`--controller-cli codex`、`--end quota|restart-working|restart-verified` 为变体，`--gui` 另在
+本源码构建的真实工作台窗口里核对额度通知并截图，`--revision`、`--mutant` 为已知坏实现，命令见
+`evidence/2026-10-22-batch20/T-124/candidate-2/e2e/commands.sh`）。
+`node workbench/tests/test_t124_quota_notice.mjs 新路径.json` 核对工作台通知。
+`python3 workbench/tests/test_t121_role_request_e2e.py --summary 新路径.json`（真实后台、zsh、`a2a`；
+`--revision`、`--mutant pending-authority|history-in-zdotdir|no-withdraw|zdotdir-dropped|refusal-unrecorded|task-widens-scope`
+为已知坏实现）。
+
+## 普通终端
+
+后台支持独立于项目或属于项目的普通 zsh 窗格，不绑定任务或 attempt，不走受管任务认领与交付。
+在已有后台上用同一管理凭据创建、查询和关闭：
+
+```sh
+node workbench/src/gates/cli.ts --state /绝对路径/state shell_start --cwd /绝对路径/目录
+node workbench/src/gates/cli.ts --state /绝对路径/state shell_start --project 项目号 --cwd /绝对路径/项目目录
+node workbench/src/gates/cli.ts --state /绝对路径/state pane_layout --project 项目号
+node workbench/src/gates/cli.ts --state /绝对路径/state shell_close --launch 启动记录号
+```
+
+省略项目号时，终端不属于任何项目。指定的项目号沿用后台标识格式（英文字母、数字、`_`、`.`、`-`），cwd 必须是已有绝对目录，
+可以选择任务 worktree。后台启动 `/bin/zsh -l -i`，读取该 HOME 的登录与交互配置；
+属于项目时只注入 `A2A_PROJECT`；独立终端不注入 A2A 身份。不传模型参数或 agent 身份，不修改全局 shell 配置。
+启动记录的 `role` 为 `shell`，task、attempt、session、fence、spec_rev 均为空。
+
+窗口接线复用现有 transport：`window_open` 和 `workbench_snapshot` 带 `project`、`launch`；
+输入沿用窗口凭据、sequence、request_id 和 `window_input`，不调用 agent 输入记录器，
+不产生人工介入。普通终端的输入、组合与控制序列观察不写逐次接收事件或通用请求日志，
+凭据、序号与防重放核对留在内存；已关闭或重启前的已知 shell 窗口被拒时也不记按键时间。
+agent 窗格的输入、人工介入和门禁事实仍按原路径记录。布局与进程诊断事件继续保留。
+`shell_created` 与 `shell_closed` 追加到现有事件流，事件数据注明 `role: shell`。
+终端输出仍保存在既有 PTY trace，可能包含 shell 回显。
+
+显式 `shell_close` 或 shell 的 `pane_layout_close` 会结束该终端，核对关闭前观察到的
+shell 和子进程退出后才确认关闭。`window_close` 只撤销视图凭据，不结束终端。
+关闭 Electron 的既有行为仍为断开视图。后台重启保留普通终端的打开集并接回原 hc 终端，
+不重新启动 zsh；接回后的 `lifecycle` 仍为 `running`，已生效的主控身份保持。
+只有终端关闭或接不回原 hc 终端时，主控身份才结束。退出无法核对时保留 unknown／明确错误，不伪称结束。
+打开界面即可点击“新建终端”（⌘T），无需先创建项目或任务。选中项目时，新终端直接在项目目录启动；
+未选项目（“独立终端”）时在家目录启动。renderer 不传路径，目录由主进程按当前视图确定。
+左侧点项目进入任务总览；点任务显示其 Agent 会话，点单个 agent 或项目普通终端只显示它自己。
+任务内分屏可把新普通终端放在 agent 旁；未明确加入的项目终端不自动进入任务布局。“独立终端”显示不属于项目的终端。
+切换只断开视图，不结束原终端。普通终端标为“普通终端 · zsh”，不显示人工介入提示或队列放行按钮。
+
+项目终端与普通终端里，用户输入后若前台新进程启动已满 6 秒、启动后终端没有任何输出，窗格显示一条提示：
+这个命令如果本该有输出，可能在等 macOS 的权限弹窗（例如访问“文稿”），弹窗可能被其他窗口挡住；sleep 这类本来就不输出的命令不用管（T-174，L01；T-202 改为有前提的说法）。
+判断只用 `processSnapshot.py` 的进程启动时间与终端最后输出时间：前台进程组首进程（不是 shell 本身）启动晚于最后一次输出。
+有任何输出即撤下提示；不点按、不替用户回答弹窗。查询进程失败记 `silent_foreground_check_failed`，不显示提示。
+`pane_status` 的 `silent_foreground` 给出命令名与起始时间。
+
+项目终端里提交一行后约 1.5 秒，后台读前台进程的 argv 和启动环境里的 `A2A_SHIM`（`src/processArgs.py`，sysctl KERN_PROCARGS2，只用于判断、不保存；macOS 不给出系统自带程序的启动环境，agy、opencode 是第三方程序，读得到）。前台是包装脚本所包的 CLI（`claude`、`codex`、`agy`、`opencode`，判据集中在 `src/terminalClis.ts`）却没有包装脚本加的接入参数（Claude 的 `--plugin-dir …/plugin/enchanted-a2a`，Codex 的 `$A2A_TERMINAL_BIN/a2a` 钩子，agy、opencode 的 `A2A_SHIM`）时，说明它是用绝对路径或别名绕过包装脚本启动的：没有插件和钩子，后台收不到它的回合。窗格提示“这个会话没接入 Enchanted，状态和主控命令不可用。退出后直接敲 <命令名> 重启”（命令名取前台 CLI，如 claude、agy），侧栏与窗格头的状态显示“未知”，不显示假状态；每 5 秒复查一次，CLI 退出后提示撤下。读进程失败记 `cli_wiring_check_failed`，不显示提示。`pane_status` 的 `unwired_cli` 给出命令名与起始时间（T-184）。
+
+agy 与 opencode 的回合状态不经钩子，取自它们自己报给终端的 OSC 7501（`ESC ] 7501 ; state=…[:kind=…] BEL`，T-187）：后台从项目终端的输出里读出最后一条报告（`pane_status` 的 `cli_turn`；一条报告被拆在两段输出里也能读出），前台程序退出后清掉。经角色申请成为主控的 agy、opencode 终端，侧栏与窗格头按它取状态：`working` 为运行中，`idle`、`done`、`clear` 为空闲，`blocked` 且 `kind=question` 为等待用户回答；`blocked` 的权限确认、登录和还没有报告时显示未知，不猜。`a2a request` 按运行它的 CLI 给子进程的环境认出是哪个 CLI（`CLAUDECODE`、`CODEX_THREAD_ID`、`OPENCODE_SESSION_ID`，agy 用包装脚本的 `A2A_SHIM=agy`），CLI 自己设的变量优先于包装脚本的。
+
+<<<<<<< /private/tmp/a2a-requests-3IGepO/t249-readme-base
+agy、opencode 也可作 worker 与审查员（任务卡 `executor.cli` 为 `agy` 或 `opencode`；T-187 ready_rev 2，用户选 C）。没有按会话的钩子，回合同样取自 OSC 7501：派发写入后的 `working` 是回合开始，之后的 `idle`、`done`、`clear` 是回合结束，worker 写在请求目录里的交付请求在这里转交门禁（与 Stop 钩子同一条路径）；审查员经 `review_submit`（opencode 为 MCP 工具，agy 为提示里的命令，T-203）把结论写进请求目录的 `review-result.json`，回合结束时读取。
+=======
+agy、opencode 也可作 worker 与审查员（任务卡 `executor.cli` 为 `agy` 或 `opencode`；T-187 ready_rev 2，用户选 C）。没有按会话的钩子，回合同样取自 OSC 7501：派发写入后的 `working` 是回合开始，之后的 `idle`、`done`、`clear` 是回合结束，worker 写在请求目录里的交付请求在这里转交门禁（与 Stop 钩子同一条路径）。它们自己不发钩子，经它们的启动身份进来的任何钩子都按来源不符记 `native_question_unverified`，这一回合随之不可信，回合结束时按下文 T-251、T-252 的例外处理；审查员经 `review_submit`（opencode 为 MCP 工具，agy 为提示里的命令，T-203）把结论写进请求目录的 `review-result.json`，回合结束时读取。
+>>>>>>> /private/tmp/a2a-requests-3IGepO/t249-readme-candidate
+
+- 启动参数：agy 为 `agy --dangerously-skip-permissions --model <卡上模型> --effort <卡上强度>`，环境 `AGY_CLI_OSC7501=on`；opencode 为 `opencode --standalone --auto <worktree>`，模型经 `OPENCODE_CONFIG_CONTENT` 传入。两者都在用户自己的 HOME 运行（登录在那里，不复制凭据），没有操作系统沙箱；门禁核对完整 argv。它们报不出本回合的模型与强度，交付与提交尾注记为 `unknown`。
+- agy 的目录信任：agy 对每个新目录弹一次“Trust this folder?”。后台核对屏幕上选中的是 “Yes, I trust this folder”、目录是本会话的 worktree 后才按回车，再核对 `~/.gemini/antigravity-cli/settings.json` 只有 `trustedWorkspaces` 多了这一个目录、其他键不变；写入条数记在 `agy_trust_written` 事件里。对不上就记 `agy_trust_failed`，不按键。每次派发（worker 与审查员各一个新目录）写一条。
+- 审查员只读：审查 checkout 在启动前 chmod 去掉写权限（`review_checkout_read_only`），门禁的审查启动检查核对它不可写；回收前恢复。
+- Git 元数据：门禁在认领后记下 worktree 的 HEAD、仓库与 worktree config、hooks 目录，交付验收时比对，并检查含有 worker 提交的 ref；有改动以 `git_metadata_changed` 拒绝（对所有 worker 生效）。
+- agy 作主控：`--mode auto` 下 agy 对每条 shell 命令（含 `a2a help`、`a2a request`）都弹权限框，又没有按会话的命令白名单，所以用户在项目终端里用 `agy --dangerously-skip-permissions` 启动它（用户 2026-10-25 选定）；不这样启动，就要每条命令都由用户在终端里确认。主控能做的事仍只经角色申请与门禁。opencode 主控照常用 `opencode`。
+- 限制：后台重启后不恢复 agy、opencode 的受管窗格；回合内的工具调用不逐条记录；agy worker 没有开局说明，角色卡照常作为首条提示的开头；`blocked`（权限、登录）显示未知。
+
+每格右上角的“⋯”和右键菜单提供重命名、向右分屏、向下分屏、放大/还原、把右键发给窗格、关闭。
+
+侧栏会话行的右键菜单有“复制深度链接”（T-195）：复制“<CLI 名> 会话 <CLI 自己的会话号>，记录 <记录文件路径>”。后台命令
+`native_link`（`src/nativeLink.ts`）按 CLI 取，只给“现在这个会话”的号：受管 Claude Code 用后台启动时指定、窗格绑定的
+会话号，这个 CLI 的钩子报过别的会话号（窗格里打了 `/clear` 等）就置灰；受管 Codex 用窗格从 rollout 首行 `session_meta` 绑定的
+线程号，Codex 自己的记录里这个工作区出现别的根线程、或有记录读不了就置灰；记录文件须确实存在。项目终端里跑的是用户自己敲的命令：
+Claude Code、Codex 的会话号由 Enchanted 的钩子连同报告它的 CLI 进程号报来（提交一句话后才有，Codex 须先信任钩子；报告者是包装脚本 exec 启动的那个 CLI 进程：包装脚本把 CLI 和自己的进程号写进 `A2A_HOOK_CLI`、`A2A_HOOK_PID`，钩子从自己往上只经过 shell 到达它时才报；这个进程是 Node 等运行时时，还可以经过它的一个与 CLI 同名的直接子进程（npm 安装的 Codex 是 Node 启动器加原生 `codex` 子进程）；否则只报事件、不带 CLI；不解析 argv，装在带空格的路径下也认得出；不看 `CODEX_THREAD_ID`，交互式 Codex 不给钩子设它，T-247），按进程分别保存，
+只用前台那个进程自己报的：前台换了进程就不再用，前台 CLI 里再跑的 CLI（如 Bash 工具里的 `claude -p`）报来的也不顶替它（T-246）。opencode 的会话号取自它写给终端的 OSC 7501，报告里没有进程号：受管 opencode worker 一个窗格只跑一个进程，
+可以给出；终端里分不出报告来自哪一次运行，一律置灰（T-195 第 3 轮审查 F1）。opencode 的记录是
+`~/.local/share/opencode/opencode.db` 的 `session_v2` 表。agy 不报会话号：受管 agy worker 按它独占的工作区在
+`~/.gemini/antigravity-cli/conversations` 里找唯一的会话文件，有文件读不了时不猜；终端里的 agy 一律置灰。
+拿不到（还没报来、找不到文件、同一目录有多个 agy 会话、记录读不了、终端里的 agy 或 opencode、终端前台没有这四家 CLI）时菜单项置灰，
+悬停与菜单下方写明原因；a2a 自造的 `osc7501:<launch>` 不当会话号给出。事实见 `findings/2026-10-27-native-session-ids.zh-CN.md`。
+分屏保留原窗格，按所选方向新建普通 zsh。普通终端沿用原启动目录；从任务 agent 分屏时，目录为任务仓库根，
+不使用 worker 的 worktree。用户可以自行在新终端启动 CLI 讨论任务；新终端标为“普通终端”，不计入 worker，
+不认领任务路径，其输入不记为 worker 的人工介入。普通终端只在布局中关联该任务，仍沿用项目普通终端的输入与关闭通道。
+菜单按钮可用 Tab 到达，菜单支持上下方向键、Home、End、Enter 和 Escape；方向键跳过禁用项，改名用窗格内的输入框。
+开启右键转发后，终端区域把真实鼠标事件交给 xterm 的终端鼠标协议；可用标题栏菜单关闭转发。
+主控和 worker 使用同一菜单；reviewer 可只读显示和操作布局，不获取输入凭据。
+关闭受管 agent 窗格仍只调用既有 `pane_layout_close`，不终止进程、不回收 attempt，不替代门禁。
+受管 worker 直接输入继续记录人工介入：每次发出记一条完整消息，只记最终的文字，不记输入过程的按键（T-206、T-229）。agent 只经 a2a 的接口传话，窗格输入框里的输入即为用户输入。
+- Claude Code、Codex：文字取 CLI 提交钩子（UserPromptSubmit）报来的全文，↑ 调出的历史和补全后的文字都按 CLI 实际提交的记。后台自己送进去的派发（任务书、门禁反馈、主控答复）由 `paste_intent` 写入；可认领的只有最近一次粘贴、之后还没有任何提交的那条派发；提交全文等于它的原文时认领（记 `dispatch_prompt_claimed`），不进用户输入。其余提交都是用户的，用户再次提交同一段文字也记一条。后台没能确认记下这次提交时（查询、认领、记录或钩子请求本身失败），钩子返回阻断，CLI 不执行这次提交，用户输入观察标为失败。
+- agy、opencode 没有提交钩子：按 attach 拼出的那句在回车时记，含退格、光标移动后的文字；按过拼不准的键（↑、Tab 等）时标 `text_uncertain`，不猜。Esc、Ctrl-C、单按回车不单独记，被 Ctrl-C 清掉的草稿不记。
+按 Esc 打断后用户自己发出的那一回合，照样按会话、提示号（Codex 为回合号）核对；核对过的，回合结束时就受理 worker 经 a2a 接口交的请求，不用等放行。被打断的那个回合、在用户回合里再被打断的回合，钩子仍拒收。窗格仍等用户放行，门禁回执排在放行之后（T-207）。
+
+布局按任务或独立终端工作区保存，树的叶子绑定启动记录号；名字与树一起存入 SQLite 的
+`pane_arrangement_saved` 追加事件。显示时才转换成每个窗口自己的 pane key，不保存窗口输入凭据。
+关闭时先校验新布局，再通过既有关闭入口结束普通终端或移除 agent 视图，并记录剩余布局。
+窗口缩放和分屏用已有 FitAddon 适配 xterm，PTY 尺寸通过绑定窗口凭据与序号更新。
+放大只改变当前窗口的显示，不停止或重建其他窗格。
+
+关界面保留后台中的终端；重开视图可继续连接仍在运行的终端。后台也重启时，普通终端显示
+“已结束”，不自动执行命令或启动新 zsh；agent 沿用本文件开头的 T-096 恢复规则。
+明确关闭最后一格后仍恢复为空集。创建、切换或关闭结果未知时显示错误，不自动重放。
+T-105 的真实 Electron 红绿、右键协议、进程退出与重启恢复验证命令见
+[沙箱外运行脚本](../evidence/2026-10-19-batch17/T-105/RUN-OUTSIDE-01-ELECTRON.sh)；该脚本须由执行主控运行，未运行不算通过。
+
+启动前显式设置 `A2A_OPERATOR_CREDENTIAL`，指向本次启动专用、尚不存在的绝对文件路径。
+启动者创建 0600 凭据文件，后续管理 CLI 与 Electron 从同一环境变量读取；后台按凭据
+认定执行主控身份，不按 `--from` 或 `--role` 自报。每次后台启动使用新凭据，旧文件不覆盖。
+不要把凭据内容放进 argv、证据或 Git；后台停止后由创建者清理。只读查询仍可匿名调用。
+这条凭据路径与交互输入的首个候选已通过四项真实入口合同；库客户端通过八项检查。
+8/9/18 复验曾在 coop 的 submit 出现身份回归；分开管理凭据与原生身份后，
+outside-inbox-02 的 8/9/18 全部通过。后续窗格运行时变更尚待真实入口复验。
+这些局部结果不代表 T-078 整票完成。
+
+后台把认证后的角色作为 GateActor 传给门禁；只有真实原生会话才提供 SubmitCaller
+的 thread/turn。管理凭据不虚构线程，不能替代受管 worker 的原生身份。
+后台常驻与一次真实窗格派发已验证；工具沙箱的 socket 连接曾被 EPERM 拒绝。
+T-075 rev 4 的 A2 探针在工具层被拒，未验证成；按用户决定改用 B 文件转交。
+B 在 T-075 的旧候选上通过隔离真实 Codex 的显式交付、机械检查与 CAS 集成。
+该结论不覆盖整个 T-076-2。质量串受控 Tracer bullet、加宽检查与 8/9/18 回归
+已在各自冻结候选上通过；真实P-review02已证明只读沙箱拒绝写入及完整B结论通道，
+真实worker首拒后自动修复、新只读审查、主控后填分及唯一集成已在隔离real-delivery-02完成；
+本卡独立交付审查为PASS / LIMITED_GO，仅覆盖隔离受管交付；
+完整工作台尚未切换，T-076保持open，待主控关闭。
+
+受管派发提示要求 `git add <路径>` 与 `git commit …` 各自独立执行，
+检查命令另行运行，以便两个已授权的 Git 前缀规则分别匹配。
+若独立命令仍被拒，worker 上报并结束，不自行重试或调整沙箱。
+
+`acceptance/entry/a2a_gates.py` 将参数原样交给这里的 CLI。门禁核心仍由后台中的
+`A2AGates.call` 独占写入；保留操作锁、fence、CAS、attempt 绑定和中断恢复。
+受管任务通过 JSON 任务卡注册；交付按卡检查路径、验收文件、完成条件与提交尾注，
+机械通过后新开独立 reviewer，有效“可合并”结论到达后由执行主控带评分集成。
+普通会话的 `attach --instructions` 仍是提示文本，
+不参与受管任务注册。
+旧 HTTP 转接经本次对话确认后删除；本入口只接受本地门禁命令。
+
+## 任务卡与交付
+
+项目就是用户打开的目录：侧栏的 `+`（⌘O）弹出系统目录对话框，主进程把所选目录交给后台的
+`project_open`。目录取 realpath，不要求是 Git 仓库；项目号取目录名，替换门禁不允许的字符，
+与已有项目号重名时加 `-2`、`-3` 后缀；同一目录再次打开返回原项目。界面上项目名用目录名（中文目录的项目号是 `project`），两个同名目录在名字后带上项目号（T-200）；门禁与命令仍用项目号。登记写入追加事件
+`project_opened`；项目右键“从列表移除”写 `project_removed`（含当时的仓库），只从列表隐藏，任务与记录都留着；
+再次打开同一目录时以原项目号恢复（T-190）。项目里还有运行中的终端时返回 `project_has_running_terminals`，界面提示先关掉；
+还有未回收的 attempt 时返回 `project_has_active_attempts` 并列出，界面问“回收并移除”（经门禁 `reclaim`，失败返回
+`project_reclaim_failed`）或“保留并移除”（保留的 attempt 记入事件）。侧栏的项目列表是“用户打开的目录”与“有门禁任务、
+没有被移除的项目”的并集；用户打开的项目以登记目录为仓库，否则要求各任务的仓库一致；仓库目录已不存在时项目行显示“目录不存在”；目录里没有 `.git` 且 git 说不是仓库时显示“不是 Git 仓库”，有 `.git` 却读不了（例如 HEAD 坏了）照旧显示“无法读取 Git”和原因（T-201）。
+认领前的路径冲突检查只比较同一仓库的 attempt，仓库目录已不存在的 attempt 跳过，不再让所有项目的认领失败（T-190）。
+
+任务详情不在界面填写。用户在项目终端里启动 claude、codex、agy 或 opencode，告诉它身份是主控并发送要做的事；
+主控经角色申请（见“项目终端里的 a2a 与角色申请”）取得身份后，经门禁注册任务卡，任务随后出现在项目的任务栏和侧栏会话树中。
+
+使用同一个 CLI 生成模板，填写目标、非目标、路径、验收文件、argv 完成条件等字段后校验并保存：
+
+```sh
+export A2A_OPERATOR_CREDENTIAL=/绝对路径/隔离目录/operator-本次启动.json
+node workbench/src/gates/cli.ts --state /绝对路径/state daemon_start
+node workbench/src/gates/cli.ts --state /绝对路径/state card_template --task a2a+T-080-1 --repo /绝对路径/repo --ticket /绝对路径/T-080.md
+node workbench/src/gates/cli.ts --state /绝对路径/state card_validate --task a2a+T-080-1 --card /绝对路径/card.json
+node workbench/src/gates/cli.ts --state /绝对路径/state card_save --task a2a+T-080-1 --card /绝对路径/card.json --expected-version 0
+node workbench/src/gates/cli.ts --state /绝对路径/state create --task a2a+T-080-1 --repo /绝对路径/repo --branch refs/heads/main --card-version 1
+```
+
+任务 id（T-123）：门禁里任务的 id 是 `<项目>+<任务名>`，如 `a2a+T-080-1`，两段都只用门禁 id 字符
+（`A-Za-z0-9_.-`），所以 `+` 不会有歧义。不同项目可以有同名任务，卡片、事件、attempt 与尾注 `A2A-Task` 都按完整 id
+区分；worktree 与分支路径仍按项目目录加任务名。调用时可以只写任务名：项目终端在本项目里解析；管理凭据用 `--project`
+指明项目，不指明时任务名须恰好对应一个已有任务，否则返回 `task_ambiguous` 或 `unknown_task`；完整 id 旁另给不同的
+`project` 返回 `task_project_mismatch`。界面与侧栏显示任务名，侧栏行的 `task` 是完整 id、`task_name` 是任务名。
+旧库在新版后台启动时迁移一次：各表（含 JSON 列里的 task 引用）与成员资格里的旧 id 改为 `<原项目>+<原 id>`，行数不变；两个库分开提交，中途中断的迁移在下次启动时接着做完；已有的 `card_draft_owned` 事件原样保留，只用来给草稿定项目；没有归属项目的卡草稿使迁移失败
+（`task_migration_unowned_drafts`），不猜测归属。
+
+模板含 14 个字段。CLI 值精确为 `Claude Code`、`Codex`、`agy` 或 `opencode`；任务类型为规格中的八个值。
+完成条件格式为 `{"argv":["python3","acceptance/check.py","{worktree}"]}`，
+`{worktree}` 只能占据完整的一个参数，在独立 M worktree 中运行。完成条件非零退出仍
+返回 `oracle_failed`，这个名字只为保持已有公开错误预期，不存在旧 oracle 注册入口。
+create 不再接受 `--base`、`--oracle` 或 `--instructions`。
+
+`oracle_paths`（验收文件）必填且至少一项，列出完成条件依赖的仓库内测试、脚本、夹具和配置。
+只接受确切文件路径或以 `/` 结尾的目录前缀；拒绝 `.`、绝对路径、通配符、`..`、`.git`，
+且不得与 `red_commands[].test_paths` 有交集。认领时按当前工作分支起点的 Git tree 核对：
+确切文件须已受控，目录前缀下须至少有一个受控文件；缺项返回 `oracle_not_found`，不创建 attempt 或 worktree。
+候选相对冻结认领起点改动验收文件，或在受保护目录下新增文件，均以 `oracle_modified` 拒收；
+同时核对 G→M 的净改动，事件与摘要列出具体路径。打回写回原 worker，并计入同一 attempt 的三次上限。
+worker 认为验收文件有误时走问题上报，由主控或用户改卡。
+
+非空 `red_commands` 每项必须显式给出 `test_paths`，例如
+`{"argv":["python3","tests/check.py"],"test_paths":["tests/check.py"]}`。
+只接受相对起点新增或修改的普通文件；拒绝路径越界、Git元数据、目录、重复项与symlink。
+门禁为每项建独立B/C目录，只把声明的候选测试文件放到B上，同命令要求B正常退出且非零、C退出0。
+无法启动、超时或未知退出不算红态；非零是否来自有效业务断言，由独立审查判断，不解析stderr关键词。
+M验收目录独立，顺序为路径边界、验收文件、完成条件、红态、项目规则、尾注、独立审查。
+验收文件检查不通过时不执行完成条件。
+
+项目规则从注册时工作分支提交中的 `.a2a/quality.json` 冻结：
+
+```json
+{"schema":1,"rule_checks":[{"id":"lint","argv":["npm","run","lint"]}]}
+```
+
+缺文件明确记录未配置；损坏配置拒绝注册。规则在M执行，候选改写或删除配置不会改变本任务的冻结规则。
+
+版本与快照存入同一 SQLite 库，旧记录不修改；`card_show --card-version N` 读指定版本。
+注册冻结选定版本，认领时再追加包含当时工作分支起点和唯一写入者的绑定快照。
+源文件或后续卡版本不会改变已注册合同。显式采用新卡用
+`revise --spec-rev N --card-version V`，会使旧 attempt 与候选失效。
+修订后重派的完整顺序为：先用 `status` 保存旧 `current_attempt.attempt_id`，
+`card_save` 保存新版本 → `revise` 显式采用（spec_rev 递增）→
+`reclaim --attempt <旧 attempt_id>` → 正常 `dispatch`，不传交叠参数。
+回收前核对旧 worker 已提交、空闲、无待发送输入；`pane_status` 的 `state=idle`
+还须同时满足 `writing=false`、`active=null`、`queued=[]`。输入正在发送时不能回收。
+旧会话未回收时仍保留路径占用，`path_overlap` 是有效拒绝；`worker_working` 时先核对旧回合与输入队列。
+回收会核对身份、空闲、停止与归档；无法确认时保留现场并上报，不继续重派。
+回收成功后，旧工作区有未提交改动仍保留并上报，但不继续占用路径。
+项目终端里的 JSON 示例见 `a2a help` 与应用内 a2a 主控说明。
+
+修改边界 `paths.allow` / `paths.deny` 用仓库相对文件名、末尾 `/` 的目录或 `.`，禁止项优先，不解释 glob。
+认领会比较同一 Git 仓库中活跃 attempt 的允许路径集合，并扣除双方禁止路径；
+未创建的文件也参与判断。交集默认返回 `path_overlap`。执行主控确需并行时，
+在 `claim`、`dispatch` 或 `run` 上显式加 `--overlap-reason '具体理由'`，
+理由、冲突身份和路径一起保存到 `claim_path_check` 事件；worker 的转交通道不增加认领权限。
+已验收（accepted）的 attempt 不再计入占用，事件的 `not_counted` 列出它们（T-197）；拒绝的 `conflicts` 是给主控判断的清单，放行理由空白算无效（`invalid_text`），带理由放行的重叠在任务页显示为“路径重叠”及理由。
+门禁检查候选相对起点的净改动，以及 M 相对 G 的净改动。改动落在任务卡允许范围以外时（T-198），验收不再以 `path_boundary_failed` 结束：清单记入 `path_check` 事件的 `out_of_card` 与 `verification.out_of_card`，写进审查员的输入，集成前须主控经 `out_of_card` 判断——`accept` 带理由，只对这一次交付的这个候选、这些文件有效（工作分支前进后重验同一候选仍有效；新的交付、撤销或改卡后重派都要重新判断，交回之前放行过的提交也一样）；`reject` 带理由，撤销此前的放行，按打回发给 worker。没有判断时 `integrate` 返回 `out_of_card_unjudged`，`run` 在主控离开后自动集成时也停在这里。验收文件（T-080）与 Git 元数据守护仍直接拒绝。
+尾注归属核对 Task、Attempt、Session、Role。受管提交另把 Launch 与该 attempt 的启动记录号核对，并把 Tool、Model、Effort 与同一条记录核对；Model 为 unknown 时仍接受。不一致时拒收，码为 trailer_identity_mismatch。带有 A2A 尾注、但该 attempt 没有这份启动记录时，尾注检查直接拒收，码为 trailer_launch_record_missing，trailer_check 事件写明缺启动记录。外来任务或坏尾注被拒。
+完全无 A2A 尾注的提交产生来源为“推断：缺尾注”的 action 用户输入和派生人工介入，
+不阻止集成，同 attempt 同 commit 重验不重复记录。
+
+工作分支必须是已存在的 `refs/heads/*`。门禁不再读写 `refs/a2a/integration`，历史引用保留。
+Git 事务先锁住 G，在实际检出目录用双树快进保护本地修改，再 CAS 到 M；覆盖型修改被拒，
+无冲突修改保留。未知副作用保留原 integration intent 待核对。没有 push、stash 或用户目录 reset。
+`verify` 机械完成返回的 task 状态为 `reviewing`；只有独立审查结论通过才为 `verified`。
+`integrate` 只接受与该 attempt、卡快照和候选绑定的审查通过记录及执行主控评分。
+
+## 质量串候选（T-076-2，尚未验收）
+
+首轮交付被路径、完成条件、尾注或独立审查打回后，门禁保存失败，再登记
+`⟦门禁 #序号⟧` 修复消息；空闲时由原队列注入。只有明确打回授权后，原 attempt 的
+同一原生会话才能从新回合重交新 C；没有打回时仍不能换候选。同 attempt 第三次打回
+保存 issue 并暂停，不再注入修复消息。消息与 ACK 都不计为人工介入。
+
+机械通过后，后台为 C 创建 detached 审查目录和独立 thread/session/launch，
+不续接旧原生会话。reviewer 用 worker 的 CLI（D24），角色卡取 launch config 的 `reviewer_role_card`
+与 `reviewer_role_card_revision`，缺了就拒绝（`review_launch_config_required`）。Codex reviewer 与 worker
+在同一个 Codex home（用户自己的 `~/.codex`，T-127）；reviewer 以每会话
+`-c projects={<candidate_workspace>={trust_level="untrusted"}}` 打开候选副本，避免候选中 worker 写的
+`.codex` 配置、hooks、exec policy 影响独立审查。门禁按 argv 核对这条目录信任覆盖、写入范围与 `-a never`，
+交结论时再核对后台读到的原生会话 `session_meta.cwd` 就是该副本（`review_native_session_folder`），
+加上原有的“不同于 worker、未被别的启动用过、不带 resume/fork”。
+reviewer 的 Git 审查 worktree 和候选提交保持不可写；门禁另建一次性 `candidate_workspace` 副本，
+reviewer 用 `--sandbox workspace-write -a never` 进入该副本，副本不含 `.git`，只允许在其中构造
+2～5 个变异。启动 argv 放开网络、沿用用户代理配置并排除 `/tmp` 与原 `$TMPDIR`，不安装 Git 尾注 hook。
+Codex reviewer 的 `TMPDIR`、`TMPPREFIX` 指向副本里的 `.a2a-tmp/`，shell 的 here-document 与 Python tempfile
+因此能用，不新增可写目录（T-127 GUI 01：真实 reviewer 写不了 here-document，变异检查没跑成）；
+会话 hook 仍只经启动 argv 传入。审查结束前门禁核对候选提交、审查 worktree、worker worktree
+和共享仓库引用未变（worker worktree 与审查开始时 `review_requested` 记下的 HEAD、分支和干净状态比较，不要求等于候选；T-090），随后删除候选副本；边界不符则作废结论并上报。
+报告入库不等于获得集成资格：`integrate` 在任务操作锁内核对本次 review 的
+`review_reclaimed` 完成记录。结束核对与副本、审查 worktree 清理全部完成后才写该记录；
+完成前集成明确拒收，不前移项目工作分支。
+
+Codex 会话的模型、强度与 Fast 默认见角色设置，可在派发时覆盖。
+worker/reviewer 的 argv 显式传 service_tier，启动记录保存实际选择的 requested tier。
+出厂普通速度传 `-c service_tier="default"`，覆盖用户 home 里的全局 priority 设置，但不改写它。
+记录仅表示请求设置，不代表供应商实际执行tier；其他沙箱、hook及身份检查不变。
+
+审查员经 MCP 工具 `review_submit` 交结论，只交 `verdict`、`findings`、`report` 三项（T-203）；身份字段、`review_requirements`
+等由门禁为这次审查写进请求目录的 `review-template.json`，工具从模板补齐。工具用门禁同一套核对当场检查，不合格时说明是哪一项、
+怎么改，审查员可在本回合内改了再交；合格的写进请求目录的 `review-result.json`，回合内再交一次覆盖上一次。审查员回合结束时，
+后台读这个文件，再按原样核对一遍，经原 B relay 转交门禁；最后一条回复不再读取，没有这个文件就按 `review_result_missing`
+拒收。各 CLI 的接法：Claude Code 经 `--mcp-config`（工具被延后加载，模型先经 ToolSearch 取出）；Codex 经
+`-c mcp_servers.enchanted.*`（0.164 下工具也被延后，模型经代码工具的 `ALL_TOOLS` 找到 `mcp__enchanted__review_submit`）；
+opencode 经 `OPENCODE_CONFIG_CONTENT` 的 `mcp`；agy 的交互会话拿不到 MCP 工具，提示里给一条命令
+`reviewResult.ts submit <请求目录> <文件>`，效果与工具相同。门禁的审查启动检查核对 Claude Code、Codex、opencode 的这项参数。
+`report` 是非空 JSON 对象，须含“完成条件与变异检查”键，用于保存完成条件审查、变异命令与结果；relay 和门禁结果保留完整报告。
+门禁在保存报告前核对其中的 `mutation_checks.workspace` 等于本次候选副本路径。
+门禁只核对报告容器、必需节键与请求格式，不判断报告结论或变异结果是否正确。
+非法结论（或被门禁拒收的结论）保存原文、上报并暂停，各 CLI 的审查员相同（T-129）；有效结论只接受“可合并”加空清单，或“需修复”加位置、
+失败场景、建议。结论绑定 C、合同和独立启动/原生身份。有效结果存库、reviewer idle 后回收，
+不另开纯 ACK 回合。审查目录按下述 S3 规则命名和清理。问题卡的编号按 attempt 计，同一次交付的多张卡不重号（T-203）。
+
+协议失败后，问题页说明是没交出结论还是字段错误，并保留可展开的原文；仍在当前交付上的错误提供“为同一次交付新开审查”。
+该按钮经同一个 `verify` 门禁，绑定原 attempt 和失败的 review id；核对候选、规格、机械验收、进程身份与目录边界，
+确认旧审查 idle、停止并归档后才新开审查，不剥围栏、不追认旧结论，也不自动重试。
+旧错误事件和原文保留；关闭问题不会恢复任务。
+审查身份、运行或边界错误不走此恢复；回收中断后保留未知状态，不重复外部动作，交执行主控核对。
+
+```sh
+node workbench/src/gates/cli.ts --state /绝对路径/state integrate --task T-080-1 --attempt ATTEMPT --score-file /绝对路径/score.json
+```
+
+当前集成评分 JSON 为：
+
+```json
+{"result":"通过","boundary_discipline":3,"boundary_reason":"理由","engineering_taste":2,"engineering_reason":"理由","notes":""}
+```
+
+数值须为 0–3 整数，理由非空，notes 必须存在（可空）；缺项拒绝，不编造默认分数。
+评分意图绑定 integration intent，Git 成功后最终 `score_recorded` 与集成状态同事务落库；
+相同命令重放不再打分或改 Git，不同分数不能覆盖。后台与 `scripts/score` 新写入的打分行一律为 schema=2，
+事实由任务卡、交付回合和事件提取，不写真实 `records/scores.jsonl`。
+通过或升级的 `facts.rejections` 必须完整包含 `identity_version`、`path_boundary`、`oracle`、`completion`、
+`red_state`、`rule_checks`、`independent_review`、`commit_trailers`；验收文件打回计入 `oracle`，不计入 `path_boundary`；主控经 `out_of_card` 打回卡外改动计入 `path_boundary`（T-198）。
+缺项拒收，不把缺失次数补为零。用户分和放弃结果沿用各自不带评分事实的合同，新行仍写 schema=2。
+交付缺当前回合的实际模型/强度时拒绝，不能沿用请求值或上一回合的值。
+
+`abandon --task T --attempt A --score-file FILE` 终结原attempt，不执行Git集成。
+放弃只传 `{"result":"放弃","reason":"理由"}`，不带分数/备注/评分facts；升级传与通过相同的两项评分及理由、notes，
+把result改为“升级”。命令不自动启动更强执行器。无交付时从该worker启动记录和已观察回合取元数据，未观察到模型则如实记unknown；
+没有可核对启动来源则拒收。终结与评分一起落库，重放不重计；pending integration intent须先核对，不能用放弃掩盖未知CAS。
+终结不等于窗格已回收：只在idle后用原attempt的reclaim回收；未完成的reviewer会保留上报。
+
+`scores_validate --file /绝对路径/scores.jsonl` 是只读格式校验，不导入、不双写Herdr文件。
+按每行 schema 校验，可读取混合版本：历史 schema=1 按原七项检查集（无 `oracle`）只读校验，
+schema=2 的评分事实按上述八项检查集校验；历史行不改写、不迁移。未知 schema 拒收，写入端没有选择 schema=1 的参数或路径。
+`scripts/score --source user --score-of ...` 可关联 v1 或 v2 的执行主控原记录，新用户分均为 v2。
+缺必填项、非法评分/事实字段、重复 attempt、错误来源绑定和不完整尾行均拒收。
+
+`run --wait-seconds N` 现在等待修复、审查和执行主控的显式集成命令，仍只绑定原 attempt。
+它不会在机械通过后自动填分/集成，也不因第一次质量打回就回收 worker。修复或审查等待
+到期时保留现场；收到最终集成后，确认原 worker idle 才回收并结束。
+
+本候选只用于ticket隔离验证。红态/规则、终结评分、双向格式校验与CAS评分恢复已有受控正反例；
+reviewer创建失败、后台重启时的未完成审查、退出未确认已有红态及暂停/上报后的绿态。
+原始错误和review身份保留，不自动重试或续接；故障属于历史审查时不覆盖新attempt或终结结果。
+经批准的夹具迁移后，8/9/18及T-075/T-076-1受控回归通过，证据见
+[legacy-green-06](../evidence/2026-10-11-batch13/T-076/card-2/outside-legacy-green-06/run.json)。
+手工claim即使有合法review与评分，缺少受管启动来源仍拒绝集成。受控结果不代替真实模型验收；
+先前不传tier的最小复验及 P-review02 只证明当时冻结版本；显式 default 最小复验与 reviewer 边界变异体需按当前候选重新取得。
+真实正例槽2–6及独立交付审查槽7已完成，累计真实7/8；正例见本卡outside-real-delivery-02，
+审查原文见[REPORT](../evidence/2026-10-11-batch13/T-076/card-2/outside-delivery-review-01/REPORT.md)。
+原日志归档要求及完成收据均保留。tasks/attempts/verifications一致，
+memberships/session_presets无法重建；attachment中断窗口未由本条真实正例覆盖，全库一致性仍INCOMPLETE。
+这不代表完整工作台或整张ticket已经验收。
+
+worker 目录为 `<state>/worktrees/<project_id>/<task>-a<N>`，分支为
+`a2a/<task>-a<N>`；N 沿用该 task 的递增 fence。验收目录加 `-verify-<K>`，
+保持 detached。已完成验收的结果先持久化，M 保存在
+`refs/a2a/verifications/<task>/a<N>/v<K>`，然后清理临时目录。
+中断、结果未知或清理失败时保留现场并记录问题。
+
+审查目录为同一项目命名空间下的 `<task>-a<N>-review-<K>`，保持 detached；
+K 按该 attempt 已记录的审查意图递增，同 C 的有效审查复用不新建目录或递增序号。
+每次审查另有 `<state>/review-copies/<review_id>` 一次性候选副本；它不登记为 Git worktree，且不含 `.git`。
+审查结论入库后，确认原 reviewer 已停止且归档，再核对候选提交、审查目录、worker 目录（相对审查开始时的快照）与共享引用未变，
+删除候选副本，最后删除审查目录及 Git worktree 登记。
+同一仓库里别的任务可以同时在跑（T-131），所以共享引用的核对放过两类改动：别的任务自己的引用，只认门禁给它起的名字
+（`refs/heads/a2a/<任务>-a<N>`、`refs/a2a/attempts/<任务>/a<N>`、`refs/a2a/verifications/<任务>/a<N>/v<K>`，以及验收冲突时保留现场的 `…/v<K>-candidate`、`…/v<K>-base`，N 不超过该任务当前的 attempt 序号）；
+工作分支经门禁记下的集成，从审查开始时的值一路推进到当前值。
+其余引用有任何改动都拒绝。已知边界：审查期间用户自己往工作分支提交，仍按引用被改拒收（T-131 之前就是这样）；
+同一仓库登记为两个项目、且有同名任务时，对方的 attempt 分支与本任务同名，按引用被改拒收。
+清理事件单独追加，不改写 `review_result` 的审查对象，因此目录删除不改变 R8 沿用结论的身份绑定。
+脏目录、未知 HEAD、退出未确认或清理结果未知时保留可核对的现场，沿用审查生命周期的暂停和问题上报语义。
+
+已集成 attempt 在确认窗格回收后清理；无绑定线程的手工 claim 在集成后清理。
+干净的撤销 attempt 在没有活跃线程时清理，否则等显式 reclaim。
+清理前先保存并读回 `refs/a2a/attempts/<task>/a<N>`；已集成的还删除 worker 分支名，
+撤销、终结失败的保留分支。脏工作区、未交付的 HEAD 或身份不符时不删，
+通过现有 `issues` 和执行主控的 `inbox_list` 查询 system issue。
+覆盖型未提交改动导致集成被拒时，同样保存绑定原 attempt 的问题条目。
+
+工作分支已变时，integrate 在原任务操作锁内重新运行 verify 的同一检查链。
+同一候选、卡快照和 attempt 的连续失配计数保存在 attempt 中；前三次自动重验，
+第 4 次返回 `integration_revalidation_limit`，任务暂停并保存 system issue。
+重复 integrate 不重置额度。只有已确认在 Git prepare 阶段终止、且未写工作区的
+新 intent 可以进入这条重验路径；中断恢复的 pending intent 或未知副作用仍要求核对。
+`integration_compare_failed` 事件携带候选审查的身份绑定；每次重验走同一质量串，
+候选和完整身份绑定不变时沿用有效审查，候选改变时新开审查。该事件本身不是审查通过记录。
+
+验收发生内容冲突时，只有 Git 合并退出 1 且索引含未合并条目才进入冲突整理。
+原始命令结果、冲突文件、索引阶段与差异先保存；原 C 和 G 分别保存在
+`refs/a2a/verifications/<task>/a<N>/v<K>-candidate` 与 `v<K>-base`，它们不表示验收通过。
+原 worker 身份可确认时，冲突说明经原窗格队列以 `⟦门禁 #序号⟧` 回写，忙时等待。
+任务进入 `rework`；重复 verify 不重发、不另建验收或 attempt。
+只有投递已确认的修复请求允许下一回合显式重交新 C，重交后新 C 再次冻结。
+原 claim 基线和卡快照不变；路径、尾注检查排除门禁从工作分支读到的已集成基线，
+仍检查新 C 的实际增量和新 G→M 的净改动。重交进入同一 verify 检查链，记录需要重新审查。
+
+会话已确认停止时，门禁归档旧 worker，从当前 G 经同一认领入口创建新 attempt，
+新提示包含旧 C 和冲突背景，程序不替 worker 解决冲突。
+仅有回合 Stop、领导进程替换或不明进程状态都不构成会话结束；
+已知领导进程退出且只剩原 shell、上一回合已空闲时，才额外记录原生会话结束。
+消息投递、会话观察或新 attempt 创建结果未知时，保留记录、工作区并上报，不自动重试。
+已完成记录且投递确定的临时冲突目录在核对现场未变后清理；未知状态保留。
+
+上述 S3 代码正在本卡验收中；受控窗格检查不能替代真实 worker 的冲突整理验证。
+
+## 安装
+
+```sh
+cd workbench
+npm ci
+npm ls --depth=0
+```
+
+本目录 `.npmrc` 把 npm 缓存放在内置盘 `~/Library/Caches/a2a-workbench/npm`。
+`node_modules` 是本目录中的普通目录。依赖锁定 `effect@4.0.0-beta.25`；来源预览包
+改为 npm 官方包是执行主控的决定，记录见本批证据 `controller-decision-01.md`。
+
+Electron 43.4.1 的 npm 包已没有 postinstall 下载；npm ci 成功不代表其二进制已安装。
+开发启动前显式运行 `node node_modules/electron/install.js`，使用默认的内置盘
+`~/Library/Caches/electron` 下载缓存，并核对 `path.txt`、`dist/version` 与可执行文件。
+打包时 Packager 自己下载 Electron，无需先安装开发用二进制。
+
+本机已知限制（2026-10-19）：Electron 43.4.1 放在 USB 外置盘（APFS、Owners Disabled）
+执行时，连不加载产品的版本探针也可能挂起。相同版本在内置盘能立即返回；这是当前
+环境的执行限制，不外推为所有 APFS 或 USB 磁盘的问题。Electron 二进制一律从内置盘
+执行；当前构建与缓存也全部使用内置盘。
+测试基线可用 Electron 包已有的 `ELECTRON_OVERRIDE_DIST_PATH` 显式指定同版本内置盘
+dist；平台路径元数据须完整，不能依赖外置盘上的 Electron.app。T-103 的红态、绿态
+共用一个内置盘二进制，并核对实际进程回报的路径与版本。
+
+打包产物可由调用方另行安装到 `/Applications/Enchanted.app`。
+
+另锁定官方 `node-pty@1.1.0`。本次 darwin-arm64 预编译包使用 `--ignore-scripts` 安装时，
+`prebuilds/darwin-arm64/spawn-helper` 曾缺执行位，已由执行主控手工改为 755。
+后台启动核对 node-pty 实际选择的 helper 是否可执行；失败直接报错，不自动 chmod 或重装。
+
+### macOS 应用
+
+本机 arm64 打包使用 Node 26.5、`@electron/packager@20.0.4` 与 `node-gyp@12.1.0`。
+准备本目录依赖后，为每次构建指定新的槽名：
+
+```sh
+cd workbench
+npm run package:mac -- --slot mac-新的编号
+```
+
+构建目录为 `os.tmpdir()/a2a-build-<槽名>`，不依赖外置盘；可通过 `TMPDIR=/private/tmp` 固定临时位置。
+打包时 npm、Electron 下载缓存及 Electron 头文件都放在本次构建的 `work/cache/`，不写用户全局缓存。
+UI 构建、stage、重建与临时文件集中在本次构建目录的 `work/`；打包、签名核对成功后
+自动清理 `work/`，目录里只保留 `Enchanted.app`。已有槽不复用，失败时保留现场。
+显示名和主可执行文件名为 Enchanted，helper 为 `Enchanted Helper*.app`；bundle id 仍为 `org.a2a.workbench`。
+应用的版本号取本目录 `package.json` 的 `version`（发版前同时改 `package-lock.json` 顶部两处）。
+`--variant test` 打出可与正式版并存的 `Enchanted Test.app`：bundle id `org.a2a.workbench.test`，
+数据目录 `~/Library/Application Support/a2a-orchestrator-test`，因此单实例锁、编排后台与项目列表都与正式版分开。
+应用品牌原图在 `workbench/app/brand/`，Pages 的静态发布副本在 `docs/assets/brand/`，两处均原样保留用户附件。
+深色标记用于浅底，白色标记用于深底。打包时生成 macOS `.icns`；
+运行时 Dock 图标随系统外观切换。界面有浅色与深色两套配色，默认跟随系统，可在设置里固定；
+窗口使用 macOS 侧栏材质（vibrancy）与隐藏式标题栏，终端配色随外观切换。
+后台源码、钩子与唯一门禁 CLI 保持原路径；node-pty 针对 Electron 43.4.1 从源码重建，
+打包时把新 helper 设为 755。
+Packager 裁剪构建依赖，并以 ad-hoc 签名；不公证、不启用 hardened runtime、不使用 ASAR。
+输出最后一行给出 `.app` 路径、体积、重建命令和签名方式，不额外写构建报告。
+
+安装到 `/Applications/Enchanted.app` 后双击即可。界面自动调用现有 detached 启动器，以同一
+Electron 的 `ELECTRON_RUN_AS_NODE=1` 模式运行编排后台；后台无需外置盘或外部 Node。
+数据默认仍在 `~/Library/Application Support/a2a-orchestrator`，界面数据在其 `ui/`。
+缺省 task 进入独立终端区；项目由界面打开目录登记，任务由主控经门禁 CLI 注册。
+无需项目也能新建普通 zsh 终端。
+退出界面不结束后台或终端，再次打开会重连；后台重启后项目终端接回仍活着的 hc 终端，只有程序确实结束才显示已结束。
+
+应用启动者创建独有的 0600 `desktop-operator-<UUID>.json`，私有连接描述文件
+`desktop-connection.json` 只保存凭据路径，不保存 token。两者都不在后台数据目录里（T-126）：正式版放在
+`~/Library/Application Support/Enchanted/`，测试版放在 `~/Library/Application Support/Enchanted Test/`，
+用 `--state` 指定数据目录时放在同级的 `<数据目录>-credentials/`；目录为 0700。重连用原凭据接受后台核对；
+端点不存在才尝试启动，死 PID／socket 处理仍由 transport 完成。拒绝、超时或所有者未知
+明确报错，不重试或接管。凭据目录里以前启动的凭据文件保留；不要把它们加入证据或 Git。若同一数据目录
+已有手工启动、但没有桌面连接描述的后台，应用会拒绝接管，须由原启动者按原入口收尾。
+
+T-126 之前的安装把描述文件和每次启动的凭据都放在数据目录里。应用启动时迁移：当前凭据复制到新位置（0600）并写新的
+描述文件，然后删除数据目录里所有 `desktop-operator-*.json` 和旧描述文件；后台不必重启，迁移中途被打断时下次启动接着做完。
+已知边界：凭据仍是本用户可读的文件，终端只是不知道它在哪里。有意搜索磁盘的 agent 仍可能找到并读到它；
+同一用户的其他进程也可能读到后台进程的环境（其中有凭据路径）。受管 worker 与 controller 的环境仍有 `A2A_STATE`（它们经能力令牌调用，
+不在本票范围），但数据目录里已经没有操作员凭据。
+
+隔离体验可用 `open /Applications/Enchanted.app --args --state /绝对路径/state --user-data /绝对路径/ui`。
+标准 `--remote-debugging-port` 只供显式调试使用；正常双击不开启端口，应用没有默认端口
+或自动开启代码，显式调试的端口随界面退出。
+
+## 运行时边界
+
+`GateRuntime` 由 `panes.ts` 实现每个后台实例一个 worker 及每次交付新开的 reviewer 窗格；
+worker 的 CLI 取任务卡 `executor.cli`（Claude Code、Codex、agy 或 opencode；T-122、T-187），reviewer 默认与 worker 同 CLI 同模型（D24）。
+没有普通 attach 会话。生产 CLI 没有直接开库的运行时替代入口。
+
+Claude Code worker 的启动参数（证据 `evidence/2026-10-21-batch19/T-122/probe-01`～`05`）：`--session-id`、
+`--permission-mode dontAsk`（不弹批准，越界即拒）、`--setting-sources ""`（不加载设置文件；
+`local` 会连主 checkout 的 `.claude/settings.local.json` 一起加载）。此参数也会屏蔽用户 MCP；
+T-141 去掉 `--strict-mcp-config`，在 `$HOME/.claude.json` 顶层有 `mcpServers` 时，将该文件单独传给原生
+`--mcp-config`。它只加载 MCP，不合入用户设置中的文件权限规则；没有用户 MCP 时不加此参数。
+这里支持用户作用域 MCP，不加载项目 `.mcp.json`、项目局部 MCP 或插件设置。CLI 的 deferred MCP 工具由模型先经 `ToolSearch` 发现再调用。
+`--settings` 的 allow 规则允许 `Bash`、`Read`、`Glob`、`Grep`，以及 worktree、请求目录与本次派发的额外目录内的 `Edit`。
+用户 MCP 通过每会话 `PreToolUse` hook 的 `^mcp__` 匹配器返回原生 `permissionDecision: allow`；
+该匹配器不匹配 Bash 或原生文件工具，CLI 自己的 deny/ask 规则仍适用。不使用无效的 `permissions.allow: ["mcp__*"]`：
+Claude CLI 不允许 allow 规则的 server 部分包含通配符，旧候选会在信任确认后停在 Settings Warning。
+shell 沙箱禁止沙箱外命令，另可写请求目录与本次派发的额外目录。网络允许所有域名、Unix socket 和本地连接。MCP 工具由用户配置的服务执行，
+不在 Claude 的 Bash 文件沙箱内，服务本身的写入权限不由这些设置限制。linked worktree 里
+Claude 的沙箱自己把主仓库整个 `.git` 设为可写，所以 `denyWrite` 收回整个 Git common dir（worktree 的 `.git` 文件 Claude 沙箱本身就拒写）；
+只有 `git add`、`git commit` 经 `sandbox.excludedCommands` 在沙箱外运行（同 Codex 的两条前缀规则；只由这两种命令拼成的
+一行也在沙箱外，各段提交照样带尾注）。混入任何其他命令的拼接、`git -c`、环境变量前缀、重定向都留在沙箱里，`cd` 与
+`export` 不带到下一条命令（probe-05、审查 03）。沙箱外的提交只执行 a2a 的尾注钩子（`hooks/hook.py`），不执行项目
+自己的 Git 钩子：husky、lefthook、pre-commit 或 `.git/hooks` 里调用项目代码的钩子，执行的是 worker 可改的代码（审查 03
+实测能写出 worktree、移动 main；用户裁定不跑）。门禁在交付时把跳过的钩子记为 `project_hooks_skipped`（hooks 路径不是目录时，如 `core.hooksPath=/dev/null`，与 Git 一样视为没有钩子），Claude 与 Codex
+worker 相同；用户自己在终端里提交不受影响。沙箱外的提交仍会执行用户 `~/.gitconfig` 里的 filter。Claude 的 `$TMPDIR` 仍可写（收回会让每条 shell 命令失败）。任务卡写 Claude Code 时，派发不带的模型与强度取卡上的 executor（卡的拒绝原因写出期望字段，如完成条件每项为 `{"argv": [...]}`、没有 project-map ticket 时 `source` 为 `null`（gui-03）：主控只看得到拒绝，T-122 gui-02 的主控因此猜了六种形状）；回合信号经 SessionStart、UserPromptSubmit、
+Stop、PermissionRequest、PreToolUse、PostToolUse 钩子传入。Claude reviewer 只可写门禁给的一次性候选副本，
+shell 沙箱不另开可写目录；门禁的 `reviewLaunch` 核对这组参数。新 worktree 启动时 Claude 会问是否信任该文件夹：
+按用户裁定，后台只在会话还没收到任何任务时代按“Yes, I trust this folder”，记 `worker_trust_confirm_intent`、
+`worker_trust_confirmed`（选项没选中则 `worker_trust_failed`，不按 Enter）；a2a 不写 `~/.claude.json`。
+SessionStart（`source` 为 startup、会话号与 cwd 相符）是初次放行，之后才送第一条任务，并永久关闭代按；120 秒内没有
+<<<<<<< /private/tmp/a2a-requests-3IGepO/t249-readme-base
+SessionStart 记 `worker_startup_unrecognised`。交付时的模型取会话记录里该回合最后一条非 `<synthetic>` 回复的模型
+=======
+SessionStart 记 `worker_startup_unrecognised`。已启动的会话回合中途压缩上下文后发来的 SessionStart（`source` 为 compact，
+会话号、记录文件与本会话相符）记 `native_session_compacted`，不改回合状态（T-251）。钩子的 cwd 跟着 Bash 的当前目录走：
+cwd 在本次启动的 worktree 或门禁给的 `extra_directories` 以内（含子目录）就算本会话；以外、相对路径、只是前缀相同的
+兄弟目录都按来源不符记 `native_question_unverified`（T-251）。worker 回合里有过来源不符的钩子时，这一回合不可信：
+Stop 照常结束回合（没有排队的用户输入、没被打断时窗格回到空闲，能回收），回合留下的请求不执行，按 `current_turn_untrusted` 记为拒收（以后的 Stop
+只重放拒收），门禁给执行主控追加一条阻塞系统问题，写明被拒的请求和核对不上的钩子，经收件箱送达（T-251）。交付时的模型取会话记录里该回合最后一条非 `<synthetic>` 回复的模型
+>>>>>>> /private/tmp/a2a-requests-3IGepO/t249-readme-candidate
+（跳过半写入的行），强度取 Stop 钩子报告的值（`native_turn_facts`）；提交钩子的 `A2A-Native-Session` 尾注取
+`--session-id`；Model 与 Effort 尾注取同一份会话记录里最后一条非 `<synthetic>` 回复的模型与强度（T-130：在
+`CLAUDE_CONFIG_DIR` 或 `$HOME/.claude` 的 `projects/*/` 下按会话号找唯一记录；强度字段 `effort`、`perTurnEffort`
+写了哪个用哪个，两者不一致时拒绝提交；记录缺失或没有强度时写 `unknown`，门禁对 Claude 交付仍接受 Effort 为 unknown）。
+Claude reviewer 的整串 argv 由门禁逐位核对，settings 只能含 permissions、sandbox、六个钩子与 fastMode；
+模型、强度、Fast 必须与 worker 启动记录相同（可执行文件只记录：路径带 Claude 版本号，两次启动之间可能更新），钩子命令必须是 worker 的那条、只换 launch id；reviewer 角色设置对它暂不生效。
+已知限制：Claude 会话里 `/clear` 或自动压缩若换了会话号，后续钩子信号按 `unsupported_hook` 拒收（审查 01 第 10 条，本票未另测），后台不跟随新会话号，也不另记这次切换。Claude 的 shell 沙箱会在 `GIT_CONFIG_*` 末尾追加 `safe.directory` 条目，提交钩子只接受这一种追加。
+门禁在 submit 时按任务卡 CLI 核对 provider。终端主控发起的门禁调用以该终端为父 launch，派出的会话在侧栏挂在它下面。
+
+打包的工作台以产品启动配置起后台（`workbench/app/desktop.mjs`）：经用户的登录 shell 找到 `claude`，角色卡为
+打包的 `roles/worker.md` 与 `roles/reviewer.md`，版本为打包时的源码提交。登录 shell 里找得到 `codex` 时，
+产品配置同时给出它和用户自己的 `~/.codex`（T-127，用户裁定“直接用我的~/.codex”）；找不到就不配 Codex，
+派 Codex worker 会被拒绝（`launch_config_required`）。`agy`、`opencode` 同样经登录 shell 查找，找到才配（用户自己的
+安装与 HOME，T-187）；找不到时派这两种 worker 也会被拒绝。
+后台同时可以跑多个 worker（T-131 去掉了 S1 的 `single_worker_slice` 限制），不设并发上限；同一项目里允许路径有交集的派发，仍须主控给出 `overlap-reason`。
+旧 `native-runtime.ts` 是隔离测试边界；它的旧证据不能证明新后台或真实窗格可用。
+
+真实启动需在 `daemon_start --launch-config /绝对路径/launch.json` 中给出固定 Codex
+路径、`codex_home`、角色卡及版本、代码版本、hook 授权引用和回合上限。
+`dispatch --runtime-mode workspace-write` 始终启动交互 zsh 中的 Codex：`-a never`、
+workspace-write、模型和思考强度默认见设置（可改）、显式 service tier（出厂普通速度，覆盖全局 priority）、关闭更新检查。
+
+模型、思考强度与 Fast 按角色（worker、reviewer、monitor、构思主控 ideation、执行主控 executor）
+保存在 a2a 自己的 SQLite 库。设置（齿轮或 ⌘,）里的“主控派发的默认模型”保存后，只影响之后启动的会话；
+已打开的终端、运行中的会话和用户在终端里自己启动的 CLI 不受影响。
+worker、reviewer、monitor 出厂选择为 Codex `gpt-6.1-sol` / `high` / Fast 关闭。
+两个主控沿用 Claude 入口的出厂选择 `claude-haiku-5-5` / `low` / Fast 关闭。
+逐字段优先级为派发覆盖参数 > 角色设置 > 对应角色的出厂默认。
+
+工作分支（T-180）：主控 `create` 不写 `branch` 时，后台定分支：本仓库已有任务就沿用它们的工作分支（门禁一个仓库一个）；否则用 `refs/heads/<前缀><项目名>`，同名分支已存在直接用，不存在就从仓库当前 HEAD 新建，不切换、不动 main/master、不 push。回执多一个 `work_branch`（`ref`、`created`、`reason`、`from`）。前缀在设置页“工作分支前缀”，默认 `enchanted/`，存为追加事件 `work_branch_prefix_saved`（仅操作员），`git check-ref-format` 不通过的前缀不保存；只影响之后还没有任务的项目。用户指定 `branch` 时照用，门禁照旧校验。门禁拒绝这次 create 时，后台删掉本次新建的分支（仅当它仍指向新建时的提交），不留残留（T-183）。
+任务卡的 executor 仍记录任务信息和 CLI 身份，模型/强度字段不再作为启动选择或固定值门禁。
+
+```sh
+node workbench/src/gates/cli.ts --state /绝对路径/state execution_settings
+node workbench/src/gates/cli.ts --state /绝对路径/state execution_settings_save --role worker --model gpt-6.1-sol --effort high --fast false
+node workbench/src/gates/cli.ts --state /绝对路径/state dispatch --task T-112-1 --runtime-mode workspace-write --model gpt-6.1-sol --effort xhigh --fast true
+```
+
+`run --wait-seconds N` 同样支持 `--model`、`--effort`、`--fast true|false`。
+`controller_prepare`、`controller_start` 也支持这些覆盖参数；后者的 manifest 可写
+`"execution":{"model":"opus","effort":"high","fast":false}`，命令行字段优先。
+`launch-config.controllers` 中旧 model/effort 字段不参与选择；CLI 路径、权限和身份配置仍由 launch config/manifest 提供。
+本设置不切换 CLI：worker 与 reviewer 的 CLI 取任务卡，主控是用户在终端里自己启动的 CLI。
+Claude 主控的设置只转换为 Claude 的 `--model`、`--effort` 和 settings.fastMode；不传 Codex 的配置参数。
+monitor 的设置已保存，真实 monitor 启动入口仍未实现，不能据此宣称已能启动。
+
+模型与强度为文本输入，不维护 a2a 枚举。取值以已安装 CLI 的 `codex --help`、`claude --help` 和
+[Codex 配置文档](https://learn.chatgpt.com/docs/config-file/config-reference)、
+[Claude 模型配置文档](https://code.claude.com/docs/en/model-config)为准；不支持的值原样交给 CLI 报错。
+原生 CLI 在会话建立前非零退出会记录 `launch_failed`，原始错误留在该 launch 的终端记录中，不替换成默认值。
+这种 attempt 没有原生会话：窗格已停止、没有回合、provider 已不在时，门禁 `reclaim` 照常停止、归档并清理工作区，
+任务可修订后再派发；原生会话为空但 CLI 仍在运行时照旧拒绝（T-170）。CLI 在 dispatch 回执前就退出时，
+dispatch 先把 attempt 记为 claimed 并保存观察到的身份，再回 `run_blocked`，之后同样经 `reclaim` 回收。
+如果窗格已经创建、首次身份读取却失败，attempt 会停在 `preparing`。T-259 的恢复只接受已确认停止、
+从未注册或发送任务输入、从未建立原生会话的 Codex 窗格：门禁逐项核对原 dispatch、启动记录、
+shell 与领导进程、task/attempt/session/fence/spec，并保留启动记录中的 CLI 与代码版本。缺记录、身份不符、输入状态不明或进程仍在运行时拒绝。
+确认停止和归档完成后才释放该 attempt；脏工作区仍保留，原错误与恢复依据追加记录。
+归档前保存已确认停止的身份与事件位置；若归档已落盘但回收完成尚未保存就中断，重启后核对原 attempt
+在该位置之后的归档记录，并重新核对创建及未发送条件，继续同一次回收，不要求已归档窗格重新出现在运行时中。
+这个入口不重发任务，也不自行停止仍活着的准备失败会话；它们须先按正常后台停止流程结束，再经门禁回收。
+完整 argv 和请求模型/强度/tier 继续入库；这些请求值不证明供应商实际执行层级。
+reviewer 与 worker 同一 home、只写候选副本与本次派发的额外目录，原审查 worktree 只读；权限边界不因模型设置改变。
+
+T-141 放开 Codex workspace-write 网络，不覆盖用户的托管代理、信任或工具配置。
+文件写入范围仍受沙箱限制：工作目录、worker 请求目录与本次派发的额外目录；排除共享 `/tmp` 和原 `$TMPDIR`，
+worker 的 shell 临时目录放在请求目录里，reviewer/monitor 放在各自的一次性工作目录里。
+原生审批策略保留 `-a never`，被拒操作立即返回给 worker；worker 经 `issue` 上报，执行主控用 `answer_issue`
+答复，后台经原会话队列送回答案。答复不会扩大沙箱权限。会话 hook 向同一 CLI 的 `signal`
+送原始 stdin；Stop 另外读取显式请求文件。启动参数、环境白名单、请求模型与实际回合模型分开记录。
+
+初态为“未知”。Codex worker 与 monitor 沿用用户的目录信任设置；reviewer 的候选副本单独以 untrusted 打开。
+已信任目录直接启动，untrusted 目录问一次
+“Open restricted”，后台等屏幕安静后按 Enter（记 `codex_restricted_open_intent`、`codex_restricted_opened`）。
+两者都等原生终端状态包 `OSC 7501;state=idle:app=codex`，再核对前台领导进程，记录 `codex_startup_ready` 并放行首条派发。
+该状态包只用于初次启动，之后仍须匹配 Stop。出现“Trust and continue”时不按键，记
+`codex_folder_trust_requested`；120 秒内没出现可识别的启动屏记 `worker_startup_unrecognised`。
+原先由执行主控调用的 `pane_release` 已删除。派发先登记、空闲时 bracketed paste 后单独 CR；CR 写出即忙，
+只有匹配主回合的 Stop 才返回空闲。不读屏，Esc 或缺 Stop 不自动放行。
+Esc 后先由用户自行处理 CLI 草稿，看到输入框为空后点击“输入框已空，放行”。
+该 action 记为“用户声明输入框已空”，引用实际中断写入收据；后台不删除草稿，
+也不把声明记成机器读到的输入框状态。后台核对当前窗口、launch、中断和窗格输入代次，
+声明后又有键入、粘贴、二进制输入或组合输入则拒绝陈旧放行。受管 worker 同时记人工介入。
+UserPromptSubmit 只阻断当前登记注入的正文错配，输出 hook JSON block 并保留原始诊断；
+不按文本标记拦截手打提交，不裁剪、不重送，Stop 的提交匹配语义不变。
+Claude 窗格工作中的用户输入仍原样直达 CLI，由 CLI 自己处理；Enter 不替换当前原生 turn，
+不使正在转交的 Stop 批次失效。新的 UserPromptSubmit 建立下一次用户回合身份。
+回合工作中或 Stop 期间，CLI 接收排队输入时的 UserPromptSubmit 可能仍带原 prompt_id（T-157、T-166）；
+此前有用户在该窗格按下的 Enter 时，后台记录排队事实，保留原身份，原回合的 Stop 照常匹配；没有对应 Enter 的
+prompt_id 复用仍拒绝。原回合结束后，同原生会话转录中的 queued human 正文、时间和新 promptId 核对通过，
+才建立实际的新 turn；其匹配 Stop 结束后回到空闲。这一轮的 Stop 可能早于转录登记到达（T-165）：
+后台只暂存同一转录、晚于排队输入、非子代理、`stop_hook_active=false` 且 prompt_id 未用过的 Stop，
+登记该轮后按同一核对与转交完成；与该轮 promptId 不符的暂存 Stop 记为不匹配。门禁反馈等原生队列处理完才注入，用户输入仍即时发送。
+模型还有工具调用时，CLI 可能把排队输入并入当前回合（转录记 `queue-operation` remove、`absorbed_mid_turn`，
+随下一个工具结果交给模型），不再成为单独回合（T-169）。原回合 Stop 时，同会话、同正文、不早于收到时间的并入记录
+把该输入记为 `claude_prompt_absorbed` 并移出等待；没有并入记录的输入仍按上面等单独回合。
+新 turn 开始后旧 caller 仍被拒绝。worker 的交付快照保留原 attempt、提交号及明确结果或未知结果，不自动重试。
+只有新原生 turn 已被观察到、旧请求明确被拒时，侧栏与窗格头显示“旧回合交付被拒”，窗格保留原提交与原因。
+“请原 worker 核对交付”在当前回合结束后发送绑定原 attempt 的核对请求；worker 核对后通过正常 CLI 显式交付。
+原 attempt 已失效、已有候选或无法确认身份时禁用该操作；终端手动输入不受此按钮状态影响。
+09A-3R2 的实际隔离场景证据已有独立版本绑定；新候选的入口检查使用真实
+daemon/window socket 与 hook CLI、模拟 PTY 和 vendor 身份，不等于实际 Claude 复验。
+
+### 用户的 Codex home（T-127）
+
+Codex worker 与 reviewer 的 `CODEX_HOME` 就是 launch config 的 `codex_home`，产品里是用户自己的 `~/.codex`
+（用户 2026-10-21：“直接用我的~/.codex,因为这些 session 我还有用,别隔离”）。因此：
+
+- home 里的 rules、hooks.json、skills、provider 与登录都生效。用户的 allow 规则里有什么就放行什么，
+  例如 `git push origin HEAD`、`ssh win`；这些不经门禁，门禁只管认领、交付、验收、集成与回收（用户知情后选择“完全照用 ~/.codex”）。
+- a2a 不写 home 的 config.toml、rules、hooks.json；a2a 的钩子只经每会话的 `-c hooks.*` 传入，与 home 的钩子叠加。
+- 受管会话启动参数带 `-c notice.hide_rate_limit_model_nudge=true`（T-167）：额度接近上限时 Codex 在回合结束后问是否换小模型，a2a 随后粘贴的消息与回车会答掉这个提示，把 worker 换成别的模型且不开始回合（T-164 实测）。只经启动参数，不写 home。
+- 写入消息并按提交键只算“已写入终端”；回合以原生开始信号为准。20 秒内没开始时记 `turn_start_missing`，侧栏与窗格显示“回合未开始”并说明要查看终端；不重发、不替用户按键。
+  Codex 自己会往 config.toml 写 `[tui]` 状态键，那不是 a2a 写的。
+- T-141 的 worker 与 monitor 不传 `projects=...` 覆盖信任：项目 `.codex` 的加载由用户自己的配置和原生 CLI 决定。
+  reviewer 只对本次一次性候选副本保留 `-c projects={<candidate_workspace>={trust_level="untrusted"}}`；
+  候选里 worker 写入的 `.codex` 配置、hooks、exec policy 不得在独立审查中生效。门禁沿用 T-127 的精确目录核对。
+  `--sandbox`、写入根与临时目录排除仍由每会话启动参数约束；模型、强度、tier、更新检查与 a2a hook 继续按启动记录核对。
+- Codex CLI 0.163.0 的[无模型原生探针](../evidence/2026-10-23-batch23/T-141/probe-trust-inheritance-01/facts.json)确认：
+  放在其他目录的 Git worktree 继承主仓库信任；非 Git 目录继承已信任祖先目录；已信任父目录下新建的独立 Git 仓库不继承该信任。
+  用户自己信任一次项目仓库后，新 worker worktree 可继承信任；reviewer 不依赖父目录信任，每次以 untrusted 打开，
+  由后台选择不保存信任的 Open restricted。worker 或 monitor 尚无适用信任时仍上报，等用户在终端自行处理；
+  a2a 不代选 Trust and continue，不写用户配置。
+- 用户自己的会话也写在同一个 `sessions/` 下。后台只读启动当天起的日期目录里、启动后写过的文件，
+  且只认 `session_meta.cwd` 等于本会话工作目录的那一份。
+- worker 或 reviewer 第一个回合提交后 120 秒内，若本目录里仍没有它的会话记录（在别的目录跑了，
+  或隐藏的 resume 被 Codex 以 “open in another app” 拒绝），后台记 `native_session_unbound`，窗格转为失败，
+  不再让审查无声地一直挂着。门禁在审查结果处另核对会话号不复用、`session_meta.cwd` 是候选副本。
+- 隔离 /tmp home 只用于验收夹具（AGENTS.md 的真实 Codex 验收规则），不再是产品要求；
+  `isolated_codex_home_required` 与 `reviewers` 预建 home 已删除。
+
+当前验证入口：`python3 -B workbench/tests/test_t141_loosened_limits_e2e.py --summary <新路径>`。
+它在隔离 HOME 的用户 MCP 配置与 Codex home 中运行真实 CLI、后台和 Electron，模型为本地脚本化接口；
+`--revision` 与四个 `--mutant` 见文件头。当前验收状态见 [T-141 RESULTS](../evidence/2026-10-23-batch23/T-141/RESULTS.md)。
+`test_t127_codex_home_e2e.py` 继续核对共享 Codex home、一次性审查副本以 untrusted 打开、目录身份与审查隔离；
+它与 T-140/T-131/T-132 一起纳入回归，实际结果及受保护夹具的修改依据见 T-141 RESULTS。
+
+`daemon.ts` 导出 `serve(root, config, createGates?)`。第三个参数只供测试在代码里注入门禁对象（受控线程运行时或变异体），默认是 `new A2AGates(root, panes)`。产品的 `daemon_start` 不传这个参数，CLI 和环境变量也都没有对应的开关。交付 8、恢复 9、编排 18 这三套旧场景，经 `workbench/tests/run_daemon_acceptance.py` 在本后台入口上运行（T-075-5）。这个运行器为每个测试在短路径上显式启动并停止一个隔离后台，不改 `acceptance/` 中的任何断言。
+
+## 主控启动记录（静态准备）
+
+主控启动的静态准备入口为 `controller_prepare --task ID --preset ideation|executor`，
+使用后台的管理凭据。启动配置的 `controllers` 按这两个 preset 分别提供
+`executable`（绝对路径）、`model`、`effort`、`settings`、`role_card`、
+`role_card_revision`，并提供公共 `code_revision`。settings 当前只收 hooks 与
+permissions；认证环境另待用户决定，不能把凭据放入 settings。
+
+此命令只构造 argv 和追加启动记录：包含 `--session-id`、`--model`、`--effort`、
+`--settings` 及角色卡正文，attempt 为 null，execution_state 为 prepared。
+它不创建进程、不读取 CLI 版本、不签发会话凭据；CLI 版本记 unknown，生命周期为
+“未启动”，明确标记“待真实 Claude 复核”。静态构造／存储的通过不替代真实启动验证。
+
+受控假 API 主控的实际入口为 `controller_start --task ID --manifest /绝对路径/manifest.json`。
+现有 manifest 的 `executable` 为明确的 CLI 绝对路径，`version` 为配置时的版本（例如 `2.1.302`），只作记录。
+后台在该角色的隔离环境中执行一次 `--version`，记下实际输出后登记启动记录并启动 PTY；
+记录保留实际版本和探测的 argv／stdout／stderr。版本不同不拒绝（2026-10-21 用户裁定：
+原生 CLI 会自行更新，不限制版本，T-118）；Codex worker 与恢复同样只记录、不比较版本。
+路径不存在返回 `controller_executable_missing`，探测失败返回 `controller_version_probe_failed`；
+不自动查找或改用其他可执行文件，不修改全局设置，不关闭自动更新。静态配置构造仍不启动 CLI；T-091 的 2.1.302 启动与版本反例已由
+green-02 取得真实 PASS，证据仅绑定其冻结候选，见下方结果记录。
+
+## 正常登录 profile（T-093）
+
+当前整票 INCOMPLETE：第三轮独审对 788d75f4a 报 NO_GO，P1 为缺 authentication 的正常登录记录被恢复。恢复白名单局部红绿通过；r20 仅两场原生 PASS，no-argv 初始化中断，根因 unknown。本轮补 helper 失败诊断及红绿，不放宽身份条件；新候选 t093-r21-* 七场何时运行由用户决定，尚未重跑。网络两层、运行时身份、libproc 等其余审查结论仍按报告的范围保留，不替新恢复入口背书。
+主控 #125 进一步限定：正常登录记录一律保留为“未恢复”，需经正常登录入口重新启动；假 API 恢复合同不变。该拒绝已用独立旧探针及实际 recover 局部合同取得红绿，不代表原生 OS／恢复验收已完成。
+夹具按派发合同独立构造完整标记文本，对整个请求 JSON 精确比较，不使用包含或内容归一化。
+最新修正与七场重跑命令见 [请求 20](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-20.md)；请求 19／18 保留旧审查与运行来源，重复运行必须另选全新输出名。
+共享调用点与 T-091／T-078／T-096 回归命令仍见 [请求 13](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-13.md)。
+
+仍经同一个 `controller_start --task ID --manifest /绝对路径/manifest.json`，保留原生
+UserPromptSubmit、PermissionRequest、Stop、身份核对与队列转交，不增加门禁或策略引擎。
+manifest 在既有字段外设置 `authentication: "normal-login"`、从本次 CLI `--version` 读取的 `version`、
+明确的 `credential_source: "macos-keychain"` 或 `"file"`，以及唯一的 `upstream_url`。
+生产正常登录入口的上游端口固定为 443，使用配置的 HTTPS 地址，没有端口覆盖选项或 fallback。
+无模型测试链使用可配置的非特权端口，默认 `http://127.0.0.1:18443`，不占用用户的 443。生产入口显式向 `prepare` 传 443；测试入口传测试端口，两者均由同一个 `claudeLoginSession.policies(session)` 读取 upstream_port 生成 F profile，只改变端口参数。
+测试脚本的 `T093_TEST_UPSTREAM_PORT` 同时传给链路、编译检查与独立核对器；端口冲突时保留失败，不切换端口、不复用或关闭别人的监听。
+
+正常登录使用独立的受保护 daemon。先准备已有合同要求的角色目录、task 和 manifest，再由操作者启动：
+
+```sh
+python3 -I -S -B workbench/src/claudeLoginSession.py --manifest /绝对路径/manifest.json \
+  --repo /真实HOME以外的工作区 --forward-port 本地固定端口 \
+  --upstream-address 配置上游的固定IPv4 --lifetime-seconds 600
+```
+
+本票不运行上述真实登录命令或真实模型回合。root、root/state、repo 和全部运行数据必须在
+OS 账号真实 HOME 以外；严格禁写 HOME 因而也禁止写其中的项目工作区。角色目录仍是
+root/roles/ideation 或 executor，包含 home、claude、tmp、shell、requests、hooks、user-data 与 role.md。
+CLI executable 使用规范实际路径，避免版本符号链接与进程身份不一致；Git 元数据也须在真实 HOME 外。
+启动器直接 exec 进入 C 中的现有 daemon 入口，并在 C 中创建本次 root/operator.json；
+后续操作继续走原入口。后台与 PTY 生命周期不依赖前端窗口。
+正式 Python 入口必须使用 `-I -S -B`，关闭环境／site 启动和字节码缓存；入口会核对三项标志，
+并在其他导入前关闭字节码写入。普通 Python 启动不在支持范围内，其解释器启动早于脚本检查。
+准备函数失败时先让 R 保存主错误，再删除私有准备根；清理错误不替换原异常。真实入口在 state 下
+独占保存 login-preparation-failure-UUID.json 和单独的 .cleanup.json，只记录类型／errno，不公开错误原文。
+
+`upstream-address` 是 URL 的显式 IPv4 网络地址，由操作者配置。**OS 层不再按主机限制**，F 的 OS 出站规则为 TCP `*:443`；其他出站端口不允许。
+应用层捕获配置主机，在 transport 前及 lookup 边界核对；不匹配即拒绝并记 upstream_host_mismatch。入站 Host 不决定目标，F 不跟随重定向。
+正常请求固定连接配置的 IPv4，不查询 DNS、不轮换地址，TLS 使用 URL 的原始主机名验证证书。HTTP 假上游必须匹配 127.0.0.1；
+不支持 IPv6。绿态只配置本地假上游，真实域名的 DNS／TLS 与真实模型仍未实测。
+
+| 进程／阶段 | profile 与权限 |
+| --- | --- |
+| R 凭据准备 | 在业务沙箱之外精确读一次。文件来源只读 ~/.claude/.credentials.json；钥匙串只查 Claude Code-credentials 和指定 login.keychain-db，不枚举、不换来源。仅复制 claudeAiOauth 到私有 /private/tmp/a2a-claude-login-*，文件 0600 |
+| C 根 daemon、PTY、zsh、CLI、原生 hook／tool、进程查询 helper、事实子进程 | 最外层只施加一次 C，后代继承；禁写整个真实 HOME，保留 HOME 读取屏障，只例外读取 CLI／Node、workbench 源码及依赖；TCP 只到 F 的固定本地端口，Unix socket 仅本次 control.sock；禁止 Security，保留 fork／exec |
+| F 独立进程 | 在 C 启动前独立施加 F，脱离调用者进程组并 reparent；只写自己的 forwarder 记录目录、只监听固定 P；OS 允许任意主机的 TCP 443，配置主机／IPv4 由应用层锁定；禁止其他出站端口、Security 与 fork |
+| D 基线及清单／隔离根清理 helper | 原始 auth 读取前由一次短 D 进程采基线；长期 D 独立施加相同 profile。无出站、无 Security、无 fork，只写私有根及自己的收据目录。HOME 只读目录/stat，不读正文（源码除外）；快照仅留私有根，C 输出差异后由 D 删除整个根 |
+
+R 只有固定参数／FD／临时目录准备及一次原始 auth 读取；没有不受保护的长期监督进程。
+为供 Node 解析真实路径，C、F 与外部 V 仅允许查询既有源码／依赖／可执行文件祖先目录的
+`file-read-metadata`，以精确 literal 列出，包含真实 HOME；不允许枚举这些目录或读取其他文件正文，
+也没有增加写入权限。完整链在 C、F 下用源码根的公开 AGENTS.md 验证正文读取仍被拒。
+短脱离 helper 各自以对应 profile 的 true 结束，实际 PID 与退出码单列。各后台进程有覆盖
+前置检查、服务与收尾的硬期限。D 在失败／根进程退出时清理本次登记的组与私有根；
+清理不确定会记录失败，不能补作 PASS。已有可写 HOME FD 在应用 profile 前关闭；日志不得重定向进真实 HOME。
+
+前台身份核对统一调用 `/usr/bin/python3 -I -S -B workbench/src/processSnapshot.py PTY_PID`，5 秒期限。
+它在同一 C 内调用系统 libproc，只枚举该 PTY 的后代，读取 PID／PPID／PGID、TTY 前台组和可执行文件路径，不读 argv、环境或认证。
+查询前后复核进程出生时间及身份；权限拒绝、短数据、截断、身份变化或不连通的树均拒绝，不改用 ps 或无保护查询。
+例外（T-124）：树里属于别的用户的进程（Claude Code 运行的 setuid-root `/bin/ps`）读完整信息被拒时，改读
+`PROC_PIDT_SHORTBSDINFO`，记为 `privileged`、带 `uid`，前台组记 -1（不能被认作 CLI 主进程），身份按 PID／PPID／PGID／uid
+复核；本用户的进程被拒仍按原规则失败（`proc_pidinfo_denied_same_user`）。错误输出带出失败的 `pid`。
+查询异常保留原错误码／details，daemon 回复和 request_rejected 事件另带 diagnostics.process_query：helper 的 stdout、stderr、exit_code／signal、killed、error_code、root_pid／helper_pid、单调 elapsed_ms。spawn 未成功或状态未知时用 null；捕获范围仍受原 maxBuffer 限制。身份核对失败仍立即停止，不重试、不回落、不放行终端写入。
+已观察到的退出／僵尸不作为活 leader；多次内核读取不宣称原子快照，原有 hook／Stop 的身份重查保留。
+前台组条件不变；真实启动边界另外记录规范 executable_path 与内核路径比较，实际 argv 原样保留。alias 启动后改指另一目标不能接管原身份，helper 的实际 PID 也登记在 C 的进程记录里。
+
+版本检查、auth status、交互 CLI 均直接继承 C，不再调用内层 sandbox-exec。
+未通过启动器的正常登录请求返回 normal_login_outer_profile_required；不会退回未受保护模式。
+默认假 API profile 的合同保持原样。
+
+隔离配置只新建 `hasCompletedOnboarding: true` 和当前规范工作区的
+`projects[路径].hasTrustDialogAccepted: true`。它们是版本敏感的内部状态，换版本须用无模型探针重新核对。T-108 不再按发行号锁定版本；T-118 起启动时只在受保护环境读取实际版本，不与 manifest 比较；事实记录实际 cli_version、manifest 的 configured_cli_version 与 internal_state_version。当前 2.1.304 的外部探针仍待运行，不能把局部合同通过当作内部状态已确认。
+onboarding 预检会直连 api.anthropic.com/api/hello 与 platform.claude.com/v1/oauth/hello，
+不经过 BASE_URL；正常模式必须用上述状态避免触发。事实记录生成状态是否完整，并用终端和
+私有 debug 日志分类 `onboarding.preflight_observed`；沉默的被拒连接尝试未测量，不冒称已统计。
+C 的 OS 规则阻止直连上游；转发原件证明的是 F 实际接收的全部 HTTP 请求，包含失败与重试。
+
+F 复用原转发器，先逐条写盘并 fsync 再连接上游。请求体与认证头不落盘，方法、路径等元数据
+也参与凭据脱敏；保留序号、方法、无 query 路径、长度、bearer 匹配布尔值及每次响应／错误。
+原件在 `state/login-audits/<launch>/forwarder/journal/requests.jsonl`，F 自身不重试或跟随重定向。
+CLI 的 400 后重试算新请求；记录失败时停止转发新请求。终端仍只持久化去凭据字节，
+原值及 JSON／URL／base64 变体都扫描；跨片段前缀暂不公开，OSC/DCS 负载不进入 trace。
+配置、debug、原生历史与凭据副本随整个隔离根删除。C 的管理临时目录另在 audit/C-tmp，
+避免结束后的事实子进程重建已删除的隔离根。
+
+操作者在发送模型提示前，使用独立 V profile 的只读事实入口：
+
+```sh
+python3 -I -S -B workbench/src/claudeLoginSession.py --stage facts --preflight --audit /绝对路径/state/login-audits/LAUNCH
+```
+
+preflight 标明 before_cli_input、当时的入口计数与扫描结果，结束后 HOME 对比仍是 pending；
+preflight 与结束事实的 network_boundary 明确报告 os_host_filter=false、实际 os_remote_ports 和 application_host_lock=true。生产为 [443]，无模型测试为所配置的测试端口；这不是逐连接网络审计。
+测试 U 在零监听、部分监听或正常退出时均写关闭收据，记录成功创建／关闭的监听器数和独立关闭错误。C 必须核对收据的 PID／进程组、全部端点关闭和 ESRCH 才确认收尾；启动失败本身不代替退出证明。
+后续重新读取会重数当前原件，保存的入口计数／扫描时间仍是历史事实。它不批准模型输入。
+正常结束后用同一入口去掉 `--preflight`。C 内部子进程使用 `node workbench/src/claudeLoginCheck.ts [--preflight] AUDIT`，
+继承 C，不再嵌套 V。外部入口关闭额外 FD、禁写真实 HOME、禁网络和 Security，并保留 HOME 读取屏障。
+
+当前事实 schema 为 2，只读该版本的 ledger；旧 schema-1 证据须用其绑定的旧代码重放。
+命令重新数请求并与结束计数对账，报告真实 HOME 路径引用、结束时的 state 凭据扫描、
+原件计数、前后清单差异、进程/profile 来源和隔离根删除收据。不会重新读取原始 auth，
+退出码只表示读写／解析是否成功，不自动批准或拒绝模型调用。
+
+元数据只列 .claude、.claude.json、.claude.json.backup、Library/Keychains，
+不读正文、不跟随链接、不比较 atime，不用校验值；其他 HOME 范围排除。
+目录在 stat 后消失会显式标 missing；权限错误仍作为采集失败报告。
+差异全部报告、不推断因果。按用户裁定 A（main c06a73179），清单有无差异均不决定通过，
+以 pass_condition=false 标明。凭据、计数、身份与清理断言不因此放宽。
+
+无模型验证只用合成登录、编译假 CLI、真实 PTY／daemon／hook／Stop 和受保护的本地假上游。
+主控在沙箱外执行，每次使用新输出路径，不请求提权：
+
+```sh
+bash evidence/2026-10-16-batch16/T-093/EVIDENCE-RECHECK-03.sh \
+  /绝对路径/a2a-wt-t093 完整冻结SHA /private/tmp/新的摘要.json none
+```
+
+旧残留已由主控清理。旧演练与 chain-07/08 仅属于各自候选；请求 16 的生产 443 profile 编译通过，primary／green 因假 U 不能监听 443 而失败。请求 18 随后在 57c3bfb63 以同一生成器的 18443 测试端口通过编译、完整链与六场核对；最新原件／限制见请求 19。
+演练使用同一 R/G/C 入口和实际 OS profile，只配置合成 auth／假上游；primary 主动失败用于验证清理不能覆盖原异常。
+正式六场的预期业务断言与命令在交接请求 10。worker 的 Codex 沙箱不能嵌套相同 profile，因而不在本会话尝试。
+
+测试长期 D 仅比产品 D 多本次合成 source-home 的 file-write-unlink，仍禁读其普通文件正文；原始基线 D 规则另列为 D_baseline。
+C/F 对认证源的拒读拒写不变。D 先读回 C 已 fsync 的 cleanup_pending 检查点，才删合成源；正式产品不删除用户认证源。
+结果 JSON 在测试收尾前先发布，清理错误单列；`.events.jsonl` 保存各阶段主失败／清理状态，V 将退出记录绑定原登记身份，并用信号 0 独立核对每个 PID／组与最终报告进程退出。
+测试链必须读到上游端点关闭收据，并在原期限内以 ESRCH 确认进程组消失；EPERM 仅表示未确认。`node workbench/tests/test_t093_upstream_shutdown.ts 新输出.json` 检查收据先于退出的窗口，拒绝把 EPERM 当退出、持续权限拒绝、存活或缺收据。
+最终 all_exited 必须与每条最终 group／child 退出记录一致；`node workbench/tests/test_t093_writer_exit.mjs 新输出.json` 检查先前 ESRCH 后最终 EPERM 的时序，任一未确认行禁止删除。
+所有实际 PID、进程组和对应 profile 会写入结果；原始合成凭据、二进制、sqlite 与临时源码不进证据或 Git。
+结果只保留文本事实、原件小记录、反例和清理状态，历史报告与失败不覆盖。
+processInfo 影响所有 pane：窗口输入、放行／中断、反馈和 hook／Stop 身份重查。T-091 IPC／版本、T-078 runtime／relay 和 observer／alias 已补本轮局部回归；T-096 原生七场由主控逐屏批准后直接调用原 runner，均 PASS，模型与 fake POST 为 0。详细业务复核与原件位置见请求 19；局部替身不等于额外的原生 T-078 材料回放或全 pane 生产验证。
+
+## Electron 窗口
+
+T-091 单格 Tracer bullet 已取得真实输入输出读回；当前候选沿同一条通路支持一个任务内的
+多个会话窗格。重复 `--launch` 传入两个主控与当前 worker，窗口会按真实 role／preset
+排列为上方构思主控、执行主控，下方全宽 worker；窗宽小于 1000px 时排成三行。
+各格保持 160×45 与独立滚动，不因尺寸改变重建终端或更换身份。
+三格真实绿态及反例、四类 GUI 回归已在 f20a74ada 上通过；core 回归与最终独立审查
+仍为 INCOMPLETE，结果见
+[T-091 结果记录](../evidence/2026-10-16-batch16/T-091/RESULTS.md)，重跑清单见
+[T-091 三格检查](../evidence/2026-10-16-batch16/T-091/THREE-PANES-RUN.md)。
+本地 VM 检查不替代真实 Electron、PTY 或门禁运行证据。
+
+core 回归入口会先运行 `workbench/tests/test_t091_business_mutant.py`，检查 CAS 分类器的
+三项业务证据、拒绝控制及原合同文本，防止旧断言名称导致已触发的变异被漏判。
+core -03 的四组原套件已通过；分类器修正后的完整 -04 及 lock 反例仍待实跑。
+
+运行中的主控窗格没有 worker attempt，仍可输入；worker 窗格须匹配当前 attempt。
+每次写入继续由后台核对窗口凭据、任务版本与原生身份。窗口展示的 launch、thread、
+active dispatch 与输入可用状态供驱动核对；驱动发键只代表尝试，送达须有同一窗口请求的
+用户动作、PTY 写入意图与写入收据，不能用 `sent:true` 代替。
+
+窗口经同一个 Unix socket 查询后台，不加载 node-pty 或 SQLite。显示一个项目、任务、
+多个会话窗格和共享的当前任务门禁状态；终端网格固定为 160×45。当前输入候选在固定的活动 launch 上启用
+键盘、IME 和粘贴入口，历史窗格保持只读；项目终端输入由后台写入 hc attach，受管窗格仍写入 node-pty，renderer
+没有后台凭据、PTY 或数据库权限。每个窗格的窗口输入凭据绑定一个 launch，关闭时撤销，不随
+current_attempt 更换目标。后台在等待前占用窗口序号和 request_id，重用请求号会被拒绝；
+输入调用失败时停止后续发送，不自动重投。
+主进程只在 socket 连接成功、即将发送时分配窗口序号；连接前失败不消耗序号，
+已经发送而结果未知的命令仍保留序号，也不重发。同一后台端点恢复后继续使用原窗格和窗口凭据。
+
+六条 IPC handler 每进程只注册一次，以 sender 窗口及该窗口登记的 pane key 路由，
+拒绝未知 key、其他窗口的 key 和非 mainFrame 调用。preload 的只读 `paneKeys` 来自
+BrowserWindow 的非机密启动参数；snapshot、output、input、beginComposition、
+releaseQueue、observeFocus 均显式带 key，不保留无 key 的输入通路。凭据只留 main。
+每格独立持有输入序号、发送队列和放行请求；并发 snapshot 共用一次窗口凭据请求。
+关闭会等待已接收的输入与凭据请求，随后撤销凭据，不移除其他窗口仍使用的 handler。
+同一 Electron 进程共用应用级 user-data，不把每会话 HOME 与应用级目录混为一谈。
+
+窗格显示完整 task、launch、worker attempt；主控角色依据快照中启动记录的 preset。
+多 launch 在建窗及签发凭据前逐项检查同任务、运行状态和当前 worker attempt；错误 task、
+旧 attempt、未运行或重复 launch 均拒绝，不静默替换成当前 worker。单格历史查看仍保持只读。
+输入能力与焦点分开：实际 textarea 聚焦且允许输入时才显示“正在输入”和蓝色边线；
+不自动聚焦。输出读取错误时暂停该格输入。系统 IME 仍不在本票验收范围。
+每次提交输入后，等 xterm 读完本次提交再清空隐藏输入框（组字进行中不清），下一次组字从空输入框
+开始；否则读屏模式下光标跟到行中间，行中间插入会取到输入框末尾的旧字（T-138）。读屏模式下原生
+输入框因此没有可朗读的未回车字符，终端内容仍由 xterm 的无障碍树朗读。
+
+输入在写入 PTY 前进入 user_inputs；受管 worker 的人工介入在同一事务里派生，带
+input_id。粘贴去掉协议包裹后保存文本；终端控制键记 action。长度为零的 onData
+只记带窗口、序号和时间的 terminal_input_empty，不写 PTY、不生成用户输入或介入。
+终端自己产生的完整协议上报（SGR 鼠标、焦点进出、设备状态等回复，T-145）原样写入 PTY 交给 CLI，
+不记为用户输入、不派生人工介入、不占用户草稿；真实键入照旧记录，已有的误记录保留不删。
+组合输入开始时先登记草稿占用；结束或取消组合输入不代表 CLI 输入行为空，
+占用由用户提交或 Esc 后明确放行清除。二进制终端输入按原始单字节写入，保存
+带 base64 原始字节的 action，不把其中的控制字节当成用户提交。上述三项修复
+已通过 outside-input-green-01；主控多窗格和主控凭据运行路径仍待真实 Claude 复核。
+
+后台登记注入正文时仅移除末尾 CR/LF，与已观察到的 Claude 提交形式一致；保留中间文字与空白。
+UserPromptSubmit 对活动注入与实际 prompt 逐字核对，拼接或中间差异仍阻断，不自动重发。
+真实登录的 Claude 会把长粘贴包成 `\n\n<pasted_content id="X">\n正文\n</pasted_content id="X">\n`（T-122 gui-01 实测）；首尾 id 相同、包内正文与登记正文逐字一致时视为同一提交，其余形式照旧逐字核对（`panes.ts` 的 `claudeSubmittedText`）。
+
+设备查询应答由后台处理，前端用公开 parser 接管查询，避免自动应答混入用户输入。
+按 T-078 执行主控决定 03，前端拦截 DECSET/DECRST 1004；混合序列中的其他模式
+保持顺序交给 xterm。每次拦截记原始序列。CLI 因此收不到工作台窗口的焦点变化。
+写入器只在含 1004 的模式序列处分段等待 xterm；其余私有模式（TUI 重绘时的光标、同步输出等）留在同一次写入里。
+此前每个这类序列都单独等一次，回放一个 880KB 的主控终端（约 16,000 个）要等很久，探针里 16,000 个要 78.5 秒，改后 6 毫秒（T-127）。
+P1 与首个候选的四项输入合同已经通过；其余失败方式和当前扩展后的候选仍待复验。
+
+开发构建每次使用一个尚未存在的临时构建槽，命令输出 JSON 中的 `out` 为启动路径：
+
+```sh
+npm --prefix workbench run build -- --slot local-01
+# 不指定任务时，先选择已有项目下的任务
+node workbench/app/start.mjs --build /构建输出中的out路径 --state /绝对路径/state --user-data /绝对路径/ui
+node workbench/app/start.mjs --build /构建输出中的out路径 --state /绝对路径/state --task 任务编号 --user-data /绝对路径/ui
+# 同一任务三格（身份取自已有启动记录）
+node workbench/app/start.mjs --build /构建输出中的out路径 --state /绝对路径/state --task 任务编号 --launch 构思主控launch --launch 执行主控launch --launch 当前workerlaunch --user-data /绝对路径/ui
+```
+
+侧栏按项目分组：组标题是项目号、会话数与等你回答的数量，下面是该项目的会话树，
+每行右侧是启动时长与状态图标。项目名下面一行显示当前分支和相对本地上游引用的领先／落后数（如 `main · ↑1 ↓0`，没有上游时写“无上游”，T-107）；仓库目录在悬停提示里。
+Git 事实来自该目录的 `git status --porcelain=v2 --branch`，不执行 fetch；未设置上游、
+目录不唯一或读取失败时明确显示缺口。新增项目即打开目录，见“任务卡与交付”。
+选择项目后，内容区上方任务栏显示任务标题与门禁状态；点击任务切换会话视图。
+
+任务页（T-192）：门禁 `task_history` 把任务的事件整理成任务卡、每个 attempt 的时间线（认领、启动 worker、交付、路径、验收文件、完成条件、红态与规则检查、尾注、验收、合并冲突、审查、打回、集成、打分、上报问题、撤销、回收、关闭、门禁拒绝），每一次审查的结论、问题、建议与报告，以及打分、集成提交和尾注。没有当前 attempt 的任务不再放一个空的默认窗格；页面没有窗格时整页显示这份记录，当前 attempt 有 worker 会话时页内给出“打开 worker 会话”（界面忙时禁用），走侧栏点会话的同一路径；有窗格时窗格在上，记录收在底部“门禁记录”。时间线不显示两类拒绝：草拟任务卡与读状态的拒绝；报告同一 attempt 刚做完那次验收结果的 verify 拒绝（错误码与打回相同，或是合并冲突），中间夹着冲突反馈、清理等记录也算，只折叠一次。合并冲突后换了 worker 时，拒绝写入时的当前 attempt 已是新的，整理时按拒绝里记的那次验收的 attempt 归属，同样折叠；换 worker 本身显示为一步。其他拒绝照常显示，事件表保留全部原样记录。门禁 `close`（必须写理由）把待认领且没有进行中 attempt 的任务关为 `closed`；关闭的任务拒绝派发、revoke 与 revise（`task_closed`），不能重开，任务格显示“已关闭”。
+切换只断开旧视图的输入凭据，不关闭后台会话或改动保存的窗格布局。
+“刷新列表”先恢复主进程中本窗口已绑定的任务、项目和窗格，再重新读取库；侧栏读取失败
+不丢弃这些本地选择。只有成功读取后确认所选任务已移除，才返回选择页。侧栏每 3 秒刷新
+事实；读取失败即显示未知。窗格读取失败后保留错误，恢复连接需点击该窗格的“重新连接”，
+继续读取原 launch 和输出位置，不自动重试。空库保留新增项目目录与独立终端入口，不提供删除项目的操作。
+
+侧栏下方列所选项目的 agent 启动记录，显示中文角色、任务、完整 attempt、CLI 和状态。
+父子关系采用新启动记录中的 `parent_launch`，以及已保存的 relay 发送 launch、成功的
+assign 回执和同一收件箱条目的实际派发目标。关系须在同一项目内，依次为构思主控 →
+执行主控 → worker／审查员／监视器；缺失父项、冲突、循环和角色不符均进入“未归属”。
+旧会话没有父记录时不回填猜测；角色地址、普通消息、终端标题和正文均不能建立关系。
+侧栏用竖向缩进列表，主控行左侧按钮可折叠子会话；折叠后显示全部后代的状态计数，
+等待用户回答优先高亮。子会话仍按任务分组。横向流程页不在此侧栏内。
+
+“问题”页（T-132）列出所选项目各任务的问题上报：worker、审查员、监视器经门禁 `issue` 报上来的，显示状态（与门禁 `issues` 一致）、
+是否阻塞、上报者与时间、答复与处置，并注明处理人（主控已答、主控已关、交给你决定、你答）。用户可以答复（写进上报它的会话，记为 `answer` 用户输入）、标“稍后再看”、填原因与依据后关闭或重新打开；
+记录不删除。T-126 之后操作员凭据只在桌面应用手里，所以后台把它发出的 `disposition` 记为用户本人的处置，阻塞问题也能由界面关闭；
+其他命令仍按 executor 记。侧栏快照给每个项目带上“等你决定”的问题数，项目行与页签据此提示。读取失败时页面显示失败，不显示为空列表。
+worker 上报的问题仍未关闭、而它所在的 attempt 已因 `revise` 作废时（T-171），门禁把状态读成“可能已随修订失效”，
+不再计入“等你决定”；问题不自动关闭、不删除。卡片照常显示原文，并给“确认已失效，关闭”：这是用户的 `close`，原因“已随修订失效”，
+同时记一条 `action` 用户输入（channel `issue-panel`，回指该问题）。门禁自己生成的问题不适用；“已随修订失效”的确认仍只交给用户，普通 blocking 问题可由主控按 T-210 处理。
+
+“记录”页（T-133）列出所选项目的用户输入：受管窗格里的粘贴和按键（按键显示为“（按键：回车）”这类名字）、问题答复、审批。
+用户亲自批准/拒绝角色申请也写入统一用户输入记录（T-162），与角色决定事件在同一事务提交；记录页显示申请 id 与事件序号。
+同角色其他申请的自动拒绝、批准过期不是用户输入，已发生的用户批准仍保留。
+可按任务、会话筛选；门禁派生了 `human_intervention` 的输入带“人工介入”标记，与门禁事件一一对应。项目终端里只记已批准的
+主控收到的整句和对它提问的答复：Claude Code 与 Codex 主控都记，Codex 主控要在用户信任 a2a 钩子之后才记；agy、opencode 主控不记（没有按会话的钩子，T-187）（边界见“项目终端里的 a2a 与角色申请”）；
+终端里的其他键入只转发、不记录。
+记录页下方另有“门禁回执”（T-179，只读命令 `relay_receipts`）：worker、审查员等经中继发出的请求（submit、status、issue、review_submit）得到的门禁答复，按时间倒序，每条显示摘要，可展开完整 JSON（即 `relay_results` 原文）；不进用户输入记录。发回 worker 窗格的回执只有这几行摘要（命令是否受理；任务、状态、候选提交短号；下一步），发回主控的回执仍是完整 JSON。
+
+拒绝说明（T-205）：常见拒绝码在 `src/gates/refusals.ts` 有一句原因和一句下一步。后台套接字的每个拒绝回执多一个 `explanation`（`reason`、`next`），`a2a`、MCP 与界面拿到的是同一份；任务页时间线的“门禁拒绝”和 worker 窗格的回执摘要读同一张表。`error` 代码照旧，是契约；表里没有的代码不加说明。
+
+“指标”页（T-134）每次打开都从记录现算四个视图，不另存计数：模型使用（按实际观察到的模型与任务类型，看不到的记为 unknown；
+时间范围按回合发生时间截，范围前开始、范围内还在跑的会话也算，回合只数范围内的）、一次到位率与按八项检查分列的打回原因、
+每个集成任务的注意力消耗（答题、审批、介入、叫停，数的是这个任务全部 attempt 的累计）、按 CLI × 模型 × 强度 × 任务类型的打分汇总。
+没有数据时写“无数据”，不填 0；读取失败时显示失败。看板变化只算观察，不能当成改进的证明。
+回合数仅数后台采集的 Claude `native_turn_facts` 与 Codex `native_record` 中的 `turn_context`，逐会话可展开事件序号、
+提示 id 或原生日志文件与位置（T-162）。未接入来源的项目终端主控显示“未覆盖”，汇总有未覆盖会话时显示“未知”，另列已记录部分。
+0 只表示该会话有计数来源、但所选区间内没有对应事件；它不是原生日志总回合为零的证明。人工输入后的回复、CLI 回执只在这些来源采集时计入，
+Reflect 复盘不在此表中，因此不能把看板数作为全局总回合。打回原因只汇总所选范围内已打分的结束 attempt；尚未打分的不计入。
+
+轨迹归档（T-135）把后台启动的会话、批准过角色申请的终端主控和复盘会话（Claude 按启动时给的会话 id 找，Codex 按工作目录即这次复盘的 `out/` 找）的原生记录，按完整行增量复制到数据目录的 `archive/`：
+每段一个 gzip 成员，追加到该会话的归档文件，索引表只增不改。原生文件只读；写了一半的末行留到下一次。Claude 会话每次 Stop 后归档，
+另外每 30 秒全部扫一遍，后台关闭前再扫一次；某个原生记录读不了时，只按来源和错误记一次失败，不影响其他会话。设置页“轨迹归档”一节显示会话数和归档目录的实际大小。没有清理策略。
+
+Codex 原生记录目录的日期范围统一由 `src/codexScanDays.ts` 按本地日历计算（T-221）：原生链接与窗格扫描从启动当天开始，
+终端主控与复盘的轨迹归档查找从启动前一天开始，均扫描到本地明天，包含两端。日期递增与边界都按本地日历处理，覆盖夏令时切换、月末与年末。
+T-136、T-137 的复盘验收时钟通过 `tests/local_calendar.py` 使用与后台 Node 相同的具名本地时区，跨日期计算保留墙钟时间；
+回归检查为 `tests/test_t221_codex_scan_days.ts` 和 `python3 tests/test_t221_calendar_clocks.py`，后者全年使用固定的春、秋切换日期检查测试时钟。
+
+Reflect 页（T-137）列出所选项目历来启动过的主控（含已结束的）和它们下面启动的执行主控、worker、审查员、监视器，
+每个会话显示角色、任务、CLI、模型、强度、起止时间与状态；worker 上显示主控给它那次交付的打分（门禁 `score_recorded`
+里交付的 launch，含结果、边界纪律、工程品味与理由）。层级来源与侧栏相同：启动记录的 `parent_launch` 与批准时选的上级；
+同一个终端先后拿到的角色是不同的主控，终端里启动的会话归到它启动时那个终端持有的角色；关系不明的进“未归属”。
+Reflect、侧栏与流程的会话状态共用侧栏投影；终端关闭或 CLI 退出后，三处均保留该会话并标“已结束”。
+窗格头的状态也取侧栏同一行（`sidebar_snapshot` 的 `state`，含家目录终端），不另按进程生命周期显示，底栏不再写“执行：…”（T-176，L03）。
+已结束的行时间列写“结束 N 分”（取 `pane_exit`、`native_session_ended`、`pane_archived`、`shell_closed`、`pane_gone_confirmed` 的最晚时间，`ended_at`），悬停写启动与结束时间。
+有 worker 等主控答复、而本项目没有主控在回合中时，项目聚合为“等待用户回答”，项目行显示“等你处理”：要你去提示主控。
+侧栏与流程按 launch 展示终端最近一次确认的角色；交回角色而终端仍运行时，不再列为主控。Reflect 按角色申请分别保留这个终端历次生效的角色，交回的角色标“已结束”。
+`node workbench/tests/test_t146_released_projection.mjs <新报告路径>` 检查交回角色与终端结束的区别，避免把运行中的普通终端保留成已结束主控；真实 CLI 回归用 `test_t133_t107_terminal_controller_e2e.py`。
+只读命令 `reflect_tree`。复盘的入口、设置、建议与记录都在这一页，原“复盘”页签已去掉。
+
+复盘（T-136）由 Reflect 页的“立即复盘”或每周的定期复盘启动（每周一 9:00，Claude Code、`claude-opus-5-5`、medium；
+2026-10-22 起默认关闭，在 Reflect 页开启；执行的 CLI、模型、强度也在那里选并保存；已有数据目录里的设置不改写；设置存在工作台自己的库里）。后台先从记录备好复盘包：时间范围（默认从这个项目上次复盘到现在）内的任务、门禁逐项结果与打回原因、审查结论、
+打分、问题上报与面板问答、用户输入与介入、提交尾注、指标快照、范围内有归档的会话及其归档路径；再开一个普通项目终端，在里面启动所选 CLI。
+定期复盘按后台的本地日历日期和墙钟时刻计算，取当前时刻之前或恰好到点的最近一次日程；本周未到点时取上周。
+目标时刻直接由目标日历日期与日程设置的时分构造，不携带查询时刻的时分；回退一周时，也重新按上周的日历日期与所设时分构造。
+夏令时规则遵循 [ECMAScript 的 UTC(t)](https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-utc-t)：目标日期上的墙钟时刻不存在时，按转换前的偏移解释，向前顺延跳过的时长；时刻重复时，取较早的一次。
+例如 America/New_York 的 2026-03-08 02:30 顺延为 03:30 EDT（07:30Z），2026-11-01 01:30 取第一次 EDT（05:30Z）。同一项目已记录的 `scheduled_for` 按完整 ISO 时刻去重。
+终端没能打开时，这次复盘记为“没能启动”并显示错误，不自动重试；那个定期时间点算已用过，用户可以手动再启动，
+默认范围从上一次真正启动了的复盘算起，没能启动的那次的范围不会漏掉。
+会话只能写这次复盘自己的 `out/` 目录：Claude Code 经每会话的 `--settings` 只放行该目录的编辑，禁止编辑项目目录，沙箱同样只许写
+`out/`、不许写项目目录；Codex 以 `out/` 为工作目录、workspace-write 沙箱，并只在本次会话里把 `out/` 记为信任，不写用户的 Codex 配置。
+会话写完 `report.md` 和 `suggestions.json` 后，后台每分钟检查一次，把报告复制到项目的 `findings/`（没有这个目录就留在工作台数据目录），
+建议逐条列在 Reflect 页（建议和“已导入”标记在同一个事务里写入，中途失败不会在重试时重复）。用户批准或不采纳都有记录；批准的建议先只记在这里，不送构思主控，后台也不自动写 ticket。
+同一次检查里，还没导入的复盘再看它的终端（T-237）：终端的关闭有记录（被关掉，或后台重启时确认终端里的 shell 进程已不在，包括 core
+随后台一起没了、重新启动的情形），或启动一分钟后终端已回到提示符、除 shell 外没有别的进程，就记一条 `ended`（原因 `terminal_gone` 或
+`cli_not_running`），Reflect 页显示“已结束，没有报告”。终端前台进程组里有 shell 以外的进程（zsh 关掉作业控制时程序与 shell 同组，也算）就仍是“进行中”。
+拿不准时不判结束：后台还在恢复终端时不检查；恢复时没能接回、也不能确认已退出的终端，读不到进程的终端，回到提示符但还有后台程序的终端，
+都仍显示“进行中”，并写明无法确认的原因；复盘上记一条 `end_check_unknown`（带诊断），原因不变不重复记，恢复正常后记一条 `end_check_known`。
+只看终端里有没有程序：用户在复盘退出后又在这个终端里跑了别的程序，那段时间仍显示“进行中”。
+状态优先级：已完成 > 没能启动 > 导入失败 > 已结束 > 进行中；已结束的复盘之后若写出了报告，照常导入并显示“已完成”。
+已知边界：Claude Code 复盘会话用用户自己的 Claude 配置，在项目目录启动；用户没有在自己的 Claude 里信任过这个项目时，
+Claude 会在终端里问是否信任，a2a 不代答（代答会写进用户的配置），定期复盘会停在这一步，等用户在终端里回答。
+
+Herdr 期的 `scripts/launch-worker` 与 `scripts/dispatch` 接受 `--parent-launch`；未传时只采用
+调用环境明确给出的 `A2A_LAUNCH`。字段随新记录追加，启动阶段间不能改变，不改旧记录。
+工作台原生主控通过已认证 relay 派发时，后台保存调用者 launch；并发请求各自绑定。
+操作员经现有 CLI 调用 `controller_prepare`、`dispatch`、`run`、`verify` 或 `pane_dispatch`
+时可带 `--parent-launch`；`controller_start` 的 manifest 可带 `parent_launch`，用于记录
+构思主控到执行主控的关系。未提供则记为 null，不按角色猜测。该字段只用于展示与记录，
+不提供门禁权限，也不改变原入口的操作锁、fence、CAS、attempt 或恢复规则。
+点击已有窗格会聚焦原窗格；未打开的历史记录用临时只读视图查看，不领取输入凭据，
+也不登记或移除原保存布局。
+新打开的窗格先隐藏回放积压输出，键盘焦点在回放结束、终端显示后才落进去；每次点击只聚焦一次，重连不会再抢焦点。
+
+图例列出运行中、等待用户回答、等待主控回答、空闲、已结束、未恢复、未知。
+受管会话的问题上报还没人答复（没关闭、也没有答复，与门禁接受答复的条件相同）时，侧栏显示“等待主控回答”，问题面板照旧列出这条上报；
+读不到该任务的上报时显示未知。已结束、未恢复和等待用户回答不被覆盖（T-107 #3）。
+状态只采用当前原生回合与后台事实；缺失、冲突、权限等待和中断不推为运行中或空闲。
+T-108 通过每会话启动参数加入 PreToolUse／PostToolUse hook，按根会话、当前回合与
+工具调用 ID 关联 Claude Code 的 AskUserQuestion 和 Codex 的 request_user_input。
+字段、归属或阻塞状态不能确认时显示未知；异步提问不作为阻塞等待。所有 hook 在分流前
+核对根来源、当前回合与公共关联字段，再忽略合法的无关工具。当前根事件缺字段或响应
+解析失败时，用已认证 launch 绑定 session、submission、turn，追加未知事实并拒绝；
+无法取得原生 turn 时明确记为 null。显示状态、问题作答资格、逐键写入与 Stop 完成
+共同读取当前 submission 的可信度，后续工具不能清除未知。异常 Stop 不完成回合、
+触发交付或解除锁；明确的过期回合、异 session 和子 agent 保留拒绝或忽略语义。
+<<<<<<< /private/tmp/a2a-requests-3IGepO/t249-readme-base
+=======
+例外（T-251、T-252）：worker 的回合可信度为未知时，与当前回合匹配的 Stop 仍结束回合（Claude Code、Codex 的
+Stop 钩子，agy、opencode 由 OSC 7501 得出的回合结束），回合留下的请求按 `current_turn_untrusted` 记为拒收、不执行，
+执行主控收到阻塞系统问题（问题的回合号取 Claude 的 `prompt_id`，其他 CLI 取 `turn_id`）；否则窗格永远停在回合中，
+门禁回收不了。reviewer、monitor 与主控的不可信回合、与当前回合不匹配的 Stop 仍按上一句处理。
+>>>>>>> /private/tmp/a2a-requests-3IGepO/t249-readme-candidate
+
+Claude 的同一 AskUserQuestion 自身发出的 PermissionRequest 仍属于该提问：须匹配
+当前唯一待答问题的 session、prompt／turn、submission。tool_input 必须仅包含完整且
+与保存内容完全相同的 questions；额外参数、缺失内容、只有名称或旧 ID 都不能证明
+同一问题。原生事件不提供 tool_use_id 时不要求它，提供时也必须一致。合法的同问题
+请求仍可作答；其他工具的权限请求优先使旧问题不可答。
+公共关联字段缺失或无法核实也使问题未知，不能新增 answer 或继续写 PTY。侧栏只读
+已有事件，不采集原生日志、不追加事实。
+
+`node workbench/tests/test_t108_questions.mjs <新摘要路径>` 每次都会运行 `t108_hook_failure_contracts.mjs` 的异常矩阵，覆盖提问前、待答中、作答记录与逐键写入期间的失败降级；未知后不得再向 PTY 发送问题按键。矩阵逐项删除公共关联字段，核对同问题自身权限请求仍可作答、Bash 权限请求阻断，以及只有名称／旧 ID、夹带其他参数或内容不符时的拒绝。旧 prompt、异会话、子 agent 和完整无关工具均有对照，防止异常事实污染当前有效问题。
+同一完成条件还会运行 `t108_answer_lifecycle_contracts.mjs`：原生确认在剩余选择键之前到达时，须证明当前 session／submission／turn 的同一问题确认了本次答案，才停止余键并成功返回；确认晚到则继续等待原生事实。身份撤销、输入变化和未知仍拒绝。单次拒绝只返回给原调用者，后台及 Electron 的写入链继续独立核对下一条请求；实际 PTY 写入结果未知会保存失败状态，连已排队的后续字节也不能写出。
+当前窗格的问题条目展示文本与选项，单选或自由答复经绑定窗口凭据写回同一 PTY；
+对应用户输入的 form 为 answer，reply_to 与 target.request 指向该问题。受管 worker
+仍核对当前 attempt／session／fence，并保留人工介入记录。重复、过期、只读或已撤销凭据
+的答复被拒；答复写出后等待原生 PostToolUse 确认，不直接清除等待状态。
+Claude Code 2.1.304、Codex 0.163.0 的本地假 API 探针已核对单选与自由答复；多选写回
+尚未验证，保持只读。完整 Electron 无模型入口现在还核对首个 window_answer 的最终回执，
+并在匹配 Stop 后向原 PTY 粘贴随机标记（不按 Enter），核对写入与回显；本轮新候选的完整入口待主控重跑。
+真实模型回合原件与本次候选分开记录，不能用历史或无模型结果代替当前候选验收。脚本与当前结果见
+[T-108 交付摘要](../evidence/2026-10-20-batch18/T-108/RESULTS.md)。
+项目行优先显示等待用户回答，其次等待主控回答、运行中；存在未知且无上述状态时保留未知。
+“图例与设置”的独立“应用内通知”区块可分别关闭应用内提醒和后台 Dock 待答数量，
+设置保存在本应用 user-data 下。提醒复用 T-108 已核实的“等待用户回答”状态及问题 ID；
+未知、权限等待、等待主控回答和普通运行／空闲不提醒。点击提醒会切回终端页并聚焦
+对应会话；问题回答、取消、会话结束或状态未知后移除。同一问题在本次应用进程中
+只提醒一次，关闭后重新打开开关不重放已经观察到的问题。后台 Dock 数量独立计算
+所有当前待答问题，前台清零；侧栏读取失败时清空当前提醒与计数，保留问题 ID 的去重记录，
+错误继续报告。恢复后同一问题不重发提醒。当前固定的 Electron 43.4.1 中 `setBadge`
+不会主动请求通知权限；标签回读只证明应用写入的值，不能证明拒绝通知权限时角标一定可见。
+不调用系统通知 API，也不请求 macOS 通知权限。
+当前候选的真实入口与限制见 [T-110 交付摘要](../evidence/2026-10-20-batch18/T-110/RESULTS.md)。
+T-110 无模型原生回归入口先运行 `tests/test_t110_cleanup.py` 的进程清理身份合同。
+仅在 pid、pgid、启动时间一致时，退出标记 E／僵尸状态 Z 允许 command 文字变化；
+此时不发信号，等待 PID 消失后才记清理完成，超时仍失败。运行中仍核对完整 command。
+
+项目来自现有任务的 `project_id`，目录来自任务的仓库事实。命令行可查询，不要求 `--task`：
+
+```sh
+node workbench/src/gates/cli.ts --state /绝对路径/state projects_list
+node workbench/src/gates/cli.ts --state /绝对路径/state tasks_list --project 项目编号
+node workbench/src/gates/cli.ts --state /绝对路径/state sidebar_snapshot
+```
+
+两条列表命令不写库或请求事件；未知项目返回空列表。`--launch` 仍要求同时指定
+`--task`，其任务内多窗格选择方式不变。preload 的 `paneKeys` 保留启动时的窗格集；
+当前视图由 `selection`、`selectTask` 和 `selectAgent` 的返回值提供，切换后旧 key 不再可用。
+`sidebar_snapshot` 只读已经保存的事实和纯窗格状态快照，不扫描原生日志、不写表或 trace。
+原生记录在已有终端输出、hook、进程观察和退出采集职责中读取；不改变门禁、attempt 或操作锁。
+问题事件须与已验证的根原生会话文件、回合对应。恢复、采集与侧栏共用文件名和 metadata
+归属校验，支持 `<session>.jsonl` 与 `rollout-…-<session>.jsonl`。只有 metadata 的会话 ID、
+CLI 来源、工作目录与文件名一致才确认为根；辅助会话还须有明确的根会话绑定。
+来源未核实的问题保持未知；辅助会话或来源不明的开始事件不能清除根问题。
+尚未核实回答时保留未知，不以新回合推断已经回答。T-107 真实 Electron 复验脚本与未完成项见
+[交付摘要](../evidence/2026-10-19-batch17/T-107/RESULTS.md)。
+
+Electron 的启动环境须带该后台对应的 `A2A_OPERATOR_CREDENTIAL`；它只在 main
+进程中读取，并用于领取窄的窗口输入凭据，不传给 preload 或 renderer。
+
+Vite 缓存、临时目录和 dist 都在 `os.tmpdir()/a2a-build-<槽名>` 中；独立开发构建的产物
+保留供 `start.mjs` 使用。打包命令只清理自己创建的中间产物。已有槽不会覆盖；不要在
+输出目录中放源码或依赖链接。开发启动只读取已有构建产物，不自动构建、装包或启动后台。
+
+默认后台目录为 `~/Library/Application Support/a2a-orchestrator`，默认 Electron 数据位于其
+`ui/` 子目录。验证时同时显式指定后台与 UI 的 `/tmp` 隔离目录。
+
+### 侧边面板与 Git 图（T-249）
+
+顶栏“面板”按钮开关右侧的面板位（可拖宽，双击分隔线复原）。面板在 `app/panels/PanelDock.tsx`
+的内部注册表里登记（`id`、标题、图标、组件），宿主只给它：跟随的目录、主题、经主进程按 argv
+执行的 git（`app/gitHost.ts`，不经 shell）、打开文件、发通知。这不是公开的 mod 接口，不加载第三方代码。
+
+- **跟随**：默认跟随最后聚焦的窗格——普通终端取 shell 现在的 cwd（`lsof`），受管窗格取它的
+  worktree；没有聚焦窗格时用项目主目录。“固定”后不再跟随，“取消固定”恢复。每 2 秒重读一次。
+- **Git 图**（`app/panels/GitGraphPanel.tsx`、`gitGraphModel.ts`，照 herdr-git-graph，MIT，
+  Copyright (c) 2026 Rabeeh T A，声明保留在源码里）：提交表、泳道、未提交行（虚线连到 HEAD）、
+  详情与 diff、右键菜单和双击标签检出、多仓库列表（目录不是仓库时）。读操作一律带
+  `--no-optional-locks -c core.fsmonitor=false -c diff.autoRefreshIndex=false`；写操作先弹确认框，
+  名字以 `-` 开头在界面和主进程各拒一次。只读入口只接受面板使用的命令形式，拒绝能改 HEAD 的
+  `symbolic-ref` 参数、输出文件选项及外部 diff/filter 程序；写操作失败直接报告，不自动重试。
+  详情的文件列表使用 NUL 分隔，单文件 diff 按字面路径读取，保留中文、制表符以及 `*`、`[`、`:(` 等文件名字符。
+  首次提交前以 Git 空树为基线显示已暂存、未暂存和未跟踪文件；有 HEAD 时以它为基线。
+  泳道只按提交排（与原 mod `lanes.js` 同规则），
+  未提交行另接在 HEAD 的列上，所以提交的列不随工作区脏不脏而变。
+- **受管 worktree 只读**：跟随的目录在门禁 state 的 `worktrees/` 下时，写操作不可用并说明原因，
+  主进程也拒绝。
+- **无界面入口**：`node workbench/app/panels/gitGraphCli.ts <仓库> [--scope all|current] [--remotes]`
+  输出与面板同一份模型算出的行（JSON）；`--action '<JSON>'` 用面板同一份命令代码执行写操作。
+  验收 `python3 acceptance/T-249/check_git_graph.py` 调它。
+- **端到端测试**：`tests/test_t249_git_graph_e2e.py --output 目录 [--mutant no-panel|no-details|no-diff|parents|order]`，
+  经真实 Electron 入口（独立 state 与 UI 数据目录，私有 hc core），夹具仓库由测试新建。
+  从可见提交行进入详情、点击文件后，将元数据、文件列表、行数与 diff 文本和独立 Git 输出对照；
+  覆盖根提交、普通提交、未提交的字面 pathspec 文件名，以及首次提交前的已暂存／未暂存／未跟踪文件。
+  沙箱里起不了 Electron，沙箱外用 `bash workbench/app/RUN-OUTSIDE-T249.sh` 跑绿态、五个变异和
+  Enchanted Test 打包。脚本只清理自己新建的临时目录，先留状态摘要；若测试进程清理未证实完成，
+  保留现场。变异必须分别命中面板存在、详情可见、diff 可见、父提交或排序断言，启动失败不算红态；
+  DOM 缺失通过正常查询确认，CDP 通信失败也不算红态。运行文本写入 `attempt-fence4/outside-<时间戳>/`。
+  这套详情窗口检查已加入编排，真实窗口红绿仍待主控运行。包的位置由脚本打印，
+  不替换正在运行的 Enchanted。补充宿主检查：`node --test workbench/tests/test_t249_git_host.mjs`；
+  清理与红态分类检查：`python3 workbench/tests/test_t249_outside_safety.py`。
+
+## 库版收件箱客户端（当前只在夹具项目验证）
+
+`workbench/bin/inbox` 复用同一门禁 CLI 与后台，不打开数据库、不读写文件版收件箱。
+必须显式传 state（或本会话 A2A_STATE）。管理端提供对应的管理凭据；worker 和 controller 的
+send/list/ack/ready 沿既有 B 请求文件通路，由本会话 Stop 携带实际 launch 凭据
+转交，结果以门禁回执写回。queued 只表示本地请求已排队，不是后台执行成功。
+worker 转交时及门禁内同时核对原生进程和当前 attempt，撤销后不能继续写入。
+controller 使用 schema2 请求，带实际 launch、preset、project、task、spec_rev、受管身份、
+native_session 和当前 prompt_id，不补 worker attempt/fence。匹配 UPS 后后台发布当前
+context；实际库客户端写请求文件，匹配 Stop 才执行。caller 同时核对持久启动记录、
+当前任务项目／版本、active／prompt、shell／leader 和原生会话，并在异步观察后重新核对。
+`--from`、`--role` 只是沿用命令格式，不能改变实际身份；worker 只能发 issue、
+读取本人的条目、ack 本人的条目；ready 按权限拒绝 worker。
+worker 入口已通过 outside-worker-inbox-green-01 的 14 项检查；四项单规则变异体
+分别产生了可读回的越权结果，且只触发对应断言失败。最终变基候选仍须重新验证。
+
+```sh
+workbench/bin/inbox --state /绝对路径/state ready --project 项目编号
+workbench/bin/inbox --state /绝对路径/state list
+workbench/bin/inbox --state /绝对路径/state send --to ideation --kind report --body-file /绝对路径/report.txt
+workbench/bin/inbox --state /绝对路径/state ack --id 收件箱条目号
+```
+
+ready 只读取该后台已绑定项目的 ticket，返回可执行且依赖已关闭的就绪项；字段
+不合规时返回诊断和失败状态。它不标记就绪、不写项目地图，也不接受任意仓库路径。
+
+收件箱、ack 和投递收据都只追加。`queued` 是已排队，`delivered` 才是运行时确认写入；
+重复 ack 复用原条目及投递结果，不重发。读取 queued 收据时可追加运行时后来确认的状态。
+没有实际接收者时，条目和未送达原因保留，命令不能报告投递成功。
+
+角色地址 ideation/executor 暂无会话时，条目保留为 `pending, reason:role_session_missing`，
+执行结果 `ok:true` 表示已留存，不表示已送达。发送方同 request_id 的 relay_processed 事件
+可见该状态，此时不注入反馈回合。controller_start 注册实际角色后，只恢复明确待上线的条目，
+沿原有 wake/dispatch 队列投递；首启 unknown 时不写业务输入。已有排队条目不阻止经批准的
+主题、安全提示和信任屏单键操作，逐屏按键本身不放行队列。初始放行后，只有真实
+turn_submitted 收据才使投递变为 delivered，再向原发送方登记原有的一条执行反馈，
+关联原 request_id/entry_id，不重做 send；09B 的 I2 在此时只确认，预算不增加。
+原条目 created_at 保持不变，120 秒无 ack 的起点不因上线而重置。
+缺少确定结果的旧 pending、unknown 写入与多会话歧义不能自动重送；反馈派发意图已保存但
+结果不明时同样不重发。完整双 Claude 场景仍须新实例与独立审查，不以 PTY spy 代替实测。
+
+worker Stop 收件箱转交已在隔离入口通过验证；controller 已接入同一原生请求文件／
+Stop 通路，实际 Claude 单角色工具绿态仍待批准运行。真实双主控转交、stop→执行→ack、
+120 秒无 ack 只中断仍未完成，不能作日常派发入口。本仓库的 `scripts/inbox` 保持原样，
+切换前不双写。局部领域与 native/PTY spy 不代替实际 Claude 窗格或独立验收。
+
+```sh
+node workbench/src/gates/cli.ts --state /绝对路径/state workbench_snapshot --task 任务编号
+node workbench/src/gates/cli.ts --state /绝对路径/state pane_output --launch 启动记录号 --offset 0 --max-bytes 65536
+```
+
+`workbench_snapshot` 可加 `--launch` 查看本任务的历史窗格。窗口第一次选定 launch 后固定
+该身份，不随 current_attempt 改变而切换。`pane_output` 返回 base64 原始字节和
+start_offset、next_offset、total_bytes；每块最多 65536 字节，从同一追加 trace 读取。
+新窗口从 0 补回，已有窗口收到 xterm 的解析完成回调才推进游标；缺失、缩短或错序
+明确报错，不跳过字节。关掉 Electron 只断开视图，后台和窗格由独立进程托管。
+
+后台重启会追加 `pane_recovered`。假 API 主控窗格按启动记录的原 argv 重建 PTY 并续接原会话（T-096，用户裁定 B）；正常登录主控明确保留为“未恢复”，需从正常登录入口重新启动，不在 recover 重建受保护生命周期。
+worker 窗格只作历史查询并显示“未恢复”，不重建 PTY、令牌、队列，也不改它的 attempt。已有 pane_exit 可证明停止时执行显示“已中断”；没有结束证据显示“未知”。
+窗格退出回调会最后增量读取已绑定的原生会话文件，再记录 pane_exit；主动停止和后台
+停止也经过这条路径，不依赖 Stop hook。完整记录追加进库和 native.jsonl；文件缺失、
+截断、解析失败或未完成的一行记为 native_final_read_failed，保留读到的位置，窗格
+仍显示未知／中断，不补造完成事件。停止后的查询不继续采集新的原生字节。
+测试的最终 SQLite 读回统一使用 `fixture_artifacts.archive_stopped_database`：确认 writer 退出，
+复制主库与残留 WAL，只在归档副本上改为独立 DELETE 文件，再以只读方式检查。
+`test_probe_cleanup.py` 检查关闭后的 WAL、未遗漏的已提交行、原文件保留和未确认退出时保留现场；
+`test_stopped_readback.py` 重放三个停止后直读原库失败的夹具。
+门禁状态原值保留，因此“门禁已认领”和“执行已中断”可以同时出现。原 verify/integrate
+命令显式重放才执行恢复，启动或读取窗口不能把未知结果改成通过。
+崩溃残留的 socket/PID 文件：能证明所有者已退出、端点已死的，允许重启（T-096）；所有者存活或未知、端点仍活着的，
+仍然阻止启动，产品不会按 PID 猜测所有者并自动接管。
+
+默认产品路径为 `~/Library/Application Support/a2a-orchestrator`；本卡测试只用显式
+`--state /tmp/...`，不创建默认路径，不接触正式 `a2a-workbench` 目录。
+新增 launch_records、dispatch_records、orchestration_events、relay_requests、relay_results
+都在 state.sqlite3，触发器禁止
+UPDATE/DELETE。按 T-075 rev 3，原门禁状态表保留为由事件推出的当前视图，历史以事件为准；
+membership.sqlite3 和锁库保留。`stateConsistency.ts` 提供只读事件重建与逐表比较；
+不补事件、改表或修存储。对静止的夹具库运行，报告一致、不一致或无法从现有事件重建：
+
+```sh
+node workbench/src/stateConsistency.ts --state /绝对路径/state --output /绝对路径/新报告.json
+```
+
+报告包含 tasks、历史 attempts/verifications、runs、attachments 与另库的 memberships/
+session_presets，列出差异、缺历史来源和未覆盖表。attachment creating 缺事件、active 行与
+attached 事件不同事务，以及成员/预设另库覆盖写都不能用最终行相等掩盖；诊断不一致或
+不可重建返回 INCOMPLETE。两库分别有读事务，不宣称跨库同事务。
+
+受管 worker 仍使用同一 CLI 显式 `submit`；`status`、`issue` 也走同一条转交路径。
+CLI 将带 task、attempt、session、fence、spec_rev 的请求写入 `A2A_REQUEST_DIR`，返回
+`queued=true, delivered=false`；这仅表示文件已落盘。每个 attempt 使用独立的
+`/tmp/a2a-requests-*` 目录，位于 Git 工作树外，不污染候选提交。Stop hook 读取文件后，
+经同一 CLI 向后台转交；没有文件就没有交付。后台仍检查当前 attempt、回合身份及原门禁条件。
+
+请求在所属 launch 内用 `request_id` 去重：相同内容返回原结果，不重复执行；同一 launch 内同一编号换内容明确拒绝。新 attempt 的新 launch 可以使用相同编号。
+已有请求按持久化的 launch 与编号查回，沿用原结果；只有 intent、没有结果的请求仍报结果未知，不重新执行。
+身份不符、字段不完整及重复转交都有追加事件。旧 Stop 不消费尚未处理的请求，
+处理结果未知时保留意图，不自动重试。一次 Stop 的新结果合成一条 `⟦门禁 #序号⟧`
+<<<<<<< /private/tmp/a2a-requests-3IGepO/t249-readme-base
+回执，先登记，再在空闲窗格里 bracketed paste 并单独回车。回执会启动新的原生回合，
+计入启动记录里的回合上限；本卡已获准一个交付回合和一个只确认回执的回合。
+Stop 响应关闭后后台才排空反馈队列；响应成功或 paste_written 不表示回车已写出。
+=======
+回执，先登记，再在空闲窗格里 bracketed paste 并单独回车。回执提交计入启动记录里的回合上限；
+本卡已获准一个交付回合和一个只确认回执的回合。Codex 可能在前一次 Stop 钩子返回前接收回执，
+把它并入同一原生 turn，不再产生新的 task_started；已确认的 UserPromptSubmit 将当前提交绑定到该 turn，
+后续仍须匹配 Stop 才结束提交（T-257）。服务端 Stop 响应关闭后后台才排空反馈队列，
+这不表示 CLI 已收到钩子返回；响应成功或 paste_written 也不表示回车已写出。
+>>>>>>> /private/tmp/a2a-requests-3IGepO/t249-readme-candidate
+观察者应等待该反馈 dispatch 的 turn_submitted，并核对活动提交及写入收据。
+Claude 的 PermissionRequest 必须匹配当前 prompt／active；同窗口一次许可 Enter
+只记 control action/write，不增加根提交 intent 或替换原 active，普通 Enter 仍按用户提交记录。
+Git 尾注钩子从会话的 CODEX_HOME 中读取 CODEX_THREAD_ID 绑定的唯一根 CLI JSONL，
+以最新 task_started 对应的 turn_context 取实际模型与强度；辅助会话不提供取值。
+当前回合缺上下文时写 unknown，不沿用上一回合或请求值。启动请求另存
+A2A_MODEL_REQUESTED/A2A_EFFORT_REQUESTED；实际沙箱读取与提交时序还须通过真实回合验收。
+
+运行时 agent 身份与交付回合分开：attempt 绑定 launch/thread、shell、原生会话和 Codex 领导者；
+首次输入前原生日志可以尚未出现，后台答完 “Open restricted” 并核对有效前台领导者后放行首次派发；
+门禁只补首次可观测的原生会话，不用请求值补身份。
+<<<<<<< /private/tmp/a2a-requests-3IGepO/t249-readme-ours
+Codex worker 的原生会话在派发时还看不到：窗格从根 rollout 首行 `session_meta` 第一次得知会话号时，后台就经门禁把它补进
+attempt（T-253，用户选 B）。和 run 的观察一样，读窗格在任务操作锁外，核对身份与写入在锁内；锁被其他门禁命令占着时等它释放，
+不丢这次绑定；attempt 已换掉或窗格身份与 attempt 记录不符（别的 launch、别的 shell 进程）时不补，记 `native_session_bind_failed`，
+回收照旧拒 `identity_conflict`。后台在读窗格或等锁期间开始停止时，这次绑定不写，记 `daemon_stopping`；停止流程关库前会等还在进行的绑定收尾，
+最多等 10 秒（T-254；停止后一次绑定在下一次窗格读取后就结束，读取里的进程查询上限 5 秒，取其两倍）。到期仍在进行的绑定，在关库前记 `native_session_bind_abandoned`（会话号、等了多久），
+attempt 保持未绑定；它之后再收尾时什么都不写。
+这条记录本身写不进去时，后台在 stderr 报 `event_write_failed`，并把用户输入记录标为失败，与窗格事件写失败的处理相同。此前只有 run 的观察、被受理的 submit 与审查提交会补，经 dispatch 派出、没交付过的 Codex worker 回收不了。
+
+首次派发超过 120 秒后才出现原生身份时，单独发现身份不会清除 `native_session_unbound`。
+T-258 在原始派发的 UserPromptSubmit 到达时核对根 rollout、当前回合、原始输入、task/attempt/session/fence
+及 shell/领导进程身份；异步读取前后都要匹配。reviewer 还须匹配当前审查、候选和验收记录。
+只有这些事实成立且唯一失败是 `native_session_unbound`，才先记录恢复事件、再恢复原回合；不重发输入、
+不延长期限、不清除其他失败。没有可信原始派发、身份被替换、旧 attempt 或审查失效仍拒绝；真正工作中仍不能回收。
+窗格已创建、初始身份读取失败而停在 `preparing` 的场景，按上文 T-259 的停止及未发送条件经门禁回收。
+两种恢复都保留原失败证据，不手工补写身份或修改正式数据库。
+
+||||||| /private/tmp/a2a-requests-3IGepO/t249-readme-base
+
+重现命令与完整证据见
+[T-075-1 迁移记录](../evidence/2026-10-10-batch12/T-075/RESULTS.md) 和
+[T-075-2 当前结果](../evidence/2026-10-10-batch12/T-075/card-2/RESULTS.md)；
+后台与 B 的进度见 [T-075-3 运行记录](../evidence/2026-10-10-batch12/T-075/card-3/RESULTS.md)。
+
+只读窗口与重启查询见 [T-075-4 运行记录](../evidence/2026-10-10-batch12/T-075/card-4/RESULTS.md)。
+界面迁入片段来自已推送的 `49cae984f22924de006e0f8358cb447eb881aaf6`：
+`apps/web/src/components/TerminalScrollToBottom.tsx`、`apps/web/src/index.css` 与
+`apps/web/src/theme/theme.seed.generated.ts`。保留 MIT 声明，未迁入 provider 或 MCP 网关。
+=======
+Codex worker 的原生会话在派发时还看不到：窗格从根 rollout 首行 `session_meta` 第一次得知会话号时，后台就经门禁把它补进
+attempt（T-253，用户选 B）。和 run 的观察一样，读窗格在任务操作锁外，核对身份与写入在锁内；锁被其他门禁命令占着时等它释放，
+不丢这次绑定；attempt 已换掉或窗格身份与 attempt 记录不符（别的 launch、别的 shell 进程）时不补，记 `native_session_bind_failed`，
+回收照旧拒 `identity_conflict`。后台在读窗格或等锁期间开始停止时，这次绑定不写，记 `daemon_stopping`；停止流程关库前会等还在进行的绑定收尾，
+最多等 10 秒（T-254；停止后一次绑定在下一次窗格读取后就结束，读取里的进程查询上限 5 秒，取其两倍）。到期仍在进行的绑定，在关库前记 `native_session_bind_abandoned`（会话号、等了多久），
+attempt 保持未绑定；它之后再收尾时什么都不写。
+这条记录本身写不进去时，后台在 stderr 报 `event_write_failed`，并把用户输入记录标为失败，与窗格事件写失败的处理相同。此前只有 run 的观察、被受理的 submit 与审查提交会补，经 dispatch 派出、没交付过的 Codex worker 回收不了。
+>>>>>>> /private/tmp/a2a-requests-3IGepO/t249-readme-candidate
+run/reclaim 核对该身份，回执回合改变不会覆盖已提交的 turn_id。submit 仍要求当前活动
+caller/turn 和受管 session/fence/spec/attempt 一致。换领导者、换原生会话或缺已绑定事实
+拒收；停止后只沿用已核对的身份及确认的生命周期，不按新 PID 接管。
+
+`run_daemon_acceptance.py --suite <coop|recovery|run> --output-root /绝对路径/证据根 --label 新标签`
+可把本轮三套验收写到独立证据目录；默认输出根沿用原 T-075/card-5。旧 validation 模式
+包含冻结的基线运行器，保留原输出根；新切片使用 suite/probe，不混写旧证据。
+
+## 来源与改动
+
+来源固定为 Synara 提交 `49cae984f22924de006e0f8358cb447eb881aaf6`。
+迁入 `core`、`cli`、`membership`、`rolePermissions`；MIT 版权与完整许可保留在源码及
+[LICENSE.synara](LICENSE.synara)。只提取门禁及其请求校验实际需要的 schema、类型与依赖，
+其中模型选择的已有解码规则保持原样，不代表本工作台支持这些模型运行时。
+
+进程执行直接使用 Node 的 `child_process.execFile`；本卡面向 macOS，不带原平台适配层。
+本地 import 补 `.ts` 后缀，构造器参数属性展开为等价字段与赋值。
+验收入口只调用本仓库门禁；旧 fork 的实现不再由这些入口加载。
+
+重现命令与完整证据见
+[T-075-1 迁移记录](../evidence/2026-10-10-batch12/T-075/RESULTS.md) 和
+[T-075-2 当前结果](../evidence/2026-10-10-batch12/T-075/card-2/RESULTS.md)；
+后台与 B 的进度见 [T-075-3 运行记录](../evidence/2026-10-10-batch12/T-075/card-3/RESULTS.md)。
+
+只读窗口与重启查询见 [T-075-4 运行记录](../evidence/2026-10-10-batch12/T-075/card-4/RESULTS.md)。
+界面迁入片段来自已推送的 `49cae984f22924de006e0f8358cb447eb881aaf6`：
+`apps/web/src/components/TerminalScrollToBottom.tsx`、`apps/web/src/index.css` 与
+`apps/web/src/theme/theme.seed.generated.ts`。保留 MIT 声明，未迁入 provider 或 MCP 网关。
