@@ -1,0 +1,9 @@
+主控已完成候选真实行为核对，独立证据 native-candidate-05-behavior.json 为 PASS：186 字符短入口；完整材料 2150771 字节 / 1665471 字符，55000 diff行、50000验收行、随机头中尾标记与生成输入完全相符；原生工具实际执行未改的 probe.py，写入材料 errno=1，task_started/task_complete 都在。源脚本及 panes.ts 与 native04 快照逐字节一致。完整原生工具记录在 native-candidate-05-artifacts/candidate-native-events.json。原生先 cat 被输出截断，后 Python完整读取并运行指定probe，证据没有把截断视为完整读。
+
+native04整轮和单独candidate05原始结果仍 INCOMPLETE，均由自有PTY退出清理导致，未改写。主控已只读确认自有PID均消失，记录文件数/字节后清理相应夹具。native03、04父版实际输入超长红态仍有效。
+
+这次已有直接原因证据，不要再猜测或扩大修复：主控 process-wait-probe-02.py（只跑父版，不是业务验收）保持原生argv/hooks/权限与原来的 TERM时序；TERM 后3秒，PID25165的 getpgid=ESRCH、Popen.poll=None，但真实 ps 仍能看到25165、父25157、组25165、状态 ?Es (codex)。随后只关闭本次测试持有的PTY master，完全相同的 Popen.wait 立即返回 -15。详细三个阶段在 process-wait-probe-02-events.jsonl。probe01中先观察再TERM可立即回收，说明时序相关；不以该偶然正例覆盖04/05失败。
+
+只调整新测试驱动 interact 的 finally 中自有PTY资源顺序：终端/原生诊断先持久化，然后关闭本次自己持有的master（并清空fd，避免finally重复close），再用原有stop_owned确认同一Popen退出。正常EOF、超时/异常都要只关闭自己创建的fd一次，失败仍留诊断，不能从ESRCH猜成功。不要改产品、业务断言、权限、argv、240秒/onboarding，不删除原stop_owned身份核对或EPERM边界，不再加通用框架。新增最小离线顺序断言必须在native04旧顺序上失败；说明真实probe02的观察边界。主控会用最终脚本做 native-cli-06.json 的原父版+候选完整运行，预计关闭master后wait能正常确认；此前05业务通过保留。
+
+完成后在最终答复给单条native06命令，停止等待，不开issue（自动派发预算已用完）。真实完整运行通过后，再按原身份补中文最终报告、提交、显式submit。README stale继续由我处理。不要对正式后台/窗口或其他会话执行任何操作。主仓库证据根为 /Users/luckye/Documents/Code/a2a/evidence/2026-11-09-batch35/T-265/controller/ 。
