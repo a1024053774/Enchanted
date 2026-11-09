@@ -2,7 +2,7 @@
 id: T-261
 title: 任务导航按新旧排序并折叠较早任务
 type: build
-status: open
+status: done
 blocked_by: [T-259]
 claimed_by:
 supersedes:
@@ -29,3 +29,7 @@ ready_rev: 1
 ## 边界
 
 本票为用户本轮明确新增的界面修复，保留 T-249/T-250 两个面板主线。派发与交付恢复后经现有门禁执行。不删原始记录，不改冻结 acceptance/** 或 REVIEW.md，不改权限、schema 或公开接口，不 push。隔离新包验证，必要的 Enchanted“访问文稿”弹窗已获用户本轮授权处理。
+
+## 结论（2026-11-09）
+
+PASS：任务条最新在前，较早的任务收进下拉框。真实窗口测试 12 个任务的绿态通过，按 id 排序的变异判红。证据见 `evidence/2026-11-09-batch35/T-261/RESULTS.md`。按用户要求（“不用 codex 了,你自己做完这些部分结束”），没有做独立审查。

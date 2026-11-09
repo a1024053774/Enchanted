@@ -57,7 +57,7 @@ type Snapshot = {
     size?: { cols: number; rows: number } | null; interrupted?: boolean; interruption?: number | null; input_generation?: number; active?: { dispatch: string } | null } | null;
 };
 type Chunk = { launch: string; start_offset: number; next_offset: number; total_bytes: number; data_base64: string };
-type TaskItem = { task_id: string; project_id: string; title: string; state: string };
+type TaskItem = { task_id: string; project_id: string; title: string; state: string; created?: number };
 type Theme = 'system' | 'light' | 'dark';
 type ProjectItem = { project_id: string; repo: string | null; repo_missing?: boolean; opened?: boolean; tasks: TaskItem[]; state: string; state_label: string; issues_waiting: number | null;
   git: { branch: string | null; upstream: string | null; ahead: number | null; behind: number | null; error: string | null } };
@@ -98,6 +98,8 @@ function since(iso: string | null | undefined, now: number) {
   return Math.floor(seconds / 86400) + ' 天';
 }
 const tilde = (path: string | null | undefined, home: string | null) => !path ? '' : home && (path === home || path.startsWith(home + '/')) ? '~' + path.slice(home.length) : path;
+// T-261: how many of the newest tasks the task strip shows before the drop-down.
+const RECENT_TASKS = 5;
 const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
 type Layout = string | { direction: 'right' | 'down'; first: Layout; second: Layout };
@@ -1150,10 +1152,26 @@ function Workbench() {
       <div className="terminal-page" hidden={page !== 'terminal'}>
       {project && project.tasks.length > 0 && <nav className="task-strip" aria-label="项目任务">
         <span className="task-strip-label">任务</span>
-        {project.tasks.map(item => <button key={item.task_id} className="task-row" data-task-option={item.task_id}
-          disabled={busy} aria-current={task?.task_id === item.task_id ? 'page' : undefined} onClick={() => selectTask(item.task_id)}>
-          <span className="task-title">{item.title}</span><span className="task-meta">{gateNames[item.state] ?? item.state}</span>
-        </button>)}
+        {(() => {
+          // T-261: newest first (creation order, then id); the newest few stay visible, the rest go into a drop-down.
+          // The current task is always visible: an older one shows after the newest few.
+          const ordered = [...project.tasks].sort((a, b) => (b.created ?? 0) - (a.created ?? 0) || a.task_id.localeCompare(b.task_id));
+          const shown = ordered.slice(0, RECENT_TASKS), older = ordered.slice(RECENT_TASKS);
+          const current = older.find(item => item.task_id === task?.task_id);
+          const chip = (item: TaskItem) => <button key={item.task_id} className="task-row" data-task-option={item.task_id}
+            disabled={busy} aria-current={task?.task_id === item.task_id ? 'page' : undefined} onClick={() => selectTask(item.task_id)}>
+            <span className="task-title">{item.title}</span><span className="task-meta">{gateNames[item.state] ?? item.state}</span>
+          </button>;
+          return <>
+            {[...shown, ...(current ? [current] : [])].map(chip)}
+            {older.length > 0 && <select className="task-older" data-task-older aria-label={`较早的 ${older.length} 个任务`} disabled={busy}
+              value="" onChange={event => { if (event.target.value) selectTask(event.target.value); }}>
+              <option value="">较早的 {older.length} 个任务…</option>
+              {older.map(item => <option key={item.task_id} value={item.task_id} data-task-older-option={item.task_id}>
+                {(item.task_id === task?.task_id ? '● ' : '') + item.title + ' · ' + (gateNames[item.state] ?? item.state)}</option>)}
+            </select>}
+          </>;
+        })()}
       </nav>}
       {(roleRequests.length > 0 || unconfirmedRequests.length > 0 || grantedRequests.length > 0) && <div className="role-requests" aria-label="角色申请">
         {unconfirmedRequests.map(roleRequest => <div className="role-request" key={roleRequest.id} data-role-request-unconfirmed={roleRequest.id} role="status">

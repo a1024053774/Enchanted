@@ -377,8 +377,9 @@ export class A2AGates {
   }
   listTasks(project: string) {
     id(project);
+    // T-261: created is the row's insertion order (the upsert keeps the rowid), so the newest task can go first.
     return this.db.prepare(`SELECT id AS task_id, json_extract(data,'$.project_id') AS project_id,
-      COALESCE(json_extract(data,'$.title'),id) AS title, json_extract(data,'$.state') AS state
+      COALESCE(json_extract(data,'$.title'),id) AS title, json_extract(data,'$.state') AS state, rowid AS created
       FROM tasks WHERE json_extract(data,'$.project_id')=? ORDER BY id`).all(project);
   }
   private member(task: A2ATask, thread: string, role: A2AAttachment["role"], endedAt?: string) {
