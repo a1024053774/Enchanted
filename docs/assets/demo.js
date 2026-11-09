@@ -1,6 +1,6 @@
 // Enchanted 产品页的工作台演示：全部是预设的虚构数据，不连后台、不调模型。
 // 结构与文案取自 workbench/app 的 renderer.tsx、FlowPage.tsx、QuestionsPanel.tsx、AppNotifications.tsx、
-// IssuesPage.tsx、RecordsPage.tsx、MetricsPage.tsx、ReflectPage.tsx、RetrospectiveSections.tsx，
+// IssuesPage.tsx、RecordsPage.tsx、MetricsPage.tsx、ReflectPage.tsx、RetrospectiveSections.tsx、panels/（PanelDock、GitGraphPanel、ChangesPanel），
 // 状态优先级取自 workbench/src/sidebar.ts，阶段取自 workbench/src/flowStages.ts，复盘默认值取自 workbench/src/retrospective.ts。
 // 页面上每个分功能展示经 window.EnchantedDemo.mount(窗口元素) 挂一份演示，再用 go(场景名) 切换状态，见 showcase.js。
 (() => {
@@ -143,6 +143,38 @@
             '保留一个版本': ['› 按答复继续：保留 0.8 迁移代码到下个版本，更新说明里写明下个版本删除。'] },
           freeReply: ['› 收到答复，按上面这行原文继续。'] },
       ],
+      // 侧边面板（T-249 Git 图、T-250 改动）的两个仓库：项目主目录，和 T-11 worker 的门禁 worktree。
+      git: {
+        main: { dir: '~/work/inkwell', branch: 'main', worktree: false, seq: 0,
+          commits: [
+            { hash: '9f2c41ab07', subject: '导出页：接上标签筛选条', author: 'lin', time: '今天 10:42', labels: [['branch', 'main', true]],
+              files: [['M', 'src/export/ExportPage.tsx', 18, 4], ['A', 'src/export/TagFilter.tsx', 41, 0]] },
+            { hash: '3b7e5d10c2', subject: '导出页：标签筛选的查询参数', author: 'lin', time: '今天 09:15', labels: [],
+              files: [['M', 'src/export/query.ts', 12, 3]] },
+            { hash: 'e41a9c3f58', subject: '合并 T-09：修正 CSV 字段转义', author: 'Enchanted 门禁', time: '昨天 18:03', labels: [['remote', 'origin/main'], ['tag', 'v0.4.0']],
+              body: 'A2A-Task: inkwell+T-09\nA2A-Attempt: 0e7f3a91', files: [['M', 'src/csv/escape.ts', 9, 2], ['M', 'tests/escape.test.ts', 22, 0]] },
+            { hash: '4c2d9e1a77', subject: 'T-09：引号和换行按 RFC 4180 转义', author: 'codex worker', time: '昨天 17:40', labels: [],
+              files: [['M', 'src/csv/escape.ts', 9, 2], ['M', 'tests/escape.test.ts', 22, 0]] },
+            { hash: 'b90d6e2a41', subject: '导入：读取文件里的原始时间戳', author: 'lin', time: '昨天 11:20', labels: [],
+              files: [['M', 'src/import/read.ts', 7, 1]] },
+            { hash: '07c3f1d9e5', subject: '初始化 inkwell', author: 'lin', time: '上周一', labels: [], files: [['A', 'README.md', 12, 0], ['A', 'src/index.ts', 30, 0]] },
+          ],
+          changes: [
+            { path: 'src/export/TagFilter.tsx', code: 'M', group: 'unstaged', add: 3, del: 1 },
+            { path: 'src/export/tags.css', code: '?', group: 'unstaged', add: 14, del: 0 },
+            { path: 'README.md', code: 'M', group: 'staged', add: 2, del: 0 },
+          ],
+          base: { name: 'origin/main', commits: 2, files: [['A', 'src/export/TagFilter.tsx', 41, 0], ['M', 'src/export/ExportPage.tsx', 18, 4], ['M', 'src/export/query.ts', 12, 3]] } },
+        wt: { dir: '~/work/inkwell/.worktrees/T-11-a1', branch: 'a2a/inkwell+T-11', worktree: true, seq: 0,
+          commits: [
+            { hash: 'a81d3c0f52', subject: 'T-11：导入时保留原始时间戳，夏令时切换日按本地时区', author: 'codex worker', time: '今天 10:05', labels: [['branch', 'a2a/inkwell+T-11', true]],
+              files: [['M', 'src/import/read.ts', 14, 3], ['M', 'tests/import.test.ts', 31, 0]] },
+            { hash: 'b90d6e2a41', subject: '导入：读取文件里的原始时间戳', author: 'lin', time: '昨天 11:20', labels: [['branch', 'main']], files: [['M', 'src/import/read.ts', 7, 1]] },
+            { hash: '07c3f1d9e5', subject: '初始化 inkwell', author: 'lin', time: '上周一', labels: [], files: [['A', 'README.md', 12, 0], ['A', 'src/index.ts', 30, 0]] },
+          ],
+          changes: [{ path: 'tests/import.test.ts', code: 'M', group: 'unstaged', add: 6, del: 0 }],
+          base: { name: 'main', commits: 1, files: [['M', 'src/import/read.ts', 14, 3], ['M', 'tests/import.test.ts', 31, 0]] } },
+      },
     });
 
     const lines = {
@@ -180,7 +212,8 @@
       ui = { project: 'inkwell', task: 'T-12', page: 'terminal', focusedAgent: null, focusedPane: null, collapsed: new Set(),
         notifications: true, dockBadges: true, menu: null, renaming: null, zoom: null, settingsOpen: false, theme: 'system', execRole: 'worker', execDraft: null, execMessage: '',
         flowOpen: {}, flowExpanded: {}, drafts: {}, noticeSeen: new Set(), noticeActive: new Map(),
-        issueDrafts: {}, closing: null, closeDraft: { reason: '', basis: '' }, parentChoice: 'launch-3b10', recordTask: '', recordSession: '', spot: null };
+        issueDrafts: {}, closing: null, closeDraft: { reason: '', basis: '' }, parentChoice: 'launch-3b10', recordTask: '', recordSession: '', spot: null,
+        dock: null, sidebarHidden: false, gitSelected: null, gitDiff: null, changeSelected: null, changeScope: 'worktree', picked: null, noteDraft: '', notes: [], commitDraft: '' };
       panes = {}; layouts = {}; paneSeq = 0;
       const agentPane = launch => { const key = 'p' + (++paneSeq); panes[key] = { kind: 'agent', launch, lines: (lines[launch] || [['dim', '（演示没有为这个会话预设输出）']]).slice(), forward: false }; return key; };
       const shellPane = (cwd, label) => { const key = 'p' + (++paneSeq); panes[key] = { kind: 'shell', cwd, lines: shellLines(cwd), forward: false, project: label }; return key; };
@@ -286,7 +319,7 @@
     function sidebar() {
       return `<aside class="sidebar">
         <div class="sidebar-top"><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>
-          <button class="icon-button" data-action="note" data-note="真实应用里这个按钮（⌘\\）隐藏或显示侧栏；演示里不隐藏。" data-fk="toggle-sidebar" aria-label="隐藏侧栏">${svgSidebar}</button>
+          <button class="icon-button" data-action="sidebar-hide" data-fk="toggle-sidebar" aria-label="隐藏侧栏">${svgSidebar}</button>
           <button class="icon-button" data-action="settings-open" data-fk="settings" aria-label="设置">${svgGear}</button>
           <button class="icon-button" data-action="note" data-note="真实应用会弹出 macOS 的目录对话框：选一个目录，它就成了项目，之后在项目里新建的终端都从这个目录启动。演示里不打开对话框。" data-fk="create-project" aria-label="打开项目目录">${svgPlus}</button>
         </div>
@@ -639,6 +672,128 @@
       </div>`;
     }
 
+    // ---------- 侧边面板：Git 图（T-249）与改动（T-250） ----------
+    // 跟随最后聚焦的窗格：普通终端取它的目录，受管 worker 取它的 worktree；没有聚焦窗格时用项目主目录。
+    function followed() {
+      const pane = panes[ui.focusedPane];
+      const agent = pane && pane.kind === 'agent' ? findAgent(pane.launch) : null;
+      if (agent && agent.role === 'worker' && agent.task === 'T-11') return { repo: data.git.wt, source: '跟随聚焦窗格' };
+      return { repo: data.git.main, source: pane ? '跟随聚焦窗格' : '项目主目录' };
+    }
+    const readOnlyGraph = '这是门禁管理的任务 worktree：Git 图只读。门禁保护它的 Git 元数据，直接改动算人工介入。';
+    const readOnlyChanges = '这是门禁管理的任务 worktree：只能查看。门禁保护它的 Git 元数据，暂存、丢弃、提交算人工介入。';
+    const laneX = lane => 9 + lane * 14;
+    // 预先排好的泳道：每行列出经过它的线段 [起列, 起高, 止列, 止高, 颜色列, 虚线]。真实应用由 gitGraphModel.ts 现算。
+    function laneRows(repo, uncommitted) {
+      const merge = repo === data.git.main;
+      const rows = repo.commits.map((commit, index) => {
+        const last = index === repo.commits.length - 1, segs = [];
+        if (index > 0 || uncommitted) segs.push([0, 0, 0, 12, 0, index === 0]);
+        if (!last) segs.push([0, 12, 0, 24, 0, false]);
+        let lane = 0;
+        if (merge) {
+          if (index === 2) segs.push([0, 12, 1, 24, 1, false]);
+          if (index === 3) { lane = 1; segs.push([1, 0, 1, 12, 1, false], [1, 12, 1, 24, 1, false], [0, 0, 0, 24, 0, false]); segs.splice(0, 2); }
+          if (index === 4) segs.push([1, 0, 0, 12, 1, false]);
+        }
+        return { lane, segs };
+      });
+      return uncommitted ? [{ lane: 0, segs: [[0, 12, 0, 24, 0, true]], open: true }, ...rows] : rows;
+    }
+    const segPath = ([a, y1, b, y2]) => a === b ? `M${laneX(a)} ${y1}V${y2}` : `M${laneX(a)} ${y1}C${laneX(a)} ${(y1 + y2) / 2} ${laneX(b)} ${(y1 + y2) / 2} ${laneX(b)} ${y2}`;
+    const lanesSvg = (row, head) => `<svg width="40" height="24" aria-hidden="true">${row.segs.map(seg => `<path d="${segPath(seg)}" class="lane-line lane-${seg[4]}"${seg[5] ? ' stroke-dasharray="3 3"' : ''}/>`).join('')}
+      <circle cx="${laneX(row.lane)}" cy="12" r="${head ? 4.5 : 3.5}" class="lane-dot lane-${row.lane}${row.open ? ' open' : ''}${head ? ' head' : ''}"/></svg>`;
+    // 演示用的 diff：按文件给几行，够看出新增、删除和行内强调。
+    function diffRows(path, add, del) {
+      const name = path.split('/').pop().replace(/\.\w+$/, '');
+      const rows = [['hunk', null, null, `@@ -12,${del + 4} +12,${add + 4} @@`], ['', 12, 12, `import { load } from '../store';`]];
+      for (let i = 0; i < Math.min(del, 2); i++) rows.push(['del', 13 + i, null, i ? `  return rows;` : `const ${name} = (rows) => rows.filter(Boolean);`]);
+      for (let i = 0; i < Math.min(add, 4); i++) rows.push(['add', null, 13 + i, [`const ${name} = (rows, tags) => rows.filter(row => match(row, tags));`, `  // 标签为空时不筛选`, `  if (!tags.length) return rows;`, `  return rows.filter(row => tags.every(tag => row.tags.includes(tag)));`][i]]);
+      rows.push(['fold', null, null, '… 展开 9 行未改动的内容'], ['', 24, 18, `export default ${name};`]);
+      return rows;
+    }
+    const diffView = (rows, pickable) => `<pre class="diff-lines changes-lines">${rows.map(([kind, old, next, text], index) => kind === 'fold'
+      ? `<button class="diff-fold" data-action="note" data-note="真实应用会展开这几行未改动的内容。" data-fk="fold">${esc(text)}</button>`
+      : `<div class="diff-line ${kind}${pickable && ui.picked === index ? ' picked' : ''}"${pickable && kind !== 'hunk' ? ` data-action="pick-line" data-line="${index}" data-diff-line="${index}"` : ''}>
+        <span class="diff-number">${old ?? ''}</span><span class="diff-number">${next ?? ''}</span><span class="diff-sign">${kind === 'add' ? '+' : kind === 'del' ? '-' : ' '}</span><span class="diff-text">${esc(text)}</span></div>`).join('')}</pre>`;
+    const fileStat = (add, del) => `<span class="file-stat"><span class="add">+${add}</span> <span class="del">-${del}</span></span>`;
+
+    function gitGraphPanel(repo) {
+      const uncommitted = repo.changes.length > 0, rows = laneRows(repo, uncommitted);
+      const list = [...(uncommitted ? [{ hash: 'uncommitted', subject: `未提交的改动（${repo.changes.length} 个文件）`, uncommitted: true, labels: [], time: '' }] : []), ...repo.commits];
+      const selected = list.find(commit => commit.hash === ui.gitSelected);
+      const files = selected?.uncommitted ? repo.changes.map(item => [item.code, item.path, item.add, item.del]) : selected?.files ?? [];
+      return `<div class="git-graph" data-git-graph data-read-only="${repo.worktree}">
+        <div class="git-toolbar"><div class="segmented" role="group" aria-label="范围"><button aria-pressed="true" data-fk="git-all">所有分支</button>
+          <button aria-pressed="false" data-action="note" data-note="真实应用会只列当前分支能走到的提交。" data-fk="git-current">当前分支</button></div>
+          <label class="git-check"><input type="checkbox" checked data-fk="git-remotes">远程分支</label><span class="git-branch">${esc(repo.branch)}</span>
+          <button class="text-button" data-action="note" data-note="${repo.worktree ? '只读：受管 worktree 不能抓取、提交或贮藏。' : '真实应用这里有抓取、拉取、推送、提交和贮藏，写操作都先弹确认框。'}" data-fk="git-menu">仓库操作…</button></div>
+        ${repo.worktree ? `<p class="panel-readonly" role="note">${readOnlyGraph}</p>` : ''}
+        <div class="git-table" role="table" aria-label="提交"><div class="git-row git-head" role="row"><span role="columnheader">图</span><span role="columnheader">说明</span><span role="columnheader">日期</span><span role="columnheader">提交</span></div>
+          <div class="git-rows" data-sk="git-rows">${list.map((commit, index) => `<div role="row" class="git-row${commit.hash === ui.gitSelected ? ' selected' : ''}${commit.uncommitted ? ' uncommitted' : ''}" data-action="git-select" data-commit="${commit.hash}" data-commit-hash="${commit.hash}">
+            <span role="cell" class="git-lanes">${lanesSvg(rows[index], commit.labels.some(label => label[2]))}</span>
+            <span role="cell" class="git-description">${commit.labels.map(([kind, name, head]) => `<span class="git-label${head ? ' head' : ''}"><span class="git-label-part ${kind}">${esc(name)}</span></span>`).join('')}<span class="git-subject">${esc(commit.subject)}</span></span>
+            <span role="cell" class="git-date">${commit.time}</span><span role="cell" class="git-hash">${commit.uncommitted ? '' : commit.hash.slice(0, 8)}</span></div>`).join('')}</div></div>
+        ${selected ? `<section class="git-details" aria-label="提交详情" data-git-details="${selected.hash}"><header><strong class="git-details-title">${esc(selected.subject)}</strong>
+          <button class="icon-button" data-action="git-close" data-fk="git-close" aria-label="关闭详情">${svgClose}</button></header>
+          ${ui.gitDiff ? `<div class="git-diff" data-git-diff="${esc(ui.gitDiff[1])}"><div class="git-diff-head"><button class="text-button" data-action="git-files" data-fk="git-files">← 文件</button><code>${esc(ui.gitDiff[1])}</code></div>
+            ${diffView(diffRows(ui.gitDiff[1], ui.gitDiff[2], ui.gitDiff[3]), false)}</div>`
+          : `<div class="git-details-body">${selected.uncommitted ? '' : `<dl class="git-meta"><div><dt>提交</dt><dd><code>${selected.hash}</code></dd></div><div><dt>作者</dt><dd>${esc(selected.author)}</dd></div><div><dt>时间</dt><dd>${selected.time}</dd></div></dl>`}
+            ${selected.body ? `<pre class="git-body">${esc(selected.body)}</pre>` : ''}
+            <ul class="git-files" aria-label="改动的文件">${files.map(([status, path, add, del]) => `<li><button class="git-file" data-action="git-file" data-file="${esc(path)}" data-git-file="${esc(path)}" data-fk="gf:${esc(path)}">
+              <span class="file-status">${status}</span><span class="file-path">${esc(path)}</span>${fileStat(add, del)}</button></li>`).join('')}</ul></div>`}</section>` : ''}
+      </div>`;
+    }
+
+    const groupTitles = { conflict: '冲突', staged: '已暂存', unstaged: '未暂存' };
+    function changesPanel(repo) {
+      const base = ui.changeScope === 'base', items = base ? repo.base.files.map(([code, path, add, del]) => ({ path, code, add, del, group: 'base' })) : repo.changes;
+      const selected = items.find(item => item.path === ui.changeSelected) ?? items[0] ?? null;
+      const total = items.reduce((sum, item) => [sum[0] + item.add, sum[1] + item.del], [0, 0]);
+      const writable = !repo.worktree && !base;
+      const groups = base ? [['base', items]] : ['conflict', 'staged', 'unstaged'].map(group => [group, items.filter(item => item.group === group)]).filter(([, list]) => list.length);
+      return `<div class="changes" data-changes data-read-only="${repo.worktree}" data-scope="${ui.changeScope}">
+        <div class="git-toolbar"><div class="segmented" role="group" aria-label="范围">
+          <button aria-pressed="${!base}" data-action="change-scope" data-scope="worktree" data-fk="cs-worktree">未提交</button>
+          <button aria-pressed="${base}" data-action="change-scope" data-scope="base" data-fk="cs-base">与基线比较</button></div>
+          ${base ? `<span class="changes-base">基线 <code>${esc(repo.base.name)}</code> · 本分支 ${repo.base.commits} 个提交</span>` : ''}
+          <span class="changes-total">${items.length} 个文件 <span class="add">+${total[0]}</span> <span class="del">-${total[1]}</span></span></div>
+        ${repo.worktree ? `<p class="panel-readonly" data-changes-readonly>${readOnlyChanges}</p>` : ''}
+        <div class="changes-main"><div class="changes-list" role="listbox" aria-label="改动的文件">
+          ${!groups.length ? '<p class="panel-empty">没有改动。</p>' : groups.map(([group, list]) => `<section class="change-group" data-changes-group="${group}"><h4>${base ? '与 ' + esc(repo.base.name) + ' 相比' : groupTitles[group]} <span class="muted">${list.length}</span></h4>
+            ${list.map(item => `<div role="option" aria-selected="${item === selected}" class="change-row${item === selected ? ' selected' : ''}" data-action="change-select" data-file="${esc(item.path)}" data-change-path="${esc(item.path)}" style="padding-left:10px">
+              <span class="change-code code-${item.code}">${item.code}</span><span class="change-name">${esc(item.path)}</span>${fileStat(item.add, item.del)}
+              ${writable ? `<span class="change-actions">${item.group === 'staged' ? `<button class="text-button" data-action="unstage" data-file="${esc(item.path)}" data-fk="un:${esc(item.path)}">取消</button>`
+                : `<button class="text-button" data-action="stage" data-file="${esc(item.path)}" data-fk="st:${esc(item.path)}">暂存</button>`}
+                <button class="text-button danger" data-action="note" data-note="真实应用会先弹确认框再丢弃；演示不丢弃。" data-fk="dc:${esc(item.path)}">丢弃</button></span>` : ''}</div>`).join('')}</section>`).join('')}</div>
+          <div class="changes-diff" data-changes-diff="${esc(selected?.path ?? '')}">${selected ? `<div class="git-diff-head"><code>${esc(selected.path)}</code></div>
+            ${diffView(diffRows(selected.path, selected.add, selected.del), true)}
+            ${ui.picked !== null ? `<div class="note-draft" data-note-draft><span class="muted">${esc(selected.path)}:${ui.picked + 11}</span>
+              <textarea rows="2" placeholder="写一条审阅备注" data-note-input data-fk="note-input">${esc(ui.noteDraft)}</textarea>
+              <span><button class="text-button" data-action="note-save" data-fk="note-save" ${ui.noteDraft.trim() ? '' : 'disabled'}>保存备注</button><button class="text-button" data-action="note-cancel" data-fk="note-cancel">取消</button></span></div>` : ''}`
+            : '<p class="panel-empty">选一个文件看 diff。</p>'}</div></div>
+        ${ui.notes.length ? `<div class="changes-notes" data-changes-notes="${ui.notes.length}"><span>${ui.notes.length} 条审阅备注</span>
+          <button class="text-button" data-action="notes-clear" data-fk="notes-clear">清空</button>
+          <button class="primary-button" data-action="notes-send" data-fk="notes-send" ${ui.focusedPane ? '' : 'disabled'}>发到聚焦的终端</button></div>` : ''}
+        ${!base ? `<div class="changes-commit"><textarea rows="1" placeholder="提交说明（Enter 提交）" data-commit-input data-fk="commit-input" ${repo.worktree ? 'disabled' : ''}>${esc(ui.commitDraft)}</textarea>
+          <button class="primary-button" data-action="commit" data-fk="commit" ${repo.worktree || !ui.commitDraft.trim() ? 'disabled' : ''}>提交</button></div>` : ''}
+      </div>`;
+    }
+
+    function panelDock() {
+      if (!ui.dock || !ui.project) return '';
+      const { repo, source } = followed();
+      return `<aside class="panel-dock" aria-label="侧边面板" data-panel-dock data-followed-dir="${esc(repo.dir)}">
+        <header class="panel-dock-header"><nav class="panel-tabs" aria-label="面板">
+          <button aria-pressed="${ui.dock === 'git-graph'}" data-action="dock" data-dock="git-graph" data-fk="dock:git-graph">Git 图</button>
+          <button aria-pressed="${ui.dock === 'changes'}" data-action="dock" data-dock="changes" data-fk="dock:changes">改动</button></nav>
+          <button class="icon-button" data-action="dock-close" data-fk="dock-close" aria-label="关闭面板">${svgClose}</button></header>
+        <div class="panel-follow" data-panel-follow><span class="panel-follow-source">${source}</span><span class="panel-follow-dir" title="${esc(repo.dir)}">${esc(repo.dir)}</span>
+          <button class="text-button" data-action="note" data-note="固定后面板不再跟随聚焦的窗格。" data-fk="dock-pin">固定</button></div>
+        <div class="panel-body">${ui.dock === 'git-graph' ? gitGraphPanel(repo) : changesPanel(repo)}</div>
+      </aside>`;
+    }
+
     // ---------- 整体渲染 ----------
     function render() {
       const active = document.activeElement && root.contains(document.activeElement) ? document.activeElement.getAttribute('data-fk') : null;
@@ -648,9 +803,9 @@
       const waiting = waitingQuestions().length;
       const task = findTask();
       const project = findProject(ui.project);
-      root.innerHTML = `${sidebar()}
+      root.innerHTML = `${ui.sidebarHidden ? '' : sidebar()}
           <main>
-            <header class="task-header"><div class="header-title"><h1>${task ? esc(task.title) : project ? esc(project.id) : '独立终端'}</h1>
+            <header class="task-header">${ui.sidebarHidden ? `<button class="icon-button" data-action="sidebar-show" data-fk="show-sidebar" aria-label="显示侧栏">${svgSidebar}</button>` : ''}<div class="header-title"><h1>${task ? esc(task.title) : project ? esc(project.id) : '独立终端'}</h1>
               <span class="eyebrow">${task ? `${esc(ui.project)} / ${esc(task.id)}` : project ? esc(project.repo) : '~'}</span></div>
               <nav class="workspace-pages" aria-label="工作区页面">
                 <button data-action="page" data-page="terminal" data-fk="page:terminal" ${ui.page === 'terminal' ? 'aria-current="page"' : ''}>终端</button>
@@ -661,10 +816,12 @@
                 <button data-action="page" data-page="reflect" data-fk="page:reflect" ${ui.page === 'reflect' ? 'aria-current="page"' : ''}>Reflect</button>
               </nav>
               <span class="connection">演示数据<output data-dock aria-label="Dock 角标">${ui.dockBadges && waiting ? `<span class="dock-badge" title="Dock 角标">${waiting}</span>` : ''}</output></span>
+              ${ui.project ? `<button class="text-button header-panel-toggle" data-action="dock-toggle" data-panel-toggle data-fk="dock-toggle" aria-pressed="${Boolean(ui.dock)}" title="侧边面板">面板</button>` : ''}
               <button class="primary-button" data-action="new-terminal" data-fk="new-terminal">新建终端</button></header>
             ${{ flow: flowPage, issues: issuesPage, records: recordsPage, metrics: metricsPage, reflect: reflectPage }[ui.page]?.() ?? ''}
             ${terminalPage()}
           </main>
+        ${panelDock()}
         <aside class="app-notifications" aria-label="待回答通知" aria-live="polite">${pending.map(agent => `<button data-action="notice" data-notice-launch="${agent.id}" data-fk="notice:${agent.id}">
           <strong>等待用户回答</strong><span>${agent.project} · ${roleLabel(agent)}</span><span>${agent.task ?? '未归属任务'} · 查看问题 →</span></button>`).join('')}</aside>
         ${menuView()}${settingsView()}
@@ -753,7 +910,10 @@
     root.addEventListener('click', event => {
       const target = event.target.closest('[data-action]');
       if (!target || target.disabled || !root.contains(target)) {
-        if (ui.menu && !event.target.closest('.pane-menu')) { ui.menu = null; render(); }
+        if (ui.menu && !event.target.closest('.pane-menu')) { ui.menu = null; render(); return; }
+        // 点一下窗格就聚焦它；侧边面板跟着换目录（T-249）。
+        const pane = event.target.closest('.pane[data-pane-key]');
+        if (pane && !target && ui.focusedPane !== pane.dataset.paneKey) { ui.focusedPane = pane.dataset.paneKey; ui.gitSelected = null; ui.gitDiff = null; ui.changeSelected = null; ui.picked = null; render(); }
         return;
       }
       const action = target.dataset.action;
@@ -807,6 +967,54 @@
         case 'flow-toggle': ui.flowOpen[target.dataset.task] = target.getAttribute('aria-expanded') !== 'true'; break;
         case 'flow-more': ui.flowExpanded[target.dataset.group] = !ui.flowExpanded[target.dataset.group]; break;
         case 'note': ui.note = target.dataset.note; break;
+        case 'sidebar-hide': ui.sidebarHidden = true; ui.focusTarget = 'show-sidebar'; break;
+        case 'sidebar-show': ui.sidebarHidden = false; ui.focusTarget = 'toggle-sidebar'; break;
+        case 'dock-toggle': ui.dock = ui.dock ? null : 'git-graph'; break;
+        case 'dock': ui.dock = target.dataset.dock; ui.picked = null; break;
+        case 'dock-close': ui.dock = null; ui.focusTarget = 'dock-toggle'; break;
+        case 'git-select': ui.gitSelected = ui.gitSelected === target.dataset.commit ? null : target.dataset.commit; ui.gitDiff = null; break;
+        case 'git-close': ui.gitSelected = null; ui.gitDiff = null; break;
+        case 'git-files': ui.gitDiff = null; break;
+        case 'git-file': {
+          const { repo } = followed();
+          const commit = repo.commits.find(item => item.hash === ui.gitSelected);
+          const file = commit ? commit.files.find(item => item[1] === target.dataset.file) : repo.changes.map(item => [item.code, item.path, item.add, item.del]).find(item => item[1] === target.dataset.file);
+          ui.gitDiff = file; break;
+        }
+        case 'change-scope': ui.changeScope = target.dataset.scope; ui.changeSelected = null; ui.picked = null; break;
+        case 'change-select': if (ui.changeSelected !== target.dataset.file) { ui.changeSelected = target.dataset.file; ui.picked = null; } break;
+        case 'stage': case 'unstage': {
+          const item = followed().repo.changes.find(change => change.path === target.dataset.file);
+          item.group = action === 'stage' ? 'staged' : 'unstaged'; ui.changeSelected = item.path; event.stopPropagation(); break;
+        }
+        case 'pick-line': ui.picked = Number(target.dataset.line); ui.focusTarget = 'note-input'; break;
+        case 'note-cancel': ui.picked = null; ui.noteDraft = ''; break;
+        case 'note-save': {
+          const repo = followed().repo, selected = ui.changeSelected ?? (ui.changeScope === 'base' ? repo.base.files[0][1] : repo.changes[0]?.path);
+          ui.notes.push(`${selected}:${ui.picked + 11} ${ui.noteDraft.trim()}`); ui.picked = null; ui.noteDraft = ''; break;
+        }
+        case 'notes-clear': ui.notes = []; break;
+        case 'notes-send': {
+          const pane = panes[ui.focusedPane];
+          if (!pane) break;
+          pane.lines.push(['info', '（粘贴）审阅备注：'], ...ui.notes.map(text => ['', '  ' + text]));
+          const agent = pane.kind === 'agent' ? findAgent(pane.launch) : null;
+          if (agent && ui.project === 'inkwell') record(agent.task, roleLabel(agent), '粘贴', '审阅备注', ui.notes.join('；'));
+          ui.note = agent?.role === 'worker' ? '备注已作为粘贴送进 worker 窗格，不自动回车；记为人工介入。' : '备注已作为粘贴送进聚焦的终端，不自动回车。';
+          ui.notes = []; break;
+        }
+        case 'commit': {
+          const repo = followed().repo;
+          if (repo.worktree || !ui.commitDraft.trim()) break;
+          if (!repo.changes.some(item => item.group === 'staged')) repo.changes.forEach(item => { item.group = 'staged'; });
+          const staged = repo.changes.filter(item => item.group === 'staged');
+          const head = repo.commits[0];
+          head.labels = head.labels.filter(label => !label[2]);
+          repo.commits.unshift({ hash: (0xc0ffee00 + (++repo.seq)).toString(16) + '1a', subject: ui.commitDraft.trim(), author: 'lin', time: '刚刚',
+            labels: [['branch', repo.branch, true]], files: staged.map(item => [item.code === '?' ? 'A' : item.code, item.path, item.add, item.del]) });
+          repo.changes = repo.changes.filter(item => item.group !== 'staged');
+          ui.commitDraft = ''; ui.changeSelected = null; ui.note = `已提交 ${staged.length} 个文件；切到 Git 图能看到新提交。`; break;
+        }
         case 'rr-decide': decideRoleRequest(target.dataset.request, target.dataset.approve === 'true'); break;
         case 'issue-snooze': {
           const issue = data.issues.find(item => item.id === target.dataset.issue);
@@ -884,6 +1092,12 @@
       } else if (el.dataset.renameInput) {
         ui.renameDraft = el.value;
         el.closest('form').querySelector('button:not([type])').disabled = !el.value.trim();
+      } else if ('noteInput' in el.dataset) {
+        ui.noteDraft = el.value;
+        root.querySelector('[data-action="note-save"]').disabled = !el.value.trim();
+      } else if ('commitInput' in el.dataset) {
+        ui.commitDraft = el.value;
+        root.querySelector('[data-action="commit"]').disabled = !el.value.trim();
       }
     });
 
@@ -906,6 +1120,10 @@
     });
 
     root.addEventListener('keydown', event => {
+      // 提交说明：Enter 提交，Shift+Enter 换行（与 ChangesPanel.tsx 相同）。
+      if ('commitInput' in event.target.dataset && event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+        event.preventDefault(); root.querySelector('[data-action="commit"]')?.click(); return;
+      }
       if (ui.menu && event.target.closest('.pane-menu')) {
         const items = [...root.querySelectorAll('.pane-menu button')];
         const index = items.indexOf(document.activeElement);
@@ -946,6 +1164,11 @@
       metrics: { project: 'inkwell', page: 'metrics', spot: '.metric-section[data-metric="first-time"]' },
       reflect: { project: 'inkwell', page: 'reflect', spot: '.reflect-tree' },
       settings: { settings: true, spot: '.execution-settings' },
+      // 侧边面板：在 T-11 的分屏里，先聚焦项目目录的普通终端，再聚焦 worker，面板跟着换到它的 worktree。
+      'git-graph': { project: 'inkwell', task: 'T-11', page: 'terminal', dock: 'git-graph', focus: 'shell', spot: '.panel-follow, .git-table' },
+      'git-diff': { project: 'inkwell', task: 'T-11', page: 'terminal', dock: 'git-graph', focus: 'shell', commit: 'e41a9c3f58', diff: 'src/csv/escape.ts', spot: '.git-details' },
+      changes: { project: 'inkwell', task: 'T-11', page: 'terminal', dock: 'changes', focus: 'shell', spot: '.changes-list, .changes-commit' },
+      worktree: { project: 'inkwell', task: 'T-11', page: 'terminal', dock: 'changes', focus: 'worker', spot: '.panel-follow, .panel-readonly, .pane-focused' },
     };
     const calm = window.matchMedia('(prefers-reduced-motion: reduce)');
     // 换场景时内容淡入、窗格依次出现；减弱动效时直接显示。
@@ -969,6 +1192,10 @@
       else if (scene.project && !findProject(scene.project).tasks.some(task => task.id === ui.task)) ui.task = null;
       if (scene.page) ui.page = scene.page;
       if (scene.settings) ui.settingsOpen = true;
+      Object.assign(ui, { dock: scene.dock ?? null, sidebarHidden: Boolean(scene.dock), gitSelected: scene.commit ?? null, gitDiff: null, changeSelected: null, changeScope: 'worktree', picked: null });
+      if (scene.focus) ui.focusedPane = Object.keys(paneRects(layouts[layoutKey()])).find(key => scene.focus === 'shell' ? panes[key].kind === 'shell'
+        : panes[key].kind === 'agent' && findAgent(panes[key].launch).role === 'worker') ?? null;
+      if (scene.diff) ui.gitDiff = followed().repo.commits.find(commit => commit.hash === scene.commit).files.find(file => file[1] === scene.diff);
       const then = scene.then;
       if (then && calm.matches) Object.assign(ui, then);
       render(); enter();

@@ -352,3 +352,154 @@
 @keyframes wb-rise { from { opacity: 0; transform: translateY(6px) scale(.985); } }
 @keyframes wb-toast { from { opacity: 0; transform: translateX(12px); } }
 @keyframes wb-spot { from { outline-color: transparent; } }
+
+/* 侧边面板（T-249 Git 图、T-250 改动）：取自 workbench/app/panels/panels.css，选择器限定在 .wb 下。
+   --lane-N 在真实应用里取终端主题的 ANSI 颜色，这里给一组相近的固定值。 */
+.wb .panel-dock { width: 400px; --lane-0: #3b82f6; --lane-1: #d9534f; --lane-2: #2f9e5b; --lane-3: #9b6bd6; --lane-4: #d4882b; --lane-5: #2aa5b8;
+  --lane-6: #c2558e; --lane-7: #7a8a99; --lane-8: #5b7bd5; --lane-9: #e06c5a; --lane-10: #5aa86d; --lane-11: #b58ad8; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .wb:not([data-theme="light"]) .panel-dock { --lane-0: #6aa6ff; --lane-1: #ff7b72; --lane-2: #56d364; --lane-3: #c4a2f5; --lane-4: #f0b45a; --lane-5: #5cc8d9; } }
+:root[data-theme="dark"] .wb:not([data-theme="light"]) .panel-dock, .wb[data-theme="dark"] .panel-dock { --lane-0: #6aa6ff; --lane-1: #ff7b72; --lane-2: #56d364; --lane-3: #c4a2f5; --lane-4: #f0b45a; --lane-5: #5cc8d9; }
+.wb --diff-add-bg: color-mix(in srgb, .wb var(--lane-2) 13%, .wb transparent); --diff-del-bg: color-mix(in srgb, .wb var(--lane-1) 11%, .wb transparent);
+.panel-dock { position: relative; flex: 0 0 auto; min-width: 320px; display: flex; flex-direction: column; min-height: 0; background: var(--sheet); margin: 8px 8px 8px 0; border-radius: 12px; box-shadow: 0 0 0 .5px var(--sheet-edge), 0 1px 3px rgba(0, 0, 0, .06); overflow: hidden; }
+.wb .panel-dock-header { flex-shrink: 0; height: 52px; display: flex; align-items: center; gap: 8px; padding: 0 10px 0 14px; border-bottom: 1px solid var(--line); }
+.wb .panel-dock-header button {  }
+.wb .panel-tabs { flex: 1; display: flex; gap: 2px; }
+.wb .panel-tabs button { display: inline-flex; align-items: center; gap: 6px; background: transparent; color: var(--muted); padding: 4px 10px; }
+.wb .panel-tabs button[aria-pressed="true"] { background: var(--control-hover); color: var(--ink); }
+.wb .panel-follow { flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-bottom: 1px solid var(--line); font-size: 12px; }
+.wb .panel-follow-source { color: var(--faint); flex-shrink: 0; }
+.wb .panel-follow-dir { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); }
+.wb .panel-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.wb .panel-empty { color: var(--muted); padding: 14px; margin: 0; font-size: 12px; }
+.wb .panel-error { color: var(--danger); padding: 8px 14px; margin: 0; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.wb .panel-notice { margin: 0; padding: 6px 14px; font-size: 12px; color: var(--ink); background: var(--control); }
+.wb .panel-notice.error { color: var(--danger); }
+.wb .panel-readonly { margin: 0; padding: 6px 14px; font-size: 12px; color: var(--needs-ink); background: var(--needs-bg); }
+.wb .header-panel-toggle[aria-pressed="true"] { background: var(--control-hover); }
+.wb .git-graph { flex: 1; min-height: 0; display: flex; flex-direction: column; outline: none; }
+.wb .git-toolbar { flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--line); font-size: 12px; flex-wrap: wrap; }
+.wb .segmented { display: flex; gap: 2px; padding: 2px; background: var(--control); border-radius: 7px; }
+.wb .segmented button { background: transparent; padding: 2px 9px; border-radius: 5px; color: var(--muted); }
+.wb .segmented button[aria-pressed="true"] { background: var(--sheet); color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, .1); }
+.wb .git-check { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+.wb .git-branch { margin-left: auto; font-family: var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40%; }
+.wb .git-table { flex: 1; min-height: 0; display: flex; flex-direction: column; font-size: 12px; }
+.wb .git-row { display: grid; grid-template-columns: var(--git-columns); align-items: center; height: 24px; padding-right: 8px; white-space: nowrap; }
+.wb .git-row > span { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.wb .git-head { flex-shrink: 0; color: var(--faint); border-bottom: 1px solid var(--line); }
+.wb .git-head > span { position: relative; padding-left: 6px; }
+.wb .git-rows { flex: 1; min-height: 0; overflow: auto; }
+.wb .git-rows .git-row:hover { background: var(--row-hover); }
+.wb .git-rows .git-row.selected { background: var(--control-hover); }
+.wb .git-row.uncommitted .git-subject { color: var(--muted); font-style: italic; }
+.wb .git-lanes { height: 24px; }
+.wb .git-lanes svg { display: block; }
+.wb .lane-line { fill: none; stroke-width: 1.6; }
+.wb .lane-dot { stroke-width: 1.6; }
+.wb .lane-dot.open { fill: var(--sheet); }
+.wb .lane-dot.head { stroke: var(--ink); }
+.wb .lane-0 { stroke: var(--lane-0); fill: var(--lane-0); }
+.wb .lane-1 { stroke: var(--lane-1); fill: var(--lane-1); }
+.wb .lane-2 { stroke: var(--lane-2); fill: var(--lane-2); }
+.wb .lane-3 { stroke: var(--lane-3); fill: var(--lane-3); }
+.wb .lane-4 { stroke: var(--lane-4); fill: var(--lane-4); }
+.wb .lane-5 { stroke: var(--lane-5); fill: var(--lane-5); }
+.wb .lane-6 { stroke: var(--lane-6); fill: var(--lane-6); }
+.wb .lane-7 { stroke: var(--lane-7); fill: var(--lane-7); }
+.wb .lane-8 { stroke: var(--lane-8); fill: var(--lane-8); }
+.wb .lane-9 { stroke: var(--lane-9); fill: var(--lane-9); }
+.wb .lane-10 { stroke: var(--lane-10); fill: var(--lane-10); }
+.wb .lane-11 { stroke: var(--lane-11); fill: var(--lane-11); }
+.wb .lane-line.lane-0, .wb .lane-line.lane-1, .wb .lane-line.lane-2, .wb .lane-line.lane-3, .wb .lane-line.lane-4, .wb .lane-line.lane-5, .wb .lane-line.lane-6, .wb .lane-line.lane-7, .wb .lane-line.lane-8, .wb .lane-line.lane-9, .wb .lane-line.lane-10, .wb .lane-line.lane-11 { fill: none; }
+.wb .lane-dot.open[class*="lane-"] { fill: var(--sheet); }
+.wb .git-description { display: flex; align-items: center; gap: 6px; padding-left: 4px; }
+.wb .git-subject { overflow: hidden; text-overflow: ellipsis; }
+.wb .git-label { flex-shrink: 0; display: inline-flex; border: 1px solid var(--control-border); border-radius: 5px; overflow: hidden; font-size: 11px; line-height: 16px; }
+.wb .git-label.head { border-color: var(--ink); }
+.wb .git-label-part { padding: 0 5px; font-family: var(--mono); }
+.wb .git-label-part.branch { color: var(--lane-0); }
+.wb .git-label-part.remote { color: var(--lane-3); background: var(--control); }
+.wb .git-label-part.tag { color: var(--lane-4); }
+.wb .git-label-part.head { color: var(--ink); font-weight: 600; }
+.wb .git-date, .wb .git-author, .wb .git-hash { color: var(--muted); padding-left: 6px; }
+.wb .git-hash { font-family: var(--mono); }
+.wb .git-more { margin: 6px auto; display: block; }
+.wb .git-details { flex: 0 0 auto; max-height: 52%; min-height: 160px; display: flex; flex-direction: column; border-top: 1px solid var(--line); font-size: 12px; }
+.wb .git-details > header { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+.wb .git-details-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb .git-details-body, .wb .git-diff { flex: 1; min-height: 0; overflow: auto; padding: 6px 10px; }
+.wb .git-meta { margin: 0; display: grid; gap: 3px; }
+.wb .git-meta div { display: flex; gap: 8px; }
+.wb .git-meta dt { color: var(--faint); width: 48px; flex-shrink: 0; }
+.wb .git-meta dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.wb .git-meta .text-button { padding: 0 4px; }
+.wb .git-body { white-space: pre-wrap; font-family: var(--mono); font-size: 11.5px; margin: 8px 0; color: var(--ink); }
+.wb .git-files { list-style: none; margin: 6px 0 0; padding: 0; }
+.wb .git-file { width: 100%; display: flex; gap: 8px; align-items: baseline; text-align: left; background: transparent; padding: 3px 6px; border-radius: 5px; }
+.wb .file-status { font-family: var(--mono); width: 12px; color: var(--muted); }
+.wb .file-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); }
+.wb .file-stat .add, .wb .diff-line.add .diff-sign { color: var(--lane-2); }
+.wb .file-stat .del { color: var(--lane-1); }
+.wb .git-diff-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.wb .diff-lines { margin: 0; font-family: var(--mono); font-size: 11.5px; line-height: 17px; }
+.wb .diff-line { display: flex; white-space: pre; }
+.wb .diff-line.add { background: var(--diff-add-bg); }
+.wb .diff-line.del { background: var(--diff-del-bg); }
+.wb .diff-line.hunk { color: var(--lane-5); }
+.wb .diff-number { width: 40px; flex-shrink: 0; text-align: right; padding-right: 8px; color: var(--faint); user-select: none; }
+.wb .changes { flex: 1; min-height: 0; display: flex; flex-direction: column; outline: none; container-type: inline-size; font-size: 12px; }
+.wb .changes .add { color: var(--lane-2); }
+.wb .changes .del { color: var(--lane-1); }
+.wb .changes .muted { color: var(--faint); }
+.wb .changes-total { margin-left: auto; color: var(--muted); white-space: nowrap; }
+.wb .changes-base { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+.wb .changes-base select { font: inherit; max-width: 160px; }
+.wb .changes-main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.wb .changes-list { flex: 0 1 42%; min-height: 80px; overflow: auto; border-bottom: 1px solid var(--line); }
+.wb .changes-diff { flex: 1; min-height: 0; overflow: auto; padding: 6px 10px; display: flex; flex-direction: column; }
+.wb .change-row { display: flex; align-items: center; gap: 8px; height: 22px; padding-right: 8px; cursor: default; white-space: nowrap; }
+.wb .change-row:hover { background: var(--row-hover); }
+.wb .change-row.selected { background: var(--control-hover); }
+.wb .change-code { width: 12px; font-family: var(--mono); color: var(--muted); }
+.wb .change-code.code-A, .wb .change-code.code-\? { color: var(--lane-2); }
+.wb .change-code.code-D { color: var(--lane-1); }
+.wb .change-code.code-M { color: var(--lane-4); }
+.wb .change-code.code-U { color: var(--danger); font-weight: 600; }
+.wb .change-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-family: var(--mono); }
+.wb .change-actions { display: none; gap: 2px; }
+.wb .change-row:hover .change-actions, .wb .change-row.selected .change-actions { display: inline-flex; }
+.wb .change-actions .text-button { padding: 0 5px; font-size: 11px; }
+.wb .change-actions .danger { color: var(--danger); }
+.wb .changes-lines .diff-line { cursor: text; }
+.wb .changes-lines .diff-line.picked { box-shadow: inset 3px 0 0 var(--lane-0); background: color-mix(in srgb, var(--lane-0) 12%, transparent); }
+.wb .changes-lines .diff-number { width: 36px; }
+.wb .diff-sign { width: 12px; flex-shrink: 0; color: var(--faint); user-select: none; }
+.wb .diff-line.del .diff-sign { color: var(--lane-1); }
+.wb .diff-text { white-space: pre; }
+.wb .diff-line.add .word { background: color-mix(in srgb, var(--lane-2) 30%, transparent); border-radius: 2px; }
+.wb .diff-line.del .word { background: color-mix(in srgb, var(--lane-1) 28%, transparent); border-radius: 2px; }
+.wb .diff-line.meta { color: var(--faint); }
+.wb .tok-keyword { color: var(--lane-3); }
+.wb .tok-string { color: var(--lane-2); }
+.wb .tok-comment { color: var(--faint); font-style: italic; }
+.wb .tok-number { color: var(--lane-4); }
+.wb .diff-line.add .tok-string, .wb .diff-line.del .tok-string { color: var(--lane-5); }
+.wb .diff-fold { display: block; width: 100%; text-align: left; background: var(--control); border-radius: 0; color: var(--muted); padding: 1px 52px; font-family: var(--mono); font-size: 11px; }
+.wb .note-draft { position: sticky; bottom: 0; display: grid; gap: 4px; padding: 6px; background: var(--sheet); border-top: 1px solid var(--line); }
+.wb .note-draft textarea, .wb .changes-commit textarea { font: inherit; resize: vertical; width: 100%; box-sizing: border-box; }
+.wb .changes-notes { flex-shrink: 0; display: flex; gap: 8px; align-items: center; padding: 6px 10px; border-top: 1px solid var(--line); background: var(--control); }
+.wb .changes-notes span { flex: 1; }
+.wb .changes-commit { flex-shrink: 0; display: flex; gap: 8px; align-items: flex-end; padding: 8px 10px; border-top: 1px solid var(--line); }
+.wb .changes-commit textarea { flex: 1; }
+
+.wb .changes-list { flex: 0 0 auto; max-height: 34%; }
+.wb .changes-diff { position: relative; }
+.wb .changes-lines .diff-line[data-action] { cursor: pointer; }
+.wb .changes-commit textarea, .wb .note-draft textarea { color: var(--ink); background: var(--field); border: 1px solid var(--control-border); border-radius: 6px; padding: 5px 8px; }
+.wb .git-row[data-action] { cursor: pointer; }
+.wb .task-header > .icon-button { margin-left: -8px; }
+.wb .git-table { --git-columns: 40px minmax(0, 1fr) 70px 66px; }
+/* 面板打开时主区变窄：页签不换行，“演示数据”字样让位，标题省略。 */
+.wb .task-header button { white-space: nowrap; flex-shrink: 0; }
+.wb main:has(+ .panel-dock) .connection { display: none; }
+.wb main:has(+ .panel-dock) .header-title { min-width: 60px; }
