@@ -1,0 +1,1223 @@
+{
+  "command": [
+    "/Applications/Enchanted.app/Contents/MacOS/Enchanted",
+    "/Applications/Enchanted.app/Contents/Resources/app/src/gates/cli.ts",
+    "--state",
+    "/Users/luckye/Library/Application Support/a2a-orchestrator",
+    "status",
+    "--task",
+    "a2a+T-249-2"
+  ],
+  "exit_code": 0,
+  "result": {
+    "ok": true,
+    "task": {
+      "task_id": "a2a+T-249-2",
+      "name": "T-249-2",
+      "title": "T-249-2",
+      "project_id": "a2a",
+      "repo": "/Users/luckye/Documents/Code/a2a",
+      "integration_ref": "refs/heads/main",
+      "card_snapshot_id": "740cffb9-1e76-4c2b-a2d6-0aecbe941ccc",
+      "card_version": 6,
+      "card": {
+        "id": "T-249-2",
+        "source": {
+          "ticket": "/Users/luckye/Documents/Code/a2a/.project-map/tickets/T-249-git-graph-panel.md",
+          "ready_rev": 1
+        },
+        "goal": "本次是 T-266 审查回收故障正常重启后的限定恢复。你不是唯一参与者，不覆盖他人改动。模型仍为 gpt-6.1-terra xhigh 普通速度。本次不重做 CU，也不改产品。\n\n从完整检查点 c16489e2d435513a00bfa3b61ec2ae346549bfb0 逐文件按原字节导入 evidence/2026-11-08-batch34/T-249/terra/ 全部文件。该检查点包含原 a4 真实 CU 证据、a5 正确的 10 位父哈希检查器，以及独立审查唯一缺口（超长值未覆盖）的修复。原 a5 审查 d20988dc-95ec-4424-8f62-07d1ef2d052f 的结论是需修复，不得改成通过；完整报告和 M5 反例已保存在主仓库 evidence/2026-11-09-batch35/T-249/review-terra-a5-01/，主控复现见 controller-package/overlong-reproduction-01.json。原修复提交被门禁以 invalid_state 拒绝是回收故障造成，不能当作业务失败。\n\n只新增恢复说明和本次回放输出，原正确 observations.json、git-facts.json、截图来源和常规测试输出均原字节保留。运行 check_observations.py、check-parent-cases.py、replay-overlong.py（先读取脚本参数），确认当前 24 个场景通过且 M5 对 11/40 位超长值的 6 个反例被新测试抓住；记录命令、实际退出和来源。不得将本次文档导入声称为本次新 CU。保持旧红态和报告，不改 checker、开发测试或独立 oracle，若实际失败上报。\n\n本次独立审查是 T-240 允许的一次限定复审：核对 c16489e2 的五文件修复范围、24 场景与 M5 六个超长反例、原输入和 CU 证据字节保持一致，以及本次恢复导入绑定。完整审查已有结论，不再重复整体面板盲审。复审仍绑定最终新候选；可按门禁要求选择 M5 和旧 startswith 等 2 个与修复不变量直接相关的变异。\n\n你只提交和显式 submit 一次完整新 SHA，不 verify/integrate/reclaim，不启动其他 agent，不 push。按 evidence-first-testing、document-writing，结果中文。下面原卡提供事实背景，若其导入起点或已完成步骤与本段不同，以本段指定的 c16489e2 精确恢复为准。\n\n你负责 T-249 Terra 验收交付的限定证据修复，不实现产品、不重新执行已完成的 CU。Codex gpt-6.1-terra xhigh 普通速度；你不是唯一参与者，不撤销他人改动，不启动其他 agent。\n\n实际产品仍为父 C=63304e0fcb3510d9cf4b1cbea5c3064fbb8286dd，已审查并打包测试的 M=92163e7d850df1d093a607144c6dfd7d256f53e1。上一 Terra a4 已亲自完成 Git 图实际 CU 和三项常规测试，工作台行为没有新增反例。不得沿用旧 v3 的 INCOMPLETE；使用这一次 a4 的实际观察、原始 Git 输入和截图来源。\n\n先从上一 a4 最终证据提交 d9b75c077bbcc33ae9b77e7f188916d787f2c803 用 git show 按原字节导入 evidence/2026-11-08-batch34/T-249/terra/ 所有文件，不导入其他路径或产品代码。保留原 RESULTS.md 的来源边界和原始失败，追加本次限定修复报告。主控已经补齐新 gate worktree 的 batch34/batch35 稀疏检出范围，之前 completion 无法打开脚本是环境失败，不是业务红态；正式四个进程前后 PID/启动时间一致的原始文本已在上一交付中按原字节保存。本次不修改 Git 配置、门禁、卡、正式数据或全局配置。\n\n唯一缺陷是新开发的 check_observations.py 用 full.startswith(short) 接受了空字符串。主控已实际复现：把 merge_parents 置两个空字符串、normal_parent 置空字符串仍退出0，原始输入与输出在主仓库 evidence/2026-11-09-batch35/T-249/controller-package/terra-bad-empty-parent.json 和 terra-empty-parent-counterexample.json。先回放已知坏脚本保存这条红态，然后只修这三处可见父哈希缩写的校验。本次窗口实际显示10位十六进制前缀；要求这一格式并与独立 Git 对应父提交的前10位严格相等，拒绝空、过短、非十六进制、父顺序/身份错误。正确 observations.json 与 git-facts.json 原字节保留，不从产品输出反算期望，不修改冻结 acceptance/**。\n\n同一父哈希不变量系统检查：合并的两个父哈希、普通提交父哈希分别用空/过短/非法字符/错误有效哈希；交换两父顺序、重复父哈希也应拒绝。每项保存具体输入差异、实际命令和退出状态，业务断言拒绝才算通过；原 bad-parent 和 bad-untracked 仍应退出1，正确观察退出0。新检查器仍只证明观察比较，不宣称它能证明 CU 真实性；无需复制庞大夹具或建立通用验证框架。按 evidence-first-testing；每次写文档按 document-writing；报告中文，未执行不计PASS。\n\n核对导入的字节绑定、常规测试原输出、五张真实截图来源与只读元数据摘要，记录哪些是上一 Terra 原生 CU、哪些是主控外部证据、哪些是你本次运行。不得在没有重新操作的情况下声称本次新会话做过 CU。原截图在 /private/tmp/t249-terra-20261108-04/tmp 可只读查看，原 Test 包与固定产品源码 checkout 也只读。正式 Enchanted 和现有 Test 窗口不操作，本次无需额外可写目录或新建终端。\n\n只写卡内 terra 证据与开发检查器。保持最小修复；不改变功能目标、验收条件、正确观察或独立期望。完成后提交完整新 SHA 并显式 submit 一次，再结束回合。由主控新开干净独立 Astra 审查，主控经唯一门禁验收和集成。你不 verify/integrate/reclaim，不 push。",
+        "non_goals": [
+          "不改产品源码、任务票或治理规则",
+          "不修改冻结验收",
+          "不操作正式 Enchanted 或用户 hc core",
+          "不修改 /Applications、全局配置，不 push",
+          "不接管 T-250，不启动其他 agent"
+        ],
+        "paths": {
+          "allow": [
+            "evidence/2026-11-08-batch34/T-249/terra/"
+          ],
+          "deny": [
+            "workbench/",
+            "acceptance/",
+            ".project-map/",
+            "REVIEW.md"
+          ]
+        },
+        "oracle_paths": [
+          "acceptance/T-249/check_git_graph.py",
+          "evidence/2026-11-08-batch34/T-249/controller/prepare-terra-fixture.py"
+        ],
+        "completion_conditions": [
+          {
+            "argv": [
+              "/usr/bin/python3",
+              "evidence/2026-11-08-batch34/T-249/terra/check_observations.py"
+            ]
+          },
+          {
+            "argv": [
+              "/usr/bin/python3",
+              "evidence/2026-11-08-batch34/T-249/terra/check-parent-cases.py"
+            ]
+          }
+        ],
+        "red_commands": [],
+        "task_type": "测试",
+        "repair_target": null,
+        "complexity": "M",
+        "executor": {
+          "cli": "Codex",
+          "model": "gpt-6.1-terra",
+          "effort": "xhigh"
+        },
+        "base_commit": null,
+        "writer": null
+      },
+      "base_commit": "abeea70e465eb7ca77ba6a35119b9447b439d4ef",
+      "state": "reviewing",
+      "spec_rev": 6,
+      "fence": 6,
+      "current_attempt": {
+        "task_id": "a2a+T-249-2",
+        "attempt_id": "25671a1a-bd03-4ed3-b2ff-3f64d165320a",
+        "session_id": "45a9c4ae-49b1-4604-ac39-b17ef0f9a4db",
+        "fence": 6,
+        "spec_rev": 6,
+        "thread_id": "059213d8-a96a-4193-a60e-87284cf18569",
+        "runtime_mode": "workspace-write",
+        "turn_id": "01a1c062-cb38-76d0-87fd-6feafdbd522f",
+        "runtime_identity": {
+          "launch": "934bcffd-e9a6-4206-bd36-ab6b8b21740b",
+          "thread": "059213d8-a96a-4193-a60e-87284cf18569",
+          "shell_pid": 20770,
+          "leader_pid": 20772,
+          "native_session": "01a1c062-a00d-7243-bf06-df70bf6a8754"
+        },
+        "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-2-a6",
+        "base_commit": "4f63a989f5e2efbdc56a7c3d02eadb476e42a10b",
+        "card_snapshot_id": "5a95da5e-6d53-4423-9aea-75f8f97836ef",
+        "reclaimed": false,
+        "owner": "a2a+T-249-2",
+        "state": "submitted",
+        "extra_directories": [],
+        "git_metadata": {
+          "head": "ref: refs/heads/a2a/T-249-2-a6",
+          "config": "100644:cb407e1750934a253cff551ed2493eaf1f6f5689edfd6d7ff1fe702a03daf39d",
+          "worktree_config": "100644:97997ba84fd1c44263deb6f412fc3bef4b05e0103d00c5a97a97ca928299aa13",
+          "hooks": {
+            "applypatch-msg.sample": "100755:0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7",
+            "commit-msg.sample": "100755:1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437",
+            "fsmonitor-watchman.sample": "100755:e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0",
+            "post-update.sample": "100755:81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5",
+            "pre-applypatch.sample": "100755:e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475",
+            "pre-commit.sample": "100755:57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b",
+            "pre-merge-commit.sample": "100755:d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53",
+            "pre-push.sample": "100755:ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a",
+            "pre-rebase.sample": "100755:4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3",
+            "pre-receive.sample": "100755:a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989",
+            "prepare-commit-msg.sample": "100755:e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619",
+            "push-to-checkout.sample": "100755:a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f",
+            "sendemail-validate.sample": "100755:44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92",
+            "update.sample": "100755:8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+          }
+        },
+        "delivery": {
+          "commit": "6f7d0fd8e0731f51c425bbc22ff8ce8091355c35",
+          "turn_id": "01a1c062-cb38-76d0-87fd-6feafdbd522f",
+          "launch_id": "934bcffd-e9a6-4206-bd36-ab6b8b21740b",
+          "cli": "codex-cli 0.167.0",
+          "model": "gpt-6.1-terra",
+          "effort": "xhigh",
+          "number": 1,
+          "submitted_at": "2026-11-09T13:00:49.221Z"
+        }
+      },
+      "candidate_commit": "6f7d0fd8e0731f51c425bbc22ff8ce8091355c35",
+      "verification": {
+        "verification_id": "de866669-4df1-4281-9b40-8f4411b1bd13",
+        "ordinal": 1,
+        "attempt": {
+          "task_id": "a2a+T-249-2",
+          "attempt_id": "25671a1a-bd03-4ed3-b2ff-3f64d165320a",
+          "session_id": "45a9c4ae-49b1-4604-ac39-b17ef0f9a4db",
+          "fence": 6,
+          "spec_rev": 6,
+          "thread_id": "059213d8-a96a-4193-a60e-87284cf18569",
+          "runtime_mode": "workspace-write",
+          "turn_id": "01a1c062-cb38-76d0-87fd-6feafdbd522f",
+          "runtime_identity": {
+            "launch": "934bcffd-e9a6-4206-bd36-ab6b8b21740b",
+            "thread": "059213d8-a96a-4193-a60e-87284cf18569",
+            "shell_pid": 20770,
+            "leader_pid": 20772,
+            "native_session": "01a1c062-a00d-7243-bf06-df70bf6a8754"
+          },
+          "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-2-a6",
+          "base_commit": "4f63a989f5e2efbdc56a7c3d02eadb476e42a10b",
+          "card_snapshot_id": "5a95da5e-6d53-4423-9aea-75f8f97836ef",
+          "reclaimed": false,
+          "owner": "a2a+T-249-2",
+          "state": "submitted",
+          "extra_directories": [],
+          "git_metadata": {
+            "head": "ref: refs/heads/a2a/T-249-2-a6",
+            "config": "100644:cb407e1750934a253cff551ed2493eaf1f6f5689edfd6d7ff1fe702a03daf39d",
+            "worktree_config": "100644:97997ba84fd1c44263deb6f412fc3bef4b05e0103d00c5a97a97ca928299aa13",
+            "hooks": {
+              "applypatch-msg.sample": "100755:0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7",
+              "commit-msg.sample": "100755:1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437",
+              "fsmonitor-watchman.sample": "100755:e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0",
+              "post-update.sample": "100755:81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5",
+              "pre-applypatch.sample": "100755:e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475",
+              "pre-commit.sample": "100755:57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b",
+              "pre-merge-commit.sample": "100755:d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53",
+              "pre-push.sample": "100755:ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a",
+              "pre-rebase.sample": "100755:4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3",
+              "pre-receive.sample": "100755:a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989",
+              "prepare-commit-msg.sample": "100755:e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619",
+              "push-to-checkout.sample": "100755:a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f",
+              "sendemail-validate.sample": "100755:44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92",
+              "update.sample": "100755:8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+            }
+          },
+          "delivery": {
+            "commit": "6f7d0fd8e0731f51c425bbc22ff8ce8091355c35",
+            "turn_id": "01a1c062-cb38-76d0-87fd-6feafdbd522f",
+            "launch_id": "934bcffd-e9a6-4206-bd36-ab6b8b21740b",
+            "cli": "codex-cli 0.167.0",
+            "model": "gpt-6.1-terra",
+            "effort": "xhigh",
+            "number": 1,
+            "submitted_at": "2026-11-09T13:00:49.221Z"
+          }
+        },
+        "spec_rev": 6,
+        "G": "4f63a989f5e2efbdc56a7c3d02eadb476e42a10b",
+        "C": "6f7d0fd8e0731f51c425bbc22ff8ce8091355c35",
+        "M": "6f7d0fd8e0731f51c425bbc22ff8ce8091355c35",
+        "card_snapshot_id": "5a95da5e-6d53-4423-9aea-75f8f97836ef",
+        "card_version": 6,
+        "commands": [
+          {
+            "argv": [
+              "/usr/bin/python3",
+              "evidence/2026-11-08-batch34/T-249/terra/check_observations.py"
+            ],
+            "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-2-a6-verify-1"
+          },
+          {
+            "argv": [
+              "/usr/bin/python3",
+              "evidence/2026-11-08-batch34/T-249/terra/check-parent-cases.py"
+            ],
+            "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-2-a6-verify-1"
+          }
+        ],
+        "results": [
+          {
+            "argv": [
+              "/usr/bin/python3",
+              "evidence/2026-11-08-batch34/T-249/terra/check_observations.py"
+            ],
+            "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-2-a6-verify-1",
+            "stdout": "ok   提交顺序\nok   合并哈希和两个父提交\nok   普通提交和父提交\nok   根提交\nok   分支和标签\nok   未提交文件\nok   diff alpha/root/file*.txt\nok   diff alpha/normal/file*.txt\nok   diff alpha/merge/feature.txt\nok   diff alpha/uncommitted/first.txt\nok   diff alpha/uncommitted/untracked.txt\nok   diff unborn/file[1].txt\nok   diff unborn/staged.txt\nok   diff unborn/untracked.txt\nok   diff unborn/file*.txt\nok   字面星号未混入相邻文件\nok   暂存原始内容\nok   首次提交前文件\nok   空文件提示\nok   二进制提示\nok   多仓库列表\n",
+            "stderr": "",
+            "exit": 0,
+            "returncode": 0
+          },
+          {
+            "argv": [
+              "/usr/bin/python3",
+              "evidence/2026-11-08-batch34/T-249/terra/check-parent-cases.py"
+            ],
+            "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-2-a6-verify-1",
+            "stdout": "24/24 cases passed; details: evidence/2026-11-08-batch34/T-249/terra/parent-cases-results.json\n",
+            "stderr": "",
+            "exit": 0,
+            "returncode": 0
+          }
+        ],
+        "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-2-a6-verify-1",
+        "state": "passed",
+        "command_intent": {
+          "argv": [
+            "/usr/bin/python3",
+            "evidence/2026-11-08-batch34/T-249/terra/check-parent-cases.py"
+          ],
+          "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-2-a6-verify-1"
+        },
+        "quality": {
+          "snapshot": {
+            "source_commit": "abeea70e465eb7ca77ba6a35119b9447b439d4ef",
+            "path": ".a2a/quality.json",
+            "raw": null,
+            "rule_checks": []
+          },
+          "red": [],
+          "rules": []
+        },
+        "out_of_card": [],
+        "result": {
+          "argv": [
+            "/usr/bin/python3",
+            "evidence/2026-11-08-batch34/T-249/terra/check-parent-cases.py"
+          ],
+          "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-2-a6-verify-1",
+          "stdout": "24/24 cases passed; details: evidence/2026-11-08-batch34/T-249/terra/parent-cases-results.json\n",
+          "stderr": "",
+          "exit": 0,
+          "returncode": 0
+        },
+        "ended": "2026-11-09T13:01:47.899Z",
+        "retained_ref": "refs/a2a/verifications/a2a+T-249-2/a6/v1",
+        "cleanup": "preserved"
+      },
+      "integration_intent": null,
+      "quality": {
+        "source_commit": "abeea70e465eb7ca77ba6a35119b9447b439d4ef",
+        "path": ".a2a/quality.json",
+        "raw": null,
+        "rule_checks": []
+      },
+      "repair": null,
+      "review": {
+        "review_id": "7df8aa06-e9b3-45c1-ba88-e4bae87733e0",
+        "ordinal": 1,
+        "task_id": "a2a+T-249-2",
+        "attempt": {
+          "task_id": "a2a+T-249-2",
+          "attempt_id": "25671a1a-bd03-4ed3-b2ff-3f64d165320a",
+          "session_id": "45a9c4ae-49b1-4604-ac39-b17ef0f9a4db",
+          "fence": 6,
+          "spec_rev": 6,
+          "thread_id": "059213d8-a96a-4193-a60e-87284cf18569",
+          "runtime_mode": "workspace-write",
+          "turn_id": "01a1c062-cb38-76d0-87fd-6feafdbd522f",
+          "runtime_identity": {
+            "launch": "934bcffd-e9a6-4206-bd36-ab6b8b21740b",
+            "thread": "059213d8-a96a-4193-a60e-87284cf18569",
+            "shell_pid": 20770,
+            "leader_pid": 20772,
+            "native_session": "01a1c062-a00d-7243-bf06-df70bf6a8754"
+          },
+          "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-2-a6",
+          "base_commit": "4f63a989f5e2efbdc56a7c3d02eadb476e42a10b",
+          "card_snapshot_id": "5a95da5e-6d53-4423-9aea-75f8f97836ef",
+          "reclaimed": false,
+          "owner": "a2a+T-249-2",
+          "state": "submitted",
+          "extra_directories": [],
+          "git_metadata": {
+            "head": "ref: refs/heads/a2a/T-249-2-a6",
+            "config": "100644:cb407e1750934a253cff551ed2493eaf1f6f5689edfd6d7ff1fe702a03daf39d",
+            "worktree_config": "100644:97997ba84fd1c44263deb6f412fc3bef4b05e0103d00c5a97a97ca928299aa13",
+            "hooks": {
+              "applypatch-msg.sample": "100755:0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7",
+              "commit-msg.sample": "100755:1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437",
+              "fsmonitor-watchman.sample": "100755:e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0",
+              "post-update.sample": "100755:81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5",
+              "pre-applypatch.sample": "100755:e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475",
+              "pre-commit.sample": "100755:57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b",
+              "pre-merge-commit.sample": "100755:d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53",
+              "pre-push.sample": "100755:ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a",
+              "pre-rebase.sample": "100755:4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3",
+              "pre-receive.sample": "100755:a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989",
+              "prepare-commit-msg.sample": "100755:e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619",
+              "push-to-checkout.sample": "100755:a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f",
+              "sendemail-validate.sample": "100755:44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92",
+              "update.sample": "100755:8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+            }
+          },
+          "delivery": {
+            "commit": "6f7d0fd8e0731f51c425bbc22ff8ce8091355c35",
+            "turn_id": "01a1c062-cb38-76d0-87fd-6feafdbd522f",
+            "launch_id": "934bcffd-e9a6-4206-bd36-ab6b8b21740b",
+            "cli": "codex-cli 0.167.0",
+            "model": "gpt-6.1-terra",
+            "effort": "xhigh",
+            "number": 1,
+            "submitted_at": "2026-11-09T13:00:49.221Z"
+          }
+        },
+        "candidate_commit": "6f7d0fd8e0731f51c425bbc22ff8ce8091355c35",
+        "spec_rev": 6,
+        "card_snapshot_id": "5a95da5e-6d53-4423-9aea-75f8f97836ef",
+        "verification_id": "de866669-4df1-4281-9b40-8f4411b1bd13",
+        "thread_id": "dee13bb0-8808-48f2-8740-a827e52167d3",
+        "session_id": "48eff516-132a-4dee-800d-8cf8afff8f39",
+        "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-2-a6-review-1",
+        "candidate_workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/7df8aa06-e9b3-45c1-ba88-e4bae87733e0",
+        "shared_refs": "refs/a2a/attempts/a2a+T-138/a1=288010578817122d1277e6c7b7300b0a75e2dd8f\nrefs/a2a/attempts/a2a+T-249-1/a1=ed080306faea900d7c5b26f732b2f05e0c68059a\nrefs/a2a/attempts/a2a+T-249-1/a2=0c3da7adedf5a2c0a61af32cf3d1bb2bb39b6083\nrefs/a2a/attempts/a2a+T-249-1/a3=9f96a9121ba6ed8d77a514a0a78c9341ceaacb86\nrefs/a2a/attempts/a2a+T-249-1/a4=1243bc15f979976967cfd2d5cdd3a2acce6df635\nrefs/a2a/attempts/a2a+T-249-1/a5=18c108fcaed1c4ecf51831f2272578a3b09427be\nrefs/a2a/attempts/a2a+T-249-1/a6=d8f55c958d901d052e79eda1a04dbf0a8fbf5ed5\nrefs/a2a/attempts/a2a+T-249-1/a7=eb1ab25797ddddbd28769c7bc618aa45afd2cc8f\nrefs/a2a/attempts/a2a+T-249-2/a1=2be3972665b8b7631b187842b24b166228bcffd4\nrefs/a2a/attempts/a2a+T-249-2/a3=83cd1cc8f5873975f80b9438525044e299ea07dd\nrefs/a2a/attempts/a2a+T-249-2/a4=d9b75c077bbcc33ae9b77e7f188916d787f2c803\nrefs/a2a/attempts/a2a+T-249-2/a5=c16489e2d435513a00bfa3b61ec2ae346549bfb0\nrefs/a2a/attempts/a2a+T-257-1/a1=e9e9f2db8ce6f2c50b453a868c8bcaa026e9fa8b\nrefs/a2a/attempts/a2a+T-257-1/a2=5484315a5e318bce557dcc32e429f5d251453e84\nrefs/a2a/attempts/a2a+T-257-1/a3=045e815ff390a0e2e50b7788966e2a5bf655fbdb\nrefs/a2a/attempts/a2a+T-258-1/a1=7df553913fb2e8f2b9f0f096aa9c9b59d63f8135\nrefs/a2a/attempts/a2a+T-258-1/a2=49c7b9a9435f68aec38a862125b8f00220b9b3af\nrefs/a2a/attempts/a2a+T-258-1/a3=fa8d554c87210c15a7944542b2e9cfff3362ee8d\nrefs/a2a/attempts/a2a+T-258-1/a4=66e88ffe2251ea045a398c9003fef1795c8a2af8\nrefs/a2a/attempts/a2a+T-259-1/a1=4593099691924542d29f508185e16d48d97beb42\nrefs/a2a/attempts/a2a+T-260-1/a1=ebb719e9af972b31be55fa1b9883f64861b55829\nrefs/a2a/attempts/a2a+T-262-1/a2=6e92ec6f0d0b59423f5f1bcb85cc39174da70bf5\nrefs/a2a/attempts/a2a+T-262-1/a3=e18e5207de94fd6ea56be9868de45c18c1f2991f\nrefs/a2a/attempts/a2a+T-262-1/a4=6e1fde0a28a13b7cfd2d2f7b42d6363ffda2fa67\nrefs/a2a/attempts/a2a+T-265-1/a1=a322c79e29e2a3f1102eeefa8411abd1db322951\nrefs/a2a/verifications/a2a+T-138/a1/v1=288010578817122d1277e6c7b7300b0a75e2dd8f\nrefs/a2a/verifications/a2a+T-249-1/a2/v1=0c3da7adedf5a2c0a61af32cf3d1bb2bb39b6083\nrefs/a2a/verifications/a2a+T-249-1/a4/v1=7442bcf6ae34889a448688fa819372293a15f1ec\nrefs/a2a/verifications/a2a+T-249-1/a4/v2=c7c92f417dd276abfd247b84f179997604f4c341\nrefs/a2a/verifications/a2a+T-249-1/a5/v1=8e83a42ded7b30280ea6c72e9eb94f126bb817a9\nrefs/a2a/verifications/a2a+T-249-1/a6/v1=8a17982c09771a00e0deb9ce58160a790e99af68\nrefs/a2a/verifications/a2a+T-249-1/a8/v1=92163e7d850df1d093a607144c6dfd7d256f53e1\nrefs/a2a/verifications/a2a+T-249-2/a4/v1=52fa8c0337189a31480157ece9cce860ab7836e8\nrefs/a2a/verifications/a2a+T-249-2/a5/v1=2e001ddf0a9e092aed39f2883be7969d84db327b\nrefs/a2a/verifications/a2a+T-249-2/a6/v1=6f7d0fd8e0731f51c425bbc22ff8ce8091355c35\nrefs/a2a/verifications/a2a+T-257-1/a2/v1=0709fa140e75b77186e35426cc6867200ce63941\nrefs/a2a/verifications/a2a+T-257-1/a3/v1=bf4b855619283711aff0a2f9ff2047e689e21fcb\nrefs/a2a/verifications/a2a+T-258-1/a2/v1=92c2b74a172209e44d621acd6aee63c1830649f1\nrefs/a2a/verifications/a2a+T-258-1/a4/v1=1b2dc59aaae096e5ae03ab07c0da4a39143803b9\nrefs/a2a/verifications/a2a+T-258-1/a4/v2=b5fed20893d499aae47a0a87bb2718c5d893819a\nrefs/a2a/verifications/a2a+T-262-1/a2/v1=a0284fbba8ec62a2c287af4657e75e99d9493c3e\nrefs/a2a/verifications/a2a+T-262-1/a3/v1=ee83c26c09df5c97cbb8cb130836001e27748418\nrefs/a2a/verifications/a2a+T-262-1/a4/v1=5ba4e68e9038e7bf4c01c2d1028b2917807c144b\nrefs/a2a/verifications/a2a+T-265-1/a1/v1=a91519dd2a44b1716d83575ad33f2daa93396fa5\nrefs/codex/turn-diffs/captures/1794226135187/a3fd5c1c-b877-4e3e-aadc-7a9c596cac1c/base=09359e9ebc023f5af265b721c88524d500ed2e9b\nrefs/codex/turn-diffs/checkpoints/7b7dde67e68bf4c0271830f6ff2f33b2/f713ce4d493fe07f7daa9a16eeb7c365/1794226114971/c9dd49a2-ae6b-459c-bfe3-2d87c4772585=09359e9ebc023f5af265b721c88524d500ed2e9b\nrefs/heads/a2a/T-138-a1=288010578817122d1277e6c7b7300b0a75e2dd8f\nrefs/heads/a2a/T-249-1-a1=ed080306faea900d7c5b26f732b2f05e0c68059a\nrefs/heads/a2a/T-249-1-a2=0c3da7adedf5a2c0a61af32cf3d1bb2bb39b6083\nrefs/heads/a2a/T-249-1-a3=9f96a9121ba6ed8d77a514a0a78c9341ceaacb86\nrefs/heads/a2a/T-249-1-a4=1243bc15f979976967cfd2d5cdd3a2acce6df635\nrefs/heads/a2a/T-249-1-a5=18c108fcaed1c4ecf51831f2272578a3b09427be\nrefs/heads/a2a/T-249-1-a6=d8f55c958d901d052e79eda1a04dbf0a8fbf5ed5\nrefs/heads/a2a/T-249-1-a7=eb1ab25797ddddbd28769c7bc618aa45afd2cc8f\nrefs/heads/a2a/T-249-1-a8=63304e0fcb3510d9cf4b1cbea5c3064fbb8286dd\nrefs/heads/a2a/T-249-2-a1=2be3972665b8b7631b187842b24b166228bcffd4\nrefs/heads/a2a/T-249-2-a2=793a043ee67b8cc6e17abe0d3d319f0b1c36282b\nrefs/heads/a2a/T-249-2-a3=83cd1cc8f5873975f80b9438525044e299ea07dd\nrefs/heads/a2a/T-249-2-a4=d9b75c077bbcc33ae9b77e7f188916d787f2c803\nrefs/heads/a2a/T-249-2-a5=c16489e2d435513a00bfa3b61ec2ae346549bfb0\nrefs/heads/a2a/T-249-2-a6=6f7d0fd8e0731f51c425bbc22ff8ce8091355c35\nrefs/heads/a2a/T-257-1-a1=e9e9f2db8ce6f2c50b453a868c8bcaa026e9fa8b\nrefs/heads/a2a/T-257-1-a2=5484315a5e318bce557dcc32e429f5d251453e84\nrefs/heads/a2a/T-258-1-a1=7df553913fb2e8f2b9f0f096aa9c9b59d63f8135\nrefs/heads/a2a/T-258-1-a2=49c7b9a9435f68aec38a862125b8f00220b9b3af\nrefs/heads/a2a/T-258-1-a3=fa8d554c87210c15a7944542b2e9cfff3362ee8d\nrefs/heads/a2a/T-259-1-a1=4593099691924542d29f508185e16d48d97beb42\nrefs/heads/a2a/T-260-1-a1=ebb719e9af972b31be55fa1b9883f64861b55829\nrefs/heads/a2a/T-262-1-a1=f80d5cdbf0e1b62de864300eff7bb4497f8c4c70\nrefs/heads/a2a/T-262-1-a2=6e92ec6f0d0b59423f5f1bcb85cc39174da70bf5\nrefs/heads/a2a/T-262-1-a3=e18e5207de94fd6ea56be9868de45c18c1f2991f\nrefs/heads/claude/dreamy-ptolemy-d0f2f0=1bb19fa21d1dbddf15589f39f9f7a5e87fd1331b\nrefs/heads/codex/t259-preparing-reclaim=2083f72e4f43d6bc84be2ef57b5fef49f65e1bcb\nrefs/heads/enchanted/git-panels=3026ffc38bb6c0d90a0f5f2adc3e9bca5d8a72ba\nrefs/heads/exec/t138=13ea4014fa3109339b3b766c576b1eb38a297a40\nrefs/heads/exec/t139-t143=242324f71aee09dd4e1417fa0d8c39ce6aaa29ab\nrefs/heads/exec/t140=0cf390b00058c29139d0f291accc99eb9451b3dd\nrefs/heads/exec/t141=86aeeed273eccda48cc867df763ca35a7d195e6d\nrefs/heads/exec/t142=d6027ae04f95a48de2d8014a4d93affac230d123\nrefs/heads/exec/t144=e86258d997ce69691821884825e2653c466ef19f\nrefs/heads/exec/t145=d56776b80762e3b5876135924091fa5b8767749d\nrefs/heads/exec/t145-a2=ac7fe971e23b750b0b2a25196e4530c0b2114494\nrefs/heads/exec/t146=dee654f7754470ff13491b1a708066bfa85c5b60\nrefs/heads/exec/t146-a2=1f008f5282b1602b12dd7e91c80d8355aa487fbb\nrefs/heads/exec/t146-a3=4b1f401ce237f48d5471cd5758f0229bef5c5ee7\nrefs/heads/exec/t146-a4=a542169b15ddba2521e0188bbb79084b651e61f4\nrefs/heads/exec/t147=3c4c3576d42b43bae332e49b943e206723c688eb\nrefs/heads/exec/t148=59dddee87090d5de3e620b2a5ae9478684c36f3e\nrefs/heads/exec/t149=d87d2511ffc03638b407ae598a61dd79da424a5a\nrefs/heads/exec/t150=7a6c04c96a1184b8352d8c75ee0ae03fb8b02a3a\nrefs/heads/exec/t151=e170d0cc7a6e2f6c7c4bd5f1f1df669700754a73\nrefs/heads/exec/t152=d39c2f2d002f371bc63cdbece9b28ae78faed0db\nrefs/heads/exec/t153=b52b335fbe4b33ff4726d4b6662dbe309d96599b\nrefs/heads/exec/t154=024f758475066ffb398f3c7cfe60f89f374d7dc1\nrefs/heads/exec/t155=ad25f54f0c8d9e7d736efc34a32dafff07aa4c7b\nrefs/heads/exec/t156=6975642f330aa374939339ba1432b109e9190223\nrefs/heads/exec/t156b=96729d336f3dbacd6f47b6f11cef458bd395a8b7\nrefs/heads/exec/t157=30072c46ad0798c2dad7db9924f5ef91eadfdcf4\nrefs/heads/exec/t158=19d9360916f3f002c5b42a34cc4ab5b208b84e38\nrefs/heads/exec/t159=1858eee7be758c8c40657a47f54265d0d9aac126\nrefs/heads/exec/t160=3165a4b120c9f202a2efc73c6ece03391fe9cf9d\nrefs/heads/exec/t161=58254d15cde4fbbbe3bfdffee8f73f5965a482fe\nrefs/heads/exec/t162=3ecc21d62e54bb45f0b0a1764d69ab88cc7a2662\nrefs/heads/exec/t163=094931687d2b48b3faab55f60f8d1af5e6dd6340\nrefs/heads/exec/t164=32db2647dab7a1a024e9fe86a100a0f390acd252\nrefs/heads/exec/t164d=46316a709953318bda661c9bc40c2c06acb9ec29\nrefs/heads/exec/t164e=1802ca1754133e8df3af51af22f57ad1a3963421\nrefs/heads/exec/t165=8a8cc3974a0eec1179e7923cd6a726aa886a82d2\nrefs/heads/fix/t251-untrusted-turn=b4fb9781539bef7d7759630598c9dc224454b3a3\nrefs/heads/keep/T-249-1-a1=ed080306faea900d7c5b26f732b2f05e0c68059a\nrefs/heads/keep/T-249-1-a2=0c3da7adedf5a2c0a61af32cf3d1bb2bb39b6083\nrefs/heads/keep/T-257-1-a1=e9e9f2db8ce6f2c50b453a868c8bcaa026e9fa8b\nrefs/heads/keep/T-257-1-a2=5484315a5e318bce557dcc32e429f5d251453e84\nrefs/heads/main=4f63a989f5e2efbdc56a7c3d02eadb476e42a10b\nrefs/heads/t216-issues-controller-first=137ea70dd4be53f0d6aafa0f15b7baff35fff466\nrefs/remotes/origin/main=fbb842fe81090e93e523c6abf31b103baeac45cd\nrefs/synara/checkpoints/OTk3MDQxODktZjQ1Zi00NDBlLWEyZGItNzk0MWQ2YjRiMmM3/message-start/MWFhNjY5YmEtMzQ2ZC00Y2EyLThkMTQtMGI2MTg4MGZiOGIz=469dc8bc8713dee3f52ef65888f28115dcc6f068\nrefs/synara/checkpoints/OTk3MDQxODktZjQ1Zi00NDBlLWEyZGItNzk0MWQ2YjRiMmM3/turn-start/MDFhMTFlZTgtNGM1Ni03N2QxLWI4OTItMWJiNGI4ZmQ3ZTA2=469dc8bc8713dee3f52ef65888f28115dcc6f068\nrefs/synara/checkpoints/OTk3MDQxODktZjQ1Zi00NDBlLWEyZGItNzk0MWQ2YjRiMmM3/turn/0=469dc8bc8713dee3f52ef65888f28115dcc6f068\nrefs/synara/checkpoints/OTk3MDQxODktZjQ1Zi00NDBlLWEyZGItNzk0MWQ2YjRiMmM3/turn/1=f89fe517f34f9c88f88f41a55d85e7955d201f15\nrefs/tags/v0.1.0=6dcfacf5889422f1c63a03bd9aab2168100af0fb\nrefs/tags/v0.1.1=2754c6bf8dfd90ed3c30f3f4532c2c2de6b94816\nrefs/tags/v0.1.2=dff00ec9ca4feadaffba689774455bdef1ba3cea\nrefs/tags/v0.1.3=f7b176e887f5eaaac319f4107a589e506d5e60e7",
+        "requested_at": "2026-11-09T13:01:48.339Z",
+        "launch_id": "ef4ccbb7-dc93-4732-8d18-30ff4eeb120a",
+        "runtime_identity": {
+          "launch": "ef4ccbb7-dc93-4732-8d18-30ff4eeb120a",
+          "thread": "dee13bb0-8808-48f2-8740-a827e52167d3",
+          "shell_pid": 24561,
+          "leader_pid": 24563,
+          "native_session": null
+        },
+        "state": "running"
+      }
+    },
+    "records": [
+      {
+        "id": "bb431ff4-e969-4040-b502-0040dee6ed07",
+        "issue_id": "bb431ff4-e969-4040-b502-0040dee6ed07",
+        "schema": 1,
+        "kind": "issue",
+        "from": "system",
+        "to": "executor",
+        "reply_to": null,
+        "refs": [
+          "task:a2a+T-249-2",
+          "attempt:95a2750d-484c-427c-98fb-577f5a7ca84f",
+          "session:b847f76f-b14f-4a80-9dd6-0911094f7b66",
+          "thread:82a0320e-326a-410c-a830-74baad2a4881"
+        ],
+        "created_at": "2026-11-08T15:20:23.047Z",
+        "body": "{\n  \"reason\": \"current_turn_untrusted\",\n  \"what\": \"worker 这一回合交来的请求门禁没有执行，已记为拒收，以后也不会再执行。这一回合本身照常结束；窗格之后是否空闲看 status（排着用户输入或被打断时还会继续忙）。\",\n  \"requests\": [\n    {\n      \"request_id\": \"62395ac4-bcfd-4fcf-ba12-9073e7664dfc\",\n      \"command\": \"issue\",\n      \"title\": \"独立验收存在两项证据缺口\"\n    },\n    {\n      \"request_id\": \"8f62a033-f37d-499d-9698-cef5ce00a1ef\",\n      \"command\": \"submit\",\n      \"title\": null\n    },\n    {\n      \"request_id\": \"e95d9ce0-b4d4-4e21-817c-29fa3394bea7\",\n      \"command\": \"issue\",\n      \"title\": \"正式进程核对被沙箱拒绝\"\n    }\n  ],\n  \"unverified\": [\n    {\n      \"time\": \"2026-11-08T15:13:10.455Z\",\n      \"reason\": \"Error: question_origin_unverified\",\n      \"hook_event_name\": \"PreToolUse\"\n    },\n    {\n      \"time\": \"2026-11-08T15:13:10.820Z\",\n      \"reason\": \"Error: question_origin_unverified\",\n      \"hook_event_name\": \"PreToolUse\"\n    },\n    {\n      \"time\": \"2026-11-08T15:13:11.154Z\",\n      \"reason\": \"Error: question_origin_unverified\",\n      \"hook_event_name\": \"PreToolUse\"\n    }\n  ],\n  \"next\": \"看 unverified 是哪个钩子核对不上。要继续这项工作：等 worker 空闲后回收这个 attempt 再派发（它的提交还在 attempt 分支上，新卡可以 cherry-pick）；还忙时回收会被拒（worker_working）。\"\n}",
+        "task_id": "a2a+T-249-2",
+        "attempt_id": "95a2750d-484c-427c-98fb-577f5a7ca84f",
+        "thread_id": "82a0320e-326a-410c-a830-74baad2a4881",
+        "turn_id": "01a1bbb7-b302-7423-86bb-223b6bb457c5",
+        "number": 1,
+        "title": "交付没被受理：这一回合不可信",
+        "blocking": true,
+        "controller_launch": "55d61e9f-3657-41c2-9827-8cfd5c04cb9b"
+      },
+      {
+        "id": "773d8865-1f51-468a-9cc9-fe58f63d268a",
+        "issue_id": "773d8865-1f51-468a-9cc9-fe58f63d268a",
+        "schema": 1,
+        "kind": "issue",
+        "from": "system",
+        "to": "executor",
+        "reply_to": null,
+        "refs": [
+          "task:a2a+T-249-2",
+          "attempt:843d4f55-505a-487e-8b0e-149ea092ec3e",
+          "session:ccb74d44-141d-4ec9-9287-84cb71c8a37f"
+        ],
+        "created_at": "2026-11-08T15:39:33.167Z",
+        "body": "{\n  \"reason\": \"dirty_worktree\",\n  \"details\": {\n    \"head\": \"793a043ee67b8cc6e17abe0d3d319f0b1c36282b\",\n    \"status\": \"?? evidence/2026-11-08-batch34/T-249/terra/acceptance-output.txt\\n?? evidence/2026-11-08-batch34/T-249/terra/git-oracle.json\\n?? evidence/2026-11-08-batch34/T-249/terra/host-output.txt\\n?? evidence/2026-11-08-batch34/T-249/terra/safety-output.txt\"\n  }\n}",
+        "task_id": "a2a+T-249-2",
+        "attempt_id": "843d4f55-505a-487e-8b0e-149ea092ec3e",
+        "thread_id": "4c70d97d-1077-4444-bf87-e3347793d8f2",
+        "turn_id": "",
+        "number": 1,
+        "title": "worktree：dirty_worktree",
+        "blocking": true
+      },
+      {
+        "id": "5e605bdf-a52c-4835-ba87-e3dc27f8a417",
+        "issue_id": "bb431ff4-e969-4040-b502-0040dee6ed07",
+        "schema": 1,
+        "kind": "disposition",
+        "from": "user",
+        "to": "triage",
+        "reply_to": "bb431ff4-e969-4040-b502-0040dee6ed07",
+        "refs": [
+          "task:a2a+T-249-2",
+          "attempt:95a2750d-484c-427c-98fb-577f5a7ca84f",
+          "session:b847f76f-b14f-4a80-9dd6-0911094f7b66",
+          "thread:82a0320e-326a-410c-a830-74baad2a4881",
+          "issue:bb431ff4-e969-4040-b502-0040dee6ed07"
+        ],
+        "created_at": "2026-11-09T01:25:05.369Z",
+        "body": "原回合请求已被门禁拒收，未执行且不再重放。原 attempt 已回收，任务当前 ready；主控已接手用新会话重新验收，不将旧交付作为通过证据。无需用户再次决定。",
+        "task_id": "a2a+T-249-2",
+        "attempt_id": "95a2750d-484c-427c-98fb-577f5a7ca84f",
+        "thread_id": "82a0320e-326a-410c-a830-74baad2a4881",
+        "turn_id": "01a1bbb7-b302-7423-86bb-223b6bb457c5",
+        "number": 1,
+        "title": "交付没被受理：这一回合不可信",
+        "blocking": true,
+        "controller_launch": "55d61e9f-3657-41c2-9827-8cfd5c04cb9b",
+        "action": "close",
+        "reason": "原回合请求已被门禁拒收，未执行且不再重放。原 attempt 已回收，任务当前 ready；主控已接手用新会话重新验收，不将旧交付作为通过证据。无需用户再次决定。",
+        "basis": "用户已授权恢复后继续两个面板并指定当前对话执行；T-249-2 当前 ready，无 current_attempt。旧拒收证据保留，后续 terra 必须重新完成验收。"
+      },
+      {
+        "id": "57d9952b-c1c7-4925-b468-157ac5b4c804",
+        "issue_id": "773d8865-1f51-468a-9cc9-fe58f63d268a",
+        "schema": 1,
+        "kind": "disposition",
+        "from": "user",
+        "to": "triage",
+        "reply_to": "773d8865-1f51-468a-9cc9-fe58f63d268a",
+        "refs": [
+          "task:a2a+T-249-2",
+          "attempt:843d4f55-505a-487e-8b0e-149ea092ec3e",
+          "session:ccb74d44-141d-4ec9-9287-84cb71c8a37f",
+          "issue:773d8865-1f51-468a-9cc9-fe58f63d268a"
+        ],
+        "created_at": "2026-11-09T01:25:05.967Z",
+        "body": "已明确保留旧验收工作树的四个未跟踪文本，未强制清理或丢弃。该 attempt 已回收，任务 ready；主控负责后续新验收，用户无需选择删除。",
+        "task_id": "a2a+T-249-2",
+        "attempt_id": "843d4f55-505a-487e-8b0e-149ea092ec3e",
+        "thread_id": "4c70d97d-1077-4444-bf87-e3347793d8f2",
+        "turn_id": "",
+        "number": 1,
+        "title": "worktree：dirty_worktree",
+        "blocking": true,
+        "action": "close",
+        "reason": "已明确保留旧验收工作树的四个未跟踪文本，未强制清理或丢弃。该 attempt 已回收，任务 ready；主控负责后续新验收，用户无需选择删除。",
+        "basis": "本轮 retained-artifacts-01.json 核对四个文件路径与字节；用户授权当前对话继续修复并处理截图提醒。关闭仅记录保留处置，不代表旧验收 PASS。"
+      },
+      {
+        "id": "704e9e02-87eb-4f58-861e-bf906075466e",
+        "schema": 1,
+        "kind": "issue",
+        "from": "worker:21bc4781-f760-4887-876a-a31f03e9554a",
+        "to": "executor",
+        "reply_to": null,
+        "refs": [
+          "task:a2a+T-249-2",
+          "attempt:acbdf9b4-39ee-4438-a9d9-d23fd21a6031",
+          "thread:21bc4781-f760-4887-876a-a31f03e9554a",
+          "turn:01a1be6b-29ca-7f23-911a-cfd762ace140"
+        ],
+        "created_at": "2026-11-09T03:58:32.679Z",
+        "body": "在指定 Test 窗口截图确认提交表说明/日期分隔条后，CUA app.drag 两次定位尝试分别以 [1168,147]→[1100,147] 和 [2338,294]→[2200,294] 返回 Computer Use server error -10005: noWindowsAvailable；截图和 AX 仍可读取窗口。未观察到拖动发生，无法判断产品列宽行为。按卡限制停止定位；请主控协调工具或补验。",
+        "task_id": "a2a+T-249-2",
+        "attempt_id": "acbdf9b4-39ee-4438-a9d9-d23fd21a6031",
+        "thread_id": "21bc4781-f760-4887-876a-a31f03e9554a",
+        "turn_id": "01a1be6b-29ca-7f23-911a-cfd762ace140",
+        "number": 1,
+        "title": "CUA 拖动返回 noWindowsAvailable",
+        "blocking": false,
+        "issue_id": "704e9e02-87eb-4f58-861e-bf906075466e"
+      },
+      {
+        "id": "6414cdf1-5439-4aa3-841c-78518eeb77b4",
+        "schema": 1,
+        "kind": "issue",
+        "from": "worker:21bc4781-f760-4887-876a-a31f03e9554a",
+        "to": "executor",
+        "reply_to": null,
+        "refs": [
+          "task:a2a+T-249-2",
+          "attempt:acbdf9b4-39ee-4438-a9d9-d23fd21a6031",
+          "thread:21bc4781-f760-4887-876a-a31f03e9554a",
+          "turn:01a1be6b-29ca-7f23-911a-cfd762ace140"
+        ],
+        "created_at": "2026-11-09T03:58:33.188Z",
+        "body": "在指定 Test 包中，普通终端进入 /private/tmp/t249-terra-20261108-03/repos/unborn，点击“未提交的改动（3 个文件）”，再点 ? untracked.txt，面板只显示“未跟踪文件，还没有 diff。”夹具文件有实际内容。任务卡要求分别核对 unborn 暂存、未暂存、未跟踪内容，票要求点击文件查看 diff；目前无法通过该 UI 核对未跟踪内容。请主控判断契约与后续处理；未改产品。",
+        "task_id": "a2a+T-249-2",
+        "attempt_id": "acbdf9b4-39ee-4438-a9d9-d23fd21a6031",
+        "thread_id": "21bc4781-f760-4887-876a-a31f03e9554a",
+        "turn_id": "01a1be6b-29ca-7f23-911a-cfd762ace140",
+        "number": 2,
+        "title": "unborn 未跟踪文件详情没有内容",
+        "blocking": false,
+        "issue_id": "6414cdf1-5439-4aa3-841c-78518eeb77b4"
+      },
+      {
+        "id": "0e7020d0-8bfd-4c90-a1a1-6af040f73ec2",
+        "schema": 1,
+        "kind": "disposition",
+        "from": "user",
+        "to": "triage",
+        "reply_to": "6414cdf1-5439-4aa3-841c-78518eeb77b4",
+        "refs": [
+          "task:a2a+T-249-2",
+          "attempt:acbdf9b4-39ee-4438-a9d9-d23fd21a6031",
+          "thread:21bc4781-f760-4887-876a-a31f03e9554a",
+          "turn:01a1be6b-29ca-7f23-911a-cfd762ace140",
+          "issue:6414cdf1-5439-4aa3-841c-78518eeb77b4"
+        ],
+        "created_at": "2026-11-09T04:02:45.479Z",
+        "body": "主控已在 Test 窗口独立复现，按原票的点文件看 diff 要求纳入 T-249 v7 受管限定修复。产品仍 INCOMPLETE，未把缺陷当通过；无需用户再次解释。",
+        "task_id": "a2a+T-249-2",
+        "attempt_id": "acbdf9b4-39ee-4438-a9d9-d23fd21a6031",
+        "thread_id": "21bc4781-f760-4887-876a-a31f03e9554a",
+        "turn_id": "01a1be6b-29ca-7f23-911a-cfd762ace140",
+        "number": 2,
+        "title": "unborn 未跟踪文件详情没有内容",
+        "blocking": false,
+        "issue_id": "6414cdf1-5439-4aa3-841c-78518eeb77b4",
+        "action": "close",
+        "reason": "主控已在 Test 窗口独立复现，按原票的点文件看 diff 要求纳入 T-249 v7 受管限定修复。产品仍 INCOMPLETE，未把缺陷当通过；无需用户再次解释。",
+        "basis": "用户已授权完成两个面板及 bug 修复；复现见 controller/untracked-reproduction/RESULTS.md，新卡 v7 已登记并派发。"
+      },
+      {
+        "id": "da1daf33-9fb1-484d-aa56-2a438691fbcf",
+        "schema": 1,
+        "kind": "disposition",
+        "from": "user",
+        "to": "triage",
+        "reply_to": "704e9e02-87eb-4f58-861e-bf906075466e",
+        "refs": [
+          "task:a2a+T-249-2",
+          "attempt:acbdf9b4-39ee-4438-a9d9-d23fd21a6031",
+          "thread:21bc4781-f760-4887-876a-a31f03e9554a",
+          "turn:01a1be6b-29ca-7f23-911a-cfd762ace140",
+          "issue:704e9e02-87eb-4f58-861e-bf906075466e"
+        ],
+        "created_at": "2026-11-09T04:02:45.650Z",
+        "body": "两次 noWindowsAvailable 属工具未执行，保留为未覆盖，未判产品缺陷。主控已接手补真实窗口鼠标输入的列宽证据，并在修后安排 Terra 验收；不要求用户重复操作。",
+        "task_id": "a2a+T-249-2",
+        "attempt_id": "acbdf9b4-39ee-4438-a9d9-d23fd21a6031",
+        "thread_id": "21bc4781-f760-4887-876a-a31f03e9554a",
+        "turn_id": "01a1be6b-29ca-7f23-911a-cfd762ace140",
+        "number": 1,
+        "title": "CUA 拖动返回 noWindowsAvailable",
+        "blocking": false,
+        "issue_id": "704e9e02-87eb-4f58-861e-bf906075466e",
+        "action": "close",
+        "reason": "两次 noWindowsAvailable 属工具未执行，保留为未覆盖，未判产品缺陷。主控已接手补真实窗口鼠标输入的列宽证据，并在修后安排 Terra 验收；不要求用户重复操作。",
+        "basis": "原验收报告保存在提交 83cd1cc8f5873975f80b9438525044e299ea07dd；T-249 v7 goal 明确补证，不修改列宽实现来猜修。"
+      },
+      {
+        "id": "6359a080-04d8-4148-908d-452b1487bbb1",
+        "schema": 1,
+        "kind": "issue",
+        "from": "worker:c52fab95-eda5-45c7-be68-59fc8a6c7b08",
+        "to": "executor",
+        "reply_to": null,
+        "refs": [
+          "task:a2a+T-249-2",
+          "attempt:50e18884-5d3a-44fd-b470-9ed13e226d4b",
+          "thread:c52fab95-eda5-45c7-be68-59fc8a6c7b08",
+          "turn:01a1bf5a-f027-7f81-a5df-acee5de74542"
+        ],
+        "created_at": "2026-11-09T08:10:30.670Z",
+        "body": "门禁 verification 78958fae-cd39-491b-b5f1-2bda236ee9e7 的完成条件因 check_observations.py 不存在而退出 2。候选 8d1648de1146ffd5d0b833bf8d1b7d2839e102e1 的 Git tree 包含该脚本及输入，原 attempt worktree 内 /usr/bin/python3 完成条件已通过。验证目录 T-249-2-a4-verify-1 现已不存在，无法直接检查其 sparse 配置。只读检查发现主仓库启用 sparse checkout，.git/info/sparse-checkout 排除 evidence/ 且未包含 2026-11-08-batch34；门禁 core.ts 用 git worktree add 创建验证目录，故 sparse 检出遗漏是有证据支持但尚待主控验证的原因。脚本路径、任务卡和门禁源码均不在本 worker 可改范围，改证据内容或重交相同提交不能解决路径缺失。请核对验证 worktree 的 sparse 配置并修复受管验证环境，或由主控按规则修订任务卡后重派；请保留本次失败结果。",
+        "task_id": "a2a+T-249-2",
+        "attempt_id": "50e18884-5d3a-44fd-b470-9ed13e226d4b",
+        "thread_id": "c52fab95-eda5-45c7-be68-59fc8a6c7b08",
+        "turn_id": "01a1bf5a-f027-7f81-a5df-acee5de74542",
+        "number": 1,
+        "title": "验证 worktree 缺少完成条件脚本",
+        "blocking": true,
+        "issue_id": "6359a080-04d8-4148-908d-452b1487bbb1"
+      },
+      {
+        "id": "fbb452e4-9a8a-4989-a8eb-304913bbacc1",
+        "schema": 1,
+        "kind": "answer",
+        "from": "user",
+        "to": "worker:c52fab95-eda5-45c7-be68-59fc8a6c7b08",
+        "reply_to": "6359a080-04d8-4148-908d-452b1487bbb1",
+        "refs": [
+          "task:a2a+T-249-2",
+          "attempt:50e18884-5d3a-44fd-b470-9ed13e226d4b",
+          "thread:c52fab95-eda5-45c7-be68-59fc8a6c7b08",
+          "turn:01a1bf5a-f027-7f81-a5df-acee5de74542",
+          "issue:6359a080-04d8-4148-908d-452b1487bbb1",
+          "input:fbb452e4-9a8a-4989-a8eb-304913bbacc1",
+          "message:6d5d497c-99db-41c8-ab80-93f9270137b3"
+        ],
+        "created_at": "2026-11-09T08:12:30.439Z",
+        "body": "主控已正常补齐主仓库稀疏检出范围，本轮 batch34/batch35 的已提交文本会进入新的验证 worktree；旧未提交日志保留。实际命令/前后状态在主仓库 evidence/2026-11-09-batch35/T-249/controller-package/terra-sparse-checkout-before.json、terra-sparse-checkout-after-02.json（第一次 --no-cone 参数不支持的失败也另存，未覆盖）。但正常门禁在 completion 失败后要求新交付，直接 verify 同一 SHA 返回 repair_submission_required；不要重交原 SHA。请在原卡允许的 terra 目录内新增 FOLLOWUP 说明，按原字节复制主控正式进程前后证据（主仓库 evidence/2026-11-08-batch34/T-249/controller/terra-v4-formal-processes-before.json、terra-v4-formal-processes-after-cu.json），回读并写明来源属于主控，四条 PID/启动时间相同；同时保存这次稀疏检出诊断来源和已修复记录。不是空提交，也不修改产品、独立期望或 check_observations.py，不重做 CU。回放现有检查器与两份错误观察证明判定未变；提交本次新增证据的完整新 SHA，并显式 submit 一次。旧候选 8d1648de1 及原始环境失败保留。整体交付仍待独立审查，不把环境错误说成产品红态。主控已通过 view_image 回读五张截图，读回记录在 controller-package/terra-v4-controller-observations.json，保持来源归属。",
+        "task_id": "a2a+T-249-2",
+        "attempt_id": "50e18884-5d3a-44fd-b470-9ed13e226d4b",
+        "thread_id": "c52fab95-eda5-45c7-be68-59fc8a6c7b08",
+        "turn_id": "01a1bf5a-f027-7f81-a5df-acee5de74542",
+        "number": 1,
+        "title": "验证 worktree 缺少完成条件脚本",
+        "blocking": true,
+        "issue_id": "6359a080-04d8-4148-908d-452b1487bbb1",
+        "input_id": "fbb452e4-9a8a-4989-a8eb-304913bbacc1",
+        "message_id": "6d5d497c-99db-41c8-ab80-93f9270137b3",
+        "bundle_id": "4e849c62-2a32-47e4-b25c-bbb0002a9d1f"
+      },
+      {
+        "id": "7e4cabb2-4ac5-47e5-86b6-acc87c5ded92",
+        "schema": 1,
+        "kind": "disposition",
+        "from": "system",
+        "to": "worker:c52fab95-eda5-45c7-be68-59fc8a6c7b08",
+        "reply_to": "fbb452e4-9a8a-4989-a8eb-304913bbacc1",
+        "refs": [
+          "task:a2a+T-249-2",
+          "attempt:50e18884-5d3a-44fd-b470-9ed13e226d4b",
+          "thread:c52fab95-eda5-45c7-be68-59fc8a6c7b08",
+          "turn:01a1bf5a-f027-7f81-a5df-acee5de74542",
+          "issue:6359a080-04d8-4148-908d-452b1487bbb1",
+          "input:fbb452e4-9a8a-4989-a8eb-304913bbacc1",
+          "message:6d5d497c-99db-41c8-ab80-93f9270137b3"
+        ],
+        "created_at": "2026-11-09T08:12:31.197Z",
+        "body": "",
+        "task_id": "a2a+T-249-2",
+        "attempt_id": "50e18884-5d3a-44fd-b470-9ed13e226d4b",
+        "thread_id": "c52fab95-eda5-45c7-be68-59fc8a6c7b08",
+        "turn_id": "01a1bf5a-f027-7f81-a5df-acee5de74542",
+        "number": 1,
+        "title": "验证 worktree 缺少完成条件脚本",
+        "blocking": true,
+        "issue_id": "6359a080-04d8-4148-908d-452b1487bbb1",
+        "input_id": "fbb452e4-9a8a-4989-a8eb-304913bbacc1",
+        "message_id": "6d5d497c-99db-41c8-ab80-93f9270137b3",
+        "bundle_id": "4e849c62-2a32-47e4-b25c-bbb0002a9d1f",
+        "action": "delivered"
+      },
+      {
+        "id": "46cd7e1c-82b1-4585-8db3-082ae0a2c519",
+        "schema": 1,
+        "kind": "issue",
+        "from": "system",
+        "to": "executor",
+        "reply_to": null,
+        "refs": [
+          "task:a2a+T-249-2",
+          "attempt:2a84e9c0-ff8e-42a9-b030-4b603f8084ca"
+        ],
+        "created_at": "2026-11-09T12:32:23.035Z",
+        "body": "{\"review_id\":\"d20988dc-95ec-4424-8f62-07d1ef2d052f\",\"phase\":\"reclaim\",\"details\":{\"error\":\"SyntaxError: Unexpected end of JSON input\"},\"current\":true}",
+        "task_id": "a2a+T-249-2",
+        "attempt_id": "2a84e9c0-ff8e-42a9-b030-4b603f8084ca",
+        "thread_id": "43840c96-1ef9-440f-9ebe-851dec3ab137",
+        "turn_id": null,
+        "number": 1,
+        "title": "审查运行状态无法确认，停止自动推进",
+        "blocking": true,
+        "issue_id": "46cd7e1c-82b1-4585-8db3-082ae0a2c519"
+      },
+      {
+        "id": "bb2ab823-581a-4481-9c46-3101b84c3ab0",
+        "schema": 1,
+        "kind": "issue",
+        "from": "system",
+        "to": "executor",
+        "reply_to": null,
+        "refs": [
+          "task:a2a+T-249-2",
+          "attempt:2a84e9c0-ff8e-42a9-b030-4b603f8084ca"
+        ],
+        "created_at": "2026-11-09T12:54:18.129Z",
+        "body": "{\"review_id\":\"d20988dc-95ec-4424-8f62-07d1ef2d052f\",\"thread_id\":\"43840c96-1ef9-440f-9ebe-851dec3ab137\",\"state\":\"cancelled\"}",
+        "task_id": "a2a+T-249-2",
+        "attempt_id": "2a84e9c0-ff8e-42a9-b030-4b603f8084ca",
+        "thread_id": "d9ca08f2-ceff-4e93-b4dc-7d82a84a596e",
+        "turn_id": null,
+        "number": 2,
+        "title": "attempt 已终结，未完成的审查会话仍待核对回收",
+        "blocking": true,
+        "issue_id": "bb2ab823-581a-4481-9c46-3101b84c3ab0"
+      },
+      {
+        "id": "82763680-7f12-473d-a4f9-50aeb7dc5588",
+        "issue_id": "82763680-7f12-473d-a4f9-50aeb7dc5588",
+        "schema": 1,
+        "kind": "issue",
+        "from": "system",
+        "to": "executor",
+        "reply_to": null,
+        "refs": [
+          "task:a2a+T-249-2",
+          "attempt:25671a1a-bd03-4ed3-b2ff-3f64d165320a",
+          "session:45a9c4ae-49b1-4604-ac39-b17ef0f9a4db"
+        ],
+        "created_at": "2026-11-09T13:01:48.179Z",
+        "body": "{\n  \"reason\": \"verification_cleanup_failed\",\n  \"details\": {\n    \"verification_id\": \"de866669-4df1-4281-9b40-8f4411b1bd13\",\n    \"result\": {\n      \"argv\": [\n        \"git\",\n        \"-C\",\n        \"/Users/luckye/Documents/Code/a2a\",\n        \"worktree\",\n        \"remove\",\n        \"/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-2-a6-verify-1\"\n      ],\n      \"cwd\": \"/Users/luckye/Documents/Code/a2a\",\n      \"stdout\": \"\",\n      \"stderr\": \"fatal: '/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-2-a6-verify-1' contains modified or untracked files, use --force to delete it\\n\",\n      \"exit\": 128,\n      \"returncode\": 128\n    }\n  }\n}",
+        "task_id": "a2a+T-249-2",
+        "attempt_id": "25671a1a-bd03-4ed3-b2ff-3f64d165320a",
+        "thread_id": "059213d8-a96a-4193-a60e-87284cf18569",
+        "turn_id": "01a1c062-cb38-76d0-87fd-6feafdbd522f",
+        "number": 1,
+        "title": "worktree：verification_cleanup_failed",
+        "blocking": true
+      }
+    ],
+    "issues": [
+      {
+        "issue": {
+          "id": "bb431ff4-e969-4040-b502-0040dee6ed07",
+          "issue_id": "bb431ff4-e969-4040-b502-0040dee6ed07",
+          "schema": 1,
+          "kind": "issue",
+          "from": "system",
+          "to": "executor",
+          "reply_to": null,
+          "refs": [
+            "task:a2a+T-249-2",
+            "attempt:95a2750d-484c-427c-98fb-577f5a7ca84f",
+            "session:b847f76f-b14f-4a80-9dd6-0911094f7b66",
+            "thread:82a0320e-326a-410c-a830-74baad2a4881"
+          ],
+          "created_at": "2026-11-08T15:20:23.047Z",
+          "body": "{\n  \"reason\": \"current_turn_untrusted\",\n  \"what\": \"worker 这一回合交来的请求门禁没有执行，已记为拒收，以后也不会再执行。这一回合本身照常结束；窗格之后是否空闲看 status（排着用户输入或被打断时还会继续忙）。\",\n  \"requests\": [\n    {\n      \"request_id\": \"62395ac4-bcfd-4fcf-ba12-9073e7664dfc\",\n      \"command\": \"issue\",\n      \"title\": \"独立验收存在两项证据缺口\"\n    },\n    {\n      \"request_id\": \"8f62a033-f37d-499d-9698-cef5ce00a1ef\",\n      \"command\": \"submit\",\n      \"title\": null\n    },\n    {\n      \"request_id\": \"e95d9ce0-b4d4-4e21-817c-29fa3394bea7\",\n      \"command\": \"issue\",\n      \"title\": \"正式进程核对被沙箱拒绝\"\n    }\n  ],\n  \"unverified\": [\n    {\n      \"time\": \"2026-11-08T15:13:10.455Z\",\n      \"reason\": \"Error: question_origin_unverified\",\n      \"hook_event_name\": \"PreToolUse\"\n    },\n    {\n      \"time\": \"2026-11-08T15:13:10.820Z\",\n      \"reason\": \"Error: question_origin_unverified\",\n      \"hook_event_name\": \"PreToolUse\"\n    },\n    {\n      \"time\": \"2026-11-08T15:13:11.154Z\",\n      \"reason\": \"Error: question_origin_unverified\",\n      \"hook_event_name\": \"PreToolUse\"\n    }\n  ],\n  \"next\": \"看 unverified 是哪个钩子核对不上。要继续这项工作：等 worker 空闲后回收这个 attempt 再派发（它的提交还在 attempt 分支上，新卡可以 cherry-pick）；还忙时回收会被拒（worker_working）。\"\n}",
+          "task_id": "a2a+T-249-2",
+          "attempt_id": "95a2750d-484c-427c-98fb-577f5a7ca84f",
+          "thread_id": "82a0320e-326a-410c-a830-74baad2a4881",
+          "turn_id": "01a1bbb7-b302-7423-86bb-223b6bb457c5",
+          "number": 1,
+          "title": "交付没被受理：这一回合不可信",
+          "blocking": true,
+          "controller_launch": "55d61e9f-3657-41c2-9827-8cfd5c04cb9b"
+        },
+        "state": "已关闭",
+        "disposition": {
+          "id": "5e605bdf-a52c-4835-ba87-e3dc27f8a417",
+          "issue_id": "bb431ff4-e969-4040-b502-0040dee6ed07",
+          "schema": 1,
+          "kind": "disposition",
+          "from": "user",
+          "to": "triage",
+          "reply_to": "bb431ff4-e969-4040-b502-0040dee6ed07",
+          "refs": [
+            "task:a2a+T-249-2",
+            "attempt:95a2750d-484c-427c-98fb-577f5a7ca84f",
+            "session:b847f76f-b14f-4a80-9dd6-0911094f7b66",
+            "thread:82a0320e-326a-410c-a830-74baad2a4881",
+            "issue:bb431ff4-e969-4040-b502-0040dee6ed07"
+          ],
+          "created_at": "2026-11-09T01:25:05.369Z",
+          "body": "原回合请求已被门禁拒收，未执行且不再重放。原 attempt 已回收，任务当前 ready；主控已接手用新会话重新验收，不将旧交付作为通过证据。无需用户再次决定。",
+          "task_id": "a2a+T-249-2",
+          "attempt_id": "95a2750d-484c-427c-98fb-577f5a7ca84f",
+          "thread_id": "82a0320e-326a-410c-a830-74baad2a4881",
+          "turn_id": "01a1bbb7-b302-7423-86bb-223b6bb457c5",
+          "number": 1,
+          "title": "交付没被受理：这一回合不可信",
+          "blocking": true,
+          "controller_launch": "55d61e9f-3657-41c2-9827-8cfd5c04cb9b",
+          "action": "close",
+          "reason": "原回合请求已被门禁拒收，未执行且不再重放。原 attempt 已回收，任务当前 ready；主控已接手用新会话重新验收，不将旧交付作为通过证据。无需用户再次决定。",
+          "basis": "用户已授权恢复后继续两个面板并指定当前对话执行；T-249-2 当前 ready，无 current_attempt。旧拒收证据保留，后续 terra 必须重新完成验收。"
+        }
+      },
+      {
+        "issue": {
+          "id": "773d8865-1f51-468a-9cc9-fe58f63d268a",
+          "issue_id": "773d8865-1f51-468a-9cc9-fe58f63d268a",
+          "schema": 1,
+          "kind": "issue",
+          "from": "system",
+          "to": "executor",
+          "reply_to": null,
+          "refs": [
+            "task:a2a+T-249-2",
+            "attempt:843d4f55-505a-487e-8b0e-149ea092ec3e",
+            "session:ccb74d44-141d-4ec9-9287-84cb71c8a37f"
+          ],
+          "created_at": "2026-11-08T15:39:33.167Z",
+          "body": "{\n  \"reason\": \"dirty_worktree\",\n  \"details\": {\n    \"head\": \"793a043ee67b8cc6e17abe0d3d319f0b1c36282b\",\n    \"status\": \"?? evidence/2026-11-08-batch34/T-249/terra/acceptance-output.txt\\n?? evidence/2026-11-08-batch34/T-249/terra/git-oracle.json\\n?? evidence/2026-11-08-batch34/T-249/terra/host-output.txt\\n?? evidence/2026-11-08-batch34/T-249/terra/safety-output.txt\"\n  }\n}",
+          "task_id": "a2a+T-249-2",
+          "attempt_id": "843d4f55-505a-487e-8b0e-149ea092ec3e",
+          "thread_id": "4c70d97d-1077-4444-bf87-e3347793d8f2",
+          "turn_id": "",
+          "number": 1,
+          "title": "worktree：dirty_worktree",
+          "blocking": true
+        },
+        "state": "已关闭",
+        "disposition": {
+          "id": "57d9952b-c1c7-4925-b468-157ac5b4c804",
+          "issue_id": "773d8865-1f51-468a-9cc9-fe58f63d268a",
+          "schema": 1,
+          "kind": "disposition",
+          "from": "user",
+          "to": "triage",
+          "reply_to": "773d8865-1f51-468a-9cc9-fe58f63d268a",
+          "refs": [
+            "task:a2a+T-249-2",
+            "attempt:843d4f55-505a-487e-8b0e-149ea092ec3e",
+            "session:ccb74d44-141d-4ec9-9287-84cb71c8a37f",
+            "issue:773d8865-1f51-468a-9cc9-fe58f63d268a"
+          ],
+          "created_at": "2026-11-09T01:25:05.967Z",
+          "body": "已明确保留旧验收工作树的四个未跟踪文本，未强制清理或丢弃。该 attempt 已回收，任务 ready；主控负责后续新验收，用户无需选择删除。",
+          "task_id": "a2a+T-249-2",
+          "attempt_id": "843d4f55-505a-487e-8b0e-149ea092ec3e",
+          "thread_id": "4c70d97d-1077-4444-bf87-e3347793d8f2",
+          "turn_id": "",
+          "number": 1,
+          "title": "worktree：dirty_worktree",
+          "blocking": true,
+          "action": "close",
+          "reason": "已明确保留旧验收工作树的四个未跟踪文本，未强制清理或丢弃。该 attempt 已回收，任务 ready；主控负责后续新验收，用户无需选择删除。",
+          "basis": "本轮 retained-artifacts-01.json 核对四个文件路径与字节；用户授权当前对话继续修复并处理截图提醒。关闭仅记录保留处置，不代表旧验收 PASS。"
+        }
+      },
+      {
+        "issue": {
+          "id": "704e9e02-87eb-4f58-861e-bf906075466e",
+          "schema": 1,
+          "kind": "issue",
+          "from": "worker:21bc4781-f760-4887-876a-a31f03e9554a",
+          "to": "executor",
+          "reply_to": null,
+          "refs": [
+            "task:a2a+T-249-2",
+            "attempt:acbdf9b4-39ee-4438-a9d9-d23fd21a6031",
+            "thread:21bc4781-f760-4887-876a-a31f03e9554a",
+            "turn:01a1be6b-29ca-7f23-911a-cfd762ace140"
+          ],
+          "created_at": "2026-11-09T03:58:32.679Z",
+          "body": "在指定 Test 窗口截图确认提交表说明/日期分隔条后，CUA app.drag 两次定位尝试分别以 [1168,147]→[1100,147] 和 [2338,294]→[2200,294] 返回 Computer Use server error -10005: noWindowsAvailable；截图和 AX 仍可读取窗口。未观察到拖动发生，无法判断产品列宽行为。按卡限制停止定位；请主控协调工具或补验。",
+          "task_id": "a2a+T-249-2",
+          "attempt_id": "acbdf9b4-39ee-4438-a9d9-d23fd21a6031",
+          "thread_id": "21bc4781-f760-4887-876a-a31f03e9554a",
+          "turn_id": "01a1be6b-29ca-7f23-911a-cfd762ace140",
+          "number": 1,
+          "title": "CUA 拖动返回 noWindowsAvailable",
+          "blocking": false,
+          "issue_id": "704e9e02-87eb-4f58-861e-bf906075466e"
+        },
+        "state": "已关闭",
+        "disposition": {
+          "id": "da1daf33-9fb1-484d-aa56-2a438691fbcf",
+          "schema": 1,
+          "kind": "disposition",
+          "from": "user",
+          "to": "triage",
+          "reply_to": "704e9e02-87eb-4f58-861e-bf906075466e",
+          "refs": [
+            "task:a2a+T-249-2",
+            "attempt:acbdf9b4-39ee-4438-a9d9-d23fd21a6031",
+            "thread:21bc4781-f760-4887-876a-a31f03e9554a",
+            "turn:01a1be6b-29ca-7f23-911a-cfd762ace140",
+            "issue:704e9e02-87eb-4f58-861e-bf906075466e"
+          ],
+          "created_at": "2026-11-09T04:02:45.650Z",
+          "body": "两次 noWindowsAvailable 属工具未执行，保留为未覆盖，未判产品缺陷。主控已接手补真实窗口鼠标输入的列宽证据，并在修后安排 Terra 验收；不要求用户重复操作。",
+          "task_id": "a2a+T-249-2",
+          "attempt_id": "acbdf9b4-39ee-4438-a9d9-d23fd21a6031",
+          "thread_id": "21bc4781-f760-4887-876a-a31f03e9554a",
+          "turn_id": "01a1be6b-29ca-7f23-911a-cfd762ace140",
+          "number": 1,
+          "title": "CUA 拖动返回 noWindowsAvailable",
+          "blocking": false,
+          "issue_id": "704e9e02-87eb-4f58-861e-bf906075466e",
+          "action": "close",
+          "reason": "两次 noWindowsAvailable 属工具未执行，保留为未覆盖，未判产品缺陷。主控已接手补真实窗口鼠标输入的列宽证据，并在修后安排 Terra 验收；不要求用户重复操作。",
+          "basis": "原验收报告保存在提交 83cd1cc8f5873975f80b9438525044e299ea07dd；T-249 v7 goal 明确补证，不修改列宽实现来猜修。"
+        }
+      },
+      {
+        "issue": {
+          "id": "6414cdf1-5439-4aa3-841c-78518eeb77b4",
+          "schema": 1,
+          "kind": "issue",
+          "from": "worker:21bc4781-f760-4887-876a-a31f03e9554a",
+          "to": "executor",
+          "reply_to": null,
+          "refs": [
+            "task:a2a+T-249-2",
+            "attempt:acbdf9b4-39ee-4438-a9d9-d23fd21a6031",
+            "thread:21bc4781-f760-4887-876a-a31f03e9554a",
+            "turn:01a1be6b-29ca-7f23-911a-cfd762ace140"
+          ],
+          "created_at": "2026-11-09T03:58:33.188Z",
+          "body": "在指定 Test 包中，普通终端进入 /private/tmp/t249-terra-20261108-03/repos/unborn，点击“未提交的改动（3 个文件）”，再点 ? untracked.txt，面板只显示“未跟踪文件，还没有 diff。”夹具文件有实际内容。任务卡要求分别核对 unborn 暂存、未暂存、未跟踪内容，票要求点击文件查看 diff；目前无法通过该 UI 核对未跟踪内容。请主控判断契约与后续处理；未改产品。",
+          "task_id": "a2a+T-249-2",
+          "attempt_id": "acbdf9b4-39ee-4438-a9d9-d23fd21a6031",
+          "thread_id": "21bc4781-f760-4887-876a-a31f03e9554a",
+          "turn_id": "01a1be6b-29ca-7f23-911a-cfd762ace140",
+          "number": 2,
+          "title": "unborn 未跟踪文件详情没有内容",
+          "blocking": false,
+          "issue_id": "6414cdf1-5439-4aa3-841c-78518eeb77b4"
+        },
+        "state": "已关闭",
+        "disposition": {
+          "id": "0e7020d0-8bfd-4c90-a1a1-6af040f73ec2",
+          "schema": 1,
+          "kind": "disposition",
+          "from": "user",
+          "to": "triage",
+          "reply_to": "6414cdf1-5439-4aa3-841c-78518eeb77b4",
+          "refs": [
+            "task:a2a+T-249-2",
+            "attempt:acbdf9b4-39ee-4438-a9d9-d23fd21a6031",
+            "thread:21bc4781-f760-4887-876a-a31f03e9554a",
+            "turn:01a1be6b-29ca-7f23-911a-cfd762ace140",
+            "issue:6414cdf1-5439-4aa3-841c-78518eeb77b4"
+          ],
+          "created_at": "2026-11-09T04:02:45.479Z",
+          "body": "主控已在 Test 窗口独立复现，按原票的点文件看 diff 要求纳入 T-249 v7 受管限定修复。产品仍 INCOMPLETE，未把缺陷当通过；无需用户再次解释。",
+          "task_id": "a2a+T-249-2",
+          "attempt_id": "acbdf9b4-39ee-4438-a9d9-d23fd21a6031",
+          "thread_id": "21bc4781-f760-4887-876a-a31f03e9554a",
+          "turn_id": "01a1be6b-29ca-7f23-911a-cfd762ace140",
+          "number": 2,
+          "title": "unborn 未跟踪文件详情没有内容",
+          "blocking": false,
+          "issue_id": "6414cdf1-5439-4aa3-841c-78518eeb77b4",
+          "action": "close",
+          "reason": "主控已在 Test 窗口独立复现，按原票的点文件看 diff 要求纳入 T-249 v7 受管限定修复。产品仍 INCOMPLETE，未把缺陷当通过；无需用户再次解释。",
+          "basis": "用户已授权完成两个面板及 bug 修复；复现见 controller/untracked-reproduction/RESULTS.md，新卡 v7 已登记并派发。"
+        }
+      },
+      {
+        "issue": {
+          "id": "6359a080-04d8-4148-908d-452b1487bbb1",
+          "schema": 1,
+          "kind": "issue",
+          "from": "worker:c52fab95-eda5-45c7-be68-59fc8a6c7b08",
+          "to": "executor",
+          "reply_to": null,
+          "refs": [
+            "task:a2a+T-249-2",
+            "attempt:50e18884-5d3a-44fd-b470-9ed13e226d4b",
+            "thread:c52fab95-eda5-45c7-be68-59fc8a6c7b08",
+            "turn:01a1bf5a-f027-7f81-a5df-acee5de74542"
+          ],
+          "created_at": "2026-11-09T08:10:30.670Z",
+          "body": "门禁 verification 78958fae-cd39-491b-b5f1-2bda236ee9e7 的完成条件因 check_observations.py 不存在而退出 2。候选 8d1648de1146ffd5d0b833bf8d1b7d2839e102e1 的 Git tree 包含该脚本及输入，原 attempt worktree 内 /usr/bin/python3 完成条件已通过。验证目录 T-249-2-a4-verify-1 现已不存在，无法直接检查其 sparse 配置。只读检查发现主仓库启用 sparse checkout，.git/info/sparse-checkout 排除 evidence/ 且未包含 2026-11-08-batch34；门禁 core.ts 用 git worktree add 创建验证目录，故 sparse 检出遗漏是有证据支持但尚待主控验证的原因。脚本路径、任务卡和门禁源码均不在本 worker 可改范围，改证据内容或重交相同提交不能解决路径缺失。请核对验证 worktree 的 sparse 配置并修复受管验证环境，或由主控按规则修订任务卡后重派；请保留本次失败结果。",
+          "task_id": "a2a+T-249-2",
+          "attempt_id": "50e18884-5d3a-44fd-b470-9ed13e226d4b",
+          "thread_id": "c52fab95-eda5-45c7-be68-59fc8a6c7b08",
+          "turn_id": "01a1bf5a-f027-7f81-a5df-acee5de74542",
+          "number": 1,
+          "title": "验证 worktree 缺少完成条件脚本",
+          "blocking": true,
+          "issue_id": "6359a080-04d8-4148-908d-452b1487bbb1"
+        },
+        "state": "已送达",
+        "answer": {
+          "id": "fbb452e4-9a8a-4989-a8eb-304913bbacc1",
+          "schema": 1,
+          "kind": "answer",
+          "from": "user",
+          "to": "worker:c52fab95-eda5-45c7-be68-59fc8a6c7b08",
+          "reply_to": "6359a080-04d8-4148-908d-452b1487bbb1",
+          "refs": [
+            "task:a2a+T-249-2",
+            "attempt:50e18884-5d3a-44fd-b470-9ed13e226d4b",
+            "thread:c52fab95-eda5-45c7-be68-59fc8a6c7b08",
+            "turn:01a1bf5a-f027-7f81-a5df-acee5de74542",
+            "issue:6359a080-04d8-4148-908d-452b1487bbb1",
+            "input:fbb452e4-9a8a-4989-a8eb-304913bbacc1",
+            "message:6d5d497c-99db-41c8-ab80-93f9270137b3"
+          ],
+          "created_at": "2026-11-09T08:12:30.439Z",
+          "body": "主控已正常补齐主仓库稀疏检出范围，本轮 batch34/batch35 的已提交文本会进入新的验证 worktree；旧未提交日志保留。实际命令/前后状态在主仓库 evidence/2026-11-09-batch35/T-249/controller-package/terra-sparse-checkout-before.json、terra-sparse-checkout-after-02.json（第一次 --no-cone 参数不支持的失败也另存，未覆盖）。但正常门禁在 completion 失败后要求新交付，直接 verify 同一 SHA 返回 repair_submission_required；不要重交原 SHA。请在原卡允许的 terra 目录内新增 FOLLOWUP 说明，按原字节复制主控正式进程前后证据（主仓库 evidence/2026-11-08-batch34/T-249/controller/terra-v4-formal-processes-before.json、terra-v4-formal-processes-after-cu.json），回读并写明来源属于主控，四条 PID/启动时间相同；同时保存这次稀疏检出诊断来源和已修复记录。不是空提交，也不修改产品、独立期望或 check_observations.py，不重做 CU。回放现有检查器与两份错误观察证明判定未变；提交本次新增证据的完整新 SHA，并显式 submit 一次。旧候选 8d1648de1 及原始环境失败保留。整体交付仍待独立审查，不把环境错误说成产品红态。主控已通过 view_image 回读五张截图，读回记录在 controller-package/terra-v4-controller-observations.json，保持来源归属。",
+          "task_id": "a2a+T-249-2",
+          "attempt_id": "50e18884-5d3a-44fd-b470-9ed13e226d4b",
+          "thread_id": "c52fab95-eda5-45c7-be68-59fc8a6c7b08",
+          "turn_id": "01a1bf5a-f027-7f81-a5df-acee5de74542",
+          "number": 1,
+          "title": "验证 worktree 缺少完成条件脚本",
+          "blocking": true,
+          "issue_id": "6359a080-04d8-4148-908d-452b1487bbb1",
+          "input_id": "fbb452e4-9a8a-4989-a8eb-304913bbacc1",
+          "message_id": "6d5d497c-99db-41c8-ab80-93f9270137b3",
+          "bundle_id": "4e849c62-2a32-47e4-b25c-bbb0002a9d1f"
+        },
+        "disposition": {
+          "id": "7e4cabb2-4ac5-47e5-86b6-acc87c5ded92",
+          "schema": 1,
+          "kind": "disposition",
+          "from": "system",
+          "to": "worker:c52fab95-eda5-45c7-be68-59fc8a6c7b08",
+          "reply_to": "fbb452e4-9a8a-4989-a8eb-304913bbacc1",
+          "refs": [
+            "task:a2a+T-249-2",
+            "attempt:50e18884-5d3a-44fd-b470-9ed13e226d4b",
+            "thread:c52fab95-eda5-45c7-be68-59fc8a6c7b08",
+            "turn:01a1bf5a-f027-7f81-a5df-acee5de74542",
+            "issue:6359a080-04d8-4148-908d-452b1487bbb1",
+            "input:fbb452e4-9a8a-4989-a8eb-304913bbacc1",
+            "message:6d5d497c-99db-41c8-ab80-93f9270137b3"
+          ],
+          "created_at": "2026-11-09T08:12:31.197Z",
+          "body": "",
+          "task_id": "a2a+T-249-2",
+          "attempt_id": "50e18884-5d3a-44fd-b470-9ed13e226d4b",
+          "thread_id": "c52fab95-eda5-45c7-be68-59fc8a6c7b08",
+          "turn_id": "01a1bf5a-f027-7f81-a5df-acee5de74542",
+          "number": 1,
+          "title": "验证 worktree 缺少完成条件脚本",
+          "blocking": true,
+          "issue_id": "6359a080-04d8-4148-908d-452b1487bbb1",
+          "input_id": "fbb452e4-9a8a-4989-a8eb-304913bbacc1",
+          "message_id": "6d5d497c-99db-41c8-ab80-93f9270137b3",
+          "bundle_id": "4e849c62-2a32-47e4-b25c-bbb0002a9d1f",
+          "action": "delivered"
+        }
+      },
+      {
+        "issue": {
+          "id": "46cd7e1c-82b1-4585-8db3-082ae0a2c519",
+          "schema": 1,
+          "kind": "issue",
+          "from": "system",
+          "to": "executor",
+          "reply_to": null,
+          "refs": [
+            "task:a2a+T-249-2",
+            "attempt:2a84e9c0-ff8e-42a9-b030-4b603f8084ca"
+          ],
+          "created_at": "2026-11-09T12:32:23.035Z",
+          "body": "{\"review_id\":\"d20988dc-95ec-4424-8f62-07d1ef2d052f\",\"phase\":\"reclaim\",\"details\":{\"error\":\"SyntaxError: Unexpected end of JSON input\"},\"current\":true}",
+          "task_id": "a2a+T-249-2",
+          "attempt_id": "2a84e9c0-ff8e-42a9-b030-4b603f8084ca",
+          "thread_id": "43840c96-1ef9-440f-9ebe-851dec3ab137",
+          "turn_id": null,
+          "number": 1,
+          "title": "审查运行状态无法确认，停止自动推进",
+          "blocking": true,
+          "issue_id": "46cd7e1c-82b1-4585-8db3-082ae0a2c519"
+        },
+        "state": "等你决定"
+      },
+      {
+        "issue": {
+          "id": "bb2ab823-581a-4481-9c46-3101b84c3ab0",
+          "schema": 1,
+          "kind": "issue",
+          "from": "system",
+          "to": "executor",
+          "reply_to": null,
+          "refs": [
+            "task:a2a+T-249-2",
+            "attempt:2a84e9c0-ff8e-42a9-b030-4b603f8084ca"
+          ],
+          "created_at": "2026-11-09T12:54:18.129Z",
+          "body": "{\"review_id\":\"d20988dc-95ec-4424-8f62-07d1ef2d052f\",\"thread_id\":\"43840c96-1ef9-440f-9ebe-851dec3ab137\",\"state\":\"cancelled\"}",
+          "task_id": "a2a+T-249-2",
+          "attempt_id": "2a84e9c0-ff8e-42a9-b030-4b603f8084ca",
+          "thread_id": "d9ca08f2-ceff-4e93-b4dc-7d82a84a596e",
+          "turn_id": null,
+          "number": 2,
+          "title": "attempt 已终结，未完成的审查会话仍待核对回收",
+          "blocking": true,
+          "issue_id": "bb2ab823-581a-4481-9c46-3101b84c3ab0"
+        },
+        "state": "待判断"
+      },
+      {
+        "issue": {
+          "id": "82763680-7f12-473d-a4f9-50aeb7dc5588",
+          "issue_id": "82763680-7f12-473d-a4f9-50aeb7dc5588",
+          "schema": 1,
+          "kind": "issue",
+          "from": "system",
+          "to": "executor",
+          "reply_to": null,
+          "refs": [
+            "task:a2a+T-249-2",
+            "attempt:25671a1a-bd03-4ed3-b2ff-3f64d165320a",
+            "session:45a9c4ae-49b1-4604-ac39-b17ef0f9a4db"
+          ],
+          "created_at": "2026-11-09T13:01:48.179Z",
+          "body": "{\n  \"reason\": \"verification_cleanup_failed\",\n  \"details\": {\n    \"verification_id\": \"de866669-4df1-4281-9b40-8f4411b1bd13\",\n    \"result\": {\n      \"argv\": [\n        \"git\",\n        \"-C\",\n        \"/Users/luckye/Documents/Code/a2a\",\n        \"worktree\",\n        \"remove\",\n        \"/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-2-a6-verify-1\"\n      ],\n      \"cwd\": \"/Users/luckye/Documents/Code/a2a\",\n      \"stdout\": \"\",\n      \"stderr\": \"fatal: '/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-2-a6-verify-1' contains modified or untracked files, use --force to delete it\\n\",\n      \"exit\": 128,\n      \"returncode\": 128\n    }\n  }\n}",
+          "task_id": "a2a+T-249-2",
+          "attempt_id": "25671a1a-bd03-4ed3-b2ff-3f64d165320a",
+          "thread_id": "059213d8-a96a-4193-a60e-87284cf18569",
+          "turn_id": "01a1c062-cb38-76d0-87fd-6feafdbd522f",
+          "number": 1,
+          "title": "worktree：verification_cleanup_failed",
+          "blocking": true
+        },
+        "state": "待判断"
+      }
+    ],
+    "user_inputs": [
+      {
+        "id": "fbb452e4-9a8a-4989-a8eb-304913bbacc1",
+        "schema": 1,
+        "form": "answer",
+        "text": "主控已正常补齐主仓库稀疏检出范围，本轮 batch34/batch35 的已提交文本会进入新的验证 worktree；旧未提交日志保留。实际命令/前后状态在主仓库 evidence/2026-11-09-batch35/T-249/controller-package/terra-sparse-checkout-before.json、terra-sparse-checkout-after-02.json（第一次 --no-cone 参数不支持的失败也另存，未覆盖）。但正常门禁在 completion 失败后要求新交付，直接 verify 同一 SHA 返回 repair_submission_required；不要重交原 SHA。请在原卡允许的 terra 目录内新增 FOLLOWUP 说明，按原字节复制主控正式进程前后证据（主仓库 evidence/2026-11-08-batch34/T-249/controller/terra-v4-formal-processes-before.json、terra-v4-formal-processes-after-cu.json），回读并写明来源属于主控，四条 PID/启动时间相同；同时保存这次稀疏检出诊断来源和已修复记录。不是空提交，也不修改产品、独立期望或 check_observations.py，不重做 CU。回放现有检查器与两份错误观察证明判定未变；提交本次新增证据的完整新 SHA，并显式 submit 一次。旧候选 8d1648de1 及原始环境失败保留。整体交付仍待独立审查，不把环境错误说成产品红态。主控已通过 view_image 回读五张截图，读回记录在 controller-package/terra-v4-controller-observations.json，保持来源归属。",
+        "target": {
+          "project": "a2a",
+          "task": "a2a+T-249-2",
+          "attempt": "50e18884-5d3a-44fd-b470-9ed13e226d4b",
+          "thread": "c52fab95-eda5-45c7-be68-59fc8a6c7b08",
+          "turn": null,
+          "message": "6d5d497c-99db-41c8-ab80-93f9270137b3",
+          "request": null
+        },
+        "channel": "issue-panel",
+        "reply_to": "6359a080-04d8-4148-908d-452b1487bbb1",
+        "source_ref": {
+          "message_id": "6d5d497c-99db-41c8-ab80-93f9270137b3",
+          "event_id": "fbb452e4-9a8a-4989-a8eb-304913bbacc1",
+          "source_sequence": 4674
+        },
+        "certainty": "observed",
+        "created_at": "2026-11-09T08:12:30.439Z",
+        "bundle_id": "4e849c62-2a32-47e4-b25c-bbb0002a9d1f",
+        "question": {
+          "number": 1,
+          "title": "验证 worktree 缺少完成条件脚本",
+          "body": "门禁 verification 78958fae-cd39-491b-b5f1-2bda236ee9e7 的完成条件因 check_observations.py 不存在而退出 2。候选 8d1648de1146ffd5d0b833bf8d1b7d2839e102e1 的 Git tree 包含该脚本及输入，原 attempt worktree 内 /usr/bin/python3 完成条件已通过。验证目录 T-249-2-a4-verify-1 现已不存在，无法直接检查其 sparse 配置。只读检查发现主仓库启用 sparse checkout，.git/info/sparse-checkout 排除 evidence/ 且未包含 2026-11-08-batch34；门禁 core.ts 用 git worktree add 创建验证目录，故 sparse 检出遗漏是有证据支持但尚待主控验证的原因。脚本路径、任务卡和门禁源码均不在本 worker 可改范围，改证据内容或重交相同提交不能解决路径缺失。请核对验证 worktree 的 sparse 配置并修复受管验证环境，或由主控按规则修订任务卡后重派；请保留本次失败结果。"
+        }
+      },
+      {
+        "id": "d549750c-dd1a-42c3-9b4c-b1134643aba0",
+        "schema": 1,
+        "form": "action",
+        "text": "用户声明输入框已空",
+        "target": {
+          "project": "a2a",
+          "task": "a2a+T-249-2",
+          "attempt": "2a84e9c0-ff8e-42a9-b030-4b603f8084ca",
+          "thread": "d9ca08f2-ceff-4e93-b4dc-7d82a84a596e",
+          "turn": "01a1bf61-0196-7632-a35b-b3283b2f0594",
+          "message": null,
+          "request": null
+        },
+        "channel": "terminal-window",
+        "reply_to": null,
+        "certainty": "observed",
+        "created_at": "2026-11-09T12:16:25.011Z",
+        "source_ref": {
+          "command_id": "8b267362-7444-4f03-9920-be46d50504b8",
+          "source_sequence": 10,
+          "window_id": "ff8474d9-5b39-4819-9cdf-ca889f996c9e"
+        },
+        "content": {
+          "action": "queue-release",
+          "declaration": {
+            "statement": "用户声明输入框已空",
+            "launch": "4a5c8e04-a0a4-45ad-a069-ac651b13b4d7",
+            "window_id": "ff8474d9-5b39-4819-9cdf-ca889f996c9e",
+            "interruption": 193416,
+            "input_generation": 1
+          },
+          "previous_submission": "3dd123ee-957f-4686-bfbc-72ad77780b75",
+          "queued": []
+        }
+      },
+      {
+        "id": "dd4470db-1d9d-4f02-8a0c-c006d9ee3197",
+        "schema": 1,
+        "form": "action",
+        "text": "用户声明输入框已空",
+        "target": {
+          "project": "a2a",
+          "task": "a2a+T-249-2",
+          "attempt": "2a84e9c0-ff8e-42a9-b030-4b603f8084ca",
+          "thread": "d9ca08f2-ceff-4e93-b4dc-7d82a84a596e",
+          "turn": "01a1c050-2485-7411-813c-ce5b8c6b0b61",
+          "message": null,
+          "request": null
+        },
+        "channel": "terminal-window",
+        "reply_to": null,
+        "certainty": "observed",
+        "created_at": "2026-11-09T12:41:18.071Z",
+        "source_ref": {
+          "command_id": "0e7c6580-8e16-487a-bf8d-0faffb886ad6",
+          "source_sequence": 13,
+          "window_id": "ff8474d9-5b39-4819-9cdf-ca889f996c9e"
+        },
+        "content": {
+          "action": "queue-release",
+          "declaration": {
+            "statement": "用户声明输入框已空",
+            "launch": "4a5c8e04-a0a4-45ad-a069-ac651b13b4d7",
+            "window_id": "ff8474d9-5b39-4819-9cdf-ca889f996c9e",
+            "interruption": 200858,
+            "input_generation": 2
+          },
+          "previous_submission": "a782f426-e764-413e-9a81-8d779e872505",
+          "queued": []
+        }
+      }
+    ],
+    "user_input_observer": {
+      "state": "healthy",
+      "updated_at": "2026-11-09T12:45:08.375Z"
+    }
+  },
+  "stderr": ""
+}
