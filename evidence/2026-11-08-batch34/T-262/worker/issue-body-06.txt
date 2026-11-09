@@ -1,0 +1,24 @@
+INCOMPLETE：主控 #104 指出的真实窗口尺寸驱动已修正，候选冻结待外部复验。本轮没有启动应用、后台、ps、模型或构建，也没有重跑父版。
+
+当前身份仍为 a2a+T-262-1 / attempt 64d48cf7-0cfc-4078-8a13-6f0067297990 / session f08fffc6-d09d-4a7c-8253-e5ddf60fca04 / fence 2 / spec_rev 2。未提交、未 submit。
+
+已只读核对现有 Electron 43.4.1 类型中的 BrowserWindow.setBounds/getBounds/getContentSize，以及同仓 cdp_launch.cjs、t103_picker_driver.mjs、electron_driver.mjs 和产品 run() 返回值。测试在自己的临时目录生成 CJS 启动器，调用真实产品 run() 后通过 BrowserWindow.setBounds({width:900,height:700},false) 设置窗口；用 getBounds/getContentSize 写入原生窗口/进程身份与尺寸，场景开始前验证 900x700，原窄窗断言前再读尺寸记录。resize 记录和 native_window 字段、diagnostics 可追溯。已删除原 Browser.getWindowForTarget/setWindowBounds 两条调用，不加兼容回退；没有改共享启动器、产品或 DOM 宽度。
+
+AST 检查确认所有业务断言及后续流程、四个 mutant、select/Enter 驱动与清理方法不变。CJS/ESM node --check、Python --help 与 diff 检查通过。证据见 evidence/2026-11-08-batch34/T-262/worker/WINDOW-DRIVER-06.md、static-window-06.json、test-before-window-06.py。旧红态和 green-outside-02 原摘要均原样保留副本。父版 red-outside-05 已有效 FAIL，无须重跑；green-outside-02 的 21 项通过不是整轮 PASS。
+
+请主控在以下外层 cwd 逐条运行（沙箱外，不并发）：
+/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-262-1-a2
+
+env -u A2A_REQUEST_DIR /usr/bin/python3 workbench/tests/test_t262_records_e2e.py --summary '/Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-262/controller/green-outside-03.json'
+
+env -u A2A_REQUEST_DIR /usr/bin/python3 workbench/tests/test_t262_records_e2e.py --mutant no-sort --summary '/Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-262/controller/mutant-no-sort-03.json'
+
+env -u A2A_REQUEST_DIR /usr/bin/python3 workbench/tests/test_t262_records_e2e.py --mutant receipt-task --summary '/Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-262/controller/mutant-receipt-task-03.json'
+
+env -u A2A_REQUEST_DIR /usr/bin/python3 workbench/tests/test_t262_records_e2e.py --mutant ignore-session --summary '/Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-262/controller/mutant-ignore-session-03.json'
+
+env -u A2A_REQUEST_DIR /usr/bin/python3 workbench/tests/test_t262_records_e2e.py --mutant no-full-receipt --summary '/Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-262/controller/mutant-no-full-receipt-03.json'
+
+这些是 controller-runs-06.command 的完整命令。先要求候选完整 PASS，随后四个 mutant 均应业务 FAIL/非零；INCOMPLETE 不算检出。请回传退出码、摘要、diagnostics，核对 native_window 的原生 900x700/内容尺寸/身份及 cleanup.removed、core_cleanup。文件已存在则换编号保留旧证据。原生 select 键盘 CU 与独立审查仍由主控完成。
+
+README 候选说明按 #104 由主控同步；本 worktree 的 status 仍为 Problems 0 / Stale living docs 1，未越权改 README 或地图。额外可写目录 []，无额外目录改动。无等待重启事项。此轮集中只发这一条 issue，等待主控复验结果。

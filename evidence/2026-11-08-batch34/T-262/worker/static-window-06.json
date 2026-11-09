@@ -1,0 +1,17 @@
+{
+  "status": "PASS",
+  "scope": "仅静态驱动检查，不是窗口运行或完整业务验收",
+  "time": "2026-11-09T03:57:40.043438+00:00",
+  "checks": [
+    "原有所有常量（原始夹具、四个变异、CDP 页面驱动等）保持不变",
+    "main 的唯一区别是两条 Browser CDP 调用换成尺寸读回；所有业务断言及后续流程不变",
+    "select/Enter 驱动、记录读写、等待和清理方法不变；准备/启动与诊断新增真实窗口尺寸采集",
+    "自有 CJS 启动器与原 CDP 驱动通过 node --check，未执行",
+    "Python AST 与 --help 通过，未进入场景",
+    "git diff --check 通过"
+  ],
+  "help_stdout": "usage: test_t262_records_e2e.py [-h]\n                                [--revision REVISION | --mutant {no-sort,receipt-task,ignore-session,no-full-receipt}]\n                                [--summary SUMMARY] [--smoke]\n\nT-262：无模型的真实 Electron / IPC / 后台读取路径测试。 失败方式（实现前确定）：双区筛选不一致；漏掉单一来源会话；同名主控混淆；\n乱序及同时间记录不稳定；刷新/切项目被旧响应覆盖；错误被当空态；原文、人工 介入或完整回执丢失；长文本撑破窄窗；筛选控件不能选择；详情键盘无法展开。\n原始记录直接写入本次隔离后台的库，期望来自下列场景；不启动任何 agent CLI， 不替换 window.a2a 或 DOM 数据。--revision\n运行父版，--summary 独占写入证据。 筛选走真实 select 的标准表单选择与 input/change；原生选择器键盘由主控另做\nComputer Use 验收。本脚本保留 details 的真实 Enter，不把表单选择称作键盘证明。\n\noptional arguments:\n  -h, --help            show this help message and exit\n  --revision REVISION\n  --mutant {no-sort,receipt-task,ignore-session,no-full-receipt}\n  --summary SUMMARY\n  --smoke               仅运行排序/任务筛选 Tracer bullet；默认运行完整场景\n",
+  "applications_started": false,
+  "builds_run": 0,
+  "ps_executed": false
+}
