@@ -2,7 +2,7 @@
 id: T-260
 title: 已处理问题不再错误提示等待用户
 type: build
-status: open
+status: done
 blocked_by: [T-259]
 claimed_by: executor
 supersedes:
@@ -41,3 +41,9 @@ INCOMPLETE。原截图五项已经执行主控核对修复证据后，通过门�
 隔离审计发现了可复现的产品缺陷：问题卡的“重新打开”发送 `reopen`，但 `main.ts` 的 `a2a:issue-dispose` 白名单只接受 `close`、`snooze`。请求在到达门禁前报 `Invalid disposition`，问题仍为已关闭，三个显示面的计数没有按独立预期增加。真实窗口失败见 [外部运行结果](../../evidence/2026-11-08-batch34/T-260/controller/external-green-01.json)，当次测试源码保存在同目录 `external-test-01.py`。
 
 任务卡 v2 的产品写入限定为 `main.ts` 的现有动作白名单，以及 `preload.ts`、`renderer.tsx` 的对应动作类型；门禁已经支持 `reopen`，不改状态推导、计数、schema 或公开接口。沿用原验收条件，新增测试须在父版本拒绝重开、候选版本完成重开及之后的答复、刷新、重连，坏状态与计数变异仍须判红。先保留 v1 测试和诊断提交，再经门禁升级、回收和重新派发。T-249 最终验收及父票集成前不开始共享产品文件的写入。
+
+## 结论（2026-11-09）
+
+PASS：重新打开的缺陷已修复。主进程白名单加入 `reopen`；同一个真实入口测试在父版本上判红，修复后 64 项通过。证据见 `evidence/2026-11-09-batch35/T-260/RESULTS.md`。
+
+截图里的五项已于此前经门禁处置。按用户要求（“不用 codex 了,你自己做完这些部分结束”），独立审查没有做。

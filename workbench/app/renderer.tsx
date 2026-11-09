@@ -114,7 +114,7 @@ declare global { interface Window { a2a: { readonly paneKeys: readonly string[];
   restartReview(task: string, attempt: string, reviewId: string): Promise<void>;
   reclaim(task: string, attempt: string): Promise<void>; hideSessions(launches: string[]): Promise<void>;
   nativeLink(launch: string): Promise<NativeLink>; copyText(text: string): Promise<void>;
-  disposeIssue(task: string, issue: string, action: 'close' | 'snooze', reason?: string, basis?: string): Promise<void>;
+  disposeIssue(task: string, issue: string, action: 'close' | 'snooze' | 'reopen', reason?: string, basis?: string): Promise<void>;
   archiveUsage(): Promise<{ sessions: number; bytes: number }>;
   reflect(project: string): Promise<any>; retrospectives(project: string): Promise<any>; startRetrospective(project: string, selection: { cli: string; model: string; effort: string }): Promise<unknown>;
   saveRetrospectiveSchedule(change: Record<string, unknown>): Promise<unknown>; decideRetrospectiveSuggestion(suggestion: string, approved: boolean): Promise<void>;

@@ -28,7 +28,7 @@ contextBridge.exposeInMainWorld('a2a', Object.freeze({
   nativeLink: (launch: string) => ipcRenderer.invoke('a2a:native-link', launch),
   copyText: (text: string) => ipcRenderer.invoke('a2a:copy-text', text),
   answerIssue: (task: string, issue: string, answer: string) => ipcRenderer.invoke('a2a:issue-answer', task, issue, answer),
-  disposeIssue: (task: string, issue: string, action: 'close' | 'snooze', reason?: string, basis?: string) =>
+  disposeIssue: (task: string, issue: string, action: 'close' | 'snooze' | 'reopen', reason?: string, basis?: string) =>
     ipcRenderer.invoke('a2a:issue-dispose', task, issue, action, reason, basis),
   records: (project: string) => ipcRenderer.invoke('a2a:records', project),
   receipts: (project: string) => ipcRenderer.invoke('a2a:receipts', project),
