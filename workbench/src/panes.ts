@@ -1078,7 +1078,11 @@ export class Panes implements GateRuntime {
       const server = reviewMcpServer(pane.record.request_dir);
       prompt += `\n\n本会话没有 review_submit 工具，改用命令：把 verdict、findings、report 三项写成一个 JSON 对象文件（放在候选副本以外的临时位置），然后运行\nELECTRON_RUN_AS_NODE=1 ${shellCommand([server.command, server.args[0], "submit", pane.record.request_dir])} <文件路径>\n命令当场核对，不合格会说明哪一项要改；以最后一次成功提交为准。`;
     }
-    await this.dispatch(pane, `${pane.record.role_text}\n\n${prompt}`);
+    // Keep every review on one path: the launch owns the full materials, while
+    // the native CLI receives a short entry regardless of diff/verification size.
+    const materials = join(pane.record.request_dir, "review-materials.md");
+    writeFileSync(materials, `${pane.record.role_text}\n\n${prompt}`, { encoding: "utf8", flag: "wx", mode: 0o600 });
+    await this.dispatch(pane, `审查材料已保存到本次会话的文件：${materials}\n请先完整读取该 UTF-8 文件（可分段读取），再按其中的角色指令、任务卡、候选改动、机械验收与提交方式开展审查。候选副本和提交门禁保持原要求；读取失败时停止审查并报告，不提交结论。`);
   }
   // A read-only monitor a controller attaches to a task (T-124): it belongs to no attempt, opens the
   // task's repository read-only, runs on the CLI the controller chose with the monitor role settings,

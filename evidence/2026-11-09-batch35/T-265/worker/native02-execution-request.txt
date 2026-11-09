@@ -1,0 +1,12 @@
+按答复 #128 已集中修正 T-265 新测试驱动诊断与清理，等待主控核对最终脚本并执行 native-02。产品 panes.ts 与 native-01 快照逐字节一致；argv 和业务断言 AST 均一致（driver-scope-02.json）。没有改权限、hook、MCP、业务预期或旧证据，没有在 worker 中启动任何 CLI/PTY/OS 信号。
+
+修正：沿用仓库 t141_probe_codex_start.py 的 openpty+Popen+setsid/TIOCSCTTY；记录创建阶段/结果/PID/PGID/退出状态；终端增量落盘，清理前保存原生事件；先 poll/wait 已退出自有子进程，活进程的记录和当前 PGID 均等于正整数子进程 PID 且不是本进程组才发信号。EPERM 单独保存，不重试其他信号/权限，不盖掉原异常；失败 case 预先登记；清理失败 INCOMPLETE、未确认退出的夹具保留。
+
+8 项离线故障注入全部通过（driver-green-03.txt）；同样断言在主控 frozen native-01 脚本上 8 项全部失败（driver-native01-counterfactual-02.txt）。这些均 mock OS 调用，不当作真实 CLI 业务证明。诊断自查见 design-review-driver-02.txt。
+
+新命令，工作目录 /Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-265-1-a1：
+/usr/bin/python3 -B workbench/tests/test_t265_review_cli_e2e.py --codex /Users/luckye/.local/bin/codex --node /opt/homebrew/Cellar/node/26.5.0/bin/node --summary /Users/luckye/Documents/Code/a2a/evidence/2026-11-09-batch35/T-265/controller/native-cli-02.json
+
+请先核对当前脚本与 evidence/2026-11-09-batch35/T-265/worker/native-plan-02.json、RUN-NATIVE-02.md。结果为 native-cli-02.json 及 native-cli-02-artifacts/，含 launch、实时 terminal、process.jsonl、before-cleanup-native-events、最终 process/native-events 与 before-fixture-cleanup.json。失败保留夹具；已确认退出才能删除对应隔离 CODEX_HOME，未确认的保持原样交主控核对。本轮无 .git 候选副本，不宣称 native-01 覆盖最终脚本。
+
+README stale 和旧 task 格式问题按 #128 由主控/历史测试所有者处理，本 worker 不因此等待，也不另发状态问题。native-01 结果和脚本快照均未修改。当前仍 INCOMPLETE，只等本次真实证明后补最终 RESULTS、Git 提交并 submit。额外目录改动：无。

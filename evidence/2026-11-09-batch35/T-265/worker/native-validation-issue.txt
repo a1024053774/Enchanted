@@ -1,0 +1,13 @@
+T-265 本地实现与检查完成，等待任务卡要求的主控外部真实 Codex 证明。生产修改仅 panes.ts createReview 的 6 行 diff；5 项行为检查通过，父版超长断言红态和 4 个业务变异红态已保存。未启动额外 agent、Claude、后台、hc 或 Electron；未在 worker 沙箱重试 ps/CLI。
+
+请在本 attempt worktree 读取并核对 RUN-NATIVE.md 与 native-plan.json 后执行以下已准备命令（无 hook、无 MCP；a never、workspace-write、writable_roots=[]；gpt-6-astra xhigh default）：
+
+工作目录：/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-265-1-a1
+python3 workbench/tests/test_t265_review_cli_e2e.py --codex /Users/luckye/.local/bin/codex --node /opt/homebrew/Cellar/node/26.5.0/bin/node --summary /Users/luckye/Documents/Code/a2a/evidence/2026-11-09-batch35/T-265/controller/native-materials-01.json
+
+脚本以原生 PTY bracketed paste 分别投递父版和候选真实 createReview 输出；父版需原生上限拒绝且未开始 turn，候选需原生开始/结束、由 CLI 工具读完整材料、核对原字节计数与头中尾随机标记、材料写入被沙箱拒绝。只复制 auth.json 到 /private/tmp 下隔离 CODEX_HOME；不复制全局配置；不建立 hook。最长每例 240 秒，无自动重试。finally 只结束自有 PTY 进程组，记录目录字节数/文件数后删除整个隔离夹具和凭据。
+结果为上述 summary 与同目录 native-materials-01-artifacts/，含实际 argv、原生终端、关键事件/工具结果。请答复结果路径与结论，worker 回读后补最终 RESULTS、Git 提交并显式 submit。该探针不冒充完整 Stop/review_submit 生命周期；独立审查、打包和接回 T-249 仍由主控执行。
+
+附带范围外发现：旧 workbench/tests/t152_real_review_submit.json 的 task=t082-real-03 在现行协议被 Error: task 拒绝，证据 protocol-regression.json。没有修改该文件/旧测试。另存只替换为现行 project+T-265 的输入，12 项现有解析/relay 检查通过（protocol-current-task-regression.json）。建议后续由测试所有者处理历史载荷兼容性，本票不扩大范围。
+
+本票待核对材料：/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-265-1-a1/evidence/2026-11-09-batch35/T-265/worker/RUN-NATIVE.md；当前 RESULTS 为 INCOMPLETE。额外目录改动：无。

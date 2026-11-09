@@ -1,0 +1,23 @@
+STATUS: PASS
+SUMMARY: No findings. 按任务卡进行证据自查；不是独立审查或门禁受理结论。
+TARGET: 父版 80a6304225cdd567737362dd045dabf97a625c56 上的 T-265 候选；panes.ts 与原生驱动逐字节等于 native-06 冻结快照，见 native-final-summary.json。真实验证后本轮只补报告。
+EVIDENCE:
+- 原需求是所有大小共用短入口、完整 UTF-8 审查材料、每 launch 隔离、拒绝覆盖、失败不投递，保留角色/agy 命令与原只读/提交边界。期望取自任务要求和输入，不由生产输出反推。
+- workbench/tests/test_t265_review_materials.mjs 经真实 createReview/dispatch 与文件系统检查，5/5；覆盖长 diff 加长 verification、短 Unicode/CRLF、随机标记、双 review 隔离、EEXIST、半写 ENOSPC、四 CLI 分支、角色及 agy 命令、结果身份。进程创建和 drain 替身的证明边界已注明。
+- controller/native-cli-06.json 和 native-cli-06-exit.json：真实交互 Codex 0.167.0，父版输入上限拒绝且无回合；候选 177 字符入口，完整读取 2150753 字节/1665453 字符、55000/50000 行与三处随机标记，原 probe 工具输出匹配，写入材料 errno=1，原生开始/结束事件均存在。
+- 原生输入来自真实 createReview/dispatch，候选字节与生成输入完全相同；随机标记来自本次输入。工具在原生沙箱内执行，宿主没有执行 probe 或代写 native-read.json。完整性证明来自完整 Python 读取与原 probe，不来自被截断的 cat 输出。
+- 两例自有 master 关闭，同一 Popen.wait 确认退出 -1；cleanup.complete/reaped=true，夹具及隔离 CODEX_HOME 已删除。worker 只读回看事件、工具输出、源快照和目录不存在，未重跑模型或修改权限。
+- driver-green-pty-order-06.txt 的 11 项检查覆盖原诊断、onboarding、身份/EPERM、退出顺序；均为 mock，只作驱动逻辑证据。真实回收由 native-06 单独证明。
+FINDINGS:
+- 无已复现的范围内缺陷。
+COUNTEREXAMPLE:
+- parent-red-confirmed.json 在真实 createReview 超长入口断言失败；native-06 父版真实投递 1665447 字符并被原生拒绝，无模型回合。
+- four-cli-inline-again.json、four-cli-truncate-materials.json、four-cli-overwrite-materials.json、four-cli-omit-agy-command.json 分别被短入口、全部字节、拒绝覆盖和命令保留业务断言拒绝。
+- pty-order-native04-counterfactual-06.txt：native-04 旧 finally 顺序在 EOF、超时、交互异常、关闭失败四场景被顺序断言拒绝。早期 01/02 onboarding/诊断反事实和 03 退出竞态反事实保留，不冒充产品业务红态。
+LIMITATIONS:
+- 本报告为实现者自查；任务禁止额外 agent，唯一新独立只读审查由主控在提交后组织。
+- 原生验证覆盖隔离材料读取与只读边界，不覆盖完整工作台 Stop/review_submit、标准打包安装或 T-249 接回。真实四家 CLI 的材料读取没有全部运行；本次真实原生证明是 Codex，其他 CLI 由本地 createReview 分支检查覆盖。
+- 原生材料使用重复内容和随机标记验证完整传输/读取，不主张模型能理解任意大小 diff 或提升代码审查质量。native-01–05 原整轮 INCOMPLETE 与候选 05 独立行为 PASS 均不改写。
+- 旧 task 格式的协议载荷失败为既有问题；只用另存的现行 task 输入通过 12 项协议检查，不声称旧载荷通过。README stale、门禁受理及集成由主控处理。
+RULE:
+- 每次审查材料必须从输入逐字节验证，不只检查短入口；原生开始、完整工具读取、授权边界和自有进程回收分别提供证据，不能互相替代。

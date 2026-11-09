@@ -1,0 +1,27 @@
+{
+  "status": "PASS",
+  "scope": "native06 preparation scope only; no native execution",
+  "time": "2026-11-09T06:11:10.381094+00:00",
+  "source_snapshot": "/Users/luckye/Documents/Code/a2a/evidence/2026-11-09-batch35/T-265/controller/native-04-test_t265_review_cli_e2e.py",
+  "candidate": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-265-1-a1/workbench/tests/test_t265_review_cli_e2e.py",
+  "product_bytes_equal": true,
+  "changed_driver_functions": [
+    "interact"
+  ],
+  "interact_outside_finally_ast_equal": true,
+  "all_other_module_ast_equal": true,
+  "unchanged": [
+    "stop_owned identity/EPERM/wait proof",
+    "argv",
+    "CAPTURE/PROBE",
+    "case business assertions",
+    "onboarding",
+    "main and 240-second default"
+  ],
+  "new_native_summary": "/Users/luckye/Documents/Code/a2a/evidence/2026-11-09-batch35/T-265/controller/native-cli-06.json",
+  "new_native_paths_absent": true,
+  "owned_mock_fixture_residue": [],
+  "additional_writable_directories_changed": [],
+  "native_cli_run_in_worker": false,
+  "diff": "--- /Users/luckye/Documents/Code/a2a/evidence/2026-11-09-batch35/T-265/controller/native-04-test_t265_review_cli_e2e.py\n+++ /Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-265-1-a1/workbench/tests/test_t265_review_cli_e2e.py\n@@ -280,13 +280,22 @@\n         diagnostic['error'] = error_record(error)\n         raise\n     finally:\n-        # Preserve the original interaction and native facts before any signal.\n+        # Preserve the original interaction and native facts before closing the PTY.\n         try:\n             terminal.flush(); os.fsync(terminal.fileno())\n             note('before-cleanup')\n             save(evidence / (name + '-before-cleanup-native-events.json'), native_events(rollout(home)))\n         except Exception as error:\n             diagnostic.setdefault('diagnostic_errors', []).append(error_record(error))\n+        # T-265 native probe: retaining our master can delay this child's wait.\n+        if fd is not None:\n+            master, fd = fd, None\n+            try:\n+                os.close(master)\n+                diagnostic['pty_master_closed'] = True\n+                note('pty-master-closed')\n+            except OSError as error:\n+                diagnostic.setdefault('diagnostic_errors', []).append(error_record(error))\n         try:\n             diagnostic['cleanup'] = stop_owned(child, diagnostic)\n         except Exception as error:\n"
+}

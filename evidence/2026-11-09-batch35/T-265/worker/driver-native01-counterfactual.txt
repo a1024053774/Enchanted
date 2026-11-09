@@ -1,0 +1,65 @@
+FFFFFFF
+======================================================================
+FAIL: test_cleanup_error_preserves_primary_and_evidence (__main__.Diagnostics)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-265-1-a1/evidence/2026-11-09-batch35/T-265/worker/test_driver_diagnostics.py", line 98, in test_cleanup_error_preserves_primary_and_evidence
+    self.assertIsInstance(error, ValueError, 'cleanup error must not replace the original interaction failure')
+AssertionError: PermissionError(1, 'synthetic cleanup EPERM') is not an instance of <class 'ValueError'> : cleanup error must not replace the original interaction failure
+
+======================================================================
+FAIL: test_exited_child_is_reaped_without_signal (__main__.Diagnostics)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-265-1-a1/evidence/2026-11-09-batch35/T-265/worker/test_driver_diagnostics.py", line 91, in test_exited_child_is_reaped_without_signal
+    self.assertFalse([c for c in calls if isinstance(c, tuple)], 'exited child must be polled/reaped before signalling')
+AssertionError: [('signal', 440265, 15)] is not false : exited child must be polled/reaped before signalling
+
+======================================================================
+FAIL: test_failed_fixture_deletion_cannot_report_success (__main__.Diagnostics)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-265-1-a1/evidence/2026-11-09-batch35/T-265/worker/test_driver_diagnostics.py", line 167, in test_failed_fixture_deletion_cannot_report_success
+    self.assertEqual(saved['status'], 'INCOMPLETE', 'failed deletion cannot leave a PASS summary')
+AssertionError: 'PASS' != 'INCOMPLETE'
+- PASS
++ INCOMPLETE
+ : failed deletion cannot leave a PASS summary
+
+======================================================================
+FAIL: test_foreign_group_is_never_signalled (__main__.Diagnostics)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-265-1-a1/evidence/2026-11-09-batch35/T-265/worker/test_driver_diagnostics.py", line 117, in test_foreign_group_is_never_signalled
+    self.assertFalse([c for c in calls if isinstance(c, tuple)], 'unverified process group must never be signalled')
+AssertionError: [('signal', 440265, 15)] is not false : unverified process group must never be signalled
+
+======================================================================
+FAIL: test_live_owned_group_is_checked_and_reaped (__main__.Diagnostics)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-265-1-a1/evidence/2026-11-09-batch35/T-265/worker/test_driver_diagnostics.py", line 111, in test_live_owned_group_is_checked_and_reaped
+    self.assertEqual(calls[0], 'poll')
+AssertionError: ('signal', 440265, 15) != 'poll'
+
+======================================================================
+FAIL: test_main_keeps_failed_case_and_unconfirmed_fixture (__main__.Diagnostics)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-265-1-a1/evidence/2026-11-09-batch35/T-265/worker/test_driver_diagnostics.py", line 139, in test_main_keeps_failed_case_and_unconfirmed_fixture
+    self.assertTrue(fixture.exists(), 'unconfirmed native child must retain its fixture')
+AssertionError: False is not true : unconfirmed native child must retain its fixture
+
+======================================================================
+FAIL: test_nonpositive_pid_is_never_signalled (__main__.Diagnostics)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-265-1-a1/evidence/2026-11-09-batch35/T-265/worker/test_driver_diagnostics.py", line 86, in test_nonpositive_pid_is_never_signalled
+    self.assertFalse([c for c in calls if isinstance(c, tuple)], 'invalid child PID must never be signalled')
+AssertionError: [('signal', -1, 15)] is not false : invalid child PID must never be signalled
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.014s
+
+FAILED (failures=7)
+{"status": "INCOMPLETE", "summary": "/private/tmp/a2a-requests-xMb14x/t265-driver-main-xb1p5yg8/summary.json"}

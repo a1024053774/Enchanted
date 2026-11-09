@@ -1,0 +1,12 @@
+STATUS: PASS
+SUMMARY: No findings. 按仓库要求由实现者自查，不是独立审查。
+TARGET: T-265 当前工作树；父版 80a6304225cdd567737362dd045dabf97a625c56；范围仅 native-01 后新测试驱动的诊断与清理修正。
+FINDINGS:
+- 无已复现的范围内结构缺陷。
+LIMITATIONS:
+- 已读取 REVIEW.md。目标是诊断先落盘、保存主异常、只清理核实的自有子进程；不改产品、业务预期、权限或冻结验收。真实原生运行未验证，仍为 INCOMPLETE。
+- 创建与回收归测试驱动所有；沿用仓库已有 openpty/Popen 方式。stop_owned 隐藏身份检查、poll/reap 与有界终止流程，没有第二套可选驱动或失败后的权限替代路径。
+- 捕获清理/诊断异常用于保存 secondary error 和原异常；失败会使本轮 INCOMPLETE 并保留夹具。8 个独立故障注入场景命中 native-01 的坏行为、通过当前修正；没有把 EPERM 当作成功，也不在 EPERM 后发第二个信号。
+- 扫描器输出在 design-scan-driver-02.json；无 findings 不作为行为证明。driver-green-03.txt、driver-native01-counterfactual-02.txt 提供行为反事实，driver-scope-02.json 核对产品与业务预期未变。
+RULE:
+- 本次故障类别“清理异常覆盖原异常、诊断晚于清理”由 worker/test_driver_diagnostics.py 的故障注入检查拒绝；不修改 REVIEW.md 或卡外治理规则。
