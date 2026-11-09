@@ -1,0 +1,19 @@
+T-249 受管限定修复。你不是代码库唯一参与者，不覆盖或撤销别人的工作。Codex gpt-6-astra xhigh 普通速度，不开 Claude、其他 agent、不 push。用户已授权“主线是完成主要的两个面板的任务以及 bug 修复”，并授权审查后本地合入/安装继续，无需再次等用户。你只负责本卡 T-249；T-262 另有人处理 RecordsPage.tsx/records.css，不碰它们。
+
+先恢复原候选，再做限定修复：原 base B=c89b8ca4739f2a4106feeda8665f4e1aa8cec688，候选 C=18c108fcaed1c4ecf51831f2272578a3b09427be。两个提交仍在本仓库。原 worktree 已正常回收，不依赖它。读取 git diff --stat B C，确认文件范围后在本次 worktree 用二进制 patch/三方应用恢复；不得移动主仓库引用、重写 sparse 配置或 checkout 其他人的文件。遇到冲突保存事实并报告。恢复之后除下面限定文件外，产品输入应与 C 一致；适配已集成 T-258 的后台，不回退新代码。
+
+修复事实和验收先读：主仓库 evidence/2026-11-08-batch34/T-249/controller/untracked-reproduction/RESULTS.md，controller/terra-v3-incomplete/（来源提交 83cd1cc8f5873975f80b9438525044e299ea07dd），冻结 T-249 ticket、REVIEW.md、AGENTS.md。主控已真实复现：Test 包 1243bc15... 的 unborn 未跟踪文件有内容，但点击后只有“未跟踪文件，还没有 diff。”。根因 openDiff(status==='?') 直接返回，现有开发测试把这个说明当成通过。冻结 acceptance/T-249/check_git_graph.py 不改；开发测试中的错误占位预期需要改成需求规定的真实内容核对，并在原 C 上首先取得业务红态。
+
+小目标：从 Git 图里点击未跟踪的普通文本文件，可以看到该文件的内容 diff，包括尚无首提交的仓库。非目标：不做 T-250、不要暂存文件来生成 diff、不改索引/refs/对象库、不新建公开 API/依赖、不改权限/门禁/构建脚本。Tracer bullet 先走真实文件→主进程只读接口→详情 diff→独立文件/Git oracle。Deep modules：复用现有 gitRead 和 diff 展示，不新增浅包装或平行实现。Ubiquitous language 沿用“未跟踪文件”“diff”。
+
+修复新改动只限：workbench/app/gitHost.ts、workbench/app/panels/GitGraphPanel.tsx、workbench/app/panels/gitGraphModel.ts；必要开发测试为 test_t249_git_graph_e2e.py、test_t249_git_host.mjs。可新增本票独立小型测试及 worker 证据。其他 app/ 和旧 batch33 证据仅按旧候选恢复，不再改逻辑。不要扩大 RUN-OUTSIDE 或冻结验收。
+
+先列失败方式并按 evidence-first-testing 保留旧 C 红态：有 HEAD 与 unborn 的未跟踪文本；同目录另一个文件不能混入；字面特殊文件名 *、[、:(、以 - 开头；空文件与二进制不伪装文本；选别的文件后不能留旧内容。主进程只读边界继续拒绝输出文件、缩写写选项、目录/路径越界；若引入 no-index 形式，只允许本需求所需的精确只读参数和仓库内文件，核对 Git 实际行为与现有类型，不猜测、不借 -N 修改索引。测试比较操作前后真实 git-dir/common-dir 的路径和字节，不能用 checksum。预期来自原始文件和独立 Git 命令，不从实现生成。每个新测试必须在旧候选或对应 mutant 上失败，启动失败不是业务红态。
+
+另补已知验收缺口：Terra 两次 CUA 拖列宽均被工具返回 noWindowsAvailable，未观察到产品失败，不因此修改列宽实现。可在现有真实 Electron E2E 中用真实鼠标输入事件拖动可见列分隔条并双击，记录真实前后列宽和恢复值；至少一个禁用列宽处理的变异必须命中几何业务断言。不能只调用 React handler、写 DOM style 或用源码字符串宣称交互通过。最终仍由新的 Terra Computer Use + 常规测试观察修复路径。
+
+原 T-249 已经过多轮证据补齐，按 T-240 不再开启对整套旧功能的无界审查。本次独立审查只围绕本次产品修复、只读边界与新增检测能力；原三条机械完成条件及旧窗口场景保持并重新运行适用回归。原源码其他设计不趁机整理。
+
+原生 worker 沙箱里 ps 已知被拒。你不重试或换路径绕过，不操作正式应用、现有 Test 窗口、用户 hc、任何生产数据库。开发测试涉及启动 Electron/后台时，先给主控精确外部运行命令与持久结果路径；主控在你的 worktree 外层 cwd 运行，使用全新自有夹具。请一次集中给旧候选红态、完整候选、相关 mutants 的命令，不为等结果重复 issue 或重复构建。测试须保存命令、版本、业务断言、失败原因和清理状态；缓存夹具结束及时清理，失败证据文本保留。
+
+最终证据写 evidence/2026-11-08-batch34/T-249/worker-untracked/，中文 RESULTS、自查 design-integrity-review 和 behavioral-acceptance-review；注明 root 运行与自己运行的边界。准确 git add --sparse、commit 当前身份尾注并显式 submit 一次；queued 不等于已受理。主控负责 verify/限定独立审查、标准 Test 打包、新 Terra 验收、合入安装；你不执行这些外部步骤。结论使用 PASS/INCOMPLETE/FAIL，缺口不提高为通过。
