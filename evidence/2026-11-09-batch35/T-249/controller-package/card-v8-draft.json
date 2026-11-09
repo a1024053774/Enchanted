@@ -1,0 +1,67 @@
+{
+  "id": "T-249-1",
+  "source": {
+    "ticket": "/Users/luckye/Documents/Code/a2a/.project-map/tickets/T-249-git-graph-panel.md",
+    "ready_rev": 1
+  },
+  "goal": "T-249 恢复交付草稿，待 T-265 经审查安装后注册。用户已授权本轮故障修复、继续两个面板，以及经审查的本地合入和安装；不 push。你只负责本卡，不撤销其他人的修改；worker/reviewer 使用 gpt-6-astra xhigh 普通速度，最终独立窗口验收仍使用 gpt-6.1-terra。\n\n此次不重新实现 Git 图。原候选 C=d8f55c958d901d052e79eda1a04dbf0a8fbf5ed5 的三项机械条件已通过，真实窗口包含未跟踪文件与列宽的完整行为证据已保存在候选中。审查 3ce94b46 在任何模型回合开始前因 1318486 字符超过原生 CLI 上限被拒，随后按升级结束并正常回收 worker；这不是产品审查结论。T-265 修复材料投递后，恢复该候选，进入原定限定审查和 Terra 验收。\n\n先读 AGENTS.md、REVIEW.md、T-249 ticket、T-265 ticket，运行 project-map status。原 attempt f8b6b251 的 base B=3577086056eb33e4a0c3bd2d16bbc3b30862778c，来源为同目录 verify-v7.json 中 current_attempt.base_commit；独立核对 B 到 C 的改动清单。只恢复本卡允许的 Git 图产品、开发测试及原 worker 证据；采用保留当前 base 的三方应用。不得把整个 workbench 从 C 覆盖回来：当前 base 中的 T-265 后台修复、记录页和其他已集成变更必须保留。任何实际冲突先上报，不擅自择一。冻结 acceptance/** 和 REVIEW.md 不变。\n\n恢复后逐文件直接比较原 C 与本次产品/测试输入；对必须适配的 README 文本单独说明，不用哈希替代比较。写入本次 worker-untracked/recovery-v8 文本，保留原失败、人工介入和来源，绑定新 attempt/session/fence。原实现和测试若无冲突，不作新的产品修改。常规三项完成条件照卡运行；不要在原生沙箱重试 ps、启动 Electron 或扩大权限。需要外部运行时给出一次集中准确命令，主控按原分工执行。\n\n既有红绿来源：原 C 的 evidence/2026-11-08-batch34/T-249/worker-untracked/；主仓库同票 controller/untracked-window-01/ 包含候选、延迟返回和九个变异的业务结果；controller/untracked-reproduction/ 和 terra-v3-incomplete/ 保留旧占位说明的实际缺陷与 Terra 未完成部分。原 Test 包 d8f55 的标准构建在 evidence/2026-11-09-batch35/T-249/controller-package/；新候选若包含不同后台，必须由主控重新绑定或构建，不能冒称旧包对应新提交。\n\n审查范围继续遵守 T-240：仅核对未跟踪文件读取修复、只读边界、相关反例与列宽检测能力，以及恢复后版本和证据一致性；不再对整套旧功能展开整体盲审。审查员需要真实 Electron 运行时，在唯一候选副本构造 2–5 个小变异，给独立预期、补丁和命令，由主控外部执行并原样回传；审查员独立判断结果，不能把主控执行冒称审查员本人执行。既有原窗口全场景、冻结机械条件和最终 Terra 验收保持。\n\n整理中文 RESULTS，检查路径、字节、尾注和干净工作区，commit 后用本次身份显式 submit 一次；queued 不等于受理。不自行 verify、集成、回收、安装。整票直到限定审查和新 Terra 完成都仍为 INCOMPLETE。\n",
+  "non_goals": [
+    "不做 T-250 的改动面板（下一张卡）",
+    "不做公开的 mod 接口、第三方 mod 加载、清单文件与沙箱",
+    "不做远程机器和原 mod 的自动更新检查",
+    "不改门禁 workbench/src/gates/ 与 acceptance/",
+    "不加新依赖；确实需要时先用 issue 上报理由",
+    "不替换或启动 /Applications/Enchanted.app，不碰正在运行的 Enchanted 后台与 hc core",
+    "不 push"
+  ],
+  "paths": {
+    "allow": [
+      "workbench/app/",
+      "workbench/tests/",
+      "workbench/README.md",
+      "evidence/2026-11-07-batch33/T-249/",
+      "evidence/2026-11-08-batch34/T-249/worker-untracked/"
+    ],
+    "deny": [
+      "workbench/src/gates/",
+      "acceptance/",
+      "workbench/package.json",
+      "workbench/package-lock.json"
+    ]
+  },
+  "oracle_paths": [
+    "acceptance/T-249/check_git_graph.py"
+  ],
+  "completion_conditions": [
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "acceptance/T-249/check_git_graph.py"
+      ]
+    },
+    {
+      "argv": [
+        "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+        "--test",
+        "workbench/tests/test_t249_git_host.mjs"
+      ]
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "workbench/tests/test_t249_outside_safety.py"
+      ]
+    }
+  ],
+  "red_commands": [],
+  "task_type": "前端界面",
+  "repair_target": null,
+  "complexity": "L",
+  "executor": {
+    "cli": "Codex",
+    "model": "gpt-6-astra",
+    "effort": "xhigh"
+  },
+  "base_commit": null,
+  "writer": null
+}
