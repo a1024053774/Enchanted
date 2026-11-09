@@ -1,0 +1,75 @@
+{
+  "command": [
+    "/Applications/Enchanted.app/Contents/MacOS/Enchanted",
+    "/Applications/Enchanted.app/Contents/Resources/app/src/gates/cli.ts",
+    "--state",
+    "/Users/luckye/Library/Application Support/a2a-orchestrator",
+    "card_save",
+    "--task",
+    "a2a+T-261-1",
+    "--card",
+    "/Users/luckye/Documents/Code/a2a/evidence/2026-11-08-batch34/T-261/controller/card-v1.json",
+    "--expected-version",
+    "0"
+  ],
+  "exit_code": 0,
+  "result": {
+    "ok": true,
+    "card": {
+      "id": "T-261-1",
+      "source": {
+        "ticket": "/Users/luckye/Documents/Code/a2a/.project-map/tickets/T-261-recent-task-navigation.md",
+        "ready_rev": 1
+      },
+      "goal": "本票落实用户截图要求：最新任务在前，较早任务收进下拉框。你只负责 T-261，不接管两个面板或记录页。不是唯一写入者，不撤销他人改动。Codex gpt-6-astra xhigh 普通速度；不启动 Claude 或其他 agent。实施必须在 T-249 已集成后的基线上开始，T-250 尚未同时改 renderer/style 时才派发。\n\n先读 AGENTS.md、REVIEW.md、T-261 及现有 listTasks、sidebarSnapshot、renderer 的 selectTask 和 task-strip。运行 project-map status。沿用 Ubiquitous language：项目、任务、会话。小目标是正常任务导航顺序和可折叠列表；不新增数据表、公开字段、依赖或另一份任务状态。根因候选是 listTasks 按 id 排序，不是创建顺序；核对 tasks 持久化使用的 INSERT/ON CONFLICT 语义，只有确认 rowid 不随普通状态更新变化后才能用它排序。不要靠票号大小或标题猜创建时间。\n\nTracer bullet：真实隔离后台创建 12 个编号不按创建顺序的任务，真实 Electron 顶部导航显示最新几个，再从较早任务下拉选择一个有窗格的旧任务。先保存父版顺序/溢出红态，再改生产路径。默认直接显示最近 4 个；当前任务在较早列表中时，仍在顶部显示可辨认的当前项。较早列表保留任务名和实时门禁状态，避免重复选中项。选中沿用原 selectTask，不创建新终端，不改变会话归属。下拉用语义正确的原生控件或现有组件，支持键盘展开、选择、Esc 关闭和焦点返回，窄窗口可用。\n\n测试预期来自显式创建命令顺序与独立 task/launch 身份。覆盖 12 个混合编号、相同时刻创建、更新旧任务状态不变新旧顺序、选择旧任务的原 pane 身份、当前项、两个项目切换、刷新、状态更新、900px 窄窗口和键盘。通过真实产品后台与 Electron/IPC，不替换 window.a2a、React 状态或返回数据；至少 2 个已知坏实现（恢复按 id 排序、让旧任务选择丢失原身份或不折叠）应失败。若使用程序化 selectOption 路径，只称自动表单交互，原生键盘另补真实 CU，不能编造。\n\n新增 test_t261_task_navigation_e2e.py，默认无参数运行并打印 JSON、失败非零；--revision/--mutant/--summary 可重放。不改 oracle_paths 或冻结 acceptance/**。不启动任何模型 CLI；旧测试若依赖 Claude，只读辅助函数，不修改它。测试自身隔离构建，清理自有大夹具与构建缓存，保留紧凑报告和精确命令。遇到 ps 沙箱限制保存一次证据并把命令交主控运行，不反复重试。\n\n允许修改 core.ts 仅限任务列表排序及其直接需要的局部代码，renderer.tsx/style.css 仅限任务条，相关测试和本票证据。不改门禁身份、验收、集成或权限。保持 Deep modules，不为这个列表建第二套导航接口。新增异常处理或兼容路径必须有真实调用者和恢复职责，否则不加。\n\n交付 evidence/2026-11-08-batch34/T-261/worker/ 中文 RESULTS.md、红绿与反例、实际窗口观察、风险与回退。执行适用 evidence-first-testing、frontend-production、behavioral-acceptance-review 和 design-integrity-review；主控另开干净只读独立审查。提交后用本次身份显式 submit 完整 SHA 一次，不自行 verify/integrate/reclaim，不 push。\n",
+      "non_goals": [
+        "不改其他页面、面板或门禁语义",
+        "不改正式数据库、冻结 acceptance/**、REVIEW.md、任务卡与 .project-map",
+        "不改 schema、公开接口、新增依赖或全局配置",
+        "不操作正式应用、现有 Test 环境、用户 core；不启动 Claude；不 push"
+      ],
+      "paths": {
+        "allow": [
+          "workbench/src/gates/core.ts",
+          "workbench/app/renderer.tsx",
+          "workbench/app/style.css",
+          "workbench/tests/test_t261_task_navigation_e2e.py",
+          "evidence/2026-11-08-batch34/T-261/worker/"
+        ],
+        "deny": [
+          "acceptance/",
+          "REVIEW.md",
+          ".project-map/"
+        ]
+      },
+      "oracle_paths": [
+        ".project-map/tickets/T-261-recent-task-navigation.md"
+      ],
+      "completion_conditions": [
+        {
+          "argv": [
+            "/usr/bin/python3",
+            "workbench/tests/test_t261_task_navigation_e2e.py"
+          ]
+        }
+      ],
+      "red_commands": [],
+      "task_type": "前端界面",
+      "repair_target": null,
+      "complexity": "M",
+      "executor": {
+        "cli": "Codex",
+        "model": "gpt-6-astra",
+        "effort": "xhigh"
+      },
+      "base_commit": null,
+      "writer": null
+    },
+    "card_version": 1,
+    "user_input_observer": {
+      "state": "healthy",
+      "updated_at": "2026-11-09T01:52:08.477Z"
+    }
+  },
+  "stderr": ""
+}
