@@ -1,0 +1,11 @@
+--- candidate
++++ M5-truncate-overlong
+@@ -18,7 +18,7 @@
+ log = [line.split('\t', 1) for line in facts['alpha_log'].splitlines()]
+ check(obs['rows'] == [row[1] for row in log] and [r[0] for r in revs] == [r[0] for r in log], '提交顺序')
+ def visible_parent_matches(short, full):
+-    return isinstance(short, str) and re.fullmatch(r'[0-9a-f]{10}', short) is not None and short == full[:10]
++    return isinstance(short, str) and re.fullmatch(r'[0-9a-f]{10,}', short) is not None and short[:10] == full[:10]
+ 
+ check(obs['merge'] == revs[0][0] and len(revs[0][1:]) == 2 and len(obs['merge_parents']) == 2 and all(visible_parent_matches(short, full) for full, short in zip(revs[0][1:], obs['merge_parents'])), '合并哈希和两个父提交')
+ check(obs['normal'] == revs[1][0] and visible_parent_matches(obs['normal_parent'], revs[1][1]), '普通提交和父提交')

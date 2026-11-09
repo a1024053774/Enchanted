@@ -1,0 +1,433 @@
+{
+  "command": [
+    "/Applications/Enchanted.app/Contents/MacOS/Enchanted",
+    "/Applications/Enchanted.app/Contents/Resources/app/src/gates/cli.ts",
+    "--state",
+    "/Users/luckye/Library/Application Support/a2a-orchestrator",
+    "abandon",
+    "--task",
+    "a2a+T-249-2",
+    "--attempt",
+    "2a84e9c0-ff8e-42a9-b030-4b603f8084ca",
+    "--score-file",
+    "/Users/luckye/Documents/Code/a2a/evidence/2026-11-09-batch35/T-249/controller-package/terra-a5-upgrade-score.json"
+  ],
+  "exit_code": 0,
+  "result": {
+    "ok": true,
+    "task": {
+      "task_id": "a2a+T-249-2",
+      "name": "T-249-2",
+      "title": "T-249-2",
+      "project_id": "a2a",
+      "repo": "/Users/luckye/Documents/Code/a2a",
+      "integration_ref": "refs/heads/main",
+      "card_snapshot_id": "4dd70314-39b6-49e3-bc00-87c4f05c2ae9",
+      "card_version": 5,
+      "card": {
+        "id": "T-249-2",
+        "source": {
+          "ticket": "/Users/luckye/Documents/Code/a2a/.project-map/tickets/T-249-git-graph-panel.md",
+          "ready_rev": 1
+        },
+        "goal": "你负责 T-249 Terra 验收交付的限定证据修复，不实现产品、不重新执行已完成的 CU。Codex gpt-6.1-terra xhigh 普通速度；你不是唯一参与者，不撤销他人改动，不启动其他 agent。\n\n实际产品仍为父 C=63304e0fcb3510d9cf4b1cbea5c3064fbb8286dd，已审查并打包测试的 M=92163e7d850df1d093a607144c6dfd7d256f53e1。上一 Terra a4 已亲自完成 Git 图实际 CU 和三项常规测试，工作台行为没有新增反例。不得沿用旧 v3 的 INCOMPLETE；使用这一次 a4 的实际观察、原始 Git 输入和截图来源。\n\n先从上一 a4 最终证据提交 d9b75c077bbcc33ae9b77e7f188916d787f2c803 用 git show 按原字节导入 evidence/2026-11-08-batch34/T-249/terra/ 所有文件，不导入其他路径或产品代码。保留原 RESULTS.md 的来源边界和原始失败，追加本次限定修复报告。主控已经补齐新 gate worktree 的 batch34/batch35 稀疏检出范围，之前 completion 无法打开脚本是环境失败，不是业务红态；正式四个进程前后 PID/启动时间一致的原始文本已在上一交付中按原字节保存。本次不修改 Git 配置、门禁、卡、正式数据或全局配置。\n\n唯一缺陷是新开发的 check_observations.py 用 full.startswith(short) 接受了空字符串。主控已实际复现：把 merge_parents 置两个空字符串、normal_parent 置空字符串仍退出0，原始输入与输出在主仓库 evidence/2026-11-09-batch35/T-249/controller-package/terra-bad-empty-parent.json 和 terra-empty-parent-counterexample.json。先回放已知坏脚本保存这条红态，然后只修这三处可见父哈希缩写的校验。本次窗口实际显示10位十六进制前缀；要求这一格式并与独立 Git 对应父提交的前10位严格相等，拒绝空、过短、非十六进制、父顺序/身份错误。正确 observations.json 与 git-facts.json 原字节保留，不从产品输出反算期望，不修改冻结 acceptance/**。\n\n同一父哈希不变量系统检查：合并的两个父哈希、普通提交父哈希分别用空/过短/非法字符/错误有效哈希；交换两父顺序、重复父哈希也应拒绝。每项保存具体输入差异、实际命令和退出状态，业务断言拒绝才算通过；原 bad-parent 和 bad-untracked 仍应退出1，正确观察退出0。新检查器仍只证明观察比较，不宣称它能证明 CU 真实性；无需复制庞大夹具或建立通用验证框架。按 evidence-first-testing；每次写文档按 document-writing；报告中文，未执行不计PASS。\n\n核对导入的字节绑定、常规测试原输出、五张真实截图来源与只读元数据摘要，记录哪些是上一 Terra 原生 CU、哪些是主控外部证据、哪些是你本次运行。不得在没有重新操作的情况下声称本次新会话做过 CU。原截图在 /private/tmp/t249-terra-20261108-04/tmp 可只读查看，原 Test 包与固定产品源码 checkout 也只读。正式 Enchanted 和现有 Test 窗口不操作，本次无需额外可写目录或新建终端。\n\n只写卡内 terra 证据与开发检查器。保持最小修复；不改变功能目标、验收条件、正确观察或独立期望。完成后提交完整新 SHA 并显式 submit 一次，再结束回合。由主控新开干净独立 Astra 审查，主控经唯一门禁验收和集成。你不 verify/integrate/reclaim，不 push。",
+        "non_goals": [
+          "不改产品源码、任务票或治理规则",
+          "不修改冻结验收",
+          "不操作正式 Enchanted 或用户 hc core",
+          "不修改 /Applications、全局配置，不 push",
+          "不接管 T-250，不启动其他 agent"
+        ],
+        "paths": {
+          "allow": [
+            "evidence/2026-11-08-batch34/T-249/terra/"
+          ],
+          "deny": [
+            "workbench/",
+            "acceptance/",
+            ".project-map/",
+            "REVIEW.md"
+          ]
+        },
+        "oracle_paths": [
+          "acceptance/T-249/check_git_graph.py",
+          "evidence/2026-11-08-batch34/T-249/controller/prepare-terra-fixture.py"
+        ],
+        "completion_conditions": [
+          {
+            "argv": [
+              "/usr/bin/python3",
+              "evidence/2026-11-08-batch34/T-249/terra/check_observations.py"
+            ]
+          }
+        ],
+        "red_commands": [],
+        "task_type": "测试",
+        "repair_target": null,
+        "complexity": "M",
+        "executor": {
+          "cli": "Codex",
+          "model": "gpt-6.1-terra",
+          "effort": "xhigh"
+        },
+        "base_commit": null,
+        "writer": null
+      },
+      "base_commit": "abeea70e465eb7ca77ba6a35119b9447b439d4ef",
+      "state": "upgraded",
+      "spec_rev": 5,
+      "fence": 5,
+      "current_attempt": {
+        "task_id": "a2a+T-249-2",
+        "attempt_id": "2a84e9c0-ff8e-42a9-b030-4b603f8084ca",
+        "session_id": "749f5e6f-b68b-4a97-91a2-199a974bd880",
+        "fence": 5,
+        "spec_rev": 5,
+        "thread_id": "d9ca08f2-ceff-4e93-b4dc-7d82a84a596e",
+        "runtime_mode": "workspace-write",
+        "turn_id": "01a1c03e-1ee0-7250-a378-ee00291c2d2b",
+        "runtime_identity": {
+          "launch": "4a5c8e04-a0a4-45ad-a069-ac651b13b4d7",
+          "thread": "d9ca08f2-ceff-4e93-b4dc-7d82a84a596e",
+          "shell_pid": 29842,
+          "leader_pid": 29844,
+          "native_session": "01a1bf60-fc54-7db0-a6e0-9a6bed75051f"
+        },
+        "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-2-a5",
+        "base_commit": "37904b0e3842bebf0fa7b39dbc6190635dd1d021",
+        "card_snapshot_id": "b7a154ef-5a2c-45ba-a689-ece70a8e29ee",
+        "reclaimed": false,
+        "owner": "a2a+T-249-2",
+        "state": "upgraded",
+        "extra_directories": [],
+        "git_metadata": {
+          "head": "ref: refs/heads/a2a/T-249-2-a5",
+          "config": "100644:cb407e1750934a253cff551ed2493eaf1f6f5689edfd6d7ff1fe702a03daf39d",
+          "worktree_config": "100644:97997ba84fd1c44263deb6f412fc3bef4b05e0103d00c5a97a97ca928299aa13",
+          "hooks": {
+            "applypatch-msg.sample": "100755:0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7",
+            "commit-msg.sample": "100755:1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437",
+            "fsmonitor-watchman.sample": "100755:e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0",
+            "post-update.sample": "100755:81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5",
+            "pre-applypatch.sample": "100755:e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475",
+            "pre-commit.sample": "100755:57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b",
+            "pre-merge-commit.sample": "100755:d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53",
+            "pre-push.sample": "100755:ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a",
+            "pre-rebase.sample": "100755:4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3",
+            "pre-receive.sample": "100755:a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989",
+            "prepare-commit-msg.sample": "100755:e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619",
+            "push-to-checkout.sample": "100755:a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f",
+            "sendemail-validate.sample": "100755:44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92",
+            "update.sample": "100755:8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+          }
+        },
+        "delivery": {
+          "commit": "63754cc73eb0240d280ced9e33760a3e7b6d1014",
+          "turn_id": "01a1c03e-1ee0-7250-a378-ee00291c2d2b",
+          "launch_id": "4a5c8e04-a0a4-45ad-a069-ac651b13b4d7",
+          "cli": "codex-cli 0.167.0",
+          "model": "gpt-6.1-terra",
+          "effort": "xhigh",
+          "number": 1,
+          "submitted_at": "2026-11-09T12:22:03.017Z"
+        }
+      },
+      "candidate_commit": "63754cc73eb0240d280ced9e33760a3e7b6d1014",
+      "verification": {
+        "verification_id": "f104b45e-1808-4182-b9eb-96e554d03eeb",
+        "ordinal": 1,
+        "attempt": {
+          "task_id": "a2a+T-249-2",
+          "attempt_id": "2a84e9c0-ff8e-42a9-b030-4b603f8084ca",
+          "session_id": "749f5e6f-b68b-4a97-91a2-199a974bd880",
+          "fence": 5,
+          "spec_rev": 5,
+          "thread_id": "d9ca08f2-ceff-4e93-b4dc-7d82a84a596e",
+          "runtime_mode": "workspace-write",
+          "turn_id": "01a1c03e-1ee0-7250-a378-ee00291c2d2b",
+          "runtime_identity": {
+            "launch": "4a5c8e04-a0a4-45ad-a069-ac651b13b4d7",
+            "thread": "d9ca08f2-ceff-4e93-b4dc-7d82a84a596e",
+            "shell_pid": 29842,
+            "leader_pid": 29844,
+            "native_session": "01a1bf60-fc54-7db0-a6e0-9a6bed75051f"
+          },
+          "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-2-a5",
+          "base_commit": "37904b0e3842bebf0fa7b39dbc6190635dd1d021",
+          "card_snapshot_id": "b7a154ef-5a2c-45ba-a689-ece70a8e29ee",
+          "reclaimed": false,
+          "owner": "a2a+T-249-2",
+          "state": "submitted",
+          "extra_directories": [],
+          "git_metadata": {
+            "head": "ref: refs/heads/a2a/T-249-2-a5",
+            "config": "100644:cb407e1750934a253cff551ed2493eaf1f6f5689edfd6d7ff1fe702a03daf39d",
+            "worktree_config": "100644:97997ba84fd1c44263deb6f412fc3bef4b05e0103d00c5a97a97ca928299aa13",
+            "hooks": {
+              "applypatch-msg.sample": "100755:0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7",
+              "commit-msg.sample": "100755:1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437",
+              "fsmonitor-watchman.sample": "100755:e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0",
+              "post-update.sample": "100755:81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5",
+              "pre-applypatch.sample": "100755:e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475",
+              "pre-commit.sample": "100755:57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b",
+              "pre-merge-commit.sample": "100755:d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53",
+              "pre-push.sample": "100755:ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a",
+              "pre-rebase.sample": "100755:4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3",
+              "pre-receive.sample": "100755:a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989",
+              "prepare-commit-msg.sample": "100755:e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619",
+              "push-to-checkout.sample": "100755:a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f",
+              "sendemail-validate.sample": "100755:44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92",
+              "update.sample": "100755:8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+            }
+          },
+          "delivery": {
+            "commit": "63754cc73eb0240d280ced9e33760a3e7b6d1014",
+            "turn_id": "01a1c03e-1ee0-7250-a378-ee00291c2d2b",
+            "launch_id": "4a5c8e04-a0a4-45ad-a069-ac651b13b4d7",
+            "cli": "codex-cli 0.167.0",
+            "model": "gpt-6.1-terra",
+            "effort": "xhigh",
+            "number": 1,
+            "submitted_at": "2026-11-09T12:22:03.017Z"
+          }
+        },
+        "spec_rev": 5,
+        "G": "66d5affbaec88c1034c3cd36af05ebe9ba65c1ef",
+        "C": "63754cc73eb0240d280ced9e33760a3e7b6d1014",
+        "M": "2e001ddf0a9e092aed39f2883be7969d84db327b",
+        "card_snapshot_id": "b7a154ef-5a2c-45ba-a689-ece70a8e29ee",
+        "card_version": 5,
+        "commands": [
+          {
+            "argv": [
+              "/usr/bin/python3",
+              "evidence/2026-11-08-batch34/T-249/terra/check_observations.py"
+            ],
+            "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-2-a5-verify-1"
+          }
+        ],
+        "results": [
+          {
+            "argv": [
+              "/usr/bin/python3",
+              "evidence/2026-11-08-batch34/T-249/terra/check_observations.py"
+            ],
+            "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-2-a5-verify-1",
+            "stdout": "ok   提交顺序\nok   合并哈希和两个父提交\nok   普通提交和父提交\nok   根提交\nok   分支和标签\nok   未提交文件\nok   diff alpha/root/file*.txt\nok   diff alpha/normal/file*.txt\nok   diff alpha/merge/feature.txt\nok   diff alpha/uncommitted/first.txt\nok   diff alpha/uncommitted/untracked.txt\nok   diff unborn/file[1].txt\nok   diff unborn/staged.txt\nok   diff unborn/untracked.txt\nok   diff unborn/file*.txt\nok   字面星号未混入相邻文件\nok   暂存原始内容\nok   首次提交前文件\nok   空文件提示\nok   二进制提示\nok   多仓库列表\n",
+            "stderr": "",
+            "exit": 0,
+            "returncode": 0
+          }
+        ],
+        "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-2-a5-verify-1",
+        "state": "passed",
+        "command_intent": {
+          "argv": [
+            "/usr/bin/python3",
+            "evidence/2026-11-08-batch34/T-249/terra/check_observations.py"
+          ],
+          "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-2-a5-verify-1"
+        },
+        "quality": {
+          "snapshot": {
+            "source_commit": "abeea70e465eb7ca77ba6a35119b9447b439d4ef",
+            "path": ".a2a/quality.json",
+            "raw": null,
+            "rule_checks": []
+          },
+          "red": [],
+          "rules": []
+        },
+        "out_of_card": [],
+        "result": {
+          "argv": [
+            "/usr/bin/python3",
+            "evidence/2026-11-08-batch34/T-249/terra/check_observations.py"
+          ],
+          "cwd": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-2-a5-verify-1",
+          "stdout": "ok   提交顺序\nok   合并哈希和两个父提交\nok   普通提交和父提交\nok   根提交\nok   分支和标签\nok   未提交文件\nok   diff alpha/root/file*.txt\nok   diff alpha/normal/file*.txt\nok   diff alpha/merge/feature.txt\nok   diff alpha/uncommitted/first.txt\nok   diff alpha/uncommitted/untracked.txt\nok   diff unborn/file[1].txt\nok   diff unborn/staged.txt\nok   diff unborn/untracked.txt\nok   diff unborn/file*.txt\nok   字面星号未混入相邻文件\nok   暂存原始内容\nok   首次提交前文件\nok   空文件提示\nok   二进制提示\nok   多仓库列表\n",
+          "stderr": "",
+          "exit": 0,
+          "returncode": 0
+        },
+        "ended": "2026-11-09T12:22:59.549Z",
+        "retained_ref": "refs/a2a/verifications/a2a+T-249-2/a5/v1",
+        "cleanup": "removed"
+      },
+      "integration_intent": null,
+      "quality": {
+        "source_commit": "abeea70e465eb7ca77ba6a35119b9447b439d4ef",
+        "path": ".a2a/quality.json",
+        "raw": null,
+        "rule_checks": []
+      },
+      "repair": {
+        "id": "d1061ad4-3148-4040-b325-f211c442f9d8",
+        "candidate_commit": "63754cc73eb0240d280ced9e33760a3e7b6d1014",
+        "verification_id": "f104b45e-1808-4182-b9eb-96e554d03eeb",
+        "check": "independent_review",
+        "count": 1,
+        "stopped": false,
+        "failure": {
+          "verdict": "需修复",
+          "findings": [
+            {
+              "location": {
+                "path": "evidence/2026-11-08-batch34/T-249/terra/check-parent-cases.py",
+                "line": 17
+              },
+              "failure_scenario": "[P2] 测试只枚举空值、9 位、非十六进制和错误身份，没有检验“恰好 10 位”的长度上界。已在一次性副本将 visible_parent_matches 改成允许 [0-9a-f]{10,} 并只比较 short[:10] == full[:10]：完成条件仍退出 0，check-parent-cases.py 仍退出 0、18/18。将三个父哈希分别改为对应 Git 父提交的前 11 位或完整 40 位后，该错误实现六项均退出 0；原候选六项均退出 1。故当前实现正确，但完成条件和新增测试无法拒绝明确违反任务卡的错误实现。",
+              "suggestion": "在现有开发测试的三个父哈希位置分别加入 11 位以及完整 40 位输入，要求退出 1 且命中对应父提交业务断言；用上述截断后比较的错误实现验证新增反例会失败，再保存修复后的回放结果。保留正确 observations.json、git-facts.json 和原始失败证据，不修改冻结 acceptance/** 或产品。"
+            }
+          ],
+          "review_requirements": {
+            "completion_conditions_sufficiency": true,
+            "mutation_checks": {
+              "min": 2,
+              "max": 5,
+              "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/d20988dc-95ec-4424-8f62-07d1ef2d052f",
+              "report_section": "完成条件与变异检查"
+            }
+          },
+          "report": {
+            "结论": "FAIL。审查结论：需修复。发现 1 项 P2，0 项历史遗留发现。候选 63754cc73eb0240d280ced9e33760a3e7b6d1014 的父哈希实现本身通过本次检查；需修复的是新增测试未覆盖“恰好 10 位”的上界，导致明显违反任务卡的错误实现仍能通过全部完成条件和新增测试。",
+            "审查范围与独立性": "已完整读取 UTF-8 审查材料、任务卡、候选差异、机械验收、AGENTS.md、REVIEW.md 与两个 oracle_paths。只审查本次限定证据修复，不重审或实现产品，不重新执行 CU，不操作正式或 Test 窗口，不启动其他 agent，不提交代码、不集成、不写请求文件。所有变异、输入和运行记录仅写入门禁一次性候选副本。检查器的真实入口是 Python CLI；父哈希期望来自既存 git-facts.json 的原始 Git 输出，不来自检查器输出。冻结验收检查的是产品 Git 图入口，prepare-terra-fixture.py 建立独立 Git 夹具；二者不调用此次观察比较器，不能补足其长度回归测试。没有修改冻结验收。",
+            "完成条件与变异检查": "每个变异都只替换一次性副本中的 check_observations.py，保留 observations.json、git-facts.json 与测试代码，随后实际运行以下两条命令：\n完成条件：/usr/bin/python3 evidence/2026-11-08-batch34/T-249/terra/check_observations.py\n候选新增测试：/usr/bin/python3 evidence/2026-11-08-batch34/T-249/terra/check-parent-cases.py\n原始候选：完成条件退出 0；新增测试退出 0，18/18。正确输入通过，三个位置各自的空值、9 位、非法字符、错误有效哈希，以及交换、重复父哈希、原 bad-parent、bad-untracked 和主控空值输入均按原断言判定。\n\nM1：按 git show d9b75c077bbcc33ae9b77e7f188916d787f2c803:evidence/2026-11-08-batch34/T-249/terra/check_observations.py 恢复旧 startswith 实现。运行上述两命令：完成条件退出 0；新增测试退出 1，11/18，三个位置的空值/9 位及主控空值共 7 项暴露漏判。另实际运行 /usr/bin/python3 evidence/2026-11-08-batch34/T-249/terra/check_observations.py /Users/luckye/Documents/Code/a2a/evidence/2026-11-09-batch35/T-249/controller-package/terra-bad-empty-parent.json，退出 0，两条父提交断言误报 ok；复现了保留的旧红态。\nM2：visible_parent_matches 只检查 [0-9a-f]{10}，删除与独立父提交的身份比较。运行上述两命令：完成条件退出 0；新增测试退出 1，12/18，三个 wrong-valid、swapped、duplicate、bad-parent 识别错误实现。\nM3：在 zip 前分别排序期望和观察的两个合并父哈希，忽略顺序。运行上述两命令：完成条件退出 0；新增测试退出 1，17/18，swapped 识别错误实现。\nM4：删除普通提交的 visible_parent_matches 调用，仅保留提交自身哈希检查。运行上述两命令：完成条件退出 0；新增测试退出 1，13/18，普通父哈希的四类反例及 controller-empty 识别错误实现。\nM5：将匹配函数返回值改为 isinstance(short, str) and re.fullmatch(r'[0-9a-f]{10,}', short) is not None and short[:10] == full[:10]，错误地接受超长值。运行上述两命令：完成条件退出 0；新增测试仍退出 0、18/18。此变异存活，完成条件及新增测试对明确的 10 位要求不充分。\n\n为确认 M5 确实错误，按独立 Git 父提交分别构造三个位置的 11 位及 40 位值，共 6 个输入。命令逐个为 /usr/bin/python3 evidence/2026-11-08-batch34/T-249/terra/check_observations.py evidence/2026-11-08-batch34/T-249/terra/reviewer-audit/overlong-counterexamples/<文件名>；文件名为 merge_parents-0-11.json、merge_parents-0-40.json、merge_parents-1-11.json、merge_parents-1-40.json、normal_parent-None-11.json、normal_parent-None-40.json。例如第一父提交的 11 位值为 d2e12702233。原候选对六项全部退出 1 并输出对应父提交 FAIL；M5 对六项全部退出 0 并误报 ok。不是异常、缺文件或环境错误。\n\n证据位于本副本 evidence/2026-11-08-batch34/T-249/terra/reviewer-audit/：mutation-results.json、各 M1～M5 目录下的 change.diff/check_observations.py/run.json/parent-cases-results.json，以及 overlong-counterexamples/results.json 和六份完整输入。每份记录包含实际 argv、退出状态和完整输出。可用 /usr/bin/python3 evidence/2026-11-08-batch34/T-249/terra/reviewer-audit/run-mutants.py replay-02 将同一轮变异重放到新的输出目录，保留首轮证据。结束时已按原字节恢复比较器和候选 parent-cases-results.json，并与提交对象核对全部 28 个候选文件一致。",
+            "证据来源与字节保全": "从主仓库只读 git show 逐文件比较上一 a4 提交 d9b75c077bbcc33ae9b77e7f188916d787f2c803：24 个原文件均存在；最终候选中 22 个完全相等，RESULTS.md 原始字节保留为前缀、后接本次报告，另一个差异为检查器的限定修复。新增 4 个文件均是此修复的开发测试或证据。observations.json、git-facts.json、原失败及三份常规测试输出字节未变。repair-source-audit.json 的 23 个相等记录是追加本次报告前的审计阶段；最终整文件相等数为 22，未发现旧报告内容被改写。\n再次核对 byte-binding.json 列出的 14 个产品/测试路径，产品 C=63304e0fcb3510d9cf4b1cbea5c3064fbb8286dd 的 git show 字节与固定 M checkout 全部一致；固定 checkout HEAD=92163e7d850df1d093a607144c6dfd7d256f53e1。六份主控进程、截图观察、稀疏规则来源副本与主仓库原件字节一致；四条正式进程原始 rows 前后完全相等。这些是主控采集的历史证据，本审查未重新采集进程状态。\n五张原截图在 /private/tmp/t249-terra-20261108-04/tmp 可读，尺寸/文件类型/字节数/mtime 与来源摘要一致，实际为 1440×900 JPEG。已用 view_image 只读查看：日期分隔线约 1298→1200→1298，两个缓冲截图均可见 echo TERRA_BUFFER，terra-created 仍可见。截图回读属于本次审查，界面操作属于上一 Terra a4，不能互相替代。readonly-comparison.json 保留 a4 的 48 文件及 refs 一致摘要，原始前快照仍存在；本次未重演只读操作。source-audit.json 保存本次来源核对结果。",
+            "卡外改动与风险": "候选相对任务基线的 28 个变化均在允许的 terra/ 路径内，卡外文件为零。未改产品、任务票、治理规则、Git 配置或冻结 acceptance/**；两项 oracle_paths 和 REVIEW.md 的候选差异为空。原证据导入、报告追加、限定检查器修复和小型反例脚本均与任务有关，没有越出目标。检查器只证明转录观察与保存事实的比较，不能证明 CU 真实性或整票产品验收。",
+            "限制与未执行项": "未重做 CU、三项常规产品测试或全套项目测试。原输出中的冻结验收 PASS、宿主 27 项通过、安全检查 6 项通过均属于 a4 的历史运行，本次只核对原字节、大小和输出尾部。project-map status 在开始和结束均退出 1，原因是一次性候选副本没有 Git 元数据，导致 6 个 living doc 的 Git Verified 值被按日期校验；没有把该环境提示算作业务红态。截图仍是临时来源。报告中的原生会话恢复经过属于主控转述，不作为本次接受证据。",
+            "Works": "候选能够拒绝主控已知空父哈希、任务卡列出的全部反例，以及本审查增加的三个位置 11/40 位输入；正确观察通过。旧脚本接受空值的反事实已实际复现。以上支持当前实现的修复效果，但不能消除新增测试的上界覆盖缺口。",
+            "No regression": "正确观察、独立 Git 事实和旧 bad-parent/bad-untracked 均保留并实际回放；新增测试原候选 18/18。全部 28 个候选文件在变异后恢复并与提交字节一致，最终正例检查退出 0。未将历史常规测试输出或未运行的全套测试计为本次通过。",
+            "Risk / undo": "需要在现有开发反例脚本中补齐三个位置的超长输入，并证明其能拒绝 M5；不需要修改正确观察、独立期望、冻结验收或产品。此次审查没有修复候选，变异已恢复，审查证据仅留在一次性副本，不进入集成。需修复结论针对接受证据不足，未发现当前父哈希实现接受这些错误值。"
+          },
+          "turn_id": "01a1c043-a2c4-7f70-a9d2-8793d5b0c64c",
+          "received_at": "2026-11-09T12:32:15.556Z"
+        }
+      },
+      "review": {
+        "review_id": "d20988dc-95ec-4424-8f62-07d1ef2d052f",
+        "ordinal": 1,
+        "task_id": "a2a+T-249-2",
+        "attempt": {
+          "task_id": "a2a+T-249-2",
+          "attempt_id": "2a84e9c0-ff8e-42a9-b030-4b603f8084ca",
+          "session_id": "749f5e6f-b68b-4a97-91a2-199a974bd880",
+          "fence": 5,
+          "spec_rev": 5,
+          "thread_id": "d9ca08f2-ceff-4e93-b4dc-7d82a84a596e",
+          "runtime_mode": "workspace-write",
+          "turn_id": "01a1c03e-1ee0-7250-a378-ee00291c2d2b",
+          "runtime_identity": {
+            "launch": "4a5c8e04-a0a4-45ad-a069-ac651b13b4d7",
+            "thread": "d9ca08f2-ceff-4e93-b4dc-7d82a84a596e",
+            "shell_pid": 29842,
+            "leader_pid": 29844,
+            "native_session": "01a1bf60-fc54-7db0-a6e0-9a6bed75051f"
+          },
+          "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-2-a5",
+          "base_commit": "37904b0e3842bebf0fa7b39dbc6190635dd1d021",
+          "card_snapshot_id": "b7a154ef-5a2c-45ba-a689-ece70a8e29ee",
+          "reclaimed": false,
+          "owner": "a2a+T-249-2",
+          "state": "submitted",
+          "extra_directories": [],
+          "git_metadata": {
+            "head": "ref: refs/heads/a2a/T-249-2-a5",
+            "config": "100644:cb407e1750934a253cff551ed2493eaf1f6f5689edfd6d7ff1fe702a03daf39d",
+            "worktree_config": "100644:97997ba84fd1c44263deb6f412fc3bef4b05e0103d00c5a97a97ca928299aa13",
+            "hooks": {
+              "applypatch-msg.sample": "100755:0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7",
+              "commit-msg.sample": "100755:1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437",
+              "fsmonitor-watchman.sample": "100755:e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0",
+              "post-update.sample": "100755:81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5",
+              "pre-applypatch.sample": "100755:e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475",
+              "pre-commit.sample": "100755:57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b",
+              "pre-merge-commit.sample": "100755:d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53",
+              "pre-push.sample": "100755:ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a",
+              "pre-rebase.sample": "100755:4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3",
+              "pre-receive.sample": "100755:a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989",
+              "prepare-commit-msg.sample": "100755:e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619",
+              "push-to-checkout.sample": "100755:a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f",
+              "sendemail-validate.sample": "100755:44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92",
+              "update.sample": "100755:8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+            }
+          },
+          "delivery": {
+            "commit": "63754cc73eb0240d280ced9e33760a3e7b6d1014",
+            "turn_id": "01a1c03e-1ee0-7250-a378-ee00291c2d2b",
+            "launch_id": "4a5c8e04-a0a4-45ad-a069-ac651b13b4d7",
+            "cli": "codex-cli 0.167.0",
+            "model": "gpt-6.1-terra",
+            "effort": "xhigh",
+            "number": 1,
+            "submitted_at": "2026-11-09T12:22:03.017Z"
+          }
+        },
+        "candidate_commit": "63754cc73eb0240d280ced9e33760a3e7b6d1014",
+        "spec_rev": 5,
+        "card_snapshot_id": "b7a154ef-5a2c-45ba-a689-ece70a8e29ee",
+        "verification_id": "f104b45e-1808-4182-b9eb-96e554d03eeb",
+        "thread_id": "43840c96-1ef9-440f-9ebe-851dec3ab137",
+        "session_id": "1872523e-5ae1-41f6-8047-c4b3a4f8afe1",
+        "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/worktrees/a2a/T-249-2-a5-review-1",
+        "candidate_workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/d20988dc-95ec-4424-8f62-07d1ef2d052f",
+        "shared_refs": "refs/a2a/attempts/a2a+T-138/a1=288010578817122d1277e6c7b7300b0a75e2dd8f\nrefs/a2a/attempts/a2a+T-249-1/a1=ed080306faea900d7c5b26f732b2f05e0c68059a\nrefs/a2a/attempts/a2a+T-249-1/a2=0c3da7adedf5a2c0a61af32cf3d1bb2bb39b6083\nrefs/a2a/attempts/a2a+T-249-1/a3=9f96a9121ba6ed8d77a514a0a78c9341ceaacb86\nrefs/a2a/attempts/a2a+T-249-1/a4=1243bc15f979976967cfd2d5cdd3a2acce6df635\nrefs/a2a/attempts/a2a+T-249-1/a5=18c108fcaed1c4ecf51831f2272578a3b09427be\nrefs/a2a/attempts/a2a+T-249-1/a6=d8f55c958d901d052e79eda1a04dbf0a8fbf5ed5\nrefs/a2a/attempts/a2a+T-249-1/a7=eb1ab25797ddddbd28769c7bc618aa45afd2cc8f\nrefs/a2a/attempts/a2a+T-249-2/a1=2be3972665b8b7631b187842b24b166228bcffd4\nrefs/a2a/attempts/a2a+T-249-2/a3=83cd1cc8f5873975f80b9438525044e299ea07dd\nrefs/a2a/attempts/a2a+T-249-2/a4=d9b75c077bbcc33ae9b77e7f188916d787f2c803\nrefs/a2a/attempts/a2a+T-257-1/a1=e9e9f2db8ce6f2c50b453a868c8bcaa026e9fa8b\nrefs/a2a/attempts/a2a+T-257-1/a2=5484315a5e318bce557dcc32e429f5d251453e84\nrefs/a2a/attempts/a2a+T-257-1/a3=045e815ff390a0e2e50b7788966e2a5bf655fbdb\nrefs/a2a/attempts/a2a+T-258-1/a1=7df553913fb2e8f2b9f0f096aa9c9b59d63f8135\nrefs/a2a/attempts/a2a+T-258-1/a2=49c7b9a9435f68aec38a862125b8f00220b9b3af\nrefs/a2a/attempts/a2a+T-258-1/a3=fa8d554c87210c15a7944542b2e9cfff3362ee8d\nrefs/a2a/attempts/a2a+T-258-1/a4=66e88ffe2251ea045a398c9003fef1795c8a2af8\nrefs/a2a/attempts/a2a+T-259-1/a1=4593099691924542d29f508185e16d48d97beb42\nrefs/a2a/attempts/a2a+T-260-1/a1=ebb719e9af972b31be55fa1b9883f64861b55829\nrefs/a2a/attempts/a2a+T-262-1/a2=6e92ec6f0d0b59423f5f1bcb85cc39174da70bf5\nrefs/a2a/attempts/a2a+T-262-1/a3=e18e5207de94fd6ea56be9868de45c18c1f2991f\nrefs/a2a/attempts/a2a+T-262-1/a4=6e1fde0a28a13b7cfd2d2f7b42d6363ffda2fa67\nrefs/a2a/attempts/a2a+T-265-1/a1=a322c79e29e2a3f1102eeefa8411abd1db322951\nrefs/a2a/verifications/a2a+T-138/a1/v1=288010578817122d1277e6c7b7300b0a75e2dd8f\nrefs/a2a/verifications/a2a+T-249-1/a2/v1=0c3da7adedf5a2c0a61af32cf3d1bb2bb39b6083\nrefs/a2a/verifications/a2a+T-249-1/a4/v1=7442bcf6ae34889a448688fa819372293a15f1ec\nrefs/a2a/verifications/a2a+T-249-1/a4/v2=c7c92f417dd276abfd247b84f179997604f4c341\nrefs/a2a/verifications/a2a+T-249-1/a5/v1=8e83a42ded7b30280ea6c72e9eb94f126bb817a9\nrefs/a2a/verifications/a2a+T-249-1/a6/v1=8a17982c09771a00e0deb9ce58160a790e99af68\nrefs/a2a/verifications/a2a+T-249-1/a8/v1=92163e7d850df1d093a607144c6dfd7d256f53e1\nrefs/a2a/verifications/a2a+T-249-2/a4/v1=52fa8c0337189a31480157ece9cce860ab7836e8\nrefs/a2a/verifications/a2a+T-249-2/a5/v1=2e001ddf0a9e092aed39f2883be7969d84db327b\nrefs/a2a/verifications/a2a+T-257-1/a2/v1=0709fa140e75b77186e35426cc6867200ce63941\nrefs/a2a/verifications/a2a+T-257-1/a3/v1=bf4b855619283711aff0a2f9ff2047e689e21fcb\nrefs/a2a/verifications/a2a+T-258-1/a2/v1=92c2b74a172209e44d621acd6aee63c1830649f1\nrefs/a2a/verifications/a2a+T-258-1/a4/v1=1b2dc59aaae096e5ae03ab07c0da4a39143803b9\nrefs/a2a/verifications/a2a+T-258-1/a4/v2=b5fed20893d499aae47a0a87bb2718c5d893819a\nrefs/a2a/verifications/a2a+T-262-1/a2/v1=a0284fbba8ec62a2c287af4657e75e99d9493c3e\nrefs/a2a/verifications/a2a+T-262-1/a3/v1=ee83c26c09df5c97cbb8cb130836001e27748418\nrefs/a2a/verifications/a2a+T-262-1/a4/v1=5ba4e68e9038e7bf4c01c2d1028b2917807c144b\nrefs/a2a/verifications/a2a+T-265-1/a1/v1=a91519dd2a44b1716d83575ad33f2daa93396fa5\nrefs/codex/turn-diffs/captures/1794226135187/a3fd5c1c-b877-4e3e-aadc-7a9c596cac1c/base=09359e9ebc023f5af265b721c88524d500ed2e9b\nrefs/codex/turn-diffs/checkpoints/7b7dde67e68bf4c0271830f6ff2f33b2/f713ce4d493fe07f7daa9a16eeb7c365/1794226114971/c9dd49a2-ae6b-459c-bfe3-2d87c4772585=09359e9ebc023f5af265b721c88524d500ed2e9b\nrefs/heads/a2a/T-138-a1=288010578817122d1277e6c7b7300b0a75e2dd8f\nrefs/heads/a2a/T-249-1-a1=ed080306faea900d7c5b26f732b2f05e0c68059a\nrefs/heads/a2a/T-249-1-a2=0c3da7adedf5a2c0a61af32cf3d1bb2bb39b6083\nrefs/heads/a2a/T-249-1-a3=9f96a9121ba6ed8d77a514a0a78c9341ceaacb86\nrefs/heads/a2a/T-249-1-a4=1243bc15f979976967cfd2d5cdd3a2acce6df635\nrefs/heads/a2a/T-249-1-a5=18c108fcaed1c4ecf51831f2272578a3b09427be\nrefs/heads/a2a/T-249-1-a6=d8f55c958d901d052e79eda1a04dbf0a8fbf5ed5\nrefs/heads/a2a/T-249-1-a7=eb1ab25797ddddbd28769c7bc618aa45afd2cc8f\nrefs/heads/a2a/T-249-1-a8=63304e0fcb3510d9cf4b1cbea5c3064fbb8286dd\nrefs/heads/a2a/T-249-2-a1=2be3972665b8b7631b187842b24b166228bcffd4\nrefs/heads/a2a/T-249-2-a2=793a043ee67b8cc6e17abe0d3d319f0b1c36282b\nrefs/heads/a2a/T-249-2-a3=83cd1cc8f5873975f80b9438525044e299ea07dd\nrefs/heads/a2a/T-249-2-a4=d9b75c077bbcc33ae9b77e7f188916d787f2c803\nrefs/heads/a2a/T-249-2-a5=63754cc73eb0240d280ced9e33760a3e7b6d1014\nrefs/heads/a2a/T-257-1-a1=e9e9f2db8ce6f2c50b453a868c8bcaa026e9fa8b\nrefs/heads/a2a/T-257-1-a2=5484315a5e318bce557dcc32e429f5d251453e84\nrefs/heads/a2a/T-258-1-a1=7df553913fb2e8f2b9f0f096aa9c9b59d63f8135\nrefs/heads/a2a/T-258-1-a2=49c7b9a9435f68aec38a862125b8f00220b9b3af\nrefs/heads/a2a/T-258-1-a3=fa8d554c87210c15a7944542b2e9cfff3362ee8d\nrefs/heads/a2a/T-259-1-a1=4593099691924542d29f508185e16d48d97beb42\nrefs/heads/a2a/T-260-1-a1=ebb719e9af972b31be55fa1b9883f64861b55829\nrefs/heads/a2a/T-262-1-a1=f80d5cdbf0e1b62de864300eff7bb4497f8c4c70\nrefs/heads/a2a/T-262-1-a2=6e92ec6f0d0b59423f5f1bcb85cc39174da70bf5\nrefs/heads/a2a/T-262-1-a3=e18e5207de94fd6ea56be9868de45c18c1f2991f\nrefs/heads/claude/dreamy-ptolemy-d0f2f0=1bb19fa21d1dbddf15589f39f9f7a5e87fd1331b\nrefs/heads/codex/t259-preparing-reclaim=2083f72e4f43d6bc84be2ef57b5fef49f65e1bcb\nrefs/heads/enchanted/git-panels=3026ffc38bb6c0d90a0f5f2adc3e9bca5d8a72ba\nrefs/heads/exec/t138=13ea4014fa3109339b3b766c576b1eb38a297a40\nrefs/heads/exec/t139-t143=242324f71aee09dd4e1417fa0d8c39ce6aaa29ab\nrefs/heads/exec/t140=0cf390b00058c29139d0f291accc99eb9451b3dd\nrefs/heads/exec/t141=86aeeed273eccda48cc867df763ca35a7d195e6d\nrefs/heads/exec/t142=d6027ae04f95a48de2d8014a4d93affac230d123\nrefs/heads/exec/t144=e86258d997ce69691821884825e2653c466ef19f\nrefs/heads/exec/t145=d56776b80762e3b5876135924091fa5b8767749d\nrefs/heads/exec/t145-a2=ac7fe971e23b750b0b2a25196e4530c0b2114494\nrefs/heads/exec/t146=dee654f7754470ff13491b1a708066bfa85c5b60\nrefs/heads/exec/t146-a2=1f008f5282b1602b12dd7e91c80d8355aa487fbb\nrefs/heads/exec/t146-a3=4b1f401ce237f48d5471cd5758f0229bef5c5ee7\nrefs/heads/exec/t146-a4=a542169b15ddba2521e0188bbb79084b651e61f4\nrefs/heads/exec/t147=3c4c3576d42b43bae332e49b943e206723c688eb\nrefs/heads/exec/t148=59dddee87090d5de3e620b2a5ae9478684c36f3e\nrefs/heads/exec/t149=d87d2511ffc03638b407ae598a61dd79da424a5a\nrefs/heads/exec/t150=7a6c04c96a1184b8352d8c75ee0ae03fb8b02a3a\nrefs/heads/exec/t151=e170d0cc7a6e2f6c7c4bd5f1f1df669700754a73\nrefs/heads/exec/t152=d39c2f2d002f371bc63cdbece9b28ae78faed0db\nrefs/heads/exec/t153=b52b335fbe4b33ff4726d4b6662dbe309d96599b\nrefs/heads/exec/t154=024f758475066ffb398f3c7cfe60f89f374d7dc1\nrefs/heads/exec/t155=ad25f54f0c8d9e7d736efc34a32dafff07aa4c7b\nrefs/heads/exec/t156=6975642f330aa374939339ba1432b109e9190223\nrefs/heads/exec/t156b=96729d336f3dbacd6f47b6f11cef458bd395a8b7\nrefs/heads/exec/t157=30072c46ad0798c2dad7db9924f5ef91eadfdcf4\nrefs/heads/exec/t158=19d9360916f3f002c5b42a34cc4ab5b208b84e38\nrefs/heads/exec/t159=1858eee7be758c8c40657a47f54265d0d9aac126\nrefs/heads/exec/t160=3165a4b120c9f202a2efc73c6ece03391fe9cf9d\nrefs/heads/exec/t161=58254d15cde4fbbbe3bfdffee8f73f5965a482fe\nrefs/heads/exec/t162=3ecc21d62e54bb45f0b0a1764d69ab88cc7a2662\nrefs/heads/exec/t163=094931687d2b48b3faab55f60f8d1af5e6dd6340\nrefs/heads/exec/t164=32db2647dab7a1a024e9fe86a100a0f390acd252\nrefs/heads/exec/t164d=46316a709953318bda661c9bc40c2c06acb9ec29\nrefs/heads/exec/t164e=1802ca1754133e8df3af51af22f57ad1a3963421\nrefs/heads/exec/t165=8a8cc3974a0eec1179e7923cd6a726aa886a82d2\nrefs/heads/fix/t251-untrusted-turn=b4fb9781539bef7d7759630598c9dc224454b3a3\nrefs/heads/keep/T-249-1-a1=ed080306faea900d7c5b26f732b2f05e0c68059a\nrefs/heads/keep/T-249-1-a2=0c3da7adedf5a2c0a61af32cf3d1bb2bb39b6083\nrefs/heads/keep/T-257-1-a1=e9e9f2db8ce6f2c50b453a868c8bcaa026e9fa8b\nrefs/heads/keep/T-257-1-a2=5484315a5e318bce557dcc32e429f5d251453e84\nrefs/heads/main=66d5affbaec88c1034c3cd36af05ebe9ba65c1ef\nrefs/heads/t216-issues-controller-first=137ea70dd4be53f0d6aafa0f15b7baff35fff466\nrefs/remotes/origin/main=fbb842fe81090e93e523c6abf31b103baeac45cd\nrefs/synara/checkpoints/OTk3MDQxODktZjQ1Zi00NDBlLWEyZGItNzk0MWQ2YjRiMmM3/message-start/MWFhNjY5YmEtMzQ2ZC00Y2EyLThkMTQtMGI2MTg4MGZiOGIz=469dc8bc8713dee3f52ef65888f28115dcc6f068\nrefs/synara/checkpoints/OTk3MDQxODktZjQ1Zi00NDBlLWEyZGItNzk0MWQ2YjRiMmM3/turn-start/MDFhMTFlZTgtNGM1Ni03N2QxLWI4OTItMWJiNGI4ZmQ3ZTA2=469dc8bc8713dee3f52ef65888f28115dcc6f068\nrefs/synara/checkpoints/OTk3MDQxODktZjQ1Zi00NDBlLWEyZGItNzk0MWQ2YjRiMmM3/turn/0=469dc8bc8713dee3f52ef65888f28115dcc6f068\nrefs/synara/checkpoints/OTk3MDQxODktZjQ1Zi00NDBlLWEyZGItNzk0MWQ2YjRiMmM3/turn/1=f89fe517f34f9c88f88f41a55d85e7955d201f15\nrefs/tags/v0.1.0=6dcfacf5889422f1c63a03bd9aab2168100af0fb\nrefs/tags/v0.1.1=2754c6bf8dfd90ed3c30f3f4532c2c2de6b94816\nrefs/tags/v0.1.2=dff00ec9ca4feadaffba689774455bdef1ba3cea\nrefs/tags/v0.1.3=f7b176e887f5eaaac319f4107a589e506d5e60e7",
+        "requested_at": "2026-11-09T12:23:02.313Z",
+        "launch_id": "6f073174-2d7b-498e-8b10-f560934fd7ed",
+        "runtime_identity": {
+          "launch": "6f073174-2d7b-498e-8b10-f560934fd7ed",
+          "thread": "43840c96-1ef9-440f-9ebe-851dec3ab137",
+          "shell_pid": 96754,
+          "leader_pid": 96757,
+          "native_session": "01a1c043-77e7-7581-b738-863f336d7934"
+        },
+        "state": "cancelled",
+        "result": {
+          "verdict": "需修复",
+          "findings": [
+            {
+              "location": {
+                "path": "evidence/2026-11-08-batch34/T-249/terra/check-parent-cases.py",
+                "line": 17
+              },
+              "failure_scenario": "[P2] 测试只枚举空值、9 位、非十六进制和错误身份，没有检验“恰好 10 位”的长度上界。已在一次性副本将 visible_parent_matches 改成允许 [0-9a-f]{10,} 并只比较 short[:10] == full[:10]：完成条件仍退出 0，check-parent-cases.py 仍退出 0、18/18。将三个父哈希分别改为对应 Git 父提交的前 11 位或完整 40 位后，该错误实现六项均退出 0；原候选六项均退出 1。故当前实现正确，但完成条件和新增测试无法拒绝明确违反任务卡的错误实现。",
+              "suggestion": "在现有开发测试的三个父哈希位置分别加入 11 位以及完整 40 位输入，要求退出 1 且命中对应父提交业务断言；用上述截断后比较的错误实现验证新增反例会失败，再保存修复后的回放结果。保留正确 observations.json、git-facts.json 和原始失败证据，不修改冻结 acceptance/** 或产品。"
+            }
+          ],
+          "review_requirements": {
+            "completion_conditions_sufficiency": true,
+            "mutation_checks": {
+              "min": 2,
+              "max": 5,
+              "workspace": "/Users/luckye/Library/Application Support/a2a-orchestrator/review-copies/d20988dc-95ec-4424-8f62-07d1ef2d052f",
+              "report_section": "完成条件与变异检查"
+            }
+          },
+          "report": {
+            "结论": "FAIL。审查结论：需修复。发现 1 项 P2，0 项历史遗留发现。候选 63754cc73eb0240d280ced9e33760a3e7b6d1014 的父哈希实现本身通过本次检查；需修复的是新增测试未覆盖“恰好 10 位”的上界，导致明显违反任务卡的错误实现仍能通过全部完成条件和新增测试。",
+            "审查范围与独立性": "已完整读取 UTF-8 审查材料、任务卡、候选差异、机械验收、AGENTS.md、REVIEW.md 与两个 oracle_paths。只审查本次限定证据修复，不重审或实现产品，不重新执行 CU，不操作正式或 Test 窗口，不启动其他 agent，不提交代码、不集成、不写请求文件。所有变异、输入和运行记录仅写入门禁一次性候选副本。检查器的真实入口是 Python CLI；父哈希期望来自既存 git-facts.json 的原始 Git 输出，不来自检查器输出。冻结验收检查的是产品 Git 图入口，prepare-terra-fixture.py 建立独立 Git 夹具；二者不调用此次观察比较器，不能补足其长度回归测试。没有修改冻结验收。",
+            "完成条件与变异检查": "每个变异都只替换一次性副本中的 check_observations.py，保留 observations.json、git-facts.json 与测试代码，随后实际运行以下两条命令：\n完成条件：/usr/bin/python3 evidence/2026-11-08-batch34/T-249/terra/check_observations.py\n候选新增测试：/usr/bin/python3 evidence/2026-11-08-batch34/T-249/terra/check-parent-cases.py\n原始候选：完成条件退出 0；新增测试退出 0，18/18。正确输入通过，三个位置各自的空值、9 位、非法字符、错误有效哈希，以及交换、重复父哈希、原 bad-parent、bad-untracked 和主控空值输入均按原断言判定。\n\nM1：按 git show d9b75c077bbcc33ae9b77e7f188916d787f2c803:evidence/2026-11-08-batch34/T-249/terra/check_observations.py 恢复旧 startswith 实现。运行上述两命令：完成条件退出 0；新增测试退出 1，11/18，三个位置的空值/9 位及主控空值共 7 项暴露漏判。另实际运行 /usr/bin/python3 evidence/2026-11-08-batch34/T-249/terra/check_observations.py /Users/luckye/Documents/Code/a2a/evidence/2026-11-09-batch35/T-249/controller-package/terra-bad-empty-parent.json，退出 0，两条父提交断言误报 ok；复现了保留的旧红态。\nM2：visible_parent_matches 只检查 [0-9a-f]{10}，删除与独立父提交的身份比较。运行上述两命令：完成条件退出 0；新增测试退出 1，12/18，三个 wrong-valid、swapped、duplicate、bad-parent 识别错误实现。\nM3：在 zip 前分别排序期望和观察的两个合并父哈希，忽略顺序。运行上述两命令：完成条件退出 0；新增测试退出 1，17/18，swapped 识别错误实现。\nM4：删除普通提交的 visible_parent_matches 调用，仅保留提交自身哈希检查。运行上述两命令：完成条件退出 0；新增测试退出 1，13/18，普通父哈希的四类反例及 controller-empty 识别错误实现。\nM5：将匹配函数返回值改为 isinstance(short, str) and re.fullmatch(r'[0-9a-f]{10,}', short) is not None and short[:10] == full[:10]，错误地接受超长值。运行上述两命令：完成条件退出 0；新增测试仍退出 0、18/18。此变异存活，完成条件及新增测试对明确的 10 位要求不充分。\n\n为确认 M5 确实错误，按独立 Git 父提交分别构造三个位置的 11 位及 40 位值，共 6 个输入。命令逐个为 /usr/bin/python3 evidence/2026-11-08-batch34/T-249/terra/check_observations.py evidence/2026-11-08-batch34/T-249/terra/reviewer-audit/overlong-counterexamples/<文件名>；文件名为 merge_parents-0-11.json、merge_parents-0-40.json、merge_parents-1-11.json、merge_parents-1-40.json、normal_parent-None-11.json、normal_parent-None-40.json。例如第一父提交的 11 位值为 d2e12702233。原候选对六项全部退出 1 并输出对应父提交 FAIL；M5 对六项全部退出 0 并误报 ok。不是异常、缺文件或环境错误。\n\n证据位于本副本 evidence/2026-11-08-batch34/T-249/terra/reviewer-audit/：mutation-results.json、各 M1～M5 目录下的 change.diff/check_observations.py/run.json/parent-cases-results.json，以及 overlong-counterexamples/results.json 和六份完整输入。每份记录包含实际 argv、退出状态和完整输出。可用 /usr/bin/python3 evidence/2026-11-08-batch34/T-249/terra/reviewer-audit/run-mutants.py replay-02 将同一轮变异重放到新的输出目录，保留首轮证据。结束时已按原字节恢复比较器和候选 parent-cases-results.json，并与提交对象核对全部 28 个候选文件一致。",
+            "证据来源与字节保全": "从主仓库只读 git show 逐文件比较上一 a4 提交 d9b75c077bbcc33ae9b77e7f188916d787f2c803：24 个原文件均存在；最终候选中 22 个完全相等，RESULTS.md 原始字节保留为前缀、后接本次报告，另一个差异为检查器的限定修复。新增 4 个文件均是此修复的开发测试或证据。observations.json、git-facts.json、原失败及三份常规测试输出字节未变。repair-source-audit.json 的 23 个相等记录是追加本次报告前的审计阶段；最终整文件相等数为 22，未发现旧报告内容被改写。\n再次核对 byte-binding.json 列出的 14 个产品/测试路径，产品 C=63304e0fcb3510d9cf4b1cbea5c3064fbb8286dd 的 git show 字节与固定 M checkout 全部一致；固定 checkout HEAD=92163e7d850df1d093a607144c6dfd7d256f53e1。六份主控进程、截图观察、稀疏规则来源副本与主仓库原件字节一致；四条正式进程原始 rows 前后完全相等。这些是主控采集的历史证据，本审查未重新采集进程状态。\n五张原截图在 /private/tmp/t249-terra-20261108-04/tmp 可读，尺寸/文件类型/字节数/mtime 与来源摘要一致，实际为 1440×900 JPEG。已用 view_image 只读查看：日期分隔线约 1298→1200→1298，两个缓冲截图均可见 echo TERRA_BUFFER，terra-created 仍可见。截图回读属于本次审查，界面操作属于上一 Terra a4，不能互相替代。readonly-comparison.json 保留 a4 的 48 文件及 refs 一致摘要，原始前快照仍存在；本次未重演只读操作。source-audit.json 保存本次来源核对结果。",
+            "卡外改动与风险": "候选相对任务基线的 28 个变化均在允许的 terra/ 路径内，卡外文件为零。未改产品、任务票、治理规则、Git 配置或冻结 acceptance/**；两项 oracle_paths 和 REVIEW.md 的候选差异为空。原证据导入、报告追加、限定检查器修复和小型反例脚本均与任务有关，没有越出目标。检查器只证明转录观察与保存事实的比较，不能证明 CU 真实性或整票产品验收。",
+            "限制与未执行项": "未重做 CU、三项常规产品测试或全套项目测试。原输出中的冻结验收 PASS、宿主 27 项通过、安全检查 6 项通过均属于 a4 的历史运行，本次只核对原字节、大小和输出尾部。project-map status 在开始和结束均退出 1，原因是一次性候选副本没有 Git 元数据，导致 6 个 living doc 的 Git Verified 值被按日期校验；没有把该环境提示算作业务红态。截图仍是临时来源。报告中的原生会话恢复经过属于主控转述，不作为本次接受证据。",
+            "Works": "候选能够拒绝主控已知空父哈希、任务卡列出的全部反例，以及本审查增加的三个位置 11/40 位输入；正确观察通过。旧脚本接受空值的反事实已实际复现。以上支持当前实现的修复效果，但不能消除新增测试的上界覆盖缺口。",
+            "No regression": "正确观察、独立 Git 事实和旧 bad-parent/bad-untracked 均保留并实际回放；新增测试原候选 18/18。全部 28 个候选文件在变异后恢复并与提交字节一致，最终正例检查退出 0。未将历史常规测试输出或未运行的全套测试计为本次通过。",
+            "Risk / undo": "需要在现有开发反例脚本中补齐三个位置的超长输入，并证明其能拒绝 M5；不需要修改正确观察、独立期望、冻结验收或产品。此次审查没有修复候选，变异已恢复，审查证据仅留在一次性副本，不进入集成。需修复结论针对接受证据不足，未发现当前父哈希实现接受这些错误值。"
+          },
+          "turn_id": "01a1c043-a2c4-7f70-a9d2-8793d5b0c64c",
+          "received_at": "2026-11-09T12:32:15.556Z"
+        }
+      }
+    },
+    "details": {
+      "cleanup": "not_performed",
+      "thread": "d9ca08f2-ceff-4e93-b4dc-7d82a84a596e",
+      "review_thread": "43840c96-1ef9-440f-9ebe-851dec3ab137"
+    },
+    "user_input_observer": {
+      "state": "healthy",
+      "updated_at": "2026-11-09T12:45:08.375Z"
+    }
+  },
+  "stderr": ""
+}

@@ -1,0 +1,55 @@
+{
+  "id": "T-249-2",
+  "source": {
+    "ticket": "/Users/luckye/Documents/Code/a2a/.project-map/tickets/T-249-git-graph-panel.md",
+    "ready_rev": 1
+  },
+  "goal": "本次是 T-266 审查回收故障正常重启后的限定恢复。你不是唯一参与者，不覆盖他人改动。模型仍为 gpt-6.1-terra xhigh 普通速度。本次不重做 CU，也不改产品。\n\n从完整检查点 c16489e2d435513a00bfa3b61ec2ae346549bfb0 逐文件按原字节导入 evidence/2026-11-08-batch34/T-249/terra/ 全部文件。该检查点包含原 a4 真实 CU 证据、a5 正确的 10 位父哈希检查器，以及独立审查唯一缺口（超长值未覆盖）的修复。原 a5 审查 d20988dc-95ec-4424-8f62-07d1ef2d052f 的结论是需修复，不得改成通过；完整报告和 M5 反例已保存在主仓库 evidence/2026-11-09-batch35/T-249/review-terra-a5-01/，主控复现见 controller-package/overlong-reproduction-01.json。原修复提交被门禁以 invalid_state 拒绝是回收故障造成，不能当作业务失败。\n\n只新增恢复说明和本次回放输出，原正确 observations.json、git-facts.json、截图来源和常规测试输出均原字节保留。运行 check_observations.py、check-parent-cases.py、replay-overlong.py（先读取脚本参数），确认当前 24 个场景通过且 M5 对 11/40 位超长值的 6 个反例被新测试抓住；记录命令、实际退出和来源。不得将本次文档导入声称为本次新 CU。保持旧红态和报告，不改 checker、开发测试或独立 oracle，若实际失败上报。\n\n本次独立审查是 T-240 允许的一次限定复审：核对 c16489e2 的五文件修复范围、24 场景与 M5 六个超长反例、原输入和 CU 证据字节保持一致，以及本次恢复导入绑定。完整审查已有结论，不再重复整体面板盲审。复审仍绑定最终新候选；可按门禁要求选择 M5 和旧 startswith 等 2 个与修复不变量直接相关的变异。\n\n你只提交和显式 submit 一次完整新 SHA，不 verify/integrate/reclaim，不启动其他 agent，不 push。按 evidence-first-testing、document-writing，结果中文。下面原卡提供事实背景，若其导入起点或已完成步骤与本段不同，以本段指定的 c16489e2 精确恢复为准。\n\n你负责 T-249 Terra 验收交付的限定证据修复，不实现产品、不重新执行已完成的 CU。Codex gpt-6.1-terra xhigh 普通速度；你不是唯一参与者，不撤销他人改动，不启动其他 agent。\n\n实际产品仍为父 C=63304e0fcb3510d9cf4b1cbea5c3064fbb8286dd，已审查并打包测试的 M=92163e7d850df1d093a607144c6dfd7d256f53e1。上一 Terra a4 已亲自完成 Git 图实际 CU 和三项常规测试，工作台行为没有新增反例。不得沿用旧 v3 的 INCOMPLETE；使用这一次 a4 的实际观察、原始 Git 输入和截图来源。\n\n先从上一 a4 最终证据提交 d9b75c077bbcc33ae9b77e7f188916d787f2c803 用 git show 按原字节导入 evidence/2026-11-08-batch34/T-249/terra/ 所有文件，不导入其他路径或产品代码。保留原 RESULTS.md 的来源边界和原始失败，追加本次限定修复报告。主控已经补齐新 gate worktree 的 batch34/batch35 稀疏检出范围，之前 completion 无法打开脚本是环境失败，不是业务红态；正式四个进程前后 PID/启动时间一致的原始文本已在上一交付中按原字节保存。本次不修改 Git 配置、门禁、卡、正式数据或全局配置。\n\n唯一缺陷是新开发的 check_observations.py 用 full.startswith(short) 接受了空字符串。主控已实际复现：把 merge_parents 置两个空字符串、normal_parent 置空字符串仍退出0，原始输入与输出在主仓库 evidence/2026-11-09-batch35/T-249/controller-package/terra-bad-empty-parent.json 和 terra-empty-parent-counterexample.json。先回放已知坏脚本保存这条红态，然后只修这三处可见父哈希缩写的校验。本次窗口实际显示10位十六进制前缀；要求这一格式并与独立 Git 对应父提交的前10位严格相等，拒绝空、过短、非十六进制、父顺序/身份错误。正确 observations.json 与 git-facts.json 原字节保留，不从产品输出反算期望，不修改冻结 acceptance/**。\n\n同一父哈希不变量系统检查：合并的两个父哈希、普通提交父哈希分别用空/过短/非法字符/错误有效哈希；交换两父顺序、重复父哈希也应拒绝。每项保存具体输入差异、实际命令和退出状态，业务断言拒绝才算通过；原 bad-parent 和 bad-untracked 仍应退出1，正确观察退出0。新检查器仍只证明观察比较，不宣称它能证明 CU 真实性；无需复制庞大夹具或建立通用验证框架。按 evidence-first-testing；每次写文档按 document-writing；报告中文，未执行不计PASS。\n\n核对导入的字节绑定、常规测试原输出、五张真实截图来源与只读元数据摘要，记录哪些是上一 Terra 原生 CU、哪些是主控外部证据、哪些是你本次运行。不得在没有重新操作的情况下声称本次新会话做过 CU。原截图在 /private/tmp/t249-terra-20261108-04/tmp 可只读查看，原 Test 包与固定产品源码 checkout 也只读。正式 Enchanted 和现有 Test 窗口不操作，本次无需额外可写目录或新建终端。\n\n只写卡内 terra 证据与开发检查器。保持最小修复；不改变功能目标、验收条件、正确观察或独立期望。完成后提交完整新 SHA 并显式 submit 一次，再结束回合。由主控新开干净独立 Astra 审查，主控经唯一门禁验收和集成。你不 verify/integrate/reclaim，不 push。",
+  "non_goals": [
+    "不改产品源码、任务票或治理规则",
+    "不修改冻结验收",
+    "不操作正式 Enchanted 或用户 hc core",
+    "不修改 /Applications、全局配置，不 push",
+    "不接管 T-250，不启动其他 agent"
+  ],
+  "paths": {
+    "allow": [
+      "evidence/2026-11-08-batch34/T-249/terra/"
+    ],
+    "deny": [
+      "workbench/",
+      "acceptance/",
+      ".project-map/",
+      "REVIEW.md"
+    ]
+  },
+  "oracle_paths": [
+    "acceptance/T-249/check_git_graph.py",
+    "evidence/2026-11-08-batch34/T-249/controller/prepare-terra-fixture.py"
+  ],
+  "completion_conditions": [
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "evidence/2026-11-08-batch34/T-249/terra/check_observations.py"
+      ]
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "evidence/2026-11-08-batch34/T-249/terra/check-parent-cases.py"
+      ]
+    }
+  ],
+  "red_commands": [],
+  "task_type": "测试",
+  "repair_target": null,
+  "complexity": "M",
+  "executor": {
+    "cli": "Codex",
+    "model": "gpt-6.1-terra",
+    "effort": "xhigh"
+  },
+  "base_commit": null,
+  "writer": null
+}

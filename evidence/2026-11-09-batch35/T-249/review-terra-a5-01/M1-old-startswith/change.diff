@@ -1,0 +1,24 @@
+--- candidate
++++ M1-old-startswith
+@@ -2,7 +2,6 @@
+ """Compare transcribed CU values with preserved independent Git/file facts."""
+ import json
+ import pathlib
+-import re
+ import sys
+ 
+ HERE = pathlib.Path(__file__).resolve().parent
+@@ -17,11 +16,8 @@
+ revs = [line.split() for line in facts['alpha_rev_list'].splitlines()]
+ log = [line.split('\t', 1) for line in facts['alpha_log'].splitlines()]
+ check(obs['rows'] == [row[1] for row in log] and [r[0] for r in revs] == [r[0] for r in log], '提交顺序')
+-def visible_parent_matches(short, full):
+-    return isinstance(short, str) and re.fullmatch(r'[0-9a-f]{10}', short) is not None and short == full[:10]
+-
+-check(obs['merge'] == revs[0][0] and len(revs[0][1:]) == 2 and len(obs['merge_parents']) == 2 and all(visible_parent_matches(short, full) for full, short in zip(revs[0][1:], obs['merge_parents'])), '合并哈希和两个父提交')
+-check(obs['normal'] == revs[1][0] and visible_parent_matches(obs['normal_parent'], revs[1][1]), '普通提交和父提交')
++check(obs['merge'] == revs[0][0] and len(obs['merge_parents']) == 2 and all(full.startswith(short) for full, short in zip(revs[0][1:], obs['merge_parents'])), '合并哈希和两个父提交')
++check(obs['normal'] == revs[1][0] and revs[1][1].startswith(obs['normal_parent']), '普通提交和父提交')
+ check(obs['root'] == revs[-1][0] and len(revs[-1]) == 1 and obs['root_parent'] is None, '根提交')
+ refs = {name.rsplit('/',1)[-1]: oid for oid,name in (line.split() for line in facts['alpha_refs'].splitlines())}
+ check(obs['labels'] == refs, '分支和标签')

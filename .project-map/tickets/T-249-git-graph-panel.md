@@ -11,7 +11,13 @@ ready_by: ideation
 ready_rev: 1
 ---
 
-## 当前执行状态（2026-11-08，真实窗口已完成）
+## 当前执行状态（2026-11-09）
+
+INCOMPLETE：产品候选 `63304e0fcb3510d9cf4b1cbea5c3064fbb8286dd` 已获独立审查通过，门禁仍为 verified；固定测试包版本为 `92163e7d850df1d093a607144c6dfd7d256f53e1`。Terra a4 的真实 Computer Use 与常规测试已完成，产品尚未集成。
+
+目前只剩 Terra 证据交付的限定复审：a5 独立审查发现父哈希测试未覆盖长度上界；主控复现后，worker 在 `c16489e2d435513a00bfa3b61ec2ae346549bfb0` 补齐 24 个场景，M5 的六个超长反例均被拒绝。旧审查自动回收发生 T-266 故障，重交被 invalid_state 拒绝。后台正常重启后，旧 attempt 已通过门禁升级并回收，card/spec 6 接回完整检查点；不重新展开面板盲审或重做已完成的 CU。证据见 `evidence/2026-11-09-batch35/T-249/controller-package/` 和 `review-terra-a5-01/`。经限定复审、门禁集成后才可关闭本票；用户已预先授权同类本地合入、安装与继续，不 push。
+
+## 历史执行状态（2026-11-08，真实窗口已完成）
 
 INCOMPLETE：候选 `1243bc15f979976967cfd2d5cdd3a2acce6df635` 已提交，真实 Electron 正例两次各 142 项通过，no-panel、no-details、no-diff、parents、order 五项反例均命中指定业务断言。Enchanted Test 已标准打包，包内版本与候选一致，正式后台 PID 81233 和启动时间未变。原首轮启动超时保留为 INCOMPLETE，未冒充红态；自有缓存和夹具已清理。完整结果见 [窗口与打包报告](../../evidence/2026-11-08-batch34/T-249/controller/DETAILS-WINDOW.md)。
 
